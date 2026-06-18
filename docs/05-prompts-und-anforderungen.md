@@ -448,3 +448,14 @@ Umsetzung:
 - Hover-/Fokus-Overlay mit Titel, Typ, Sichtbarkeit und Datei-/Albumhinweis.
 - Detailansicht per Klick mit grosser Medienanzeige, Metadaten, Dateiinfos, Loeschen und Oeffnen.
 - Kommentare werden ueber `MediaComment` gespeichert und in der Detailansicht angezeigt.
+
+Nachbesserung:
+
+- Ein nachtraeglich hochgeladenes Bild muss in der Detailansicht einem Album zugeordnet werden koennen.
+- Bei den Alben muss es eine Funktion geben, um Bilder beziehungsweise Medien hinzuzufuegen.
+
+Umsetzung:
+
+- Detailansicht enthaelt ein Album-Auswahlfeld mit Speichern-Button.
+- Album-Werkzeug enthaelt eine Zielalbum-Auswahl und eine Thumbnail-Mehrfachauswahl fuer Medien.
+- Server-Actions pruefen Album und Medien gegen den Benutzer-/Paar-Scope, bevor `albumId` gesetzt wird.

@@ -82,6 +82,43 @@ async function createAlbum(formData: FormData) {
   redirect("/media");
 }
 
+async function updateMediaAlbum(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const scope = await ownerScope(user);
+  const mediaId = String(formData.get("mediaId") || "");
+  const albumId = String(formData.get("albumId") || "");
+  const next = String(formData.get("next") || "/media");
+  const media = await prisma.media.findFirst({ where: { id: mediaId, ...scope } });
+  if (!media) redirect("/media");
+  if (albumId) {
+    const album = await prisma.album.findFirst({ where: { id: albumId, ...scope } });
+    if (!album) redirect(next);
+  }
+  await prisma.media.update({
+    where: { id: media.id },
+    data: { albumId: albumId || null }
+  });
+  redirect(next);
+}
+
+async function addMediaToAlbum(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const scope = await ownerScope(user);
+  const albumId = String(formData.get("albumId") || "");
+  const mediaIds = formData.getAll("mediaIds").map(String).filter(Boolean);
+  const album = albumId ? await prisma.album.findFirst({ where: { id: albumId, ...scope } }) : null;
+  if (!album || mediaIds.length === 0) redirect("/media");
+  await prisma.media.updateMany({
+    where: { ...scope, id: { in: mediaIds } },
+    data: { albumId: album.id }
+  });
+  redirect(mediaUrl({ album: album.id }));
+}
+
 async function createMediaComment(formData: FormData) {
   "use server";
   const user = await currentUser();
@@ -137,7 +174,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
   const visibilityFilter = ["PRIVATE", "PARTNER", "SHARED"].includes(searchParams.visibility || "") ? searchParams.visibility || "" : "";
   const q = searchParams.q?.trim() || "";
   const scope = await ownerScope(user);
-  const [media, albums] = await Promise.all([
+  const [media, albums, albumMedia] = await Promise.all([
     prisma.media.findMany({
       where: {
         ...scope,
@@ -149,10 +186,16 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
       include: { album: true },
       orderBy: { createdAt: "desc" }
     }),
-    prisma.album.findMany({ where: scope, orderBy: { title: "asc" } })
+    prisma.album.findMany({ where: scope, orderBy: { title: "asc" } }),
+    prisma.media.findMany({
+      where: scope,
+      include: { album: true },
+      orderBy: { createdAt: "desc" },
+      take: 120
+    })
   ]);
 
-  const fileIds = media.map((entry) => fileIdFromUrl(entry.url)).filter((id): id is string => Boolean(id));
+  const fileIds = Array.from(new Set([...media, ...albumMedia].map((entry) => fileIdFromUrl(entry.url)).filter((id): id is string => Boolean(id))));
   const fileAssets = fileIds.length ? await prisma.fileAsset.findMany({ where: { ...scope, id: { in: fileIds } } }) : [];
   const fileById = new Map(fileAssets.map((asset) => [asset.id, asset]));
   const selected = searchParams.view ? media.find((entry) => entry.id === searchParams.view) : null;
@@ -220,6 +263,34 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
               </Field>
               <Button>Album speichern</Button>
             </form>
+            {albums.length && albumMedia.length ? (
+              <form action={addMediaToAlbum} className="space-y-3 border-t border-line p-4">
+                <Field label="Zielalbum">
+                  <select className={selectClass} name="albumId" required>
+                    <option value="">Album waehlen</option>
+                    {albums.map((album) => <option key={album.id} value={album.id}>{album.title}</option>)}
+                  </select>
+                </Field>
+                <div className="max-h-72 overflow-y-auto rounded-lg border border-line bg-paper p-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    {albumMedia.map((entry) => (
+                      <label key={entry.id} className="group relative aspect-square cursor-pointer overflow-hidden rounded-md bg-surface">
+                        <input name="mediaIds" type="checkbox" value={entry.id} className="peer absolute left-2 top-2 z-10 h-4 w-4 accent-redbrand" />
+                        {entry.kind === "IMAGE" ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={entry.url} alt={entry.title} className="h-full w-full object-cover transition group-hover:scale-[1.04]" />
+                        ) : (
+                          <video src={entry.url} className="h-full w-full object-cover transition group-hover:scale-[1.04]" muted playsInline />
+                        )}
+                        <span className="absolute inset-0 border-2 border-transparent peer-checked:border-redbrand" />
+                        <span className="absolute inset-x-0 bottom-0 truncate bg-black/65 px-2 py-1 text-[11px] font-semibold text-white">{entry.title}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <Button variant="secondary" className="w-full">Auswahl hinzufuegen</Button>
+              </form>
+            ) : null}
           </details>
 
           <details className="rounded-lg border border-line bg-surface shadow-soft">
@@ -333,6 +404,17 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                 <div className="flex items-center gap-2"><ImageIcon className="h-4 w-4 text-redbrand" /> {selectedAsset?.mimeType || selected.kind.toLowerCase()}</div>
                 <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-redbrand" /> {formatBytes(selectedAsset?.sizeBytes)}</div>
               </div>
+              <form action={updateMediaAlbum} className="space-y-3 border-t border-line p-4">
+                <input type="hidden" name="mediaId" value={selected.id} />
+                <input type="hidden" name="next" value={selectedUrl} />
+                <Field label="Album">
+                  <select className={selectClass} name="albumId" defaultValue={selected.albumId || ""}>
+                    <option value="">Kein Album</option>
+                    {albums.map((album) => <option key={album.id} value={album.id}>{album.title}</option>)}
+                  </select>
+                </Field>
+                <Button variant="secondary" className="w-full">Album speichern</Button>
+              </form>
               <div className="border-t border-line p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
                   <MessageCircle className="h-4 w-4 text-redbrand" />

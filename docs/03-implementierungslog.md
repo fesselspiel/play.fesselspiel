@@ -260,3 +260,5 @@ Details:
 - Metadaten werden erst beim Hover/Fokus als Overlay angezeigt.
 - Ein Klick auf ein Medium oeffnet eine grosse Detailansicht mit Bild/Video, Metadaten, Dateiinfos, Oeffnen- und Loeschaktion.
 - Neues Modell `MediaComment` ermoeglicht Kommentare/Notizen direkt am Medium.
+- Medien koennen in der Detailansicht einem Album zugeordnet oder wieder auf `Kein Album` gesetzt werden.
+- Im Album-Werkzeug koennen mehrere Medien per Thumbnail-Auswahl gleichzeitig einem Album hinzugefuegt werden.
