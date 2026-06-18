@@ -431,3 +431,20 @@ Umsetzung:
 
 - `Gemeinsame Woche` direkt unter den Dashboard-Header verschoben.
 - Kennzahlen-Kacheln und letzte Sessions folgen darunter.
+
+## Medien-Feed-Prompt
+
+Anforderung:
+
+- Die Medienseite soll komplett ueberarbeitet werden.
+- Zu viele Informationen und zu viel Scrollen sollen verschwinden.
+- Orientierung am Instagram-Feed: zuerst Bilder, Metadaten erst beim Draufgehen beziehungsweise Oeffnen.
+- Kommentarfunktionen und weitere Aktionen duerfen in der Detailansicht erscheinen.
+
+Umsetzung:
+
+- Bildzentriertes quadratisches Feed-Raster.
+- Upload, Album und Filter als kompakte Klappbereiche.
+- Hover-/Fokus-Overlay mit Titel, Typ, Sichtbarkeit und Datei-/Albumhinweis.
+- Detailansicht per Klick mit grosser Medienanzeige, Metadaten, Dateiinfos, Loeschen und Oeffnen.
+- Kommentare werden ueber `MediaComment` gespeichert und in der Detailansicht angezeigt.

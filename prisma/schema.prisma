@@ -71,6 +71,7 @@ model User {
   activities        ActivityPlan[]
   sessions          SegufixSession[]
   media             Media[]
+  mediaComments     MediaComment[]
   albums            Album[]
   events            Event[]
   files             FileAsset[]
@@ -217,6 +218,20 @@ model Media {
   updatedAt   DateTime   @updatedAt
   owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   album       Album?     @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  comments    MediaComment[]
+}
+
+model MediaComment {
+  id        String   @id @default(cuid())
+  mediaId   String
+  ownerId   String
+  body      String
+  createdAt DateTime @default(now())
+  media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([mediaId, createdAt])
+  @@index([ownerId, createdAt])
 }
 
 model Event {

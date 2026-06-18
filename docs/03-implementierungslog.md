@@ -251,3 +251,12 @@ Details:
 - Die Wochen-/Kalenderansicht `Gemeinsame Woche` wurde im Dashboard direkt unter den Header verschoben.
 - Kennzahlen-Kacheln und letzte Sessions stehen darunter.
 - Dadurch ist sofort sichtbar, was in den naechsten Tagen ansteht.
+
+## Medienseite als Bild-Feed
+
+- Die Medienseite wurde von einer informationslastigen Verwaltungsansicht auf einen bildzentrierten Feed umgestellt.
+- Upload, Albumanlage und Filter sind jetzt kompakte, aufklappbare Werkzeuge oberhalb des Feeds.
+- Medien erscheinen als quadratische Kacheln im Instagram-aehnlichen Raster.
+- Metadaten werden erst beim Hover/Fokus als Overlay angezeigt.
+- Ein Klick auf ein Medium oeffnet eine grosse Detailansicht mit Bild/Video, Metadaten, Dateiinfos, Oeffnen- und Loeschaktion.
+- Neues Modell `MediaComment` ermoeglicht Kommentare/Notizen direkt am Medium.

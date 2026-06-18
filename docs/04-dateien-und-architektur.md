@@ -132,6 +132,7 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `SegufixSession`: Session-Tracking.
 - `Album`: Medienalbum.
 - `Media`: Bild oder Video.
+- `MediaComment`: Kommentar oder Notiz zu einem Medium.
 - `Event`: Termin.
 - `CheckIn`: Teilnahme/Check-in.
 - `Message`: Direktnachricht.
