@@ -220,7 +220,58 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
       </PageGuide>
 
       <div className="space-y-4">
-        <div className="grid gap-3 lg:grid-cols-3">
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          <Link href={mediaUrl({ ...baseFilters, album: undefined, view: undefined })} className={`focus-ring shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${!albumFilter ? "border-redbrand bg-redbrand text-white" : "border-line bg-surface text-ink hover:bg-paper"}`}>
+            Alle
+          </Link>
+          <Link href={mediaUrl({ ...baseFilters, album: "none", view: undefined })} className={`focus-ring shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${albumFilter === "none" ? "border-redbrand bg-redbrand text-white" : "border-line bg-surface text-ink hover:bg-paper"}`}>
+            Ohne Album
+          </Link>
+          {albums.map((album) => (
+            <Link key={album.id} href={mediaUrl({ ...baseFilters, album: album.id, view: undefined })} className={`focus-ring shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${albumFilter === album.id ? "border-redbrand bg-redbrand text-white" : "border-line bg-surface text-ink hover:bg-paper"}`}>
+              {album.title}
+            </Link>
+          ))}
+        </div>
+
+        {media.length ? (
+          <div className="grid grid-cols-3 gap-1 sm:gap-2 xl:grid-cols-4 2xl:grid-cols-5">
+            {media.map((entry) => {
+              const fileId = fileIdFromUrl(entry.url);
+              const asset = fileId ? fileById.get(fileId) : null;
+              return (
+                <Link
+                  key={entry.id}
+                  href={mediaUrl({ ...baseFilters, view: entry.id })}
+                  scroll={false}
+                  className="group focus-ring relative block aspect-square overflow-hidden bg-paper"
+                >
+                  {entry.kind === "IMAGE" ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={entry.url} alt={entry.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" />
+                  ) : (
+                    <video src={entry.url} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" muted playsInline />
+                  )}
+                  {entry.kind === "VIDEO" ? <Film className="absolute right-2 top-2 h-5 w-5 text-white drop-shadow" /> : null}
+                  <span className="absolute inset-x-0 bottom-0 translate-y-3 bg-gradient-to-t from-black/80 via-black/35 to-transparent p-3 opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
+                    <span className="block truncate text-sm font-semibold text-white">{entry.title}</span>
+                    <span className="mt-1 flex items-center gap-2 text-xs text-white/85">
+                      <Eye className="h-3.5 w-3.5" />
+                      {mediaTypeLabel(entry.kind)} · {visibilityLabel(entry.visibility)}
+                    </span>
+                    <span className="mt-1 block truncate text-xs text-white/75">{asset?.originalName || entry.album?.title || "Ohne Album"}</span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState title="Noch keine Medien gefunden">
+            Lade ein Bild oder Video hoch, oder sende ein Bild ueber Telegram, um die Galerie zu fuellen.
+          </EmptyState>
+        )}
+
+        <div className="grid gap-3 pt-4 lg:grid-cols-3">
           <details className="rounded-lg border border-line bg-surface shadow-soft">
             <summary className="focus-ring flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold text-ink hover:bg-paper [&::-webkit-details-marker]:hidden">
               <span className="inline-flex items-center gap-2"><Upload className="h-4 w-4 text-redbrand" /> Upload</span>
@@ -322,57 +373,6 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
             </form>
           </details>
         </div>
-
-        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-          <Link href={mediaUrl({ ...baseFilters, album: undefined, view: undefined })} className={`focus-ring shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${!albumFilter ? "border-redbrand bg-redbrand text-white" : "border-line bg-surface text-ink hover:bg-paper"}`}>
-            Alle
-          </Link>
-          <Link href={mediaUrl({ ...baseFilters, album: "none", view: undefined })} className={`focus-ring shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${albumFilter === "none" ? "border-redbrand bg-redbrand text-white" : "border-line bg-surface text-ink hover:bg-paper"}`}>
-            Ohne Album
-          </Link>
-          {albums.map((album) => (
-            <Link key={album.id} href={mediaUrl({ ...baseFilters, album: album.id, view: undefined })} className={`focus-ring shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${albumFilter === album.id ? "border-redbrand bg-redbrand text-white" : "border-line bg-surface text-ink hover:bg-paper"}`}>
-              {album.title}
-            </Link>
-          ))}
-        </div>
-
-        {media.length ? (
-          <div className="grid grid-cols-3 gap-1 sm:gap-2 xl:grid-cols-4 2xl:grid-cols-5">
-            {media.map((entry) => {
-              const fileId = fileIdFromUrl(entry.url);
-              const asset = fileId ? fileById.get(fileId) : null;
-              return (
-                <Link
-                  key={entry.id}
-                  href={mediaUrl({ ...baseFilters, view: entry.id })}
-                  scroll={false}
-                  className="group focus-ring relative block aspect-square overflow-hidden bg-paper"
-                >
-                  {entry.kind === "IMAGE" ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={entry.url} alt={entry.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" />
-                  ) : (
-                    <video src={entry.url} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" muted playsInline />
-                  )}
-                  {entry.kind === "VIDEO" ? <Film className="absolute right-2 top-2 h-5 w-5 text-white drop-shadow" /> : null}
-                  <span className="absolute inset-x-0 bottom-0 translate-y-3 bg-gradient-to-t from-black/80 via-black/35 to-transparent p-3 opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
-                    <span className="block truncate text-sm font-semibold text-white">{entry.title}</span>
-                    <span className="mt-1 flex items-center gap-2 text-xs text-white/85">
-                      <Eye className="h-3.5 w-3.5" />
-                      {mediaTypeLabel(entry.kind)} · {visibilityLabel(entry.visibility)}
-                    </span>
-                    <span className="mt-1 block truncate text-xs text-white/75">{asset?.originalName || entry.album?.title || "Ohne Album"}</span>
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        ) : (
-          <EmptyState title="Noch keine Medien gefunden">
-            Lade ein Bild oder Video hoch, oder sende ein Bild ueber Telegram, um die Galerie zu fuellen.
-          </EmptyState>
-        )}
       </div>
 
       {selected ? (

@@ -459,3 +459,15 @@ Umsetzung:
 - Detailansicht enthaelt ein Album-Auswahlfeld mit Speichern-Button.
 - Album-Werkzeug enthaelt eine Zielalbum-Auswahl und eine Thumbnail-Mehrfachauswahl fuer Medien.
 - Server-Actions pruefen Album und Medien gegen den Benutzer-/Paar-Scope, bevor `albumId` gesetzt wird.
+
+Weitere Nachbesserung:
+
+- Bilder sollen ganz nach oben, damit sie sofort sichtbar sind.
+- Darueber soll nur der Albumselektor stehen.
+- Upload, Filter und restliche Werkzeuge sollen nach unten wandern.
+
+Umsetzung:
+
+- Album-Chips stehen direkt oberhalb des Bildrasters.
+- Das Bildraster folgt unmittelbar danach.
+- Upload, Albumverwaltung und Filter stehen unterhalb des Rasters.

@@ -262,3 +262,4 @@ Details:
 - Neues Modell `MediaComment` ermoeglicht Kommentare/Notizen direkt am Medium.
 - Medien koennen in der Detailansicht einem Album zugeordnet oder wieder auf `Kein Album` gesetzt werden.
 - Im Album-Werkzeug koennen mehrere Medien per Thumbnail-Auswahl gleichzeitig einem Album hinzugefuegt werden.
+- Layout-Reihenfolge angepasst: Album-Auswahlchips stehen direkt ueber dem Bildraster, Upload/Albumverwaltung/Filter stehen darunter.
