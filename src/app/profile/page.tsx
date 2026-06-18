@@ -6,7 +6,7 @@ import { ThemePicker } from "@/components/theme-picker";
 import { Button, Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { normalizeTheme } from "@/lib/themes";
+import { normalizeTheme, normalizeThemeMode } from "@/lib/themes";
 
 async function saveProfile(formData: FormData) {
   "use server";
@@ -39,8 +39,14 @@ async function saveProfile(formData: FormData) {
       },
       settings: {
         upsert: {
-          update: { theme: normalizeTheme(String(formData.get("theme") || "")) },
-          create: { theme: normalizeTheme(String(formData.get("theme") || "")) }
+          update: {
+            theme: normalizeTheme(String(formData.get("theme") || "")),
+            darkMode: normalizeThemeMode(String(formData.get("darkMode") || "")) === "dark"
+          },
+          create: {
+            theme: normalizeTheme(String(formData.get("theme") || "")),
+            darkMode: normalizeThemeMode(String(formData.get("darkMode") || "")) === "dark"
+          }
         }
       }
     }
@@ -52,6 +58,7 @@ export default async function ProfilePage() {
   const user = await currentUser();
   if (!user) redirect("/login");
   const activeTheme = normalizeTheme(user.settings?.theme);
+  const activeMode = normalizeThemeMode(user.settings?.darkMode);
   return (
     <AppShell>
       <PageHeader title="Profil & Einstellungen" subtitle="Basisdaten, frei definierbare Profilinformationen und persoenliches Erscheinungsbild." />
@@ -66,7 +73,7 @@ export default async function ProfilePage() {
           <Field label="Eigene Felder als JSON">
             <textarea className={inputClass} name="fields" rows={8} defaultValue={JSON.stringify(user.profile?.fields || {}, null, 2)} />
           </Field>
-          <ThemePicker activeTheme={activeTheme} />
+          <ThemePicker activeTheme={activeTheme} activeMode={activeMode} />
           <Button><Save className="h-4 w-4" /> Profil speichern</Button>
         </form>
       </Panel>

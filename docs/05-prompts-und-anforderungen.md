@@ -115,6 +115,8 @@ Anforderungen:
 - In Benutzereinstellungen gut verpacken.
 - Beim Anklicken sofort umschalten, nicht erst nach Speichern.
 - Hintergrundfarbe soll zum Theme passen und nicht weiss bleiben.
+- Zusaetzlich soll es keinen Checkbox-Haken, sondern einen iPhone-artigen Toggle fuer Dark Mode geben.
+- Jedes Farbschema soll auch als Dark Mode funktionieren: schwarzer Hintergrund, dunkle Flaechen, passende Akzentfarbe.
 
 Umsetzung:
 
@@ -122,6 +124,9 @@ Umsetzung:
 - Theme wird pro Benutzer gespeichert.
 - CSS-Variablen fuer gesamte App.
 - Hintergrund und Panels passen sich dem Theme an.
+- Dark Mode wird als `UserSettings.darkMode` gespeichert.
+- Der Toggle schaltet `data-mode` direkt im Browser um, sodass man die Wirkung sofort sieht.
+- Pro Theme gibt es eigene Dark-Swatches und CSS-Akzentwerte.
 
 ## Upload-Prompts
 

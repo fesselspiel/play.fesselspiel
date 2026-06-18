@@ -63,6 +63,10 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Aenderungen 
 - Themes: Rot, Pink, Hellblau, Gelb, Orange, Violett, Gruen/Emerald, Mono.
 - CSS-Variablen fuer Canvas, Surface, Paper, Line, Ink, Graphite, Redbrand und Hover.
 - Hintergrundfarbe passt jetzt zum jeweiligen Farbschema.
+- `UserSettings.darkMode` speichert zusaetzlich den persoenlichen Hell-/Dunkelmodus.
+- Der Theme-Picker hat einen iPhone-artigen Toggle-Schalter fuer Dark Mode statt Checkbox.
+- Dark Mode wird sofort als Vorschau angewendet und pro Benutzer gespeichert.
+- Alle vorhandenen Farbschemas haben eine dunkle Variante mit schwarzem Hintergrund, dunklen Flaechen und angepasster Akzentfarbe.
 
 ## Geschuetzte Uploads
 

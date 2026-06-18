@@ -122,7 +122,7 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 ## Prisma-Modelle
 
 - `User`: Account, Rolle, Login, Beziehungen.
-- `UserSettings`: Theme, Telegram/OpenAI Secrets, Telegram Chats.
+- `UserSettings`: Theme, Dark Mode, Telegram/OpenAI Secrets, Telegram Chats.
 - `Profile`: Profilfelder.
 - `Circle`: Paar-/Gruppenkreis; Mitglieder sehen gemeinsame Inhalte.
 - `FileAsset`: geschuetzte Upload-Datei.

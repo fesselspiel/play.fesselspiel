@@ -116,6 +116,7 @@ model UserSettings {
   id                  String         @id @default(cuid())
   userId              String         @unique
   theme               String         @default("red")
+  darkMode            Boolean        @default(false)
   telegramBotTokenEnc String?
   openAiApiKeyEnc     String?
   telegramChats       TelegramChat[]

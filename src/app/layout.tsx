@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { currentUser } from "@/lib/auth";
-import { normalizeTheme } from "@/lib/themes";
+import { normalizeTheme, normalizeThemeMode } from "@/lib/themes";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,8 +11,9 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
   const theme = normalizeTheme(user?.settings?.theme);
+  const mode = normalizeThemeMode(user?.settings?.darkMode);
   return (
-    <html lang="de" data-theme={theme}>
+    <html lang="de" data-theme={theme} data-mode={mode}>
       <body>{children}</body>
     </html>
   );

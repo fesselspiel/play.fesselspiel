@@ -14,7 +14,13 @@
   --color-ink: 17 17 17;
   --color-focus: #e30613;
   background: rgb(var(--color-canvas));
-  color: #111111;
+  color: rgb(var(--color-ink));
+}
+
+[data-mode="dark"][data-theme="red"] {
+  --color-brand: 255 51 64;
+  --color-brand-hover: 227 6 19;
+  --color-focus: #ff3340;
 }
 
 [data-theme="pink"] {
@@ -29,6 +35,12 @@
   --color-focus: #ec4899;
 }
 
+[data-mode="dark"][data-theme="pink"] {
+  --color-brand: 244 114 182;
+  --color-brand-hover: 236 72 153;
+  --color-focus: #f472b6;
+}
+
 [data-theme="sky"] {
   --color-brand: 14 165 233;
   --color-brand-hover: 2 132 199;
@@ -39,6 +51,12 @@
   --color-graphite: 71 85 105;
   --color-ink: 15 23 42;
   --color-focus: #0ea5e9;
+}
+
+[data-mode="dark"][data-theme="sky"] {
+  --color-brand: 56 189 248;
+  --color-brand-hover: 14 165 233;
+  --color-focus: #38bdf8;
 }
 
 [data-theme="yellow"] {
@@ -53,6 +71,12 @@
   --color-focus: #eab308;
 }
 
+[data-mode="dark"][data-theme="yellow"] {
+  --color-brand: 250 204 21;
+  --color-brand-hover: 234 179 8;
+  --color-focus: #facc15;
+}
+
 [data-theme="orange"] {
   --color-brand: 249 115 22;
   --color-brand-hover: 234 88 12;
@@ -63,6 +87,12 @@
   --color-graphite: 87 69 54;
   --color-ink: 28 25 23;
   --color-focus: #f97316;
+}
+
+[data-mode="dark"][data-theme="orange"] {
+  --color-brand: 251 146 60;
+  --color-brand-hover: 249 115 22;
+  --color-focus: #fb923c;
 }
 
 [data-theme="violet"] {
@@ -77,6 +107,12 @@
   --color-focus: #8b5cf6;
 }
 
+[data-mode="dark"][data-theme="violet"] {
+  --color-brand: 167 139 250;
+  --color-brand-hover: 139 92 246;
+  --color-focus: #a78bfa;
+}
+
 [data-theme="emerald"] {
   --color-brand: 16 185 129;
   --color-brand-hover: 5 150 105;
@@ -89,6 +125,12 @@
   --color-focus: #10b981;
 }
 
+[data-mode="dark"][data-theme="emerald"] {
+  --color-brand: 52 211 153;
+  --color-brand-hover: 16 185 129;
+  --color-focus: #34d399;
+}
+
 [data-theme="mono"] {
   --color-brand: 17 17 17;
   --color-brand-hover: 85 85 85;
@@ -99,6 +141,22 @@
   --color-graphite: 85 85 85;
   --color-ink: 17 17 17;
   --color-focus: #111111;
+}
+
+[data-mode="dark"][data-theme="mono"] {
+  --color-brand: 245 245 245;
+  --color-brand-hover: 212 212 216;
+  --color-focus: #f5f5f5;
+}
+
+[data-mode="dark"] {
+  color-scheme: dark;
+  --color-canvas: 5 5 6;
+  --color-surface: 18 18 20;
+  --color-paper: 28 28 31;
+  --color-line: 63 63 70;
+  --color-graphite: 190 190 198;
+  --color-ink: 248 250 252;
 }
 
 * {
