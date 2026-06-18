@@ -1,0 +1,53 @@
+services:
+  app:
+    build: .
+    container_name: kink_social_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${APP_PORT:-8097}:8097"
+    environment:
+      APP_URL: ${APP_URL:-https://play.fesselspiel.com}
+      APP_HOST: ${APP_HOST:-0.0.0.0}
+      APP_PORT: ${APP_PORT:-8097}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://fesselspiel:bitte_aendern@postgres:5432/fesselspiel}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@fesselspiel.com}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-bitte_aendern}
+      JWT_SECRET: ${JWT_SECRET:-bitte_aendern_langer_geheimer_wert}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-bitte_aendern_langer_geheimer_wert}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_TRANSCRIPTION_MODEL: ${OPENAI_TRANSCRIPTION_MODEL:-whisper-1}
+      UPLOAD_PATH: ${UPLOAD_PATH:-/app/uploads}
+      STARTUP_LOG_DIR: /app/logs
+    volumes:
+      - uploads_data:/app/uploads
+      - ./runtime-logs:/app/logs
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.playfesselspiel.rule=Host(`play.fesselspiel.com`)"
+      - "traefik.http.routers.playfesselspiel.entrypoints=websecure"
+      - "traefik.http.routers.playfesselspiel.tls.certresolver=letsencrypt"
+      - "traefik.http.services.playfesselspiel.loadbalancer.server.port=8097"
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: kink_social_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fesselspiel}
+      POSTGRES_USER: ${POSTGRES_USER:-fesselspiel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bitte_aendern}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fesselspiel} -d ${POSTGRES_DB:-fesselspiel}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+  uploads_data:

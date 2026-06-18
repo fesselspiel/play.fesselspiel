@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --color-brand: 227 6 19;
+  --color-brand-hover: 188 7 17;
+  --color-canvas: 250 250 250;
+  --color-surface: 255 255 255;
+  --color-paper: 245 245 245;
+  --color-line: 217 217 217;
+  --color-graphite: 85 85 85;
+  --color-ink: 17 17 17;
+  --color-focus: #e30613;
+  background: rgb(var(--color-canvas));
+  color: #111111;
+}
+
+[data-theme="pink"] {
+  --color-brand: 236 72 153;
+  --color-brand-hover: 219 39 119;
+  --color-canvas: 253 242 248;
+  --color-surface: 255 255 255;
+  --color-paper: 253 242 248;
+  --color-line: 251 207 232;
+  --color-graphite: 94 73 88;
+  --color-ink: 17 24 39;
+  --color-focus: #ec4899;
+}
+
+[data-theme="sky"] {
+  --color-brand: 14 165 233;
+  --color-brand-hover: 2 132 199;
+  --color-canvas: 240 249 255;
+  --color-surface: 255 255 255;
+  --color-paper: 240 249 255;
+  --color-line: 186 230 253;
+  --color-graphite: 71 85 105;
+  --color-ink: 15 23 42;
+  --color-focus: #0ea5e9;
+}
+
+[data-theme="yellow"] {
+  --color-brand: 234 179 8;
+  --color-brand-hover: 202 138 4;
+  --color-canvas: 254 252 232;
+  --color-surface: 255 255 255;
+  --color-paper: 254 252 232;
+  --color-line: 254 240 138;
+  --color-graphite: 91 75 30;
+  --color-ink: 24 24 27;
+  --color-focus: #eab308;
+}
+
+[data-theme="orange"] {
+  --color-brand: 249 115 22;
+  --color-brand-hover: 234 88 12;
+  --color-canvas: 255 247 237;
+  --color-surface: 255 255 255;
+  --color-paper: 255 247 237;
+  --color-line: 254 215 170;
+  --color-graphite: 87 69 54;
+  --color-ink: 28 25 23;
+  --color-focus: #f97316;
+}
+
+[data-theme="violet"] {
+  --color-brand: 139 92 246;
+  --color-brand-hover: 124 58 237;
+  --color-canvas: 245 243 255;
+  --color-surface: 255 255 255;
+  --color-paper: 245 243 255;
+  --color-line: 221 214 254;
+  --color-graphite: 76 63 98;
+  --color-ink: 24 24 27;
+  --color-focus: #8b5cf6;
+}
+
+[data-theme="emerald"] {
+  --color-brand: 16 185 129;
+  --color-brand-hover: 5 150 105;
+  --color-canvas: 236 253 245;
+  --color-surface: 255 255 255;
+  --color-paper: 236 253 245;
+  --color-line: 167 243 208;
+  --color-graphite: 58 83 72;
+  --color-ink: 16 35 29;
+  --color-focus: #10b981;
+}
+
+[data-theme="mono"] {
+  --color-brand: 17 17 17;
+  --color-brand-hover: 85 85 85;
+  --color-canvas: 245 245 245;
+  --color-surface: 255 255 255;
+  --color-paper: 245 245 245;
+  --color-line: 217 217 217;
+  --color-graphite: 85 85 85;
+  --color-ink: 17 17 17;
+  --color-focus: #111111;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: rgb(var(--color-canvas));
+  color: rgb(var(--color-ink));
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+.focus-ring:focus {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.calendar-grid {
+  grid-template-columns: 92px repeat(31, minmax(18px, 1fr));
+}

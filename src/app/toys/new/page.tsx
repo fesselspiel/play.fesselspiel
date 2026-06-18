@@ -1,0 +1,53 @@
+import { redirect } from "next/navigation";
+import { Save } from "lucide-react";
+import { AppShell } from "@/components/app-shell";
+import { FileUploadField } from "@/components/file-upload-field";
+import { Button, Field, inputClass, PageGuide, PageHeader } from "@/components/ui";
+import { currentUser } from "@/lib/auth";
+import { fileAssetUrl, saveUploadedFile } from "@/lib/files";
+import { prisma } from "@/lib/prisma";
+import { normalizeSlug, uniqueSlug } from "@/lib/slug";
+
+async function createToy(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const title = String(formData.get("title") || "").trim();
+  const description = String(formData.get("description") || "").trim();
+  const uploadedImageUrl = String(formData.get("imageUploadedUrl") || "").trim();
+  const image = uploadedImageUrl ? null : await saveUploadedFile(user.id, formData.get("image") as File | null);
+  const imageUrl = uploadedImageUrl || (image ? fileAssetUrl(image.id) : "");
+  const requestedSlug = normalizeSlug(String(formData.get("slug") || ""), title);
+  const slug = await uniqueSlug("toy", requestedSlug);
+  await prisma.toy.create({ data: { ownerId: user.id, title, description, imageUrl, slug } });
+  redirect(`/toys/${slug}`);
+}
+
+export default async function NewToyPage() {
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  return (
+    <AppShell>
+      <PageHeader title="Spielzeug anlegen" subtitle="Der Slug wird automatisch erzeugt und kann hier manuell ueberschrieben werden." />
+      <PageGuide>
+        Erfasse hier ein neues Spielzeug mit Titel, optionalem Slug, Bild und Beschreibung. Nach dem Speichern bekommt der Eintrag eine Detailseite mit geschuetztem Bild und QR-Code.
+      </PageGuide>
+      <form action={createToy} className="max-w-2xl space-y-4">
+        <Field label="Titel">
+          <input className={inputClass} name="title" required placeholder="Leder Manschetten" />
+        </Field>
+        <Field label="URL-Slug">
+          <input className={inputClass} name="slug" pattern="[a-z0-9-]*" placeholder="leder-manschetten" />
+        </Field>
+        <FileUploadField name="image" uploadedUrlName="imageUploadedUrl" label="Foto/Bild" accept="image/*" help="Waehle ein Bild aus der Mediathek oder Kamera aus." />
+        <Field label="Beschreibung">
+          <textarea className={inputClass} name="description" rows={6} />
+        </Field>
+        <Button>
+          <Save className="h-4 w-4" />
+          Speichern
+        </Button>
+      </form>
+    </AppShell>
+  );
+}
