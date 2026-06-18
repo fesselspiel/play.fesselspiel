@@ -241,3 +241,9 @@ Details:
 - Im ausgeklappten Bereich stehen Beschreibung und ein klarer Button zur Detailseite.
 - Dadurch sind lange Kataloge auf Mobile und Desktop schneller scannbar.
 - Nachbesserung: Der aufgeklappte Bereich enthaelt wieder ein grosses Bild, Beschreibung, Slug, Zaehler fuer Verknuepfungen und bei Stellungen verknuepfte Spielsachen als Chips.
+
+## Dashboard-Reihenfolge
+
+- Die Wochen-/Kalenderansicht `Gemeinsame Woche` wurde im Dashboard direkt unter den Header verschoben.
+- Kennzahlen-Kacheln und letzte Sessions stehen darunter.
+- Dadurch ist sofort sichtbar, was in den naechsten Tagen ansteht.

@@ -413,3 +413,16 @@ Nachbesserung:
 - Der aufgeklappte Bereich soll wieder deutlich mehr vom alten Karteninhalt zeigen.
 - Deshalb enthalten ausgeklappte Eintraege jetzt grosses Bild, Beschreibung, Slug, Verknuepfungszaehler und Detailbutton.
 - Bei Stellungen werden verknuepfte Spielsachen als klickbare Chips gezeigt.
+
+## Dashboard-Reihenfolge-Prompt
+
+Anforderung:
+
+- Der Kalender beziehungsweise die Wochenansicht soll im Dashboard weiter nach oben.
+- Man soll sofort sehen, was die naechsten Tage los ist.
+- Die bisher oberen Kennzahlen sollen darunter stehen.
+
+Umsetzung:
+
+- `Gemeinsame Woche` direkt unter den Dashboard-Header verschoben.
+- Kennzahlen-Kacheln und letzte Sessions folgen darunter.

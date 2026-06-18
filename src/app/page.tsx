@@ -98,22 +98,8 @@ export default async function DashboardPage() {
         Das Dashboard ist die Startuebersicht fuer dein Portal. Nutze die Kennzahlen als schnelle Navigation zu Lass uns spielen, Stellungen, Spielsachen, Medien, Nachrichten und Sessions; darunter siehst du die naechsten Spielideen, Termine und die letzten Session-Eintraege.
       </PageGuide>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {cards.map(([label, value, Icon, href]) => (
-          <Link key={label} href={href}>
-            <SoftPanel className="transition hover:bg-[#eeeeee]">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-graphite">{label}</span>
-                <Icon className="h-5 w-5 text-redbrand" />
-              </div>
-              <div className="mt-3 text-3xl font-semibold text-ink">{value}</div>
-            </SoftPanel>
-          </Link>
-        ))}
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <Panel className="xl:col-span-2">
+      <div className="space-y-6">
+        <Panel>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">Gemeinsame Woche</h2>
@@ -153,20 +139,38 @@ export default async function DashboardPage() {
             ))}
           </div>
         </Panel>
-        <Panel>
-          <h2 className="mb-4 text-lg font-semibold">Letzte Segufix-Sessions</h2>
-          <div className="space-y-3">
-            {sessions.map((session) => (
-              <div key={session.id} className="rounded-md border border-line p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <strong>{formatDateTime(session.startTime)}</strong>
-                  <span className="text-sm text-graphite">{formatMinutes(session.durationMinutes)}</span>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {cards.map(([label, value, Icon, href]) => (
+            <Link key={label} href={href}>
+              <SoftPanel className="transition hover:bg-[#eeeeee]">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-graphite">{label}</span>
+                  <Icon className="h-5 w-5 text-redbrand" />
                 </div>
-                {session.notes ? <p className="mt-2 text-sm text-graphite">{session.notes}</p> : null}
-              </div>
-            ))}
-          </div>
-        </Panel>
+                <div className="mt-3 text-3xl font-semibold text-ink">{value}</div>
+              </SoftPanel>
+            </Link>
+          ))}
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <Panel>
+            <h2 className="mb-4 text-lg font-semibold">Letzte Segufix-Sessions</h2>
+            <div className="space-y-3">
+              {sessions.map((session) => (
+                <div key={session.id} className="rounded-md border border-line p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <strong>{formatDateTime(session.startTime)}</strong>
+                    <span className="text-sm text-graphite">{formatMinutes(session.durationMinutes)}</span>
+                  </div>
+                  {session.notes ? <p className="mt-2 text-sm text-graphite">{session.notes}</p> : null}
+                </div>
+              ))}
+            </div>
+          </Panel>
+          <div />
+        </div>
       </div>
     </AppShell>
   );
