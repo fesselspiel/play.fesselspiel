@@ -483,3 +483,23 @@ Details:
 - Nachrichten unterstuetzen Variablen: `{title}`, `{actor}`, `{event}`, `{action}`, `{url}`, `{details}`.
 - `logAction` prueft nach dem Speichern eines Protokolleintrags passende Regeln und sendet Telegram-HTML an aktive Kanaele, die diesem Benutzer oder Kreis zugeordnet sind.
 - Dadurch koennen z.B. Ampelwechsel, Spielanfragen, Telegram-Nachrichten, API-Sessions oder Logins gezielt an Benutzer oder Kreise gepusht werden.
+
+## Medien-Alben nachgeschaerft
+
+- In der Bild-Detailansicht kann direkt ein neues Album fuer das geoeffnete Bild angelegt werden.
+- Nach dem Anlegen bleibt die Detailansicht offen und das Bild wird sofort dem neuen Album zugeordnet.
+- Der Album-Bereich ist in `Neues Album`, `Medien verschieben` und `Alben verwalten` getrennt.
+- Album-Speichern nutzt den wiederverwendbaren `SubmitButton` mit Ladefeedback.
+- Sichtbarkeit heisst jetzt in der UI `Nur ich`, `Zirkel`, `Alle`.
+- Die Medienseite respektiert diese Sichtbarkeit: eigene Medien immer, Zirkel-Medien nur mit `Zirkel`/`Alle`, globale Medien mit `Alle`.
+- Alben koennen geloescht werden.
+- Beim Loeschen werden Medien standardmaessig in das Standardalbum verschoben.
+- Optional koennen Medien und Dateien bewusst mitgeloescht werden.
+- Das Standardalbum selbst kann nicht geloescht werden.
+
+## Navigation, Admin-Dateien und Demo-Seed
+
+- Logout nutzt jetzt einen `303`-Redirect, damit POST-Logout im Browser sauber auf `/login` landet.
+- Admins duerfen geschuetzte Dateien aktiver Benutzer sehen; dadurch erscheinen Profilbilder in Dashboard und Benutzerverwaltung auch ausserhalb des eigenen Kreises.
+- Das Dashboard zeigt fuer Admins ohne eigenen Kreis alle aktiven Benutzer in der Spielampel.
+- Demo-Daten werden nicht mehr allein durch `SEED_DEMO_DATA=true` erneut angelegt; zusaetzlich ist `SEED_ALLOW_DEMO_RECREATE=true` erforderlich.

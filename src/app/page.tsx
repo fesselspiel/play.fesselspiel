@@ -133,7 +133,7 @@ export default async function DashboardPage() {
       orderBy: { startsAt: "asc" }
     }),
     prisma.user.findMany({
-      where: user.circleId ? { circleId: user.circleId, active: true } : { id: user.id },
+      where: user.circleId ? { circleId: user.circleId, active: true } : user.role === "ADMIN" ? { active: true } : { id: user.id },
       include: { settings: true, profile: true },
       orderBy: [{ name: "asc" }, { email: "asc" }]
     })

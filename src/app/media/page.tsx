@@ -19,9 +19,11 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { FileUploadField } from "@/components/file-upload-field";
+import { QuickAlbumForm } from "@/components/quick-album-form";
+import { SubmitButton } from "@/components/submit-button";
 import { Badge, Button, EmptyState, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
-import { ownerScope } from "@/lib/access";
-import { ensureDefaultAlbum } from "@/lib/albums";
+import { ownerScope, visibilityScope } from "@/lib/access";
+import { defaultAlbumTitle, ensureDefaultAlbum } from "@/lib/albums";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
@@ -76,15 +78,38 @@ async function createAlbum(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  const title = String(formData.get("title") || "").trim();
+  if (!title) redirect("/media");
   await prisma.album.create({
     data: {
       ownerId: user.id,
-      title: String(formData.get("title") || "").trim(),
+      title,
       description: String(formData.get("description") || "").trim(),
       visibility: String(formData.get("visibility") || "PRIVATE") as "PRIVATE" | "PARTNER" | "SHARED"
     }
   });
   redirect("/media");
+}
+
+async function createAlbumForMedia(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const scope = await ownerScope(user);
+  const mediaId = String(formData.get("mediaId") || "");
+  const title = String(formData.get("title") || "").trim();
+  const media = await prisma.media.findFirst({ where: { id: mediaId, ...scope } });
+  if (!media || !title) redirect("/media");
+  const album = await prisma.album.create({
+    data: {
+      ownerId: user.id,
+      title,
+      description: "",
+      visibility: String(formData.get("visibility") || "PRIVATE") as "PRIVATE" | "PARTNER" | "SHARED"
+    }
+  });
+  await prisma.media.update({ where: { id: media.id }, data: { albumId: album.id } });
+  redirect(mediaUrl({ album: album.id, view: media.id }));
 }
 
 async function updateMediaAlbum(formData: FormData) {
@@ -122,6 +147,29 @@ async function addMediaToAlbum(formData: FormData) {
   redirect(mediaUrl({ album: album.id }));
 }
 
+async function deleteAlbum(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const id = String(formData.get("albumId") || "");
+  const album = await prisma.album.findFirst({ where: { id, ...(await ownerScope(user)) } });
+  if (!album) redirect("/media");
+  const fallback = await ensureDefaultAlbum(album.ownerId);
+  if (album.id === fallback.id || album.title === defaultAlbumTitle) redirect("/media");
+  const media = await prisma.media.findMany({ where: { albumId: album.id } });
+  if (formData.get("deleteMedia") === "on") {
+    for (const entry of media) {
+      await prisma.media.delete({ where: { id: entry.id } });
+      const fileId = fileIdFromUrl(entry.url);
+      if (fileId) await deleteOwnedFile(entry.ownerId, fileId);
+    }
+  } else {
+    await prisma.media.updateMany({ where: { albumId: album.id }, data: { albumId: fallback.id } });
+  }
+  await prisma.album.delete({ where: { id: album.id } });
+  redirect("/media");
+}
+
 async function createMediaComment(formData: FormData) {
   "use server";
   const user = await currentUser();
@@ -150,9 +198,9 @@ function formatBytes(value?: number | null) {
 }
 
 function visibilityLabel(value: string) {
-  if (value === "PRIVATE") return "privat";
-  if (value === "PARTNER") return "Partner";
-  return "geteilt";
+  if (value === "PRIVATE") return "Nur ich";
+  if (value === "PARTNER") return "Zirkel";
+  return "Alle";
 }
 
 function mediaTypeLabel(value: string) {
@@ -176,7 +224,8 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
   const kindFilter = searchParams.kind === "IMAGE" || searchParams.kind === "VIDEO" ? searchParams.kind : "";
   const visibilityFilter = ["PRIVATE", "PARTNER", "SHARED"].includes(searchParams.visibility || "") ? searchParams.visibility || "" : "";
   const q = searchParams.q?.trim() || "";
-  const scope = await ownerScope(user);
+  const scope = await visibilityScope(user);
+  const fileScope = await ownerScope(user);
   const defaultAlbum = await ensureDefaultAlbum(user.id);
   const [media, albums, albumMedia] = await Promise.all([
     prisma.media.findMany({
@@ -200,7 +249,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
   ]);
 
   const fileIds = Array.from(new Set([...media, ...albumMedia].map((entry) => fileIdFromUrl(entry.url)).filter((id): id is string => Boolean(id))));
-  const fileAssets = fileIds.length ? await prisma.fileAsset.findMany({ where: { ...scope, id: { in: fileIds } } }) : [];
+  const fileAssets = fileIds.length ? await prisma.fileAsset.findMany({ where: { ...fileScope, id: { in: fileIds } } }) : [];
   const fileById = new Map(fileAssets.map((asset) => [asset.id, asset]));
   const selected = searchParams.view ? media.find((entry) => entry.id === searchParams.view) : null;
   const selectedAsset = selected ? fileById.get(fileIdFromUrl(selected.url) || "") : null;
@@ -288,9 +337,9 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
               </Field>
               <Field label="Sichtbarkeit">
                 <select className={selectClass} name="visibility">
-                  <option value="PRIVATE">privat</option>
-                  <option value="PARTNER">Partner</option>
-                  <option value="SHARED">geteilt</option>
+                  <option value="PRIVATE">Nur ich</option>
+                  <option value="PARTNER">Zirkel</option>
+                  <option value="SHARED">Alle</option>
                 </select>
               </Field>
               <Button><Save className="h-4 w-4" /> Speichern</Button>
@@ -302,20 +351,24 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
               <span className="inline-flex items-center gap-2"><Folder className="h-4 w-4 text-redbrand" /> Album</span>
               <Plus className="h-4 w-4 text-graphite" />
             </summary>
-            <form action={createAlbum} className="space-y-3 border-t border-line p-4">
-              <Field label="Titel"><input className={inputClass} name="title" required /></Field>
-              <Field label="Beschreibung"><textarea className={inputClass} name="description" rows={3} /></Field>
-              <Field label="Sichtbarkeit">
-                <select className={selectClass} name="visibility">
-                  <option value="PRIVATE">privat</option>
-                  <option value="PARTNER">Partner</option>
-                  <option value="SHARED">geteilt</option>
-                </select>
-              </Field>
-              <Button>Album speichern</Button>
-            </form>
+            <div className="border-t border-line">
+              <form action={createAlbum} className="space-y-3 p-4">
+                <h3 className="text-sm font-semibold text-ink">Neues Album</h3>
+                <Field label="Titel"><input className={inputClass} name="title" required /></Field>
+                <Field label="Beschreibung"><textarea className={inputClass} name="description" rows={3} /></Field>
+                <Field label="Sichtbarkeit">
+                  <select className={selectClass} name="visibility">
+                    <option value="PRIVATE">Nur ich</option>
+                    <option value="PARTNER">Zirkel</option>
+                    <option value="SHARED">Alle</option>
+                  </select>
+                </Field>
+                <SubmitButton pendingLabel="Album wird gespeichert...">Album speichern</SubmitButton>
+              </form>
+            </div>
             {albums.length && albumMedia.length ? (
               <form action={addMediaToAlbum} className="space-y-3 border-t border-line p-4">
+                <h3 className="text-sm font-semibold text-ink">Medien verschieben</h3>
                 <Field label="Zielalbum">
                   <select className={selectClass} name="albumId" required>
                     <option value="">Album waehlen</option>
@@ -339,9 +392,40 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                     ))}
                   </div>
                 </div>
-                <Button variant="secondary" className="w-full">Auswahl hinzufuegen</Button>
+                <Button variant="secondary" className="w-full">Auswahl ins Zielalbum verschieben</Button>
               </form>
             ) : null}
+            <div className="space-y-3 border-t border-line p-4">
+              <h3 className="text-sm font-semibold text-ink">Alben verwalten</h3>
+              {albums.map((album) => {
+                const count = albumMedia.filter((entry) => entry.albumId === album.id).length;
+                const isDefault = album.id === defaultAlbum.id || album.title === defaultAlbumTitle;
+                return (
+                  <details key={album.id} className="rounded-md border border-line bg-paper p-3">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                      <span className="min-w-0">
+                        <strong className="block truncate">{album.title}</strong>
+                        <span className="text-xs text-graphite">{count} Medien · {visibilityLabel(album.visibility)}</span>
+                      </span>
+                      <Badge tone={isDefault ? "red" : "neutral"}>{isDefault ? "Standard" : "Album"}</Badge>
+                    </summary>
+                    {isDefault ? (
+                      <p className="mt-3 rounded-md bg-surface p-3 text-sm text-graphite">Das Standardalbum kann nicht geloescht werden.</p>
+                    ) : (
+                      <form action={deleteAlbum} className="mt-3 space-y-3 border-t border-line pt-3">
+                        <input type="hidden" name="albumId" value={album.id} />
+                        <p className="text-sm text-graphite">Beim Loeschen werden die Medien standardmaessig nach <strong>{defaultAlbum.title}</strong> verschoben.</p>
+                        <label className="flex items-start gap-2 rounded-md border border-redbrand/30 bg-redbrand/5 p-3 text-sm text-redbrand">
+                          <input name="deleteMedia" type="checkbox" className="mt-1 h-4 w-4 accent-redbrand" />
+                          Medien und Dateien endgueltig mitloeschen
+                        </label>
+                        <Button variant="danger" className="w-full"><Trash2 className="h-4 w-4" /> Album loeschen</Button>
+                      </form>
+                    )}
+                  </details>
+                );
+              })}
+            </div>
           </details>
 
           <details className="rounded-lg border border-line bg-surface shadow-soft">
@@ -361,9 +445,9 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
               <Field label="Sichtbarkeit">
                 <select className={selectClass} name="visibility" defaultValue={visibilityFilter}>
                   <option value="">Alle</option>
-                  <option value="PRIVATE">privat</option>
-                  <option value="PARTNER">Partner</option>
-                  <option value="SHARED">geteilt</option>
+                  <option value="PRIVATE">Nur ich</option>
+                  <option value="PARTNER">Zirkel</option>
+                  <option value="SHARED">Alle</option>
                 </select>
               </Field>
               <div className="flex gap-2">
@@ -414,6 +498,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                 </Field>
                 <Button variant="secondary" className="w-full">Album speichern</Button>
               </form>
+              <QuickAlbumForm action={createAlbumForMedia} mediaId={selected.id} />
               <div className="border-t border-line p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
                   <MessageCircle className="h-4 w-4 text-redbrand" />

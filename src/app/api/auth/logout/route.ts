@@ -13,7 +13,7 @@ export async function POST() {
       title: `${userDisplayName(user)} hat sich abgemeldet`
     });
   }
-  const response = NextResponse.redirect(new URL("/login", process.env.APP_URL || "http://localhost:8097"));
+  const response = NextResponse.redirect(new URL("/login", process.env.APP_URL || "http://localhost:8097"), { status: 303 });
   clearSessionCookie(response);
   return response;
 }

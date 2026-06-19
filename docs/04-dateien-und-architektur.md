@@ -186,6 +186,16 @@ UI-Hinweis:
 - `src/components/submit-button.tsx`: Button mit `useFormStatus`, Pending-Text und deaktiviertem Zustand beim Speichern.
 - `src/components/username-field.tsx`: Benutzername-Feld mit Blur-Pruefung gegen `/api/users/check-username`.
 - `src/components/protocol-search.tsx`: Client-Suche fuer das Protokoll mit Vorschlaegen und Sprunglinks.
+- `src/components/quick-album-form.tsx`: Inline-Albumanlage aus der Medien-Detailansicht heraus.
+
+## Sichtbarkeit
+
+- `PRIVATE` wird in der UI als `Nur ich` angezeigt.
+- `PARTNER` wird in der UI als `Zirkel` angezeigt.
+- `SHARED` wird in der UI als `Alle` angezeigt.
+- `visibilityScope(user)` in `src/lib/access.ts` kapselt die Medien-/Album-Sichtbarkeit.
+- `ownerScope(user)` bleibt fuer Bearbeiten, Loeschen und Datei-Metadaten massgeblich.
+- Admins erhalten ueber `accessibleOwnerIds` Zugriff auf aktive Benutzer, damit Admin-Ansichten und geschuetzte Profilbilder konsistent funktionieren.
 
 ## Slug-Architektur
 

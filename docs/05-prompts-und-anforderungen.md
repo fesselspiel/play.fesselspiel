@@ -583,6 +583,41 @@ Umsetzung:
 - Nachrichten werden als Telegram-HTML gesendet.
 - Templates koennen `{title}`, `{actor}`, `{event}`, `{action}`, `{url}` und `{details}` einsetzen.
 
+## Medien-Album-Nachbesserung-Prompt
+
+Anforderung:
+
+- In der Bilddetailansicht soll direkt ein neues Album angelegt und das Bild sofort dorthin verschoben werden koennen.
+- Der Album-Speichern-Button braucht Feedback.
+- Sichtbarkeit `Privat`, `Partner`, `geteilt` ist unklar und soll klarer benannt und logisch geprueft werden.
+- Alben sollen sichtbar verwaltet und geloescht werden koennen.
+- Beim Album-Loeschen duerfen Bilder nicht versehentlich geloescht werden; Standard ist Verschieben ins Standardalbum.
+- Album-Anlegen, Zielalbum und Verschieben sollen nicht unklar in einem Block vermischt sein.
+
+Umsetzung:
+
+- Neues `QuickAlbumForm` in der Medien-Detailansicht.
+- Album-Werkzeug in drei Bereiche getrennt: `Neues Album`, `Medien verschieben`, `Alben verwalten`.
+- Sichtbarkeit heisst `Nur ich`, `Zirkel`, `Alle`.
+- `visibilityScope` filtert Medien und Alben entsprechend.
+- Album-Loeschen verschiebt Medien standardmaessig nach `Standard`; Dateiloeschung ist nur per ausdruecklicher Checkbox moeglich.
+
+## Navigation- und Seed-Nachbesserung
+
+Anforderung:
+
+- Logout soll funktionieren.
+- Dashboard-Spielampel soll wieder alle Benutzer im Zirkel bzw. fuer Admins sichtbar zeigen.
+- Profilbilder sollen in Dashboard und Benutzerverwaltung angezeigt werden.
+- Demo-Position `Rueckenlage` soll nicht nach jedem Neustart wieder auftauchen.
+
+Umsetzung:
+
+- Logout-Route nutzt `303`.
+- Admin-Dateizugriff auf aktive Benutzer wurde in `accessibleOwnerIds` ergaenzt.
+- Dashboard zeigt fuer Admins ohne Kreis alle aktiven Benutzer.
+- Seed-Demo-Daten brauchen neben `SEED_DEMO_DATA=true` zusaetzlich `SEED_ALLOW_DEMO_RECREATE=true`.
+
 ## Einstellungen- und Protokoll-Prompt
 
 Anforderung:
