@@ -4,6 +4,7 @@ import { UserPlus, UsersRound } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
 import { currentUser, requireAdmin } from "@/lib/auth";
+import { appTimeZone, formatDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 
 async function createUser(formData: FormData) {
@@ -75,6 +76,7 @@ export default async function UsersPage() {
     prisma.user.findMany({ include: { profile: true, circle: true }, orderBy: { createdAt: "asc" } }),
     prisma.circle.findMany({ orderBy: { name: "asc" } })
   ]);
+  const serverNow = new Date();
   return (
     <AppShell>
       <PageHeader title="Benutzerverwaltung" />
@@ -83,6 +85,14 @@ export default async function UsersPage() {
       </PageGuide>
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <div className="space-y-6">
+          <Panel>
+            <h2 className="mb-3 text-lg font-semibold">Systemzeit</h2>
+            <div className="space-y-1 text-sm text-graphite">
+              <div>App-Zeitzone: <strong className="text-ink">{appTimeZone}</strong></div>
+              <div>Anzeigezeit: <strong className="text-ink">{formatDateTime(serverNow)}</strong></div>
+              <div>Server UTC: <strong className="text-ink">{serverNow.toISOString()}</strong></div>
+            </div>
+          </Panel>
           <Panel>
             <h2 className="mb-4 text-lg font-semibold">Kreis anlegen</h2>
             <form action={createCircle} className="space-y-4">

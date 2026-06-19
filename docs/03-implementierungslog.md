@@ -336,10 +336,14 @@ Details:
 ## Telegram-Benutzer-Mapping
 
 - Neues Datenmodell `TelegramUserMapping`.
+- Neues Datenmodell `TelegramKnownUser` fuer automatisch erkannte Telegram-Absender.
 - In den Telegram-Einstellungen koennen Telegram-Usernames wie `@name` einem App-Benutzer zugeordnet werden.
 - Der Telegram-Webhook prueft pro Nachricht `message.from.username`.
 - Wenn ein Mapping existiert, werden Befehle, Agentenaktionen, Dialoge und Bildspeicherungen aus Sicht dieses App-Benutzers ausgefuehrt.
 - Ohne Mapping bleibt das bisherige Verhalten bestehen: Der Besitzer der Telegram-Einstellung ist der ausfuehrende Benutzer.
+- Aktive Telegram-Absender werden mit Telegram-ID, Username, Name und letzter Nachricht gespeichert.
+- Erkannte Telegram-Benutzer koennen direkt in den Telegram-Einstellungen einem App-Benutzer zugeordnet werden.
+- Das Mapping nutzt bevorzugt die Telegram-ID und faellt auf den Username zurueck.
 - Telegram-Hilfenachrichten bleiben im HTML-Modus formatiert, aber Slash-Befehle werden nicht mehr in `<code>` verpackt, damit Telegram sie wieder als Befehle antippen kann.
 - Der manuelle Telegram-Sende-Endpunkt verwendet ebenfalls HTML-Markup und deaktivierte Link-Vorschauen.
 
@@ -355,6 +359,14 @@ Details:
 - Sessions selbst koennen kommentiert werden.
 - Dashboard und Session-Historie verlinken direkt auf die neue Detailseite.
 - Export/Import sichert und rekonstruiert Session-Kommentare sowie die Zuordnung von Medien zu Sessions.
+- Laufende Sessions ohne Endzeit werden auf Dashboard und Sessions-Seite sichtbar hervorgehoben.
+- Externer API-Start einer Session beendet eine bereits offene Session automatisch und startet danach eine neue.
+
+## Zeitdarstellung
+
+- Zentrale Datums- und Uhrzeitformatierung nutzt jetzt fest `Europe/Berlin`.
+- `datetime-local`-Formularwerte werden ebenfalls fuer Berlin-Zeit vorbereitet.
+- In der Admin-Benutzerverwaltung gibt es eine Systemzeit-Anzeige mit App-Zeitzone, Anzeigezeit und Server-UTC-Zeit.
 
 ## Feature-Video
 

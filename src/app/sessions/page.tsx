@@ -52,6 +52,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
   const avgDuration = sessions.length ? Math.round(totalMinutes / sessions.length) : 0;
   const afterScores: number[] = sessions.map((s) => (s.moodAfter ? moodScore[s.moodAfter] : 0)).filter(Boolean);
   const avgAfter = afterScores.length ? (afterScores.reduce((a, b) => a + b, 0) / afterScores.length).toFixed(1) : "-";
+  const openSessions = sessions.filter((session) => !session.endTime);
   const byDay = new Map<string, typeof sessions>();
   for (const session of sessions) {
     const key = `${session.startTime.getMonth()}-${session.startTime.getDate()}`;
@@ -92,6 +93,19 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
             <SoftPanel><div className="text-sm text-graphite">Durchschnitt</div><div className="mt-2 text-2xl font-semibold">{formatMinutes(avgDuration)}</div></SoftPanel>
             <SoftPanel><div className="text-sm text-graphite">Stimmung nachher</div><div className="mt-2 text-2xl font-semibold">{avgAfter}/5</div></SoftPanel>
           </div>
+          {openSessions.length ? (
+            <Panel>
+              <h2 className="mb-3 text-lg font-semibold">Laufende Sessions</h2>
+              <div className="space-y-2">
+                {openSessions.map((session) => (
+                  <Link key={session.id} href={`/sessions/${sessionSlugs.get(session.id)}`} className="block rounded-md border border-redbrand bg-redbrand/10 p-3 text-sm hover:bg-redbrand/15">
+                    <strong>{formatDateTime(session.startTime)}</strong>
+                    <span className="ml-2 text-graphite">ohne Endzeit</span>
+                  </Link>
+                ))}
+              </div>
+            </Panel>
+          ) : null}
           <Panel className="overflow-x-auto">
             <div className="mb-4 flex items-center justify-between gap-3">
               <a href={`/sessions?year=${year - 1}`} className="rounded-md border border-line px-3 py-2 text-sm">Zurueck</a>

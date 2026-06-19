@@ -24,7 +24,7 @@ export type TelegramUpdate = {
     document?: { file_id: string; file_name?: string; mime_type?: string; file_size?: number };
     voice?: { file_id: string; mime_type?: string };
     chat: { id: number; title?: string; username?: string; type?: string };
-    from?: { first_name?: string; username?: string };
+    from?: { id?: number; first_name?: string; last_name?: string; username?: string };
   };
 };
 

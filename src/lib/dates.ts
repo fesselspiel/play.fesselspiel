@@ -1,17 +1,28 @@
+export const appTimeZone = "Europe/Berlin";
+
 export function formatDateTime(value?: Date | null) {
   if (!value) return "Nicht geplant";
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(value);
+  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short", timeZone: appTimeZone }).format(value);
 }
 
 export function formatDateTimeLocal(value?: Date | null) {
   if (!value) return "";
-  const offset = value.getTimezoneOffset() * 60000;
-  return new Date(value.getTime() - offset).toISOString().slice(0, 16);
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: appTimeZone
+  }).formatToParts(value);
+  const part = (type: string) => parts.find((entry) => entry.type === type)?.value || "00";
+  return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
 }
 
 export function formatDate(value?: Date | null) {
   if (!value) return "";
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(value);
+  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeZone: appTimeZone }).format(value);
 }
 
 export function minutesBetween(start: Date, end?: Date | null) {

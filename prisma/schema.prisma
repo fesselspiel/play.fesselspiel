@@ -129,6 +129,7 @@ model UserSettings {
   openAiApiKeyEnc     String?
   telegramChats       TelegramChat[]
   telegramUserMappings TelegramUserMapping[]
+  telegramKnownUsers  TelegramKnownUser[]
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
   user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -340,6 +341,7 @@ model TelegramUserMapping {
   id               String       @id @default(cuid())
   settingsId       String
   telegramUsername String
+  telegramUserId   String?
   appUserId        String
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
@@ -347,5 +349,22 @@ model TelegramUserMapping {
   appUser          User         @relation("TelegramMappedAppUser", fields: [appUserId], references: [id], onDelete: Cascade)
 
   @@unique([settingsId, telegramUsername])
+  @@index([settingsId, telegramUserId])
   @@index([appUserId])
+}
+
+model TelegramKnownUser {
+  id               String       @id @default(cuid())
+  settingsId       String
+  telegramUserId   String
+  telegramUsername String?
+  firstName        String?
+  lastName         String?
+  lastMessageAt    DateTime     @default(now())
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  settings         UserSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+
+  @@unique([settingsId, telegramUserId])
+  @@index([settingsId, telegramUsername])
 }

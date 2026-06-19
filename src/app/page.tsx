@@ -135,6 +135,7 @@ export default async function DashboardPage() {
     ["Nachrichten", messageCount, MessageCircle, "/messages"]
   ] as const;
   const sessionSlugs = new Map(await Promise.all(sessions.map(async (session) => [session.id, await ensureSessionSlug(session)] as const)));
+  const openSessions = sessions.filter((session) => !session.endTime);
   const weekDays = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(todayStart);
     date.setDate(todayStart.getDate() + index);
@@ -213,6 +214,20 @@ export default async function DashboardPage() {
             })}
           </div>
         </Panel>
+
+        {openSessions.length ? (
+          <Panel>
+            <h2 className="mb-3 text-lg font-semibold">Laufende Session</h2>
+            <div className="space-y-2">
+              {openSessions.map((session) => (
+                <Link key={session.id} href={`/sessions/${sessionSlugs.get(session.id)}`} className="block rounded-md border border-redbrand bg-redbrand/10 p-3 text-sm hover:bg-redbrand/15">
+                  <strong>{formatDateTime(session.startTime)}</strong>
+                  <span className="ml-2 text-graphite">ohne Endzeit</span>
+                </Link>
+              ))}
+            </div>
+          </Panel>
+        ) : null}
 
         <Panel>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

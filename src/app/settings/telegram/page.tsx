@@ -6,6 +6,7 @@ import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectC
 import { TelegramChatDiscovery } from "@/components/telegram/chat-discovery";
 import { currentUser } from "@/lib/auth";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
+import { formatDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 
 type TelegramTargetUser = {
@@ -167,7 +168,9 @@ async function createTelegramUserMapping(formData: FormData) {
   if (!user) redirect("/login");
   const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
   if (!settings) redirect("/settings/telegram");
-  const telegramUsername = normalizeTelegramUsername(String(formData.get("telegramUsername") || ""));
+  const telegramUserId = String(formData.get("telegramUserId") || "").trim() || null;
+  const telegramUsernameRaw = normalizeTelegramUsername(String(formData.get("telegramUsername") || ""));
+  const telegramUsername = telegramUsernameRaw || (telegramUserId ? `id:${telegramUserId}` : "");
   const appUserId = String(formData.get("appUserId") || "");
   if (!telegramUsername || !appUserId) redirect("/settings/telegram");
   const appUser = await prisma.user.findFirst({
@@ -181,8 +184,8 @@ async function createTelegramUserMapping(formData: FormData) {
   if (!appUser) redirect("/settings/telegram");
   await prisma.telegramUserMapping.upsert({
     where: { settingsId_telegramUsername: { settingsId: settings.id, telegramUsername } },
-    update: { appUserId: appUser.id },
-    create: { settingsId: settings.id, telegramUsername, appUserId: appUser.id }
+    update: { appUserId: appUser.id, telegramUserId },
+    create: { settingsId: settings.id, telegramUsername, telegramUserId, appUserId: appUser.id }
   });
   redirect("/settings/telegram#mappings");
 }
@@ -297,7 +300,8 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
         telegramUserMappings: {
           include: { appUser: { include: { profile: true } } },
           orderBy: { telegramUsername: "asc" }
-        }
+        },
+        telegramKnownUsers: { orderBy: { lastMessageAt: "desc" } }
       }
     }),
     prisma.user.findMany({
@@ -316,6 +320,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
   const activeChats = settings?.telegramChats.filter((chat) => chat.status === "ACTIVE") || [];
   const pendingChats = settings?.telegramChats.filter((chat) => chat.status === "PENDING") || [];
   const mappings = settings?.telegramUserMappings || [];
+  const knownUsers = settings?.telegramKnownUsers || [];
   const telegramTokenSuffix = secretSuffix(settings?.telegramBotTokenEnc);
   const openAiKeySuffix = secretSuffix(settings?.openAiApiKeyEnc);
   const telegramBotName = await readTelegramBotName(settings?.telegramBotTokenEnc);
@@ -369,7 +374,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                   <div className="mt-3 rounded-md bg-surface p-3">
                     <div className="font-semibold text-ink">Letzte erkannte Testnachricht</div>
                     <div className="mt-1 text-graphite">{chat.lastMessageText || "Keine Textvorschau gespeichert."}</div>
-                    <div className="mt-1 text-xs text-graphite">Von: {chat.lastMessageFrom || "-"} · Erkannt: {chat.lastMessageAt ? chat.lastMessageAt.toLocaleString("de-DE") : "-"}</div>
+                    <div className="mt-1 text-xs text-graphite">Von: {chat.lastMessageFrom || "-"} · Erkannt: {formatDateTime(chat.lastMessageAt)}</div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <form action={activateDetectedChat}>
@@ -417,7 +422,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                     <div className="mb-4 rounded-md bg-surface p-3">
                       <div className="font-semibold text-ink">Letzte erkannte Testnachricht</div>
                       <div className="mt-1 text-graphite">{chat.lastMessageText || "Keine Textvorschau gespeichert."}</div>
-                      <div className="mt-1 text-xs text-graphite">Von: {chat.lastMessageFrom || "-"} · Erkannt: {chat.lastMessageAt ? chat.lastMessageAt.toLocaleString("de-DE") : "-"}</div>
+                      <div className="mt-1 text-xs text-graphite">Von: {chat.lastMessageFrom || "-"} · Erkannt: {formatDateTime(chat.lastMessageAt)}</div>
                     </div>
                     <form action={updateChat} className="grid gap-3 sm:grid-cols-2">
                       <input type="hidden" name="chatIdInternal" value={chat.id} />
@@ -459,11 +464,40 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
               </Field>
               <Button><Save className="h-4 w-4" /> Zuordnen</Button>
             </form>
+            <div className="mt-5">
+              <h3 className="mb-3 text-sm font-semibold text-ink">Erkannte Telegram-Benutzer</h3>
+              <div className="space-y-2">
+                {knownUsers.map((known) => {
+                  const display = known.telegramUsername ? `@${known.telegramUsername}` : `ID ${known.telegramUserId}`;
+                  const name = [known.firstName, known.lastName].filter(Boolean).join(" ");
+                  const mapped = mappings.find((entry) => entry.telegramUserId === known.telegramUserId || (known.telegramUsername && entry.telegramUsername === known.telegramUsername));
+                  return (
+                    <form key={known.id} action={createTelegramUserMapping} className="grid gap-3 rounded-md border border-line bg-paper p-3 text-sm sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                      <input type="hidden" name="telegramUserId" value={known.telegramUserId} />
+                      <input type="hidden" name="telegramUsername" value={known.telegramUsername || ""} />
+                      <div>
+                        <div className="font-semibold text-ink">{display}</div>
+                        <div className="text-xs text-graphite">{name || "Name unbekannt"} · ID {known.telegramUserId}</div>
+                        <div className="text-xs text-graphite">Zuletzt: {formatDateTime(known.lastMessageAt)}</div>
+                      </div>
+                      <Field label="App-Benutzer">
+                        <select className={selectClass} name="appUserId" defaultValue={mapped?.appUserId || targetUsers[0]?.id || ""} required>
+                          {targetUsers.map((entry) => <option key={entry.id} value={entry.id}>{userLabel(entry)}</option>)}
+                        </select>
+                      </Field>
+                      <Button><Save className="h-4 w-4" /> {mapped ? "Aendern" : "Zuordnen"}</Button>
+                    </form>
+                  );
+                })}
+                {!knownUsers.length ? <p className="rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite">Noch keine Telegram-Benutzer erkannt. Sobald jemand im aktiven Thread schreibt, erscheint der Benutzer hier.</p> : null}
+              </div>
+            </div>
             <div className="mt-4 space-y-2">
               {mappings.map((mapping) => (
                 <div key={mapping.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-paper p-3 text-sm">
                   <div>
-                    <strong>@{mapping.telegramUsername}</strong>
+                    <strong>{mapping.telegramUsername.startsWith("id:") ? `ID ${mapping.telegramUserId || mapping.telegramUsername.slice(3)}` : `@${mapping.telegramUsername}`}</strong>
+                    {mapping.telegramUserId ? <span className="ml-2 text-xs text-graphite">ID {mapping.telegramUserId}</span> : null}
                     <span className="mx-2 text-graphite">{"->"}</span>
                     <span>{userLabel(mapping.appUser)}</span>
                   </div>

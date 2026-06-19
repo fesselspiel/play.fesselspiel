@@ -9,6 +9,8 @@ import { downloadTelegramFile, largestTelegramPhoto, sendTelegramMessage, telegr
 import type { TelegramUpdate } from "@/lib/telegram";
 import { uniqueSessionSlug } from "@/lib/session-slug";
 
+type TelegramMessageFrom = NonNullable<TelegramUpdate["message"]>["from"];
+
 const HELP_TEXT = `<b>Befehle</b>
 /start - Bot starten
 /help - Befehle anzeigen
@@ -157,12 +159,36 @@ async function findActiveTelegramChat(chatId: string, threadId: string | null) {
 
 function mappedTelegramUserId(
   chat: Awaited<ReturnType<typeof findActiveTelegramChat>>,
-  username?: string
+  from?: TelegramMessageFrom
 ) {
-  const normalized = String(username || "").trim().replace(/^@+/, "").toLowerCase();
-  if (!chat || !normalized) return chat?.settings.userId || "";
-  const mapping = chat.settings.telegramUserMappings.find((entry) => entry.telegramUsername === normalized && entry.appUser.active);
+  const normalized = String(from?.username || "").trim().replace(/^@+/, "").toLowerCase();
+  const telegramUserId = from?.id ? String(from.id) : "";
+  if (!chat || (!normalized && !telegramUserId)) return chat?.settings.userId || "";
+  const mapping = chat.settings.telegramUserMappings.find((entry) =>
+    entry.appUser.active && ((telegramUserId && entry.telegramUserId === telegramUserId) || (normalized && entry.telegramUsername === normalized))
+  );
   return mapping?.appUserId || chat.settings.userId;
+}
+
+async function rememberTelegramKnownUser(chat: Awaited<ReturnType<typeof findActiveTelegramChat>>, from?: TelegramMessageFrom) {
+  if (!chat || !from?.id) return;
+  await prisma.telegramKnownUser.upsert({
+    where: { settingsId_telegramUserId: { settingsId: chat.settingsId, telegramUserId: String(from.id) } },
+    update: {
+      telegramUsername: from.username ? from.username.toLowerCase() : null,
+      firstName: from.first_name || null,
+      lastName: from.last_name || null,
+      lastMessageAt: new Date()
+    },
+    create: {
+      settingsId: chat.settingsId,
+      telegramUserId: String(from.id),
+      telegramUsername: from.username ? from.username.toLowerCase() : null,
+      firstName: from.first_name || null,
+      lastName: from.last_name || null,
+      lastMessageAt: new Date()
+    }
+  });
 }
 
 export async function POST(request: Request) {
@@ -175,7 +201,8 @@ export async function POST(request: Request) {
   if (!chat?.settings.telegramBotTokenEnc) {
     return NextResponse.json({ ok: true, ignored: true });
   }
-  const actorUserId = mappedTelegramUserId(chat, message.from?.username);
+  await rememberTelegramKnownUser(chat, message.from);
+  const actorUserId = mappedTelegramUserId(chat, message.from);
 
   const photo = largestTelegramPhoto(message);
   const imageDocument = message.document?.mime_type?.startsWith("image/") ? message.document : null;
