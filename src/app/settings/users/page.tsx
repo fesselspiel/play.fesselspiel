@@ -91,40 +91,59 @@ export default async function UsersPage() {
             </form>
           </Panel>
           <Panel>
-            <h2 className="mb-4 text-lg font-semibold">Kreise bearbeiten</h2>
-            <div className="space-y-4">
-              {circles.map((circle) => {
-                const members = users.filter((entry) => entry.circleId === circle.id);
-                return (
-                  <form key={circle.id} id={`circle-${circle.id}`} action={updateCircle} className="space-y-3 rounded-md border border-line bg-paper p-3">
-                    <input name="id" type="hidden" value={circle.id} />
-                    <Field label="Kreisname"><input className={inputClass} name="name" defaultValue={circle.name} required /></Field>
-                    <div>
-                      <div className="mb-2 text-sm font-medium text-graphite">Mitglieder</div>
-                      <div className="space-y-2">
-                        {users.map((entry) => {
-                          const label = entry.profile?.displayName || entry.name || entry.email;
-                          return (
-                            <label key={entry.id} className="flex items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2 text-sm">
-                              <span className="min-w-0">
-                                <span className="block truncate font-semibold text-ink">{label}</span>
-                                <span className="block truncate text-xs text-graphite">{entry.email}</span>
-                              </span>
-                              <input name="memberIds" type="checkbox" value={entry.id} defaultChecked={entry.circleId === circle.id} className="h-4 w-4 shrink-0 accent-redbrand" />
-                            </label>
-                          );
-                        })}
+            <details className="group" open={circles.length <= 1}>
+              <summary className="focus-ring flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 text-lg font-semibold text-ink hover:text-redbrand [&::-webkit-details-marker]:hidden">
+                Kreise bearbeiten
+                <span className="text-sm font-medium text-graphite group-open:hidden">aufklappen</span>
+                <span className="hidden text-sm font-medium text-graphite group-open:inline">einklappen</span>
+              </summary>
+              <div className="mt-4 space-y-3">
+                {circles.map((circle) => {
+                  const members = users.filter((entry) => entry.circleId === circle.id);
+                  const circleEditor = (
+                    <form action={updateCircle} className="space-y-3 border-t border-line p-3">
+                      <input name="id" type="hidden" value={circle.id} />
+                      <Field label="Kreisname"><input className={inputClass} name="name" defaultValue={circle.name} required /></Field>
+                      <div>
+                        <div className="mb-2 text-sm font-medium text-graphite">Mitglieder</div>
+                        <div className="space-y-2">
+                          {users.map((entry) => {
+                            const label = entry.profile?.displayName || entry.name || entry.email;
+                            return (
+                              <label key={entry.id} className="flex items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2 text-sm">
+                                <span className="min-w-0">
+                                  <span className="block truncate font-semibold text-ink">{label}</span>
+                                  <span className="block truncate text-xs text-graphite">{entry.email}</span>
+                                </span>
+                                <input name="memberIds" type="checkbox" value={entry.id} defaultChecked={entry.circleId === circle.id} className="h-4 w-4 shrink-0 accent-redbrand" />
+                              </label>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-xs text-graphite">{members.length} Mitglied{members.length === 1 ? "" : "er"}</p>
-                      <Button>Kreis speichern</Button>
-                    </div>
-                  </form>
-                );
-              })}
-              {!circles.length ? <p className="text-sm text-graphite">Noch kein Kreis angelegt.</p> : null}
-            </div>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-xs text-graphite">{members.length} Mitglied{members.length === 1 ? "" : "er"}</p>
+                        <Button>Kreis speichern</Button>
+                      </div>
+                    </form>
+                  );
+                  return (
+                    <details key={circle.id} id={`circle-${circle.id}`} className="group/circle overflow-hidden rounded-md border border-line bg-paper" open={circles.length === 1}>
+                      <summary className="focus-ring flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-ink hover:bg-surface [&::-webkit-details-marker]:hidden">
+                        <span className="min-w-0">
+                          <span className="block truncate">{circle.name}</span>
+                          <span className="block text-xs font-medium text-graphite">{members.length} Mitglied{members.length === 1 ? "" : "er"}</span>
+                        </span>
+                        <span className="text-xs text-graphite group-open/circle:hidden">bearbeiten</span>
+                        <span className="hidden text-xs text-graphite group-open/circle:inline">schliessen</span>
+                      </summary>
+                      {circleEditor}
+                    </details>
+                  );
+                })}
+                {!circles.length ? <p className="text-sm text-graphite">Noch kein Kreis angelegt.</p> : null}
+              </div>
+            </details>
           </Panel>
           <Panel>
             <h2 className="mb-4 text-lg font-semibold">Benutzer anlegen</h2>

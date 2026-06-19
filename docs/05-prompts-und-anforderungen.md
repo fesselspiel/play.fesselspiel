@@ -410,6 +410,17 @@ Umsetzung:
 - Pro Kreis gibt es ein Formular fuer Kreisname und Mitglieder-Checkboxen.
 - Beim Speichern wird der Kreis umbenannt, angehakte Benutzer werden hinzugefuegt und nicht mehr angehakte Benutzer aus diesem Kreis entfernt.
 
+Weitere Nachbesserung:
+
+- Kreise sollen wie andere Listen aufklappbar sein.
+- Innerhalb von `Kreise bearbeiten` sollen einzelne Kreise ebenfalls aufklappbar sein, besonders wenn mehr als ein Kreis vorhanden ist.
+
+Umsetzung:
+
+- `Kreise bearbeiten` ist ein nativer `details/summary`-Bereich.
+- Jeder Kreis ist ein eigenes `details/summary`-Element.
+- Wenn nur ein Kreis vorhanden ist, ist dieser direkt geoeffnet; bei mehreren Kreisen starten die einzelnen Kreise eingeklappt.
+
 ## Kompakte-Listen-Prompt
 
 Anforderung:

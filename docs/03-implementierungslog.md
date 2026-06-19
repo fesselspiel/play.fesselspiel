@@ -239,6 +239,8 @@ Details:
 - Nachrichtenempfaenger innerhalb des Kreises
 - Neue Datensaetze behalten weiterhin den Ersteller als `ownerId`, sind aber fuer Kreis-Mitglieder sichtbar und bearbeitbar.
 - Admins koennen Kreise in der Benutzerverwaltung nachtraeglich umbenennen und die Mitgliedschaft zentral pflegen.
+- Die Kreisverwaltung ist als aufklappbarer Bereich umgesetzt.
+- Einzelne Kreise werden ebenfalls als Accordion dargestellt; bei mehreren Kreisen bleiben sie zunaechst eingeklappt.
 
 ## Kompakte Listen fuer Spielsachen und Stellungen
 
