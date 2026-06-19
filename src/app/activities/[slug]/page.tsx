@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { CopySubtitle } from "@/components/copy-subtitle";
 import { Badge, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { isAccessibleOwner } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
+import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
 
@@ -15,11 +17,13 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
   if (!user) redirect("/login");
   const activity = await prisma.activityPlan.findUnique({ where: { slug: params.slug }, include: { tools: true, positions: true } });
   if (!activity || !(await isAccessibleOwner(user, activity.ownerId))) notFound();
+  const path = `/activities/${activity.slug}`;
+  const url = `${env.appUrl}${path}`;
   return (
     <AppShell>
       <PageHeader
         title={activity.title}
-        subtitle={`/activities/${activity.slug}`}
+        subtitle={<CopySubtitle value={url} label={path} />}
         action={
           <Badge tone="red">{statusLabel[activity.status]}</Badge>
         }

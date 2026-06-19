@@ -164,6 +164,7 @@ Details:
 - Bearbeiten-Aktionen auf Detailseiten fuer Spielzeuge, Stellungen und Aktivitaeten aus dem Header entfernt.
 - Bearbeiten liegt jetzt in einem Aktionsbereich am unteren Ende der Detailseite.
 - Der Header bleibt dadurch ruhiger und zeigt primaer Titel, URL/Status und Inhalt.
+- Auf Aktivitaets-Detailseiten kopiert ein Klick auf den sichtbaren Pfad im Header die komplette HTTPS-URL in die Zwischenablage, ohne die Anzeige zu veraendern.
 
 ## Upload-UX und iPhone-Bilder
 
