@@ -7,17 +7,19 @@ import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
 import { fileAssetUrl, saveFileBuffer } from "@/lib/files";
 import { downloadTelegramFile, largestTelegramPhoto, sendTelegramMessage, telegramHtml, telegramLink, transcribeTelegramVoice } from "@/lib/telegram";
 import type { TelegramUpdate } from "@/lib/telegram";
+import { uniqueSessionSlug } from "@/lib/session-slug";
 
 const HELP_TEXT = `<b>Befehle</b>
-<code>/help</code> - Befehle anzeigen
-<code>/id</code> - Chat-ID und Thread-ID anzeigen
-<code>/status</code> - kurze Uebersicht
-<code>/toys</code> - Spielzeuge anzeigen
-<code>/positions</code> - Stellungen anzeigen
-<code>/activities</code> - geplante Aktivitaeten anzeigen
-<code>/sessions</code> - Session-Auswertung aktuelles Jahr
-<code>/session_start Notiz</code> - Segufix-Session starten
-<code>/session_stop Notiz</code> - laufende Session beenden
+/start - Bot starten
+/help - Befehle anzeigen
+/id - Chat-ID und Thread-ID anzeigen
+/status - kurze Uebersicht
+/toys - Spielzeuge anzeigen
+/positions - Stellungen anzeigen
+/activities - geplante Aktivitaeten anzeigen
+/sessions - Session-Auswertung aktuelles Jahr
+/session_start Notiz - Segufix-Session starten
+/session_stop Notiz - laufende Session beenden
 
 <b>Du kannst auch normal schreiben</b>
 Plane morgen um 20 Uhr einen Entspannungsabend mit Leder-Manschetten.
@@ -114,14 +116,16 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   if (parsed.command === "/session_start") {
     const open = await prisma.segufixSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
     if (open) return `Es laeuft bereits eine Session seit ${formatDateTime(open.startTime)}. Beende sie mit /session_stop.`;
+    const startTime = new Date();
     const session = await prisma.segufixSession.create({
       data: {
         ownerId: userId,
-        startTime: new Date(),
+        slug: await uniqueSessionSlug(startTime),
+        startTime,
         notes: parsed.args || "Per Telegram gestartet"
       }
     });
-    return `Session gestartet: ${formatDateTime(session.startTime)}`;
+    return [`Session gestartet: ${formatDateTime(session.startTime)}`, telegramLink(`${env.appUrl}/sessions/${session.slug}`, "Session oeffnen")].join("\n");
   }
 
   if (parsed.command === "/session_stop") {

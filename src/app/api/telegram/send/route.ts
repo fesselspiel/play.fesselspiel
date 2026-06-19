@@ -17,6 +17,6 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Ungueltige Eingabe" }, { status: 400 });
   const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
   if (!settings?.telegramBotTokenEnc) return NextResponse.json({ error: "Telegram Token fehlt" }, { status: 400 });
-  const result = await sendTelegramMessage(settings.telegramBotTokenEnc, parsed.data.chatId, parsed.data.threadId, parsed.data.text);
+  const result = await sendTelegramMessage(settings.telegramBotTokenEnc, parsed.data.chatId, parsed.data.threadId, parsed.data.text, { parseMode: "HTML", disableWebPagePreview: true });
   return NextResponse.json(result);
 }

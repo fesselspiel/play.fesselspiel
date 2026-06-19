@@ -7,7 +7,8 @@ import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
-import { moodAfter, moodBefore, moodScore } from "@/lib/moods";
+import { moodAfter, moodBefore, moodScore, neutralMood } from "@/lib/moods";
+import { ensureSessionSlug, uniqueSessionSlug } from "@/lib/session-slug";
 
 type MoodBeforeValue = keyof typeof moodBefore;
 type MoodAfterValue = keyof typeof moodAfter;
@@ -19,9 +20,11 @@ async function createSession(formData: FormData) {
   const startTime = new Date(String(formData.get("startTime")));
   const endRaw = String(formData.get("endTime") || "");
   const endTime = endRaw ? new Date(endRaw) : null;
+  const slug = await uniqueSessionSlug(startTime);
   await prisma.segufixSession.create({
     data: {
       ownerId: user.id,
+      slug,
       startTime,
       endTime,
       durationMinutes: minutesBetween(startTime, endTime),
@@ -44,6 +47,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
   const yearStart = new Date(year, 0, 1);
   const yearEnd = new Date(year + 1, 0, 1);
   const sessions = await prisma.segufixSession.findMany({ where: { ...(await ownerScope(user)), startTime: { gte: yearStart, lt: yearEnd } }, orderBy: { startTime: "desc" } });
+  const sessionSlugs = new Map(await Promise.all(sessions.map(async (session) => [session.id, await ensureSessionSlug(session)] as const)));
   const totalMinutes = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
   const avgDuration = sessions.length ? Math.round(totalMinutes / sessions.length) : 0;
   const afterScores: number[] = sessions.map((s) => (s.moodAfter ? moodScore[s.moodAfter] : 0)).filter(Boolean);
@@ -111,7 +115,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                     return (
                       <a
                         key={`${month}-${day}`}
-                        href={`#session-${daySessions[0].id}`}
+                        href={`/sessions/${sessionSlugs.get(daySessions[0].id)}`}
                         title={daySessions.length ? `${daySessions.length} Sessions, ${formatMinutes(minutes)}` : ""}
                         className={className}
                       />
@@ -130,13 +134,16 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                     <strong>{formatDateTime(session.startTime)}</strong>
                     <div className="flex items-center gap-3">
                       <span className="text-sm text-graphite">{formatMinutes(session.durationMinutes)}</span>
-                      <Link href={`/sessions/${session.id}/edit`} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-line px-3 py-1.5 text-sm font-semibold hover:bg-paper">
+                      <Link href={`/sessions/${sessionSlugs.get(session.id)}`} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-line px-3 py-1.5 text-sm font-semibold hover:bg-paper">
+                        Details
+                      </Link>
+                      <Link href={`/sessions/${sessionSlugs.get(session.id)}/edit`} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-line px-3 py-1.5 text-sm font-semibold hover:bg-paper">
                         <Pencil className="h-4 w-4" />
                         Bearbeiten
                       </Link>
                     </div>
                   </div>
-                  <p className="mt-2 text-sm text-graphite">Vorher: {session.moodBefore ? moodBefore[session.moodBefore] : "-"} · Nachher: {session.moodAfter ? moodAfter[session.moodAfter] : "-"}</p>
+                  <p className="mt-2 text-sm text-graphite">Vorher: {session.moodBefore ? moodBefore[session.moodBefore] : neutralMood} · Nachher: {session.moodAfter ? moodAfter[session.moodAfter] : neutralMood}</p>
                   {session.notes ? <p className="mt-2 text-sm text-graphite">{session.notes}</p> : null}
                 </article>
               ))}

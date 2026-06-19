@@ -4,6 +4,7 @@ import { decryptSecret } from "@/lib/crypto";
 import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
+import { uniqueSessionSlug } from "@/lib/session-slug";
 import { telegramHtml, telegramLink } from "@/lib/telegram";
 
 type PortalAgentInput = {
@@ -472,16 +473,18 @@ async function startSession(userId: string, args: Record<string, unknown>): Prom
   const open = await prisma.segufixSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
   if (open) return { ok: false, message: `Es laeuft bereits eine Session seit ${formatDateTime(open.startTime)}.` };
   const moodBefore = clean(args.moodBefore) || undefined;
+  const startTime = new Date();
   const session = await prisma.segufixSession.create({
     data: {
       ownerId: userId,
-      startTime: new Date(),
+      slug: await uniqueSessionSlug(startTime),
+      startTime,
       notes: clean(args.note) || "Per Telegram-Agent gestartet",
       moodBefore: moodBefore as never,
       moodBeforeText: clean(args.moodBeforeText)
     }
   });
-  return { ok: true, message: `Session gestartet: ${formatDateTime(session.startTime)}` };
+  return { ok: true, message: `Session gestartet: ${formatDateTime(session.startTime)}`, data: { url: link(`/sessions/${session.slug}`) } };
 }
 
 async function stopSession(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {

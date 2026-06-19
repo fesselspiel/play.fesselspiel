@@ -72,6 +72,7 @@ model User {
   sessions          SegufixSession[]
   media             Media[]
   mediaComments     MediaComment[]
+  sessionComments   SessionComment[]
   albums            Album[]
   events            Event[]
   files             FileAsset[]
@@ -201,6 +202,7 @@ model ActivityPlan {
 model SegufixSession {
   id             String      @id @default(cuid())
   ownerId        String
+  slug           String?
   startTime      DateTime
   endTime        DateTime?
   durationMinutes Int?
@@ -212,8 +214,11 @@ model SegufixSession {
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   owner          User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  media          Media[]
+  comments       SessionComment[]
 
   @@index([ownerId, startTime])
+  @@index([slug])
 }
 
 model Album {
@@ -232,6 +237,7 @@ model Media {
   id          String     @id @default(cuid())
   ownerId     String
   albumId     String?
+  sessionId   String?
   title       String
   kind        MediaKind
   url         String
@@ -240,7 +246,10 @@ model Media {
   updatedAt   DateTime   @updatedAt
   owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   album       Album?     @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  session     SegufixSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   comments    MediaComment[]
+
+  @@index([sessionId])
 }
 
 model MediaComment {
@@ -253,6 +262,19 @@ model MediaComment {
   owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([mediaId, createdAt])
+  @@index([ownerId, createdAt])
+}
+
+model SessionComment {
+  id        String         @id @default(cuid())
+  sessionId String
+  ownerId   String
+  body      String
+  createdAt DateTime       @default(now())
+  session   SegufixSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  owner     User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
   @@index([ownerId, createdAt])
 }
 

@@ -8,6 +8,7 @@ import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
 import { sendTelegramMessage, telegramHtml } from "@/lib/telegram";
+import { ensureSessionSlug } from "@/lib/session-slug";
 
 const dayFormatter = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "Europe/Berlin" });
 const timeFormatter = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
@@ -133,6 +134,7 @@ export default async function DashboardPage() {
     ["Medien", mediaCount, Images, "/media"],
     ["Nachrichten", messageCount, MessageCircle, "/messages"]
   ] as const;
+  const sessionSlugs = new Map(await Promise.all(sessions.map(async (session) => [session.id, await ensureSessionSlug(session)] as const)));
   const weekDays = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(todayStart);
     date.setDate(todayStart.getDate() + index);
@@ -272,13 +274,13 @@ export default async function DashboardPage() {
             <h2 className="mb-4 text-lg font-semibold">Letzte Segufix-Sessions</h2>
             <div className="space-y-3">
               {sessions.map((session) => (
-                <div key={session.id} className="rounded-md border border-line p-3">
+                <Link key={session.id} href={`/sessions/${sessionSlugs.get(session.id)}`} className="block rounded-md border border-line p-3 hover:border-redbrand hover:bg-paper">
                   <div className="flex items-center justify-between gap-3">
                     <strong>{formatDateTime(session.startTime)}</strong>
                     <span className="text-sm text-graphite">{formatMinutes(session.durationMinutes)}</span>
                   </div>
                   {session.notes ? <p className="mt-2 text-sm text-graphite">{session.notes}</p> : null}
-                </div>
+                </Link>
               ))}
             </div>
           </Panel>

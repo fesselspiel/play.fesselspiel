@@ -8,6 +8,7 @@ import { currentUser } from "@/lib/auth";
 import { formatDateTimeLocal, minutesBetween } from "@/lib/dates";
 import { moodAfter, moodBefore } from "@/lib/moods";
 import { prisma } from "@/lib/prisma";
+import { uniqueSessionSlug } from "@/lib/session-slug";
 
 type MoodBeforeValue = keyof typeof moodBefore;
 type MoodAfterValue = keyof typeof moodAfter;
@@ -25,6 +26,7 @@ async function updateSession(formData: FormData) {
   await prisma.segufixSession.update({
     where: { id: session.id },
     data: {
+      slug: session.slug || await uniqueSessionSlug(startTime, session.id),
       startTime,
       endTime,
       durationMinutes: minutesBetween(startTime, endTime),
@@ -50,10 +52,10 @@ async function deleteSession(formData: FormData) {
   redirect(`/sessions?year=${year}`);
 }
 
-export default async function EditSessionPage({ params }: { params: { id: string } }) {
+export default async function EditSessionPage({ params }: { params: { slug: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
-  const session = await prisma.segufixSession.findFirst({ where: { id: params.id, ...(await ownerScope(user)) } });
+  const session = await prisma.segufixSession.findFirst({ where: { ...(await ownerScope(user)), OR: [{ id: params.slug }, { slug: params.slug }] } });
   if (!session) notFound();
 
   return (

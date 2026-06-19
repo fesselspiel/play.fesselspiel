@@ -340,6 +340,21 @@ Details:
 - Der Telegram-Webhook prueft pro Nachricht `message.from.username`.
 - Wenn ein Mapping existiert, werden Befehle, Agentenaktionen, Dialoge und Bildspeicherungen aus Sicht dieses App-Benutzers ausgefuehrt.
 - Ohne Mapping bleibt das bisherige Verhalten bestehen: Der Besitzer der Telegram-Einstellung ist der ausfuehrende Benutzer.
+- Telegram-Hilfenachrichten bleiben im HTML-Modus formatiert, aber Slash-Befehle werden nicht mehr in `<code>` verpackt, damit Telegram sie wieder als Befehle antippen kann.
+- Der manuelle Telegram-Sende-Endpunkt verwendet ebenfalls HTML-Markup und deaktivierte Link-Vorschauen.
+
+## Session-Detailseiten
+
+- Sessions haben einen optionalen sprechenden Slug, z.B. `session-2026-06-19-1542`.
+- Bestehende Sessions erhalten beim Anzeigen automatisch einen Slug.
+- Neue Detailroute `/sessions/[slug]` zeigt Start, Ende, Dauer, Stimmungen, Notizen, Bilder und Kommentare.
+- Die alte Bearbeitungsroute wurde auf `/sessions/[slug]/edit` vereinheitlicht und findet Sessions per Slug oder ID.
+- Session-Stimmungslabels enthalten Emojis; fehlende Werte zeigen `😐 neutral`.
+- Session-Bilder werden als geschuetzte Medien mit `sessionId` gespeichert.
+- Einzelne Session-Bilder koennen kommentiert werden.
+- Sessions selbst koennen kommentiert werden.
+- Dashboard und Session-Historie verlinken direkt auf die neue Detailseite.
+- Export/Import sichert und rekonstruiert Session-Kommentare sowie die Zuordnung von Medien zu Sessions.
 
 ## Feature-Video
 

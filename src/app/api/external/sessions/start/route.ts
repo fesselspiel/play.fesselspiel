@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dateFromValue, oneOf, requestValues, requireApiUser } from "@/lib/external-api";
 import { prisma } from "@/lib/prisma";
+import { uniqueSessionSlug } from "@/lib/session-slug";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,7 @@ async function startSession(request: NextRequest) {
   const session = await prisma.segufixSession.create({
     data: {
       ownerId: auth.user.id,
+      slug: await uniqueSessionSlug(startTime),
       startTime,
       notes: values.get("note") || values.get("notes") || "Per API gestartet",
       moodBefore,
