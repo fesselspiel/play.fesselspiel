@@ -19,7 +19,7 @@ export async function GET() {
         {
           ok: false,
           candidates: [],
-          error: "Telegram gibt keine Testnachrichten aus, solange der Webhook aktiv ist. Loesche den Webhook kurz, sende eine Testnachricht und lies danach erneut ein."
+          error: "Telegram gibt keine Testnachrichten aus, solange der Webhook aktiv ist. Lösche den Webhook kurz, sende eine Testnachricht und lies danach erneut ein."
         },
         { status: 409 }
       );

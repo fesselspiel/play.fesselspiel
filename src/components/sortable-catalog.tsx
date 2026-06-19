@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, GripVertical } from "lucide-react";
+import { ChevronDown, GripVertical, MoveDown, MoveUp } from "lucide-react";
 import { useState, useTransition } from "react";
 
 type ToyItem = {
@@ -56,8 +56,24 @@ function useReorder<T extends { id: string }>(kind: "toys" | "positions", items:
       });
     });
   }
+  function moveBy(id: string, direction: -1 | 1) {
+    const from = ordered.findIndex((item) => item.id === id);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= ordered.length) return;
+    const next = [...ordered];
+    const [entry] = next.splice(from, 1);
+    next.splice(to, 0, entry);
+    setOrdered(next);
+    startTransition(async () => {
+      await fetch("/api/reorder", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind, ids: next.map((item) => item.id) })
+      });
+    });
+  }
 
-  return { ordered, dragId, setDragId, move, isPending };
+  return { ordered, dragId, setDragId, move, moveBy, isPending };
 }
 
 export function SortableToyList({ items }: { items: ToyItem[] }) {
@@ -97,14 +113,14 @@ export function SortableToyList({ items }: { items: ToyItem[] }) {
                   <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-graphite">
                     <span className="rounded-md bg-surface px-2 py-1">/toys/{toy.slug}</span>
                     <span className="rounded-md bg-surface px-2 py-1">{toy.positionCount} Stellungen</span>
-                    <span className="rounded-md bg-surface px-2 py-1">{toy.activityCount} Spielplaene</span>
+                    <span className="rounded-md bg-surface px-2 py-1">{toy.activityCount} Spielpläne</span>
                   </div>
                   <p className="mt-4 text-sm leading-6 text-graphite">{toy.description || "Keine Beschreibung hinterlegt."}</p>
                   <div className="mt-4 flex flex-wrap items-center gap-3">
                     <Link href={`/toys/${toy.slug}`} className="inline-flex min-h-10 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
-                      Detail oeffnen
+                      Detail öffnen
                     </Link>
-                    <span className="text-xs text-graphite">Detailseite mit QR-Code, Copy-Link, Verknuepfungen und Bearbeitung.</span>
+                    <span className="text-xs text-graphite">Detailseite mit QR-Code, Copy-Link, Verknüpfungen und Bearbeitung.</span>
                   </div>
                 </div>
               </div>
@@ -112,19 +128,18 @@ export function SortableToyList({ items }: { items: ToyItem[] }) {
           </details>
         </div>
       ))}
-      {isPending ? <p className="text-xs text-graphite">Reihenfolge wird gespeichert ...</p> : null}
     </div>
   );
 }
 
-export function SortablePositionList({ items }: { items: PositionItem[] }) {
-  const { ordered, dragId, setDragId, move, isPending } = useReorder("positions", items);
+export function SortablePositionList({ items, canSort = false }: { items: PositionItem[]; canSort?: boolean }) {
+  const { ordered, dragId, setDragId, move, moveBy, isPending } = useReorder("positions", items);
   return (
     <div className="space-y-3">
       {ordered.map((position) => (
         <div
           key={position.id}
-          draggable
+          draggable={false}
           onDragStart={() => setDragId(position.id)}
           onDragOver={(event) => event.preventDefault()}
           onDrop={() => move(position.id)}
@@ -133,14 +148,13 @@ export function SortablePositionList({ items }: { items: PositionItem[] }) {
         >
           <details className="group overflow-hidden rounded-lg border border-line bg-surface">
             <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 px-3 py-3 hover:bg-paper [&::-webkit-details-marker]:hidden">
-              <DragHandle />
               <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-paper sm:h-16 sm:w-16">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={position.imageUrl || "/position-placeholder.svg"} alt="" className="h-full w-full object-cover" />
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="truncate text-base font-semibold text-ink">{position.name}</h2>
-                <p className="mt-1 truncate text-xs text-graphite">{position.toolCount} Spielzeuge · {position.activityCount} Spielplaene</p>
+                <p className="mt-1 truncate text-xs text-graphite">{position.toolCount} Spielzeuge · {position.activityCount} Spielpläne</p>
               </div>
               <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open:rotate-180" />
             </summary>
@@ -154,7 +168,7 @@ export function SortablePositionList({ items }: { items: PositionItem[] }) {
                   <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-graphite">
                     <span className="rounded-md bg-surface px-2 py-1">/positions/{position.slug}</span>
                     <span className="rounded-md bg-surface px-2 py-1">{position.toolCount} Spielzeuge</span>
-                    <span className="rounded-md bg-surface px-2 py-1">{position.activityCount} Spielplaene</span>
+                    <span className="rounded-md bg-surface px-2 py-1">{position.activityCount} Spielpläne</span>
                   </div>
                   <p className="mt-4 text-sm leading-6 text-graphite">{position.description || "Keine Beschreibung hinterlegt."}</p>
                   {position.tools.length ? (
@@ -168,9 +182,9 @@ export function SortablePositionList({ items }: { items: PositionItem[] }) {
                   ) : null}
                   <div className="mt-4 flex flex-wrap items-center gap-3">
                     <Link href={`/positions/${position.slug}`} className="inline-flex min-h-10 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
-                      Detail oeffnen
+                      Detail öffnen
                     </Link>
-                    <span className="text-xs text-graphite">Detailseite mit Bild, Verknuepfungen und Bearbeitung.</span>
+                    <span className="text-xs text-graphite">Detailseite mit Bild, Verknüpfungen und Bearbeitung.</span>
                   </div>
                 </div>
               </div>
@@ -178,6 +192,27 @@ export function SortablePositionList({ items }: { items: PositionItem[] }) {
           </details>
         </div>
       ))}
+      {canSort ? (
+        <details className="rounded-lg border border-line bg-surface p-4">
+          <summary className="cursor-pointer list-none text-sm font-semibold text-graphite hover:text-redbrand [&::-webkit-details-marker]:hidden">
+            Reihenfolge bearbeiten
+          </summary>
+          <div className="mt-3 space-y-2">
+            {ordered.map((position, index) => (
+              <div key={position.id} className="flex items-center gap-2 rounded-md bg-paper p-2">
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{position.name}</span>
+                <button type="button" onClick={() => moveBy(position.id, -1)} disabled={index === 0} className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface disabled:opacity-40">
+                  <MoveUp className="h-4 w-4" />
+                </button>
+                <button type="button" onClick={() => moveBy(position.id, 1)} disabled={index === ordered.length - 1} className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface disabled:opacity-40">
+                  <MoveDown className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            {isPending ? <p className="text-xs text-graphite">Reihenfolge wird gespeichert ...</p> : null}
+          </div>
+        </details>
+      ) : null}
       {isPending ? <p className="text-xs text-graphite">Reihenfolge wird gespeichert ...</p> : null}
     </div>
   );

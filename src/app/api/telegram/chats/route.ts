@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
   const parsed = Body.safeParse(await request.json());
-  if (!parsed.success) return NextResponse.json({ error: "Ungueltige Eingabe" }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: "Ungültige Eingabe" }, { status: 400 });
   const settings = await prisma.userSettings.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id } });
   const threadId = parsed.data.threadId || null;
   const existing = await prisma.telegramChat.findFirst({ where: { settingsId: settings.id, chatId: parsed.data.chatId, threadId } });

@@ -404,7 +404,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
     <AppShell>
       <PageHeader title="Telegram" />
       <PageGuide title="Bot, Chats und Voice-Transkription verbinden">
-        Hier verbindest du Telegram mit dem Portal. Speichere Bot-Token und OpenAI-Key, lies Chats ein, uebernimm Chat-ID und Thread-ID und setze den Webhook, damit der Bot Nachrichten, Bilder und Aktionen verarbeiten kann.
+        Hier verbindest du Telegram mit dem Portal. Speichere Bot-Token und OpenAI-Key, lies Chats ein, übernimm Chat-ID und Thread-ID und setze den Webhook, damit der Bot Nachrichten, Bilder und Aktionen verarbeiten kann.
       </PageGuide>
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <Panel>
@@ -419,7 +419,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                 </p>
               ) : null}
             </Field>
-            <Field label="OpenAI API-Key fuer Voice-Transkription">
+            <Field label="OpenAI API-Key für Voice-Transkription">
               <input className={inputClass} name="openAiApiKey" type="password" placeholder={openAiKeySuffix ? `Gespeichert ...${openAiKeySuffix}` : ""} />
               {openAiKeySuffix ? (
                 <p className="mt-2 rounded-md bg-surface px-3 py-2 text-sm text-graphite">
@@ -432,8 +432,8 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
         </Panel>
         <div className="space-y-6">
           <Panel>
-            <h2 className="mb-4 text-lg font-semibold">Chat bestaetigen</h2>
-            <p className="mb-4 text-sm leading-6 text-graphite">Schreibe dem Bot eine Testnachricht im gewuenschten Chat oder Thread. Danach liest der Button die letzten Telegram-Updates aus und zeigt Chat-ID sowie Thread-ID an.</p>
+            <h2 className="mb-4 text-lg font-semibold">Chat bestätigen</h2>
+            <p className="mb-4 text-sm leading-6 text-graphite">Schreibe dem Bot eine Testnachricht im gewünschten Chat oder Thread. Danach liest der Button die letzten Telegram-Updates aus und zeigt Chat-ID sowie Thread-ID an.</p>
             <TelegramChatDiscovery />
           </Panel>
           <Panel>
@@ -471,7 +471,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                     ) : null}
                     <form action={deleteChat}>
                       <input type="hidden" name="chatIdInternal" value={chat.id} />
-                      <Button variant="danger"><Trash2 className="h-4 w-4" /> Erkennung loeschen</Button>
+                      <Button variant="danger"><Trash2 className="h-4 w-4" /> Erkennung löschen</Button>
                     </form>
                   </div>
                 </div>
@@ -519,12 +519,12 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                     </form>
                     <form action={deleteChat} className="mt-3">
                       <input type="hidden" name="chatIdInternal" value={chat.id} />
-                      <Button variant="danger"><Trash2 className="h-4 w-4" /> Kanal loeschen</Button>
+                      <Button variant="danger"><Trash2 className="h-4 w-4" /> Kanal löschen</Button>
                     </form>
                   </div>
                 </details>
               ))}
-              {!activeChats.length ? <p className="text-sm text-graphite">Noch kein Chat bestaetigt.</p> : null}
+              {!activeChats.length ? <p className="text-sm text-graphite">Noch kein Chat bestätigt.</p> : null}
             </div>
           </Panel>
           <Panel>
@@ -561,7 +561,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                           {targetUsers.map((entry) => <option key={entry.id} value={entry.id}>{userLabel(entry)}</option>)}
                         </select>
                       </Field>
-                      <Button><Save className="h-4 w-4" /> {mapped ? "Aendern" : "Zuordnen"}</Button>
+                      <Button><Save className="h-4 w-4" /> {mapped ? "Ändern" : "Zuordnen"}</Button>
                     </form>
                   );
                 })}
@@ -579,7 +579,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                   </div>
                   <form action={deleteTelegramUserMapping}>
                     <input type="hidden" name="mappingId" value={mapping.id} />
-                    <Button variant="danger"><Trash2 className="h-4 w-4" /> Loeschen</Button>
+                    <Button variant="danger"><Trash2 className="h-4 w-4" /> Löschen</Button>
                   </form>
                 </div>
               ))}
@@ -590,7 +590,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
             <Panel>
               <h2 id="notifications" className="mb-4 flex items-center gap-2 text-lg font-semibold"><BellRing className="h-5 w-5 text-redbrand" /> Aktions-Benachrichtigungen</h2>
               <p className="mb-4 text-sm leading-6 text-graphite">
-                Waehle eine protokollierte Aktion, ein Telegram-Ziel und eine HTML-Nachricht. Wenn die Aktion im Portal passiert, wird die Nachricht an aktive Kanaele geschickt, die diesem Benutzer oder Kreis zugeordnet sind.
+                Wähle eine protokollierte Aktion, ein Telegram-Ziel und eine HTML-Nachricht. Wenn die Aktion im Portal passiert, wird die Nachricht an aktive Kanaele geschickt, die diesem Benutzer oder Kreis zugeordnet sind.
               </p>
               <form action={createNotificationRule} className="space-y-4 rounded-lg border border-line bg-paper p-4">
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -642,7 +642,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                     </form>
                     <form action={deleteNotificationRule} className="mt-3">
                       <input type="hidden" name="ruleId" value={rule.id} />
-                      <Button variant="danger"><Trash2 className="h-4 w-4" /> Regel loeschen</Button>
+                      <Button variant="danger"><Trash2 className="h-4 w-4" /> Regel löschen</Button>
                     </form>
                   </details>
                 ))}

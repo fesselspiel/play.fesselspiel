@@ -11,7 +11,7 @@ const LoginSchema = z.object({
 
 export async function POST(request: Request) {
   const parsed = LoginSchema.safeParse(await request.json());
-  if (!parsed.success) return NextResponse.json({ error: "Ungueltige Eingabe" }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: "Ungültige Eingabe" }, { status: 400 });
   const result = await login(parsed.data.identifier, parsed.data.password, Boolean(parsed.data.remember));
   if (!result) {
     await logAction({

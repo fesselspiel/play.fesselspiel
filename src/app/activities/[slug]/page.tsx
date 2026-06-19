@@ -31,7 +31,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
         }
       />
       <PageGuide>
-        Diese Detailseite zeigt Termin, Notiz, Status und alle ausgewaehlten Bausteine eines Spielplans. Nutze Bearbeiten, um Status, Termin oder Verknuepfungen nachtraeglich zu aendern.
+        Diese Detailseite zeigt Termin, Notiz, Status und alle ausgewählten Bausteine eines Spielplans. Nutze Bearbeiten, um Status, Termin oder Verknüpfungen nachträglich zu ändern.
       </PageGuide>
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <Panel>
@@ -39,7 +39,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
           {activity.status === "REQUESTED" ? (
             <form action={confirmRequestedActivity} className="mt-4">
               <input type="hidden" name="id" value={activity.id} />
-              <Button>Spielplan bestaetigen</Button>
+              <Button>Spielplan bestätigen</Button>
             </form>
           ) : null}
           <p className="mt-5 leading-7 text-graphite">{activity.note || "Keine Notiz hinterlegt."}</p>
@@ -61,7 +61,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
       </div>
       <Panel className="mt-6">
         <h2 className="mb-2 text-lg font-semibold">Aktionen</h2>
-        <p className="mb-4 text-sm text-graphite">Bearbeite diesen Spielplan, wenn Termin, Status, Notiz oder Bausteine geaendert werden sollen.</p>
+        <p className="mb-4 text-sm text-graphite">Bearbeite diesen Spielplan, wenn Termin, Status, Notiz oder Bausteine geändert werden sollen.</p>
         <Link href={`/activities/${activity.slug}/edit`} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
           <Pencil className="h-4 w-4" />
           Bearbeiten

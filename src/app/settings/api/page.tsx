@@ -59,7 +59,7 @@ export default async function ApiSettingsPage({ searchParams }: { searchParams: 
             <Button><Plus className="h-4 w-4" /> Token erzeugen</Button>
           </form>
           <div className="mt-4 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
-            Fuer Alexa-Webaufrufe kannst du den Token als `?token=...` anhaengen. Fuer Apps ist `Authorization: Bearer ...` sauberer.
+            Für Alexa-Webaufrufe kannst du den Token als `?token=...` anhaengen. Für Apps ist `Authorization: Bearer ...` sauberer.
           </div>
         </Panel>
 

@@ -48,7 +48,7 @@ export default async function EditEventPage({ params }: { params: { id: string }
     <AppShell>
       <PageHeader title="Event bearbeiten" />
       <PageGuide>
-        Aendere hier Titel, Ort, Startzeit und Beschreibung des Events. Beim Loeschen werden der Termin und seine Check-ins entfernt.
+        Ändere hier Titel, Ort, Startzeit und Beschreibung des Events. Beim Löschen werden der Termin und seine Check-ins entfernt.
       </PageGuide>
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <form action={updateEvent} className="max-w-2xl space-y-4">
@@ -58,7 +58,7 @@ export default async function EditEventPage({ params }: { params: { id: string }
           <Field label="Start"><input className={inputClass} name="startsAt" type="datetime-local" required defaultValue={formatDateTimeLocal(event.startsAt)} /></Field>
           <Field label="Beschreibung"><textarea className={inputClass} name="description" rows={4} defaultValue={event.description || ""} /></Field>
           <div className="flex flex-wrap gap-2">
-            <Button><Save className="h-4 w-4" /> Aenderungen speichern</Button>
+            <Button><Save className="h-4 w-4" /> Änderungen speichern</Button>
             <Link href="/events" className="focus-ring inline-flex min-h-10 items-center justify-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
               Abbrechen
             </Link>
@@ -66,9 +66,9 @@ export default async function EditEventPage({ params }: { params: { id: string }
         </form>
         <form action={deleteEvent} className="rounded-lg border border-line bg-paper p-5">
           <input type="hidden" name="id" value={event.id} />
-          <h2 className="text-lg font-semibold">Loeschen</h2>
+          <h2 className="text-lg font-semibold">Löschen</h2>
           <p className="mt-2 text-sm text-graphite">Entfernt den Termin inklusive Check-ins.</p>
-          <Button variant="danger" className="mt-4 w-full"><Trash2 className="h-4 w-4" /> Event loeschen</Button>
+          <Button variant="danger" className="mt-4 w-full"><Trash2 className="h-4 w-4" /> Event löschen</Button>
         </form>
       </div>
     </AppShell>

@@ -63,7 +63,7 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
     <AppShell>
       <PageHeader title="Lass uns spielen" />
       <PageGuide title="Spielideen aus dem Baukastensystem">
-        Erstelle hier einen konkreten Spielplan. Vergib Titel und Kategorie, setze optional Datum und Uhrzeit, waehle passende Spielsachen und Stellungen aus und speichere den Plan mit dem gewuenschten Status.
+        Erstelle hier einen konkreten Spielplan. Vergib Titel und Kategorie, setze optional Datum und Uhrzeit, Wähle passende Spielsachen und Stellungen aus und speichere den Plan mit dem gewünschten Status.
       </PageGuide>
       <form action={createActivity} className="grid gap-6 xl:grid-cols-[1fr_420px]">
         <div className="space-y-4">

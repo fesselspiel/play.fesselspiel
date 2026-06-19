@@ -1,7 +1,7 @@
 export const activityStatusLabel = {
   REQUESTED: "angefragt",
   PLANNED: "geplant",
-  DONE: "durchgefuehrt",
+  DONE: "durchgeführt",
   DISCARDED: "verworfen"
 } as const;
 

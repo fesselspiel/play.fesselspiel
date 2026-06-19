@@ -59,7 +59,7 @@ async function togglePlayReady() {
     action: "play_ready_changed",
     entityType: "userSettings",
     entityId: user.id,
-    title: `Spielampel geaendert: ${actorName} ist ${playReadyLabel(next)}`,
+    title: `Spielampel geändert: ${actorName} ist ${playReadyLabel(next)}`,
     details: { previous: playReadyLabel(previous), next: playReadyLabel(next) },
     href: "/"
   });
@@ -193,15 +193,15 @@ export default async function DashboardPage() {
           </Link>
         }
       />
-      <PageGuide title="Private Uebersicht">
-        Das Dashboard ist die Startuebersicht fuer dein Portal. Nutze die Kennzahlen als schnelle Navigation zu Lass uns spielen, Stellungen, Spielsachen, Medien, Nachrichten und Sessions; darunter siehst du die naechsten Spielideen, Termine und die letzten Session-Eintraege.
+      <PageGuide title="Private Übersicht">
+        Das Dashboard ist die Startübersicht für dein Portal. Nutze die Kennzahlen als schnelle Navigation zu Lass uns spielen, Stellungen, Spielsachen, Medien, Nachrichten und Sessions; darunter siehst du die nächsten Spielideen, Termine und die letzten Session-Einträge.
       </PageGuide>
 
       <div className="space-y-6">
         <Panel>
           <div className="mb-4">
             <h2 className="text-lg font-semibold">Spielampel</h2>
-            <p className="mt-1 text-sm text-graphite">Gruen heisst volle Lust, Rot heisst gerade nicht.</p>
+            <p className="mt-1 text-sm text-graphite">Grün heißt volle Lust, Rot heißt gerade nicht.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {circleUsers.map((member) => {
@@ -257,7 +257,7 @@ export default async function DashboardPage() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">Gemeinsame Woche</h2>
-              <p className="mt-1 text-sm text-graphite">Die naechsten sieben Tage mit Spielideen und Terminen.</p>
+              <p className="mt-1 text-sm text-graphite">Die nächsten sieben Tage mit Spielideen und Terminen.</p>
             </div>
             <Link href="/activities/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
               <Plus className="h-4 w-4" />
@@ -293,7 +293,7 @@ export default async function DashboardPage() {
                           <form action={confirmRequestedActivity} className="mt-2">
                             <input type="hidden" name="id" value={entry.confirmId} />
                             <button className="focus-ring min-h-9 rounded-md bg-redbrand px-3 py-1.5 text-xs font-semibold text-white hover:bg-redbrandHover">
-                              Bestaetigen
+                              Bestätigen
                             </button>
                           </form>
                         ) : null}

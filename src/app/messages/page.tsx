@@ -156,11 +156,11 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
               <History className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="font-semibold text-ink">Aktivitaeten und Telegram-Verlauf</h2>
-              <p className="text-sm text-graphite">Geladen werden jeweils {pageSize} Protokolleintraege, alte Telegram-Nachrichten nur auf der ersten Seite.</p>
+              <h2 className="font-semibold text-ink">Aktivitäten und Telegram-Verlauf</h2>
+              <p className="text-sm text-graphite">Geladen werden jeweils {pageSize} Protokolleinträge, alte Telegram-Nachrichten nur auf der ersten Seite.</p>
             </div>
           </div>
-          <Badge>{totalAuditLogs} App-Eintraege</Badge>
+          <Badge>{totalAuditLogs} App-Einträge</Badge>
         </Panel>
 
         {groups.length ? (
@@ -169,7 +169,7 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
               <details key={day.key} open={dayIndex === 0} className="overflow-hidden rounded-lg border border-line bg-surface shadow-soft">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3 bg-paper px-4 py-3 font-semibold text-ink [&::-webkit-details-marker]:hidden">
                   <span>{day.label}</span>
-                  <span className="text-sm font-medium text-graphite">{day.count} Eintraege</span>
+                  <span className="text-sm font-medium text-graphite">{day.count} Einträge</span>
                 </summary>
                 <div className="divide-y divide-line">
                   {day.hours.map(([hour, hourEntries], hourIndex) => (
@@ -195,7 +195,7 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
                               </div>
                               {entry.href ? (
                                 <Link href={entry.href} className="focus-ring inline-flex min-h-9 items-center gap-1 rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-paper hover:text-redbrand">
-                                  Oeffnen <ExternalLink className="h-3.5 w-3.5" />
+                                  Öffnen <ExternalLink className="h-3.5 w-3.5" />
                                 </Link>
                               ) : null}
                             </div>
@@ -215,7 +215,7 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
             ))}
           </div>
         ) : (
-          <EmptyState title="Noch keine Protokolleintraege">
+          <EmptyState title="Noch keine Protokolleinträge">
             Sobald Aktionen in der App oder im Telegram-Bot passieren, erscheinen sie hier.
           </EmptyState>
         )}
@@ -223,7 +223,7 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
         <div className="flex flex-wrap items-center justify-between gap-3">
           {page > 1 ? (
             <Link href={`/messages?page=${page - 1}`} className="focus-ring inline-flex min-h-10 items-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
-              Zurueck
+              Zurück
             </Link>
           ) : <span />}
           {hasNext ? (
@@ -233,7 +233,7 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
           ) : null}
         </div>
       </div>
-      <PageGuide title="Protokoll und Aktivitaetsverlauf">
+      <PageGuide title="Protokoll und Aktivitätsverlauf">
         Das Protokoll sammelt wichtige Aktionen aus der App und die bisherigen Telegram-Nachrichten. Tage und Stunden lassen sich aufklappen; direkte Links fuehren zur passenden Detailseite, sofern der Datensatz noch vorhanden ist.
       </PageGuide>
     </AppShell>

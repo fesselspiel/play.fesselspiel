@@ -39,7 +39,7 @@ export default async function NewToyPage() {
         <Field label="URL-Slug">
           <input className={inputClass} name="slug" pattern="[a-z0-9-]*" placeholder="leder-manschetten" />
         </Field>
-        <FileUploadField name="image" uploadedUrlName="imageUploadedUrl" label="Foto/Bild" accept="image/*" help="Waehle ein Bild aus der Mediathek oder Kamera aus." />
+        <FileUploadField name="image" uploadedUrlName="imageUploadedUrl" label="Foto/Bild" accept="image/*" help="Wähle ein Bild aus der Mediathek oder Kamera aus." />
         <Field label="Beschreibung">
           <textarea className={inputClass} name="description" rows={6} />
         </Field>

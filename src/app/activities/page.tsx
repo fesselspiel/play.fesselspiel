@@ -26,7 +26,7 @@ export default async function ActivitiesPage() {
         action={<Link href="/activities/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" /> Spielidee</Link>}
       />
       <PageGuide title="Spielideen planen">
-        Hier planst du gemeinsame Spielideen aus Bausteinen. Oeffne einen Plan fuer Details oder erstelle eine neue Idee mit Datum, Status, Notiz, Spielsachen und Stellungen.
+        Hier planst du gemeinsame Spielideen aus Bausteinen. Öffne einen Plan für Details oder erstelle eine neue Idee mit Datum, Status, Notiz, Spielsachen und Stellungen.
       </PageGuide>
       {activities.length ? (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -36,7 +36,7 @@ export default async function ActivitiesPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold">{activity.title}</h2>
-                    <p className="mt-1 text-sm text-graphite">{activity.category || "Aktivitaet"} · {formatDateTime(activity.plannedAt)}</p>
+                    <p className="mt-1 text-sm text-graphite">{activity.category || "Aktivität"} · {formatDateTime(activity.plannedAt)}</p>
                   </div>
                   <Badge tone={activityStatusTone(activity.status)}>{statusLabel[activity.status]}</Badge>
                 </div>

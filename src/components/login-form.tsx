@@ -68,7 +68,7 @@ export function LoginForm() {
       </Button>
       <div className="flex items-center gap-2 text-xs text-graphite">
         <LockKeyhole className="h-4 w-4" />
-        Passwortgeschuetzter privater Bereich.
+        Passwortgeschützter privater Bereich.
       </div>
     </form>
   );

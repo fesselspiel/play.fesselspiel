@@ -38,8 +38,8 @@ export default async function PositionsPage({ searchParams }: { searchParams: { 
           </Link>
         }
       />
-      <PageGuide title="Positionen mit Bildern und Verknuepfungen">
-        Stellungen sind wiederverwendbare Bausteine fuer Aktivitaeten. Suche nach Namen, filtere nach Spielzeug und oeffne einen Eintrag, um Bild, Beschreibung, Verknuepfungen und Bearbeitung zu sehen.
+      <PageGuide title="Positionen mit Bildern und Verknüpfungen">
+        Stellungen sind wiederverwendbare Bausteine für Aktivitäten. Suche nach Namen, filtere nach Spielzeug und öffne einen Eintrag, um Bild, Beschreibung, Verknüpfungen und Bearbeitung zu sehen.
       </PageGuide>
       <form className="mb-5 grid gap-3 rounded-lg bg-paper p-4 sm:grid-cols-[1fr_260px_auto]">
         <input className="focus-ring rounded-md border border-line px-3 py-2 text-sm" name="q" placeholder="Nach Name suchen" defaultValue={q} />
@@ -50,16 +50,18 @@ export default async function PositionsPage({ searchParams }: { searchParams: { 
         <button className="rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white">Filtern</button>
       </form>
       {positions.length ? (
-        <SortablePositionList items={positions.map((position) => ({
-          id: position.id,
-          name: position.name,
-          slug: position.slug,
-          description: position.description,
-          imageUrl: position.imageUrl,
-          toolCount: position.tools.length,
-          activityCount: position.activities.length,
-          tools: position.tools.map((tool) => ({ id: tool.id, title: tool.title, slug: tool.slug }))
-        }))} />
+        <div className="space-y-4">
+          <SortablePositionList canSort={user.role === "ADMIN"} items={positions.map((position) => ({
+            id: position.id,
+            name: position.name,
+            slug: position.slug,
+            description: position.description,
+            imageUrl: position.imageUrl,
+            toolCount: position.tools.length,
+            activityCount: position.activities.length,
+            tools: position.tools.map((tool) => ({ id: tool.id, title: tool.title, slug: tool.slug }))
+          }))} />
+        </div>
       ) : (
         <EmptyState title="Keine Stellungen gefunden" />
       )}

@@ -269,7 +269,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
     <AppShell>
       <PageHeader title="Medien" />
       <PageGuide title="Bilder und Videos als geschuetzter, bildzentrierter Feed">
-        Die Medienseite zeigt Bilder und Videos zuerst als kompakten Feed. Upload, Alben und Filter liegen oben als aufklappbare Werkzeuge; Details, Dateiinfos und Aktionen erscheinen beim Oeffnen eines Mediums.
+        Die Medienseite zeigt Bilder und Videos zuerst als kompakten Feed. Upload, Alben und Filter liegen oben als aufklappbare Werkzeuge; Details, Dateiinfos und Aktionen erscheinen beim Öffnen eines Mediums.
       </PageGuide>
 
       <div className="space-y-4">
@@ -317,7 +317,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
           </div>
         ) : (
           <EmptyState title="Noch keine Medien gefunden">
-            Lade ein Bild oder Video hoch, oder sende ein Bild ueber Telegram, um die Galerie zu fuellen.
+            Lade ein Bild oder Video hoch, oder sende ein Bild über Telegram, um die Galerie zu füllen.
           </EmptyState>
         )}
 
@@ -329,7 +329,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
             </summary>
             <form action={createMedia} className="space-y-3 border-t border-line p-4">
               <Field label="Titel"><input className={inputClass} name="title" required /></Field>
-              <FileUploadField name="file" label="Datei" accept="image/*,video/*" required help="Bild oder Video auswaehlen." />
+              <FileUploadField name="file" label="Datei" accept="image/*,video/*" required help="Bild oder Video auswählen." />
               <Field label="Album">
                 <select className={selectClass} name="albumId" defaultValue={defaultAlbum.id}>
                   {albums.map((album) => <option key={album.id} value={album.id}>{album.title}</option>)}
@@ -371,7 +371,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                 <h3 className="text-sm font-semibold text-ink">Medien verschieben</h3>
                 <Field label="Zielalbum">
                   <select className={selectClass} name="albumId" required>
-                    <option value="">Album waehlen</option>
+                    <option value="">Album wählen</option>
                     {albums.map((album) => <option key={album.id} value={album.id}>{album.title}</option>)}
                   </select>
                 </Field>
@@ -410,16 +410,16 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                       <Badge tone={isDefault ? "red" : "neutral"}>{isDefault ? "Standard" : "Album"}</Badge>
                     </summary>
                     {isDefault ? (
-                      <p className="mt-3 rounded-md bg-surface p-3 text-sm text-graphite">Das Standardalbum kann nicht geloescht werden.</p>
+                      <p className="mt-3 rounded-md bg-surface p-3 text-sm text-graphite">Das Standardalbum kann nicht gelöscht werden.</p>
                     ) : (
                       <form action={deleteAlbum} className="mt-3 space-y-3 border-t border-line pt-3">
                         <input type="hidden" name="albumId" value={album.id} />
-                        <p className="text-sm text-graphite">Beim Loeschen werden die Medien standardmaessig nach <strong>{defaultAlbum.title}</strong> verschoben.</p>
+                        <p className="text-sm text-graphite">Beim Löschen werden die Medien standardmaessig nach <strong>{defaultAlbum.title}</strong> verschoben.</p>
                         <label className="flex items-start gap-2 rounded-md border border-redbrand/30 bg-redbrand/5 p-3 text-sm text-redbrand">
                           <input name="deleteMedia" type="checkbox" className="mt-1 h-4 w-4 accent-redbrand" />
-                          Medien und Dateien endgueltig mitloeschen
+                          Medien und Dateien endgültig mitlöschen
                         </label>
-                        <Button variant="danger" className="w-full"><Trash2 className="h-4 w-4" /> Album loeschen</Button>
+                        <Button variant="danger" className="w-full"><Trash2 className="h-4 w-4" /> Album löschen</Button>
                       </form>
                     )}
                   </details>
@@ -527,13 +527,13 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
               <div className="mt-auto flex flex-wrap gap-2 border-t border-line p-4">
                 <a href={selected.url} target="_blank" className="focus-ring inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink hover:bg-paper" rel="noreferrer">
                   <Download className="h-4 w-4" />
-                  Oeffnen
+                  Öffnen
                 </a>
                 <form action={deleteMedia} className="flex-1">
                   <input type="hidden" name="id" value={selected.id} />
                   <Button variant="danger" className="w-full">
                     <Trash2 className="h-4 w-4" />
-                    Loeschen
+                    Löschen
                   </Button>
                 </form>
               </div>

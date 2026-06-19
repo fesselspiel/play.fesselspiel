@@ -1,10 +1,10 @@
 # Prompts und Anforderungen
 
-Diese Datei dokumentiert die Anforderungen aus dem Chat. Sie ist keine Secret-Ablage. Inhalte aus `logins.md` werden bewusst nicht uebernommen.
+Diese Datei dokumentiert die Anforderungen aus dem Chat. Sie ist keine Secret-Ablage. Inhalte aus `logins.md` werden bewusst nicht übernommen.
 
-## Quellanhaenge
+## Quellanhänge
 
-Der Startprompt verwies auf diese Anhaenge:
+Der Startprompt verwies auf diese Anhänge:
 
 - `anwendung_tecnologie_stack.md`
 - `telegram-voice.md`
@@ -18,18 +18,18 @@ Hinweis: `logins.md` kann Zugangsdaten enthalten und wird nicht in diese Dokumen
 
 Der initiale Auftrag war:
 
-- Kink Social Platform fuer Paare bauen.
+- Kink Social Platform für Paare bauen.
 - Webanwendung bereitstellen.
-- Hauptdomain zunaechst `play.festspiel.com`, spaeter korrigiert zu `play.fesselspiel.com`.
+- Hauptdomain zunächst `play.festspiel.com`, später korrigiert zu `play.fesselspiel.com`.
 - Lesbare, slug-basierte URLs mit internen IDs.
 - Slugs sollen bearbeitbar sein.
-- Permanente URLs fuer QR-Codes und Verlinkungen.
+- Permanente URLs für QR-Codes und Verlinkungen.
 - Modernes, helles, hochwertiges, minimalistisches Mobile-First-Design.
-- Primaerfarbe kraeftiges Rot `#E30613`.
-- Weisse Oberflaechen, hellgraue Karten, schwarze/dunkelgraue Texte.
-- Einheitliche Icons, grosse Touchflaechen und konsistentes Designsystem.
+- Primärfarbe kräftiges Rot `#E30613`.
+- Weiße Oberflächen, hellgraue Karten, schwarze/dunkelgraue Texte.
+- Einheitliche Icons, große Touchflächen und konsistentes Designsystem.
 
-Gewuenschte Module:
+Gewünschte Module:
 
 - Benutzer und Profile.
 - Registrierung und Login.
@@ -39,34 +39,34 @@ Gewuenschte Module:
 - Events mit Check-in.
 - Medienverwaltung mit Bildern, Videos, Alben und Sichtbarkeiten.
 - Segufix-Timetracker mit Start, Ende, Dauer, Notizen.
-- Stimmung vorher und nachher mit fuenfstufigen Labels und Freitext.
-- Jahresuebersicht als Session-Kalender mit 12 Zeilen und 31 Spalten.
+- Stimmung vorher und nachher mit fünfstufigen Labels und Freitext.
+- Jahresübersicht als Session-Kalender mit 12 Zeilen und 31 Spalten.
 - Auswertungen zu Dauer und Stimmung.
 - Spielzeugkatalog mit Titel, Beschreibung, Foto, URL-Slug, Erstell-/Updatezeit.
 - Detailseite und QR-Code pro Spielzeug.
 - QR-Code anzeigen, herunterladen, drucken.
-- Spaetere Sets/Zusammenstellungen.
+- Spätere Sets/Zusammenstellungen.
 - "Lass uns was machen"-Feature.
-- Aktivitaeten mit Spielzeugauswahl, Notiz, Datum, Uhrzeit und Status.
+- Aktivitäten mit Spielzeugauswahl, Notiz, Datum, Uhrzeit und Status.
 - Stellungen mit Name, Bild, Beschreibung.
-- Stellungen mit Spielzeugen und Aktivitaeten verknuepfen.
-- Suche und Filter fuer Stellungen.
-- Baukastensystem aus Aktivitaeten, Stellungen und Spielzeugen.
+- Stellungen mit Spielzeugen und Aktivitäten verknüpfen.
+- Suche und Filter für Stellungen.
+- Baukastensystem aus Aktivitäten, Stellungen und Spielzeugen.
 
 ## Deployment-Prompts
 
-Spaetere Anforderungen:
+Spätere Anforderungen:
 
 - Build erneut probieren, aber nur auf dem VPS.
 - Immer per SSH auf den Server.
-- Ueber die IP gehen.
+- Über die IP gehen.
 - IP von `example.invalid` verwenden.
 - Korrekte IP: `x.x.x.x`.
-- So lange probieren, bis die Webseite auf dem VPS laeuft.
+- So lange probieren, bis die Webseite auf dem VPS läuft.
 
 Aktueller Stand:
 
-- App laeuft auf dem VPS unter `/opt/<app-name>`.
+- App läuft auf dem VPS unter `/opt/<app-name>`.
 - Container: `kink_social_app`, `kink_social_postgres`.
 - Port: `127.0.0.1:8097`.
 - Domain: `play.fesselspiel.com`.
@@ -76,7 +76,7 @@ Aktueller Stand:
 Anforderung:
 
 - Login funktioniert nicht.
-- Passwortfeld soll wie in Datei mit Auge sichtbar/unsichtbar gemacht werden koennen.
+- Passwortfeld soll wie in Datei mit Auge sichtbar/unsichtbar gemacht werden können.
 
 Umsetzung:
 
@@ -88,23 +88,23 @@ Umsetzung:
 Anforderungen:
 
 - Wenn in Telegram-Thread eine Nachricht geschrieben wird, soll nach Reload/Button Einlesen Chat-ID und Thread-ID angezeigt werden.
-- Bot soll Befehle koennen.
+- Bot soll Befehle können.
 - Bot soll als Agent funktionieren, mit dem man sich unterhalten kann.
-- Bot soll Fragen beantworten und Aktionen im Portal ausfuehren.
-- Agent soll Gedaechtnis haben, etwa letzte 5 bis 10 Nachrichten.
-- Beim Anlegen neuer Items soll der Bot einen Dialog starten und alle benoetigten Felder abfragen.
-- Wenn ein Bild benoetigt wird, soll es direkt in den Telegram-Chat gesendet und verarbeitet werden koennen.
+- Bot soll Fragen beantworten und Aktionen im Portal ausführen.
+- Agent soll Gedächtnis haben, etwa letzte 5 bis 10 Nachrichten.
+- Beim Anlegen neuer Items soll der Bot einen Dialog starten und alle benötigten Felder abfragen.
+- Wenn ein Bild benötigt wird, soll es direkt in den Telegram-Chat gesendet und verarbeitet werden können.
 - Freier Bildupload im Telegram-Chat soll automatisch in Medien gespeichert werden.
 
 Umsetzung:
 
 - Chat-/Thread-Einlesen erweitert.
-- Webhook- und Updates-APIs ergaenzt.
+- Webhook- und Updates-APIs ergänzt.
 - OpenAI-Agent eingebaut.
-- Kurzzeitgedaechtnis implementiert.
-- Dialoge fuer Spielzeug/Stellung eingebaut.
+- Kurzzeitgedächtnis implementiert.
+- Dialoge für Spielzeug/Stellung eingebaut.
 - Telegram-Bildverarbeitung eingebaut.
-- Telegram-Bilder koennen als Item-Bild oder als Medium gespeichert werden.
+- Telegram-Bilder können als Item-Bild oder als Medium gespeichert werden.
 
 Nachbesserung:
 
@@ -123,18 +123,18 @@ Umsetzung:
 Anforderungen:
 
 - Theme Changer mit mehreren Farbschemas.
-- Themes fuer Rot, Schwarz/Grau, Pink, Hellblau, Gelb, Orange und weitere.
+- Themes für Rot, Schwarz/Grau, Pink, Hellblau, Gelb, Orange und weitere.
 - In Benutzereinstellungen gut verpacken.
 - Beim Anklicken sofort umschalten, nicht erst nach Speichern.
 - Hintergrundfarbe soll zum Theme passen und nicht weiss bleiben.
-- Zusaetzlich soll es keinen Checkbox-Haken, sondern einen iPhone-artigen Toggle fuer Dark Mode geben.
-- Jedes Farbschema soll auch als Dark Mode funktionieren: schwarzer Hintergrund, dunkle Flaechen, passende Akzentfarbe.
+- Zusätzlich soll es keinen Checkbox-Haken, sondern einen iPhone-artigen Toggle für Dark Mode geben.
+- Jedes Farbschema soll auch als Dark Mode funktionieren: schwarzer Hintergrund, dunkle Flächen, passende Akzentfarbe.
 
 Umsetzung:
 
 - Theme-Picker mit Sofortvorschau.
 - Theme wird pro Benutzer gespeichert.
-- CSS-Variablen fuer gesamte App.
+- CSS-Variablen für gesamte App.
 - Hintergrund und Panels passen sich dem Theme an.
 - Dark Mode wird als `UserSettings.darkMode` gespeichert.
 - Der Toggle schaltet `data-mode` direkt im Browser um, sodass man die Wirkung sofort sieht.
@@ -145,64 +145,64 @@ Umsetzung:
 Anforderungen:
 
 - Keine Dateisystem-Pfade in der UI.
-- Benutzer sollen Dateien hochladen koennen.
-- Dateien sollen loeschbar sein.
-- Geloeschte Dateien sollen vom Dateisystem verschwinden.
-- Pfade sollen nur fuer berechtigte Benutzer sichtbar sein.
+- Benutzer sollen Dateien hochladen können.
+- Dateien sollen löschbar sein.
+- Gelöschte Dateien sollen vom Dateisystem verschwinden.
+- Pfade sollen nur für berechtigte Benutzer sichtbar sein.
 - Keine absoluten Pfade von aussen erreichbar.
 
 Umsetzung:
 
 - `FileAsset` Modell.
-- geschuetzte Datei-API `/api/files/[id]`.
+- geschützte Datei-API `/api/files/[id]`.
 - Uploads benutzerbezogen im Docker-Volume.
-- Loeschen entfernt Datenbankeintrag und physische Datei.
+- Löschen entfernt Datenbankeintrag und physische Datei.
 
 ## Medienseiten-Prompt
 
 Anforderung:
 
-- Medienseite aufhuebschen.
-- Galerien schoen machen.
+- Medienseite aufhübschen.
+- Galerien schön machen.
 - Bildern Metadaten, Ordnung und etwas Cooles zum Anschauen geben.
-- Seite soll fuer die Plattform Sinn machen.
+- Seite soll für die Plattform Sinn machen.
 
 Umsetzung:
 
-- Galerie mit Spotlight, Stats, Metadaten, Album-Ordnung, Uploads und Loeschfunktionen.
+- Galerie mit Spotlight, Stats, Metadaten, Album-Ordnung, Uploads und Löschfunktionen.
 
-## Mobile-Menue-Prompts
+## Mobile-Menü-Prompts
 
 Anforderung:
 
-- In mobiler Ansicht aus oberem Icon/Text-Menue ein Hamburger Dropdown machen.
+- In mobiler Ansicht aus oberem Icon/Text-Menü ein Hamburger Dropdown machen.
 - Drei Striche oben rechts.
-- Menue soll nach unten aufklappen und ueber dem Inhalt schweben.
+- Menü soll nach unten aufklappen und über dem Inhalt schweben.
 - Nach Klick auf eine Seite soll es wieder einklappen.
 
 Nachbesserung:
 
-- Zwischen den Menuezeichen waren Luecken sichtbar.
-- Luecken entfernen.
+- Zwischen den Menüzeichen waren Lücken sichtbar.
+- Lücken entfernen.
 
 Umsetzung:
 
 - `src/components/mobile-menu.tsx`.
 - Mobile Hamburger-Navigation.
-- Geschlossene Dropdown-Liste ohne Zwischenraeume.
+- Geschlossene Dropdown-Liste ohne Zwischenräume.
 
 ## Edit/Delete-Prompt
 
 Anforderung:
 
-- Spielzeuge, Stellungen, Events und so weiter koennen nach dem Anlegen nicht geaendert werden.
-- Alles soll bearbeitbar und loeschbar sein.
+- Spielzeuge, Stellungen, Events und so weiter können nach dem Anlegen nicht geändert werden.
+- Alles soll bearbeitbar und löschbar sein.
 
 Umsetzung:
 
-- Edit/Delete fuer Spielzeuge, Stellungen, Aktivitaeten, Events und Sessions.
-- Bild ersetzen/entfernen fuer Spielzeuge und Stellungen.
-- Alte Upload-Datei wird bei Bildersatz oder Loeschen entfernt.
+- Edit/Delete für Spielzeuge, Stellungen, Aktivitäten, Events und Sessions.
+- Bild ersetzen/entfernen für Spielzeuge und Stellungen.
+- Alte Upload-Datei wird bei Bildersatz oder Löschen entfernt.
 - Edit-Routen:
   - `/toys/[slug]/edit`
   - `/positions/[slug]/edit`
@@ -215,7 +215,7 @@ Umsetzung:
 Anforderung:
 
 - Alles bisher Gemachte in mehrere wiederverwendbare `.md` Files packen.
-- Files zugaenglich machen.
+- Files zugänglich machen.
 - Kuenftige Arbeiten sollen dort weiter dokumentiert werden.
 - Reproduzierbarkeit inklusive Files und Prompt.
 
@@ -230,7 +230,7 @@ Umsetzung:
 Anforderung:
 
 - Die Ausgabe vom Telegram-Bot ist bei Listen schlecht lesbar.
-- Fuer Listen soll Telegrams HTML-Markup genutzt werden.
+- Für Listen soll Telegrams HTML-Markup genutzt werden.
 - Listen sollen besser formatiert werden.
 
 Umsetzung:
@@ -238,7 +238,7 @@ Umsetzung:
 - `sendTelegramMessage` kann jetzt `parse_mode: HTML` setzen.
 - Slash-Commands geben sauber formatierte HTML-Listen aus.
 - Agent-Suchlisten und Portalstatus werden direkt als HTML formatiert.
-- Klickbare Links werden ueber Telegram-HTML erzeugt.
+- Klickbare Links werden über Telegram-HTML erzeugt.
 - Nutzergenerierte Inhalte werden escaped.
 - Fallback auf Plain Text verhindert, dass der Bot bei HTML-Fehlern gar nichts sendet.
 
@@ -260,22 +260,22 @@ Umsetzung:
 Anforderung:
 
 - Auf jeder Seite soll eine kurze Beschreibung stehen.
-- Die Beschreibung soll erklaeren, was man auf der Seite machen kann.
-- Sie soll den Zweck des Features erklaeren.
+- Die Beschreibung soll erklären, was man auf der Seite machen kann.
+- Sie soll den Zweck des Features erklären.
 - Sie soll dem Benutzer eine kurze Anleitung geben.
 
 Umsetzung:
 
 - `PageGuide` als wiederverwendbare Hilfebox angelegt.
-- Alle Seiten mit App-Header erhalten eine knappe Beschreibung direkt unter der Seitenueberschrift.
-- Die Login-Seite erhaelt einen passenden Hinweis innerhalb des Login-Panels.
+- Alle Seiten mit App-Header erhalten eine knappe Beschreibung direkt unter der Seitenüberschrift.
+- Die Login-Seite erhält einen passenden Hinweis innerhalb des Login-Panels.
 - Dokumentation wurde nachgezogen.
 
 Nachbesserung:
 
-- Die Box `Kurz erklaert` war oben zu prominent und sollte aus dem Hauptsichtfeld raus.
-- Die Hilfetexte wurden in eine eingeklappte Info-Schaltflaeche unten rechts verschoben.
-- Die Hilfe laesst sich per Klick aufklappen und enthaelt zusaetzlichen Bedienhinweis.
+- Die Box `Kurz erklärt` war oben zu prominent und sollte aus dem Hauptsichtfeld raus.
+- Die Hilfetexte wurden in eine eingeklappte Info-Schaltfläche unten rechts verschoben.
+- Die Hilfe lässt sich per Klick aufklappen und enthält zusätzlichen Bedienhinweis.
 - Bearbeiten-Buttons auf Detailseiten wurden aus dem Header an das Seitenende verschoben.
 
 Weitere Nachbesserung:
@@ -284,52 +284,52 @@ Weitere Nachbesserung:
 - `PageGuide` ist deshalb kein `fixed` Overlay mehr.
 - Die Hilfe sitzt jetzt als normales, dezentes `details`-Element am rechten Seitenende und verdeckt keine Inhalte.
 
-## Bildaenderungs-Prompt
+## Bildänderungs-Prompt
 
 Anforderung:
 
-- Bildaendern bei Spielzeugen und wahrscheinlich anderen Modulen funktioniert nicht verlaesslich.
-- iPhone-Foto aus der Mediathek mit `.jpg` wurde nicht sichtbar uebernommen.
-- Der Datei-Auswahlknopf zeigt zu wenig Rueckmeldung.
-- Die Entfernen-Checkbox soll nur fuer "Bild entfernen und Standardbild verwenden" relevant sein.
-- Wenn ein neues Bild ausgewaehlt wird, soll es automatisch das alte Bild ersetzen.
+- Bildändern bei Spielzeugen und wahrscheinlich anderen Modulen funktioniert nicht verlässlich.
+- iPhone-Foto aus der Mediathek mit `.jpg` wurde nicht sichtbar übernommen.
+- Der Datei-Auswahlknopf zeigt zu wenig Rückmeldung.
+- Die Entfernen-Checkbox soll nur für "Bild entfernen und Standardbild verwenden" relevant sein.
+- Wenn ein neues Bild ausgewählt wird, soll es automatisch das alte Bild ersetzen.
 
 Umsetzung:
 
-- Server-Action Upload-Limit auf `50mb` erhoeht.
-- Sichtbare Upload-Komponente mit Dateiname, Groesse und Bildvorschau eingefuehrt.
+- Server-Action Upload-Limit auf `50mb` erhöht.
+- Sichtbare Upload-Komponente mit Dateiname, Größe und Bildvorschau eingeführt.
 - Aktuelles Bild wird auf Bearbeiten-Seiten angezeigt.
 - Bei neuer Bildauswahl wird die Entfernen-Option ausgeblendet und das neue Bild ersetzt das alte.
 - Entfernen ohne neue Datei setzt wieder das System-Standardbild.
 
 Nachbesserung:
 
-- Auf iPad funktionierte die Vorschau, aber der Speichern-Button reagierte beim Bildwechsel nicht verlaesslich.
-- Deshalb wurde fuer Spielzeug- und Stellungsbilder ein direkter Upload beim Auswaehlen eingebaut.
-- Der Button `Aenderungen speichern` muss dadurch keine grosse Bilddatei mehr mitsenden, sondern nur noch die fertige Datei-Referenz speichern.
-- Waehrend des Uploads wird das Absenden blockiert und ein Status angezeigt.
+- Auf iPad funktionierte die Vorschau, aber der Speichern-Button reagierte beim Bildwechsel nicht verlässlich.
+- Deshalb wurde für Spielzeug- und Stellungsbilder ein direkter Upload beim Auswählen eingebaut.
+- Der Button `Änderungen speichern` muss dadurch keine große Bilddatei mehr mitsenden, sondern nur noch die fertige Datei-Referenz speichern.
+- Während des Uploads wird das Absenden blockiert und ein Status angezeigt.
 
 Weitere Nachbesserung:
 
-- Das vom Nutzer bereitgestellte iPhone-JPEG wurde direkt am Container erfolgreich hochgeladen, ueber die oeffentliche Domain aber mit `413 Request Entity Too Large` von Nginx abgelehnt.
-- Ursache war das fehlende Nginx-Uploadlimit fuer `play.fesselspiel.com`.
+- Das vom Nutzer bereitgestellte iPhone-JPEG wurde direkt am Container erfolgreich hochgeladen, über die öffentliche Domain aber mit `413 Request Entity Too Large` von Nginx abgelehnt.
+- Ursache war das fehlende Nginx-Uploadlimit für `play.fesselspiel.com`.
 - `client_max_body_size 50m` wurde in der Nginx-Site gesetzt und Nginx neu geladen.
-- Danach funktionierte der Upload des konkreten iPhone-Bildes ueber `https://play.fesselspiel.com/api/uploads`.
+- Danach funktionierte der Upload des konkreten iPhone-Bildes über `https://play.fesselspiel.com/api/uploads`.
 
 ## Dashboard-Kalender-Prompt
 
 Anforderung:
 
-- Im Dashboard soll `Naechste Aktivitaeten` nicht nur als Liste erscheinen.
-- Gewuenscht ist eher eine Kalenderansicht oder Wochenuebersicht.
-- Aktivitaeten/Events sollen visuell deutlicher markiert sein, zum Beispiel mit roten Akzenten und groesseren Buttons.
+- Im Dashboard soll `Nächste Aktivitäten` nicht nur als Liste erscheinen.
+- Gewünscht ist eher eine Kalenderansicht oder Wochenübersicht.
+- Aktivitäten/Events sollen visuell deutlicher markiert sein, zum Beispiel mit roten Akzenten und größeren Buttons.
 
 Umsetzung:
 
-- Dashboard-Bereich `Gemeinsame Woche` eingefuehrt.
-- Zeigt heute und die naechsten sechs Tage.
-- Aktivitaeten und Events erscheinen je Tag als klickbare Karten.
-- Tage mit Eintraegen werden rot markiert.
+- Dashboard-Bereich `Gemeinsame Woche` eingeführt.
+- Zeigt heute und die nächsten sechs Tage.
+- Aktivitäten und Events erscheinen je Tag als klickbare Karten.
+- Tage mit Einträgen werden rot markiert.
 - Leere Tage zeigen eine ruhige Notiz `Noch nichts geplant.`
 
 ## Seitentitel-Home-Link-Prompt
@@ -341,25 +341,25 @@ Anforderung:
 Umsetzung:
 
 - `PageHeader` rendert den Titel als `Link` auf `/`.
-- Damit gilt das Verhalten automatisch fuer alle Seiten, die den gemeinsamen Header verwenden.
-- Hover- und Fokus-Stil machen den Titel als interaktives Element erkennbar, ohne den Header optisch zu ueberladen.
+- Damit gilt das Verhalten automatisch für alle Seiten, die den gemeinsamen Header verwenden.
+- Hover- und Fokus-Stil machen den Titel als interaktives Element erkennbar, ohne den Header optisch zu überladen.
 
 ## Navigation-Lass-uns-spielen-Prompt
 
 Anforderung:
 
-- Der Menuepunkt `Aktivitaeten` soll `Lass uns spielen` heissen.
-- Die Ueberschrift `Lass uns was machen` soll ebenfalls `Lass uns spielen` heissen.
+- Der Menüpunkt `Aktivitäten` soll `Lass uns spielen` heissen.
+- Die Überschrift `Lass uns was machen` soll ebenfalls `Lass uns spielen` heissen.
 - In der Navigation soll `Lass uns spielen` an zweiter Position stehen, danach `Stellungen`, danach `Spielsachen`.
-- `Events` wirkt redundant zu Aktivitaeten und soll aus der Hauptnavigation verschwinden oder mit `Lass uns spielen` zusammengefuehrt werden.
+- `Events` wirkt redundant zu Aktivitäten und soll aus der Hauptnavigation verschwinden oder mit `Lass uns spielen` zusammengeführt werden.
 
 Umsetzung:
 
-- Desktop- und Mobile-Menue neu sortiert und umbenannt.
-- `Events` aus der Hauptnavigation entfernt, ohne bestehende Event-Daten zu loeschen.
+- Desktop- und Mobile-Menü neu sortiert und umbenannt.
+- `Events` aus der Hauptnavigation entfernt, ohne bestehende Event-Daten zu löschen.
 - Event-Termine werden in der Dashboard-Wochenansicht weiterhin angezeigt, dort aber als `Termin` im Kontext von `Lass uns spielen`.
 - Dashboard-Kacheln auf `Lass uns spielen`, `Stellungen`, `Spielsachen`, Sessions, Medien und Nachrichten reduziert.
-- Aktivitaetsseiten in der sichtbaren Sprache auf `Spielidee`, `Spielplan` und `Spielsachen` angepasst.
+- Aktivitätsseiten in der sichtbaren Sprache auf `Spielidee`, `Spielplan` und `Spielsachen` angepasst.
 
 ## Info-und-Einstellungen-Prompt
 
@@ -367,11 +367,11 @@ Anforderung:
 
 - Die schwebende Info unten rechts ist zu prominent.
 - Sie soll nicht schweben, sondern unten auf der Seite rechts sitzen.
-- `Telegram`, `Profil` und `Benutzer` sollen unter `Einstellungen` zusammengefasst werden, damit das Menue schlanker wird.
+- `Telegram`, `Profil` und `Benutzer` sollen unter `Einstellungen` zusammengefasst werden, damit das Menü schlanker wird.
 
 Umsetzung:
 
-- `PageGuide` rendert nicht mehr `fixed`, sondern als normales `details`-Element mit `order-last`, `self-end` und dezenterer Groesse.
+- `PageGuide` rendert nicht mehr `fixed`, sondern als normales `details`-Element mit `order-last`, `self-end` und dezenterer Größe.
 - Der AppShell-Inhaltsbereich ist ein Flex-Container, sodass PageGuide visuell ans Seitenende wandert, auch wenn die Komponente im JSX nahe am Header steht.
 - Desktop- und Mobile-Navigation enthalten nun `Einstellungen` als Hauptpunkt.
 - Unter `Einstellungen` liegen `Profil`, `Benutzer` und `Telegram`.
@@ -392,35 +392,35 @@ Umsetzung:
 - `Permanente URL` wurde aus dem Header entfernt.
 - Im Aktionsbereich unten wird ein dezenter Copy-Link angezeigt, der `play.fesselspiel.com/toys/...` ohne Protokoll zeigt.
 - Die Copy-Funktion kopiert denselben sichtbaren Link ohne `https://` in die Zwischenablage.
-- `src/components/copy-link.tsx` wurde als wiederverwendbare Client-Komponente eingefuehrt.
+- `src/components/copy-link.tsx` wurde als wiederverwendbare Client-Komponente eingeführt.
 
 ## Paar-Kreis-Prompt
 
 Anforderung:
 
-- Ein zweiter Benutzer, zum Beispiel Anna, soll die Inhalte des anderen Accounts sehen koennen.
-- Die Plattform ist fuer Paare gedacht, daher soll nicht jedes Objekt einzeln freigegeben werden muessen.
-- Beste Loesung: Benutzer koennen als Paar oder Gruppe verknuepft werden und sehen dann automatisch alles Gemeinsame.
+- Ein zweiter Benutzer, zum Beispiel Anna, soll die Inhalte des anderen Accounts sehen können.
+- Die Plattform ist für Paare gedacht, daher soll nicht jedes Objekt einzeln freigegeben werden müssen.
+- Beste Loesung: Benutzer können als Paar oder Gruppe verknüpft werden und sehen dann automatisch alles Gemeinsame.
 
 Umsetzung:
 
 - Neues Prisma-Modell `Circle` und Feld `User.circleId`.
-- Admins koennen in der Benutzerverwaltung Kreise anlegen und Benutzer zuordnen.
+- Admins können in der Benutzerverwaltung Kreise anlegen und Benutzer zuordnen.
 - Gemeinsame Webbereiche nutzen `ownerScope(user)` statt nur `ownerId: user.id`.
-- Kreis-Mitglieder sehen automatisch gemeinsame Spielsachen, Stellungen, Spielplaene, Termine, Sessions, Medien, Dateien und passende Nachrichten.
+- Kreis-Mitglieder sehen automatisch gemeinsame Spielsachen, Stellungen, Spielpläne, Termine, Sessions, Medien, Dateien und passende Nachrichten.
 - Neue Inhalte behalten ihren Ersteller als Besitzer, werden aber allen aktiven Kreis-Mitgliedern angezeigt.
 
 Nachbesserung:
 
-- Admins muessen Kreise nachtraeglich bearbeiten koennen.
-- Der Kreisname muss aenderbar sein.
-- Mitglieder muessen zentral in einen Kreis aufgenommen oder aus einem Kreis entfernt werden koennen.
+- Admins müssen Kreise nachträglich bearbeiten können.
+- Der Kreisname muss änderbar sein.
+- Mitglieder müssen zentral in einen Kreis aufgenommen oder aus einem Kreis entfernt werden können.
 
 Umsetzung:
 
-- Benutzerverwaltung enthaelt einen Bereich `Kreise bearbeiten`.
-- Pro Kreis gibt es ein Formular fuer Kreisname und Mitglieder-Checkboxen.
-- Beim Speichern wird der Kreis umbenannt, angehakte Benutzer werden hinzugefuegt und nicht mehr angehakte Benutzer aus diesem Kreis entfernt.
+- Benutzerverwaltung enthält einen Bereich `Kreise bearbeiten`.
+- Pro Kreis gibt es ein Formular für Kreisname und Mitglieder-Checkboxen.
+- Beim Speichern wird der Kreis umbenannt, angehakte Benutzer werden hinzugefügt und nicht mehr angehakte Benutzer aus diesem Kreis entfernt.
 
 Weitere Nachbesserung:
 
@@ -431,35 +431,35 @@ Umsetzung:
 
 - `Kreise bearbeiten` ist ein nativer `details/summary`-Bereich.
 - Jeder Kreis ist ein eigenes `details/summary`-Element.
-- Wenn nur ein Kreis vorhanden ist, ist dieser direkt geoeffnet; bei mehreren Kreisen starten die einzelnen Kreise eingeklappt.
+- Wenn nur ein Kreis vorhanden ist, ist dieser direkt geöffnet; bei mehreren Kreisen starten die einzelnen Kreise eingeklappt.
 
 ## Kompakte-Listen-Prompt
 
 Anforderung:
 
 - Bei Stellungen und Spielsachen sollen Listen kompakter werden.
-- Sichtbar sein sollen Thumbnail und Ueberschrift.
+- Sichtbar sein sollen Thumbnail und Überschrift.
 - Beim Klick soll das jeweilige Spielzeug oder die jeweilige Stellung ausklappen.
 
 Umsetzung:
 
 - Kartenraster auf `details/summary`-Listen umgestellt.
-- Summary-Zeile enthaelt Thumbnail, Titel und kurze Metadaten.
-- Ausgeklappter Bereich enthaelt Beschreibung und Button zur Detailseite.
-- Native Browser-Interaktion, kein extra Client-JavaScript noetig.
+- Summary-Zeile enthält Thumbnail, Titel und kurze Metadaten.
+- Ausgeklappter Bereich enthält Beschreibung und Button zur Detailseite.
+- Native Browser-Interaktion, kein extra Client-JavaScript nötig.
 
 Nachbesserung:
 
 - Der aufgeklappte Bereich soll wieder deutlich mehr vom alten Karteninhalt zeigen.
-- Deshalb enthalten ausgeklappte Eintraege jetzt grosses Bild, Beschreibung, Slug, Verknuepfungszaehler und Detailbutton.
-- Bei Stellungen werden verknuepfte Spielsachen als klickbare Chips gezeigt.
+- Deshalb enthalten ausgeklappte Einträge jetzt großes Bild, Beschreibung, Slug, Verknüpfungszähler und Detailbutton.
+- Bei Stellungen werden verknüpfte Spielsachen als klickbare Chips gezeigt.
 
 ## Dashboard-Reihenfolge-Prompt
 
 Anforderung:
 
 - Der Kalender beziehungsweise die Wochenansicht soll im Dashboard weiter nach oben.
-- Man soll sofort sehen, was die naechsten Tage los ist.
+- Man soll sofort sehen, was die nächsten Tage los ist.
 - Die bisher oberen Kennzahlen sollen darunter stehen.
 
 Umsetzung:
@@ -472,11 +472,11 @@ Umsetzung:
 Anforderung:
 
 - Auf dem Dashboard soll oberhalb der Termine eine Ampel eingebaut werden.
-- Keine gelbe Stufe, nur Rot und Gruen.
+- Keine gelbe Stufe, nur Rot und Grün.
 - Pro Benutzer im Zirkel eine Ampel, zum Beispiel Admin und Anna nebeneinander.
-- Jeder darf nur die eigene Ampel anklicken und zwischen Rot und Gruen wechseln.
+- Jeder darf nur die eigene Ampel anklicken und zwischen Rot und Grün wechseln.
 - Rot bedeutet: gerade keine Lust zu spielen.
-- Gruen bedeutet: voll Lust.
+- Grün bedeutet: voll Lust.
 
 Umsetzung:
 
@@ -489,15 +489,15 @@ Umsetzung:
 Nachbesserung:
 
 - Wenn sich der Ampelstatus aendert, soll eine Telegram-Nachricht gesendet werden.
-- Die Nachricht soll sagen, wer den Status geaendert hat.
+- Die Nachricht soll sagen, wer den Status geändert hat.
 - Die Nachricht soll nur den neuen Zustand farblich anzeigen; der alte Zustand soll nicht mit Farbe angezeigt werden.
-- Die Nachricht soll schoene passende Emojis fuer Ampel, Rot und Gruen enthalten.
+- Die Nachricht soll schöne passende Emojis für Ampel, Rot und Grün enthalten.
 - Die Nachricht soll als Telegram-HTML gut formatiert sein.
 
 Umsetzung:
 
 - Beim Umschalten wird eine HTML-Nachricht per `sendTelegramMessage(..., { parseMode: "HTML" })` verschickt.
-- Die Nachricht zeigt nur `Status: ...` mit dem neuen roten oder gruenen Zustand.
+- Die Nachricht zeigt nur `Status: ...` mit dem neuen roten oder grünen Zustand.
 - Ziel sind aktive Telegram-Chats aller Benutzer im selben Kreis, die einen Bot-Token gespeichert haben.
 - Doppelte Chat-/Thread-Ziele werden dedupliziert.
 
@@ -505,34 +505,34 @@ Umsetzung:
 
 Anforderung:
 
-- Die Medienseite soll komplett ueberarbeitet werden.
+- Die Medienseite soll komplett überarbeitet werden.
 - Zu viele Informationen und zu viel Scrollen sollen verschwinden.
-- Orientierung am Instagram-Feed: zuerst Bilder, Metadaten erst beim Draufgehen beziehungsweise Oeffnen.
-- Kommentarfunktionen und weitere Aktionen duerfen in der Detailansicht erscheinen.
+- Orientierung am Instagram-Feed: zuerst Bilder, Metadaten erst beim Draufgehen beziehungsweise Öffnen.
+- Kommentarfunktionen und weitere Aktionen dürfen in der Detailansicht erscheinen.
 
 Umsetzung:
 
 - Bildzentriertes quadratisches Feed-Raster.
 - Upload, Album und Filter als kompakte Klappbereiche.
 - Hover-/Fokus-Overlay mit Titel, Typ, Sichtbarkeit und Datei-/Albumhinweis.
-- Detailansicht per Klick mit grosser Medienanzeige, Metadaten, Dateiinfos, Loeschen und Oeffnen.
-- Kommentare werden ueber `MediaComment` gespeichert und in der Detailansicht angezeigt.
+- Detailansicht per Klick mit großer Medienanzeige, Metadaten, Dateiinfos, Löschen und Öffnen.
+- Kommentare werden über `MediaComment` gespeichert und in der Detailansicht angezeigt.
 
 Nachbesserung:
 
-- Ein nachtraeglich hochgeladenes Bild muss in der Detailansicht einem Album zugeordnet werden koennen.
-- Bei den Alben muss es eine Funktion geben, um Bilder beziehungsweise Medien hinzuzufuegen.
+- Ein nachträglich hochgeladenes Bild muss in der Detailansicht einem Album zugeordnet werden können.
+- Bei den Alben muss es eine Funktion geben, um Bilder beziehungsweise Medien hinzuzufügen.
 
 Umsetzung:
 
-- Detailansicht enthaelt ein Album-Auswahlfeld mit Speichern-Button.
-- Album-Werkzeug enthaelt eine Zielalbum-Auswahl und eine Thumbnail-Mehrfachauswahl fuer Medien.
-- Server-Actions pruefen Album und Medien gegen den Benutzer-/Paar-Scope, bevor `albumId` gesetzt wird.
+- Detailansicht enthält ein Album-Auswahlfeld mit Speichern-Button.
+- Album-Werkzeug enthält eine Zielalbum-Auswahl und eine Thumbnail-Mehrfachauswahl für Medien.
+- Server-Actions prüfen Album und Medien gegen den Benutzer-/Paar-Scope, bevor `albumId` gesetzt wird.
 
 Weitere Nachbesserung:
 
 - Bilder sollen ganz nach oben, damit sie sofort sichtbar sind.
-- Darueber soll nur der Albumselektor stehen.
+- Darüber soll nur der Albumselektor stehen.
 - Upload, Filter und restliche Werkzeuge sollen nach unten wandern.
 
 Umsetzung:
@@ -550,15 +550,15 @@ Weitere Nachbesserung:
 
 Umsetzung:
 
-- Standardalbum heisst `Standard`.
+- Standardalbum heißt `Standard`.
 - `ensureDefaultAlbum(ownerId)` legt es bei Bedarf an.
 - Medienseite, Session-Bilder, externe Medien-API, Import und Telegram nutzen `Standard` als Fallback.
 - Die Telegram-Antwort nach einem Bild-Upload listet alle Alben mit anklickbaren `/media_album_<nummer>_<mediaId>`-Kommandos auf.
 
 Weitere Nachbesserung:
 
-- Der Name `Eingang` gefaellt nicht, weil nicht alles dort "reingeht".
-- Gewuenscht ist ein Name aehnlich zu "Default", aber nicht "Default".
+- Der Name `Eingang` gefällt nicht, weil nicht alles dort "reingeht".
+- Gewünscht ist ein Name ähnlich zu "Default", aber nicht "Default".
 
 Umsetzung:
 
@@ -570,85 +570,85 @@ Umsetzung:
 Anforderung:
 
 - Im Admin-Bereich soll es eine Logik geben, die alle Portal-Events beziehungsweise Aktionen auflistet.
-- Aktionen wie Ampel veraendert, Spiel angefragt oder Telegram-Nachricht empfangen sollen per Dropdown auswaehlbar sein.
-- Danach soll ein Benutzer oder Kreis ausgewaehlt werden.
-- Fuer diese Kombination soll eine Telegram-Nachricht definiert werden, die bei dieser Aktion an den Benutzer oder Kreis gesendet wird.
+- Aktionen wie Ampel veraendert, Spiel angefragt oder Telegram-Nachricht empfangen sollen per Dropdown auswählbar sein.
+- Danach soll ein Benutzer oder Kreis ausgewählt werden.
+- Für diese Kombination soll eine Telegram-Nachricht definiert werden, die bei dieser Aktion an den Benutzer oder Kreis gesendet wird.
 
 Umsetzung:
 
 - Neues Modell `TelegramNotificationRule`.
 - Regeln werden in `/settings/telegram#notifications` verwaltet.
 - Das Dropdown nutzt bekannte Aktionen plus bereits gespeicherte `AuditLog.action`-Werte.
-- Regeln senden an aktive Telegram-Kanaele, deren Ziel-Benutzer oder Ziel-Kreis zur Regel passt.
+- Regeln senden an aktive Telegram-Kanäle, deren Ziel-Benutzer oder Ziel-Kreis zur Regel passt.
 - Nachrichten werden als Telegram-HTML gesendet.
-- Templates koennen `{title}`, `{actor}`, `{event}`, `{action}`, `{url}` und `{details}` einsetzen.
+- Templates können `{title}`, `{actor}`, `{event}`, `{action}`, `{url}` und `{details}` einsetzen.
 
 ## Medien-Album-Nachbesserung-Prompt
 
 Anforderung:
 
-- In der Bilddetailansicht soll direkt ein neues Album angelegt und das Bild sofort dorthin verschoben werden koennen.
+- In der Bilddetailansicht soll direkt ein neues Album angelegt und das Bild sofort dorthin verschoben werden können.
 - Der Album-Speichern-Button braucht Feedback.
-- Sichtbarkeit `Privat`, `Partner`, `geteilt` ist unklar und soll klarer benannt und logisch geprueft werden.
-- Alben sollen sichtbar verwaltet und geloescht werden koennen.
-- Beim Album-Loeschen duerfen Bilder nicht versehentlich geloescht werden; Standard ist Verschieben ins Standardalbum.
+- Sichtbarkeit `Privat`, `Partner`, `geteilt` ist unklar und soll klarer benannt und logisch geprüft werden.
+- Alben sollen sichtbar verwaltet und gelöscht werden können.
+- Beim Album-Löschen dürfen Bilder nicht versehentlich gelöscht werden; Standard ist Verschieben ins Standardalbum.
 - Album-Anlegen, Zielalbum und Verschieben sollen nicht unklar in einem Block vermischt sein.
 
 Umsetzung:
 
 - Neues `QuickAlbumForm` in der Medien-Detailansicht.
 - Album-Werkzeug in drei Bereiche getrennt: `Neues Album`, `Medien verschieben`, `Alben verwalten`.
-- Sichtbarkeit heisst `Nur ich`, `Zirkel`, `Alle`.
+- Sichtbarkeit heißt `Nur ich`, `Zirkel`, `Alle`.
 - `visibilityScope` filtert Medien und Alben entsprechend.
-- Album-Loeschen verschiebt Medien standardmaessig nach `Standard`; Dateiloeschung ist nur per ausdruecklicher Checkbox moeglich.
+- Album-Löschen verschiebt Medien standardmäßig nach `Standard`; Dateilöschung ist nur per ausdrücklicher Checkbox möglich.
 
 ## Navigation- und Seed-Nachbesserung
 
 Anforderung:
 
 - Logout soll funktionieren.
-- Dashboard-Spielampel soll wieder alle Benutzer im Zirkel bzw. fuer Admins sichtbar zeigen.
+- Dashboard-Spielampel soll wieder alle Benutzer im Zirkel bzw. für Admins sichtbar zeigen.
 - Profilbilder sollen in Dashboard und Benutzerverwaltung angezeigt werden.
-- Demo-Position `Rueckenlage` soll nicht nach jedem Neustart wieder auftauchen.
+- Demo-Position `Rückenlage` soll nicht nach jedem Neustart wieder auftauchen.
 
 Umsetzung:
 
 - Logout-Route nutzt `303`.
-- Admin-Dateizugriff auf aktive Benutzer wurde in `accessibleOwnerIds` ergaenzt.
-- Dashboard zeigt fuer Admins ohne Kreis alle aktiven Benutzer.
-- Seed-Demo-Daten brauchen neben `SEED_DEMO_DATA=true` zusaetzlich `SEED_ALLOW_DEMO_RECREATE=true`.
+- Admin-Dateizugriff auf aktive Benutzer wurde in `accessibleOwnerIds` ergänzt.
+- Dashboard zeigt für Admins ohne Kreis alle aktiven Benutzer.
+- Seed-Demo-Daten brauchen neben `SEED_DEMO_DATA=true` zusätzlich `SEED_ALLOW_DEMO_RECREATE=true`.
 
 ## Einstellungen- und Protokoll-Prompt
 
 Anforderung:
 
 - Profil- und Einstellungsseiten sollen beim Speichern Button-Feedback zeigen.
-- Dashboard-Wochentage ohne Planung sollen direkt eine Planung fuer dieses Datum oeffnen.
+- Dashboard-Wochentage ohne Planung sollen direkt eine Planung für dieses Datum öffnen.
 - Systemzeit soll weiter nach unten und korrigierbar sein.
 - Benutzerverwaltung soll einklappbar sein.
-- Benutzer anlegen soll Profilbild erlauben, E-Mail optional machen und keine Passwortlaengen-Regel erzwingen.
+- Benutzer anlegen soll Profilbild erlauben, E-Mail optional machen und keine Passwortlängen-Regel erzwingen.
 - Logout soll auf Mobile unter Einstellungen erreichbar sein.
-- Protokolleintraege sollen gruppierter wirken und eine Suche mit Vorschlaegen haben.
+- Protokolleinträge sollen gruppierter wirken und eine Suche mit Vorschlägen haben.
 
 Umsetzung:
 
 - `SubmitButton` zeigt Pending-Texte wie `Profil wird gespeichert...`.
-- Dashboard erzeugt pro Tag `/activities/new?date=YYYY-MM-DD`; die neue Planung uebernimmt das Datum.
+- Dashboard erzeugt pro Tag `/activities/new?date=YYYY-MM-DD`; die neue Planung übernimmt das Datum.
 - Admin-Zeitkorrektur wird als Minutenwert in `UserSettings.timeOffsetMinutes` gespeichert.
 - Kreise, Benutzer anlegen und Benutzer bearbeiten sind als Accordions aufgebaut.
 - Neuer Benutzer kann direkt ein Profilbild hochladen.
-- Benutzername wird auf Blur ueber `/api/users/check-username` geprueft.
+- Benutzername wird auf Blur über `/api/users/check-username` geprüft.
 - E-Mail ist nur noch optionaler Zusatz; ohne E-Mail wird eine lokale interne Adresse aus dem Benutzernamen erzeugt.
 - Mobile Einstellungen zeigen nach dem Protokoll einen Logout-Button.
-- `ProtocolSearch` filtert die geladenen Protokolleintraege im Browser und springt per Anker zum Treffer.
+- `ProtocolSearch` filtert die geladenen Protokolleinträge im Browser und springt per Anker zum Treffer.
 
 ## Feature-Video-Prompt
 
 Anforderung:
 
-- Ein peppiges Video soll die Funktionen der Seite erklaeren.
-- Gewuenscht war ReMotion beziehungsweise ein ReMotion-Skill.
-- Der ReMotion-Skill war in der Session nicht verfuegbar.
+- Ein peppiges Video soll die Funktionen der Seite erklären.
+- Gewünscht war ReMotion beziehungsweise ein ReMotion-Skill.
+- Der ReMotion-Skill war in der Session nicht verfügbar.
 - Nichts soll auf dem Server installiert werden; Rendering nur in Docker.
 - Das Video soll mit cooler Techno-Musik unterlegt werden.
 - Der fertige absolute Plattform-Link soll bereitgestellt werden.
@@ -660,3 +660,27 @@ Umsetzung:
 - Keine Serverinstallation, nur Docker-Container.
 - Ergebnis liegt unter `entfernt`.
 - Abrufbar unter `entfernt`.
+
+## Tracker-, Umlaut- und Telegram-Regel-Prompt
+
+Anforderung:
+
+- Sichtbare Umschreibungen wie `ae`, `oe`, `ue` sollen echte Umlaute werden.
+- Segufix soll nur noch ein gemeinsames Textfeld für Begleitnotizen haben.
+- KG soll statt `Notizen` einen hochwertigeren Begriff verwenden.
+- KG-Historie und Segufix-Historienkarten sollen direkt auf Detailseiten verlinken.
+- Stellungs-Sortierung soll auf dem iPad funktionieren und nicht prominent sichtbar sein.
+- In Einstellungen soll ein schneller Dark-Mode-Toggle erreichbar sein.
+- Telegram-Aktionsregeln sollen zuverlässig auslösen.
+- Telegram-Slash-Kommandos in HTML-Nachrichten sollen antippbar bleiben.
+
+Umsetzung:
+
+- Sichtbare deutsche Texte wurden auf echte Umlaute umgestellt; technische Slugs bleiben ASCII.
+- Segufix nutzt `Sessionkommentar`, KG nutzt `Sessionbeschreibung`.
+- Neue KG-Detailseite `/sessions/kg/[id]`.
+- Historien- und Kalenderlinks führen zu den Detailseiten.
+- Stellungs-Sortierung ist für Admins als eingeklappter Bereich mit Hoch-/Runter-Schaltern umgesetzt.
+- Dark-Mode-Toggle wurde in Desktop- und Mobile-Einstellungen ergänzt.
+- Telegram-Regeln matchen Kreis- und Benutzerziele gegenseitig über die Kreiszugehörigkeit.
+- Slash-Kommandos werden in Telegram-HTML nicht mehr als `<code>` ausgegeben.

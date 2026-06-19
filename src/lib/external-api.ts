@@ -3,7 +3,7 @@ import { userFromApiToken } from "@/lib/api-tokens";
 
 export async function requireApiUser(request: NextRequest | Request) {
   const auth = await userFromApiToken(request);
-  if (!auth) return { response: NextResponse.json({ ok: false, error: "Ungueltiger oder fehlender API Token" }, { status: 401 }) };
+  if (!auth) return { response: NextResponse.json({ ok: false, error: "Ungültiger oder fehlender API Token" }, { status: 401 }) };
   return { user: auth.user };
 }
 

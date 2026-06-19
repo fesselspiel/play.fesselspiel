@@ -43,7 +43,7 @@ export const themes = [
   },
   {
     id: "emerald",
-    name: "Gruen",
+    name: "Grün",
     description: "Frisch, sachlich und entspannt.",
     swatches: ["#10B981", "#10231D", "#ECFDF5"],
     darkSwatches: ["#34D399", "#F8FAFC", "#050506"]

@@ -60,11 +60,11 @@ export function TelegramChatDiscovery() {
         body: JSON.stringify({ action })
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Webhook konnte nicht geaendert werden.");
+      if (!response.ok) throw new Error(payload.error || "Webhook konnte nicht geändert werden.");
       await loadWebhookInfo();
       if (action === "delete") await loadUpdates();
     } catch (err) {
-      setError(friendlyError(err, "Webhook konnte nicht geaendert werden."));
+      setError(friendlyError(err, "Webhook konnte nicht geändert werden."));
     } finally {
       setLoading(false);
     }
@@ -81,14 +81,14 @@ export function TelegramChatDiscovery() {
       if (!response.ok) {
         const message = String(payload.error || "Telegram konnte nicht gelesen werden.");
         if (message.includes("409") || message.includes("webhook")) {
-          throw new Error("Telegram blockiert das Einlesen, weil ein Webhook aktiv ist. Loesche den Webhook oder setze ihn auf diese App.");
+          throw new Error("Telegram blockiert das Einlesen, weil ein Webhook aktiv ist. Lösche den Webhook oder setze ihn auf diese App.");
         }
         throw new Error(message);
       }
       setCandidates(payload.candidates || []);
-      if (!payload.candidates?.length) setError("Keine Testnachricht gefunden. Schreibe dem Bot zuerst eine Nachricht im gewuenschten Chat oder Thread.");
+      if (!payload.candidates?.length) setError("Keine Testnachricht gefunden. Schreibe dem Bot zuerst eine Nachricht im gewünschten Chat oder Thread.");
     } catch (err) {
-      setError(friendlyError(err, "Keine Testnachricht gefunden. Sende zuerst eine neue Testnachricht im gewuenschten Telegram-Thread."));
+      setError(friendlyError(err, "Keine Testnachricht gefunden. Sende zuerst eine neue Testnachricht im gewünschten Telegram-Thread."));
     } finally {
       setLoading(false);
     }
@@ -144,7 +144,7 @@ export function TelegramChatDiscovery() {
           Webhook-Status
         </Button>
         <Button type="button" variant="secondary" onClick={() => configureWebhook("delete")}>
-          Webhook loeschen und einlesen
+          Webhook löschen und einlesen
         </Button>
         <Button type="button" variant="secondary" onClick={() => configureWebhook("set")}>
           Webhook auf diese App setzen

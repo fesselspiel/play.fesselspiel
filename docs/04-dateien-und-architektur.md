@@ -3,8 +3,8 @@
 ## Top-Level
 
 - `README.md`: kurzer Einstieg.
-- `docs/`: ausfuehrliche reproduzierbare Projektdokumentation.
-- `Dockerfile`: Production-Build fuer Next.js.
+- `docs/`: ausführliche reproduzierbare Projektdokumentation.
+- `Dockerfile`: Production-Build für Next.js.
 - `docker-compose.yml`: App, PostgreSQL, Volumes, Traefik-Labels.
 - `docker-entrypoint.sh`: DB-Push, Seed und App-Start mit Logausgabe.
 - `.env.example`: Beispielkonfiguration ohne echte Secrets.
@@ -15,36 +15,36 @@
 ## Zentrale Libraries
 
 - `src/lib/auth.ts`: Login, Session, aktueller User.
-- `src/lib/access.ts`: Kreisbasierte Zugriffshilfen fuer gemeinsame Paar-/Gruppendaten.
+- `src/lib/access.ts`: Kreisbasierte Zugriffshilfen für gemeinsame Paar-/Gruppendaten.
 - `src/lib/prisma.ts`: Prisma Client.
-- `src/lib/crypto.ts`: Verschluesselung fuer Bot/API Keys.
+- `src/lib/crypto.ts`: VerSchlüsselung für Bot/API Keys.
 - `src/lib/env.ts`: Environment-Parsing.
-- `src/lib/files.ts`: Upload speichern, FileAsset-URL, Datei-ID aus URL, Datei loeschen.
+- `src/lib/files.ts`: Upload speichern, FileAsset-URL, Datei-ID aus URL, Datei löschen.
 - `src/lib/slug.ts`: Slugify, normalizeSlug, uniqueSlug, uniqueSlugForUpdate.
 - `src/lib/dates.ts`: Datumsformatierung, `datetime-local`, Dauerberechnung.
-- `src/lib/audit.ts`: Fehlertolerantes Schreiben von Audit-/Protokolleintraegen.
-- `src/lib/moods.ts`: Labels und Scores fuer Session-Stimmungen.
+- `src/lib/audit.ts`: Fehlertolerantes Schreiben von Audit-/Protokolleinträgen.
+- `src/lib/moods.ts`: Labels und Scores für Session-Stimmungen.
 - `src/lib/themes.ts`: Theme-Definitionen.
 - `src/lib/telegram.ts`: Telegram API, Webhook, Updates, Datei-Download.
 - `src/lib/telegram-agent.ts`: OpenAI-Agent und Aktionslogik.
-- `src/lib/telegram-item-dialogue.ts`: Dialogstatus und Felder fuer Item-Anlage.
+- `src/lib/telegram-item-dialogue.ts`: Dialogstatus und Felder für Item-Anlage.
 
 Telegram-Formatierung:
 
-- `sendTelegramMessage` unterstuetzt optional `parseMode: "HTML"` und `disableWebPagePreview`.
-- `telegramHtml` escaped nutzergenerierte Inhalte fuer Telegram-HTML.
+- `sendTelegramMessage` unterstützt optional `parseMode: "HTML"` und `disableWebPagePreview`.
+- `telegramHtml` escaped nutzergenerierte Inhalte für Telegram-HTML.
 - `telegramLink` erzeugt klickbare Telegram-HTML-Links.
-- Bei HTML-Sendefehlern faellt `sendTelegramMessage` automatisch auf Plain Text zurueck.
+- Bei HTML-Sendefehlern fällt `sendTelegramMessage` automatisch auf Plain Text zurück.
 
 ## Komponenten
 
 - `src/components/app-shell.tsx`: Grundlayout, Desktop-Sidebar, MobileMenu.
 - `src/components/copy-link.tsx`: Kleine Client-Komponente zum Kopieren dezenter, sichtbarer Links ohne Textauswahl.
-- `src/components/file-upload-field.tsx`: Sichtbarer Datei-Upload mit Dateiname, Groesse, Bildvorschau und optionaler Entfernen-Checkbox.
-- `src/components/mobile-menu.tsx`: Hamburger-Menue fuer mobile Ansicht.
+- `src/components/file-upload-field.tsx`: Sichtbarer Datei-Upload mit Dateiname, Größe, Bildvorschau und optionaler Entfernen-Checkbox.
+- `src/components/mobile-menu.tsx`: Hamburger-Menü für mobile Ansicht.
 - `src/components/login-form.tsx`: Loginformular mit Passwort-Auge.
 - `src/components/theme-picker.tsx`: Theme-Auswahl mit Sofortvorschau.
-- `src/components/sortable-catalog.tsx`: Drag-and-drop-Listen fuer Spielzeuge und Stellungen.
+- `src/components/sortable-catalog.tsx`: Drag-and-drop-Listen für Spielzeuge und Stellungen.
 - `src/components/ui.tsx`: PageHeader, PageGuide, Panel, SoftPanel, Field, Button, Badge, EmptyState.
 - `src/components/telegram/chat-discovery.tsx`: Telegram Chat-/Thread-Erkennung und Webhook-Steuerung.
 
@@ -76,7 +76,7 @@ Telegram-Formatierung:
 - `src/app/positions/[slug]/page.tsx`
 - `src/app/positions/[slug]/edit/page.tsx`
 
-### Aktivitaeten
+### Aktivitäten
 
 - `src/app/activities/page.tsx`
 - `src/app/activities/new/page.tsx`
@@ -96,10 +96,10 @@ Telegram-Formatierung:
 ### Medien und Protokoll
 
 - `src/app/media/page.tsx`
-- `src/app/messages/page.tsx`: Protokollseite unter Einstellungen, gruppiert App-Aktionen und alte Telegram-/Nachrichten-Eintraege.
+- `src/app/messages/page.tsx`: Protokollseite unter Einstellungen, gruppiert App-Aktionen und alte Telegram-/Nachrichten-Einträge.
 - `src/app/api/files/[id]/route.ts`
 - `src/app/api/uploads/route.ts`
-- `src/app/api/reorder/route.ts`: Speichert Drag-and-drop-Reihenfolgen fuer Spielzeug- und Stellungslisten.
+- `src/app/api/reorder/route.ts`: Speichert Drag-and-drop-Reihenfolgen für Spielzeug- und Stellungslisten.
 
 ### Einstellungen
 
@@ -136,57 +136,59 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 
 - `User`: Account, Rolle, Login, Beziehungen.
 - `UserSettings`: Theme, Dark Mode, Spielampel-Status, Telegram/OpenAI Secrets, Telegram Chats und Telegram-Aktionsregeln.
-- `UserSettings.timeOffsetMinutes`: einfache Admin-Zeitkorrektur fuer die angezeigte Systemzeit.
+- `UserSettings.timeOffsetMinutes`: einfache Admin-Zeitkorrektur für die angezeigte Systemzeit.
 - `Profile`: Profilfelder.
-- `Profile.imageUrl`: geschuetztes Profilbild ueber `/api/files/<id>`.
+- `Profile.imageUrl`: geschütztes Profilbild über `/api/files/<id>`.
 - `Circle`: Paar-/Gruppenkreis; Mitglieder sehen gemeinsame Inhalte.
-- `FileAsset`: geschuetzte Upload-Datei.
+- `FileAsset`: geschützte Upload-Datei.
 - `Toy`: Spielzeug mit Slug, Bild, Beschreibung und `sortOrder`.
 - `Position`: Stellung mit Slug, Bild, Beschreibung und `sortOrder`.
-- `ActivityPlan`: Aktivitaet mit Status, Termin, Spielzeugen und Stellungen. Statuswerte: `REQUESTED`, `PLANNED`, `DONE`, `DISCARDED`.
+- `ActivityPlan`: Aktivität mit Status, Termin, Spielzeugen und Stellungen. Statuswerte: `REQUESTED`, `PLANNED`, `DONE`, `DISCARDED`.
 - `SegufixSession`: Session-Tracking.
 - `KgSession`: KG-Tragezeit-Tracking mit Start, Ende, Dauer und Notiz.
 - `Album`: Medienalbum.
-- `Media`: Bild oder Video; neue Medien werden immer einem Album zugeordnet, standardmaessig `Standard`.
+- `Media`: Bild oder Video; neue Medien werden immer einem Album zugeordnet, standardmäßig `Standard`.
 - `MediaComment`: Kommentar oder Notiz zu einem Medium.
 - `Event`: Termin.
 - `CheckIn`: Teilnahme/Check-in.
-- `Message`: Altbestand fuer Telegram-/Nachrichtenverlauf.
+- `Message`: Altbestand für Telegram-/Nachrichtenverlauf.
 - `AuditLog`: Protokollierte App-Aktion mit Akteur, Aktion, Zieltyp, Ziel-ID, Titel, optionalen Details und Link.
 - `TelegramChat`: erkannte Telegram Chats/Threads.
 - `TelegramNotificationRule`: aktionsbasierte Telegram-Regel mit Aktion, Ziel-Benutzer/Ziel-Kreis, HTML-Nachricht und Aktiv-Status.
 
 ## Upload-Architektur
 
-1. Formular oder Telegram speichert Datei ueber `saveUploadedFile` oder `saveFileBuffer`.
+1. Formular oder Telegram speichert Datei über `saveUploadedFile` oder `saveFileBuffer`.
 2. Datei landet unter `UPLOAD_PATH/<ownerId>/<YYYY-MM-DD>/<uuid>.<ext>`.
-3. Datenbankeintrag `FileAsset` enthaelt Metadaten und relativen Storage-Pfad.
+3. Datenbankeintrag `FileAsset` enthält Metadaten und relativen Storage-Pfad.
 4. App speichert nur `/api/files/<id>` in `imageUrl`, `media.url` oder `message.mediaUrl`.
-5. `/api/files/[id]` prueft aktuellen User und liefert eigene Dateien sowie Dateien von Kreis-Mitgliedern aus.
+5. `/api/files/[id]` prüft aktuellen User und liefert eigene Dateien sowie Dateien von Kreis-Mitgliedern aus.
 6. `deleteOwnedFile` entfernt DB-Eintrag und Datei vom Dateisystem.
 
 UI-Hinweis:
 
-- Upload-Formulare nutzen `FileUploadField`, damit Benutzer auf mobilen Geraeten sehen, welche Datei ausgewaehlt wurde.
-- Bei Bildersatz gewinnt eine neu ausgewaehlte Datei automatisch gegen die Entfernen-Option.
+- Upload-Formulare nutzen `FileUploadField`, damit Benutzer auf mobilen Geräten sehen, welche Datei ausgewählt wurde.
+- Bei Bildersatz gewinnt eine neu ausgewählte Datei automatisch gegen die Entfernen-Option.
 - `next.config.mjs` setzt `experimental.serverActions.bodySizeLimit` auf `50mb`, passend zur Upload-Grenze der App.
-- Spielzeug- und Stellungsbilder werden beim Auswaehlen direkt an `/api/uploads` gesendet. Die anschliessende Server Action speichert nur die zurueckgegebene geschuetzte Datei-URL.
+- Spielzeug- und Stellungsbilder werden beim Auswählen direkt an `/api/uploads` gesendet. Die anschließende Server Action speichert nur die zurückgegebene geschützte Datei-URL.
 - `ensureDefaultAlbum(ownerId)` in `src/lib/albums.ts` legt bei Bedarf das Standardalbum `Standard` an und benennt alte `Eingang`-Alben um.
-- Medienuploads ueber Web, Telegram, externe API, Session-Detailseite und Import verwenden dieses Album als Fallback.
+- Medienuploads über Web, Telegram, externe API, Session-Detailseite und Import verwenden dieses Album als Fallback.
 
 ## Telegram-Aktionsregeln
 
 - `src/lib/notification-actions.ts`: bekannte Aktionen, lesbare Labels und Standardtemplate.
 - `src/lib/telegram-notifications.ts`: rendert Templates und sendet passende Telegram-Regeln.
 - `src/lib/audit.ts`: ruft nach jedem gespeicherten `AuditLog` den Dispatcher auf.
-- `/settings/telegram#notifications`: Admin-Oberflaeche zum Erstellen, Bearbeiten und Loeschen der Regeln.
+- `/settings/telegram#notifications`: Admin-Oberfläche zum Erstellen, Bearbeiten und Löschen der Regeln.
 
 ## Wiederverwendbare UI-Helfer
 
 - `src/components/submit-button.tsx`: Button mit `useFormStatus`, Pending-Text und deaktiviertem Zustand beim Speichern.
-- `src/components/username-field.tsx`: Benutzername-Feld mit Blur-Pruefung gegen `/api/users/check-username`.
-- `src/components/protocol-search.tsx`: Client-Suche fuer das Protokoll mit Vorschlaegen und Sprunglinks.
+- `src/components/username-field.tsx`: Benutzername-Feld mit Blur-Prüfung gegen `/api/users/check-username`.
+- `src/components/protocol-search.tsx`: Client-Suche für das Protokoll mit Vorschlägen und Sprunglinks.
 - `src/components/quick-album-form.tsx`: Inline-Albumanlage aus der Medien-Detailansicht heraus.
+- `src/components/dark-mode-toggle.tsx`: kompakter Dark-Mode-Schalter für Desktop- und Mobile-Einstellungen.
+- `src/app/api/settings/dark-mode/route.ts`: speichert Dark Mode direkt am aktuellen Benutzer.
 
 ## Sichtbarkeit
 
@@ -194,25 +196,32 @@ UI-Hinweis:
 - `PARTNER` wird in der UI als `Zirkel` angezeigt.
 - `SHARED` wird in der UI als `Alle` angezeigt.
 - `visibilityScope(user)` in `src/lib/access.ts` kapselt die Medien-/Album-Sichtbarkeit.
-- `ownerScope(user)` bleibt fuer Bearbeiten, Loeschen und Datei-Metadaten massgeblich.
-- Admins erhalten ueber `accessibleOwnerIds` Zugriff auf aktive Benutzer, damit Admin-Ansichten und geschuetzte Profilbilder konsistent funktionieren.
+- `ownerScope(user)` bleibt für Bearbeiten, Löschen und Datei-Metadaten massgeblich.
+- Admins erhalten über `accessibleOwnerIds` Zugriff auf aktive Benutzer, damit Admin-Ansichten und geschützte Profilbilder konsistent funktionieren.
 
 ## Slug-Architektur
 
-- Neue Eintraege nutzen `uniqueSlug`.
-- Bearbeitete Eintraege nutzen `uniqueSlugForUpdate`.
+- Neue Einträge nutzen `uniqueSlug`.
+- Bearbeitete Einträge nutzen `uniqueSlugForUpdate`.
 - Slugs erlauben URL-konforme Zeichen und werden aus Titeln normalisiert.
-- Wenn ein Slug bereits von einem anderen Datensatz belegt ist, wird `-2`, `-3`, usw. angehaengt.
+- Wenn ein Slug bereits von einem anderen Datensatz belegt ist, wird `-2`, `-3`, usw. angehängt.
 
-## Bearbeiten/Loeschen
+## Tracker-Detailrouten
 
-Bearbeiten und Loeschen sind als Server Actions in den jeweiligen `edit/page.tsx` Dateien umgesetzt. Jede Action:
+- Segufix-Sessions nutzen lesbare Slug-URLs unter `/sessions/[slug]`.
+- KG-Sessions haben eine Detailroute unter `/sessions/kg/[id]`.
+- Historien- und Kalenderansichten verlinken direkt auf diese Detailseiten.
+- Segufix-Sessiontexte werden als gemeinsamer `Sessionkommentar` über `SegufixSession.notes` geführt; alte `moodBeforeText`- und `moodAfterText`-Werte werden nur noch in diesen Kommentar eingebettet.
+
+## Bearbeiten/Löschen
+
+Bearbeiten und Löschen sind als Server Actions in den jeweiligen `edit/page.tsx` Dateien umgesetzt. Jede Action:
 
 1. liest `currentUser`.
 2. redirectet ohne Login nach `/login`.
 3. sucht den Datensatz mit `ownerId`.
-4. nutzt `notFound`, wenn der Datensatz nicht zum User gehoert.
-5. aktualisiert oder loescht den Datensatz.
+4. nutzt `notFound`, wenn der Datensatz nicht zum User gehört.
+5. aktualisiert oder löscht den Datensatz.
 6. redirectet zur passenden Seite.
 
-Bei Spielzeug/Stellung wird beim Bildersatz oder Loeschen die alte Upload-Datei ueber `deleteOwnedFile` entfernt.
+Bei Spielzeug/Stellung wird beim Bildersatz oder Löschen die alte Upload-Datei über `deleteOwnedFile` entfernt.

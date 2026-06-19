@@ -75,7 +75,7 @@ export default async function EditActivityPage({ params }: { params: { slug: str
     <AppShell>
       <PageHeader title="Spielplan bearbeiten" />
       <PageGuide>
-        Passe hier Titel, Slug, Termin, Status, Notiz und die verknuepften Spielsachen oder Stellungen an. Loeschen entfernt nur diesen Plan, nicht die verwendeten Bausteine.
+        Passe hier Titel, Slug, Termin, Status, Notiz und die verknüpften Spielsachen oder Stellungen an. Löschen entfernt nur diesen Plan, nicht die verwendeten Bausteine.
       </PageGuide>
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
         <form action={updateActivity} className="grid gap-6 xl:grid-cols-[1fr_420px]">
@@ -94,7 +94,7 @@ export default async function EditActivityPage({ params }: { params: { slug: str
             </div>
             <Field label="Notiz"><textarea className={inputClass} name="note" rows={6} defaultValue={activity.note || ""} /></Field>
             <div className="flex flex-wrap gap-2">
-              <Button><Save className="h-4 w-4" /> Aenderungen speichern</Button>
+              <Button><Save className="h-4 w-4" /> Änderungen speichern</Button>
               <Link href={`/activities/${activity.slug}`} className="focus-ring inline-flex min-h-10 items-center justify-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
                 Abbrechen
               </Link>
@@ -129,9 +129,9 @@ export default async function EditActivityPage({ params }: { params: { slug: str
         </form>
         <form action={deleteActivity} className="rounded-lg border border-line bg-paper p-5">
           <input type="hidden" name="id" value={activity.id} />
-          <h2 className="text-lg font-semibold">Loeschen</h2>
-          <p className="mt-2 text-sm text-graphite">Entfernt diesen Spielplan und alle Verknuepfungen dazu.</p>
-          <Button variant="danger" className="mt-4 w-full"><Trash2 className="h-4 w-4" /> Spielplan loeschen</Button>
+          <h2 className="text-lg font-semibold">Löschen</h2>
+          <p className="mt-2 text-sm text-graphite">Entfernt diesen Spielplan und alle Verknüpfungen dazu.</p>
+          <Button variant="danger" className="mt-4 w-full"><Trash2 className="h-4 w-4" /> Spielplan löschen</Button>
         </form>
       </div>
     </AppShell>

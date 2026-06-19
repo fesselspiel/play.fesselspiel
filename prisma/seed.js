@@ -19,7 +19,7 @@ function slugify(value) {
 async function main() {
   const email = process.env.ADMIN_EMAIL || "admin@fesselspiel.com";
   const username = process.env.ADMIN_USERNAME || "admin";
-  const password = process.env.ADMIN_PASSWORD || "bitte_aendern";
+  const password = process.env.ADMIN_PASSWORD || "bitte_ändern";
   const passwordHash = await bcrypt.hash(password, 12);
 
   const admin = await prisma.user.upsert({
@@ -34,7 +34,7 @@ async function main() {
     create: {
       userId: admin.id,
       displayName: "Fesselspiel",
-      bio: "Privater Raum fuer Planung, Kommunikation und Dokumentation.",
+      bio: "Privater Raum für Planung, Kommunikation und Dokumentation.",
       imageUrl: "",
       fields: { beziehungsform: "Paar", notizen: "Eigene Profilfelder frei anpassbar" }
     }
@@ -49,8 +49,8 @@ async function main() {
   if (process.env.SEED_DEMO_DATA !== "true" || process.env.SEED_ALLOW_DEMO_RECREATE !== "true") return;
 
   const toyData = [
-    ["Leder Manschetten", "Weiche Manschetten fuer ruhige Sessions.", "/toy-cuffs.svg"],
-    ["Segufix System", "Dokumentierte Ausruestung fuer geplante Entspannungs-Sessions.", "/toy-system.svg"]
+    ["Leder Manschetten", "Weiche Manschetten für ruhige Sessions.", "/toy-cuffs.svg"],
+    ["Segufix System", "Dokumentierte Ausrüstung für geplante Entspannungs-Sessions.", "/toy-system.svg"]
   ];
   for (const [title, description, imageUrl] of toyData) {
     await prisma.toy.upsert({
@@ -68,9 +68,9 @@ async function main() {
     update: {},
     create: {
       ownerId: admin.id,
-      name: "Rueckenlage",
+      name: "Rückenlage",
       slug: "rueckenlage",
-      description: "Ruhige Position fuer laengere Entspannungsphasen.",
+      description: "Ruhige Position für längere Entspannungsphasen.",
       imageUrl: "/position-back.svg",
       tools: { connect: [cuffs, system].filter(Boolean).map((tool) => ({ id: tool.id })) }
     }
@@ -84,7 +84,7 @@ async function main() {
       title: "Entspannungsabend",
       slug: "entspannungsabend",
       category: "Entspannung",
-      note: "Sanfter Ablauf mit vorbereiteter Ausruestung.",
+      note: "Sanfter Ablauf mit vorbereiteter Ausrüstung.",
       plannedAt: new Date(),
       tools: { connect: [cuffs, system].filter(Boolean).map((tool) => ({ id: tool.id })) },
       positions: { connect: [{ slug: "rueckenlage" }] }

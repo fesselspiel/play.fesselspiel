@@ -13,7 +13,7 @@ async function stopSession(request: NextRequest) {
   const session = await prisma.segufixSession.findFirst({ where: { ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } });
   if (!session) return NextResponse.json({ ok: false, error: "Keine laufende Session gefunden" }, { status: 404 });
   const endTime = dateFromValue(values.get("endTime")) || new Date();
-  const note = values.get("note") || values.get("notes") || "";
+  const note = [values.get("note") || values.get("notes") || "", values.get("moodAfterText") ? `Nachher: ${values.get("moodAfterText")}` : ""].filter(Boolean).join("\n");
   const moodAfter = oneOf(values.get("moodAfter"), ["WORSE", "UNCHANGED", "SLIGHTLY_BETTER", "MUCH_BETTER", "RELAXED"] as const);
   const updated = await prisma.segufixSession.update({
     where: { id: session.id },
@@ -22,7 +22,7 @@ async function stopSession(request: NextRequest) {
       durationMinutes: minutesBetween(session.startTime, endTime),
       notes: [session.notes, note].filter(Boolean).join("\n"),
       moodAfter,
-      moodAfterText: values.get("moodAfterText") || null
+      moodAfterText: null
     }
   });
   await logAction({

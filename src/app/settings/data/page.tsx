@@ -21,7 +21,7 @@ export default async function DataSettingsPage({ searchParams }: { searchParams:
     <AppShell>
       <PageHeader title="Daten" />
       <PageGuide title="Daten und geschuetzte Dateien sichern oder wiederherstellen">
-        Exportiere deine sichtbaren Portal-Inhalte als ZIP-Datei inklusive Fotos und Videos. Beim Import werden die Inhalte dem aktuell angemeldeten Benutzer hinzugefuegt; bestehende Daten werden nicht geloescht oder ueberschrieben.
+        Exportiere deine sichtbaren Portal-Inhalte als ZIP-Datei inklusive Fotos und Videos. Beim Import werden die Inhalte dem aktuell angemeldeten Benutzer hinzugefuegt; bestehende Daten werden nicht gelöscht oder überschrieben.
       </PageGuide>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -33,7 +33,7 @@ export default async function DataSettingsPage({ searchParams }: { searchParams:
             <div>
               <h2 className="text-lg font-semibold text-ink">Export</h2>
               <p className="mt-1 text-sm leading-6 text-graphite">
-                Erstellt ein ZIP-Archiv mit Spielsachen, Stellungen, Aktivitaeten, Sessions, Medien, Alben, Terminen und den zugehoerigen geschuetzten Dateien.
+                Erstellt ein ZIP-Archiv mit Spielsachen, Stellungen, Aktivitäten, Sessions, Medien, Alben, Terminen und den zugehörigen geschuetzten Dateien.
               </p>
             </div>
           </div>
@@ -45,7 +45,7 @@ export default async function DataSettingsPage({ searchParams }: { searchParams:
             Export herunterladen
           </a>
           <div className="mt-4 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
-            Passwoerter, Login-Tokens, Telegram-Token und OpenAI-Keys werden nicht exportiert.
+            Passwörter, Login-Tokens, Telegram-Token und OpenAI-Keys werden nicht exportiert.
           </div>
         </Panel>
 
@@ -69,7 +69,7 @@ export default async function DataSettingsPage({ searchParams }: { searchParams:
           ) : null}
           {searchParams.error ? (
             <div className="mb-4 rounded-md bg-redbrand/10 p-3 text-sm font-semibold text-redbrand">
-              Import fehlgeschlagen: {searchParams.error === "missing" ? "Bitte eine ZIP-Datei auswaehlen." : searchParams.error}
+              Import fehlgeschlagen: {searchParams.error === "missing" ? "Bitte eine ZIP-Datei auswählen." : searchParams.error}
             </div>
           ) : null}
 

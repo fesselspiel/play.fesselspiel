@@ -6,7 +6,7 @@ Voraussetzungen:
 
 - Docker
 - Docker Compose
-- Node.js nur dann noetig, wenn ohne Docker entwickelt wird
+- Node.js nur dann nötig, wenn ohne Docker entwickelt wird
 
 Start:
 
@@ -15,13 +15,13 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Die Anwendung laeuft lokal auf:
+Die Anwendung läuft lokal auf:
 
 ```text
 http://localhost:8097
 ```
 
-Nuetzliche Befehle:
+Nützliche Befehle:
 
 ```bash
 docker compose build app
@@ -103,7 +103,7 @@ curl -sS -c "$COOKIE" -H "Content-Type: application/json" \
   http://127.0.0.1:8097/api/auth/login
 ```
 
-Hauptseiten pruefen:
+Hauptseiten prüfen:
 
 ```bash
 for path in /toys /positions /activities /events /sessions /media /messages /profile; do
@@ -111,7 +111,7 @@ for path in /toys /positions /activities /events /sessions /media /messages /pro
 done
 ```
 
-Erwartet wird `200` fuer die Hauptseiten.
+Erwartet wird `200` für die Hauptseiten.
 
 ## Dateien auf den VPS kopieren
 
@@ -132,7 +132,7 @@ ssh -o BatchMode=yes -o ConnectTimeout=15 -o HostKeyAlias=vps.example.invalid -i
 
 ## Uploads
 
-Uploads werden im Container unter `UPLOAD_PATH` gespeichert, standardmaessig:
+Uploads werden im Container unter `UPLOAD_PATH` gespeichert, standardmäßig:
 
 ```text
 /app/uploads
@@ -144,15 +144,15 @@ In Docker Compose ist das ein persistentes Volume:
 uploads_data:/app/uploads
 ```
 
-Die App speichert Dateien benutzerbezogen in Unterordnern und gibt sie nicht als statische Dateien aus. Der Zugriff laeuft ueber:
+Die App speichert Dateien benutzerbezogen in Unterordnern und gibt sie nicht als statische Dateien aus. Der Zugriff läuft über:
 
 ```text
 /api/files/[id]
 ```
 
-Der Endpunkt prueft Login und Eigentum der Datei.
+Der Endpunkt prüft Login und Eigentum der Datei.
 
-Wichtig auf dem VPS: Vor der App laeuft Nginx. Fuer iPhone-Fotos und andere Uploads muss in der Nginx-Site `play.fesselspiel.com` ebenfalls ein ausreichend grosses Limit gesetzt sein:
+Wichtig auf dem VPS: Vor der App läuft Nginx. Für iPhone-Fotos und andere Uploads muss in der Nginx-Site `play.fesselspiel.com` ebenfalls ein ausreichend großes Limit gesetzt sein:
 
 ```nginx
 server {
@@ -162,7 +162,7 @@ server {
 }
 ```
 
-Nach Aenderungen:
+Nach Änderungen:
 
 ```bash
 nginx -t
@@ -171,9 +171,9 @@ systemctl reload nginx
 
 ## Telegram-Bot
 
-Bot-Token und OpenAI-Key werden in der Weboberflaeche unter Telegram-Einstellungen hinterlegt und verschluesselt gespeichert.
+Bot-Token und OpenAI-Key werden in der Weboberflaeche unter Telegram-Einstellungen hinterlegt und verschlüsselt gespeichert.
 
-Webhook setzen oder loeschen:
+Webhook setzen oder löschen:
 
 - UI: `/settings/telegram`
 - API: `/api/telegram/webhook-config`

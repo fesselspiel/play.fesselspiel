@@ -18,6 +18,7 @@ import {
   X
 } from "lucide-react";
 import { useState } from "react";
+import { DarkModeToggle } from "@/components/dark-mode-toggle";
 
 const mobileNav = [
   ["Dashboard", "/", LayoutDashboard],
@@ -37,7 +38,7 @@ const mobileSettingsNav = [
   ["Protokoll", "/messages", MessageCircle]
 ] as const;
 
-export function MobileMenu() {
+export function MobileMenu({ activeDarkMode = false }: { activeDarkMode?: boolean }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -55,7 +56,7 @@ export function MobileMenu() {
           className="focus-ring inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-ink shadow-soft"
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          <span className="sr-only">Menue</span>
+          <span className="sr-only">Menü</span>
         </button>
       </div>
       {open ? (
@@ -89,6 +90,7 @@ export function MobileMenu() {
                     {label}
                   </Link>
                 ))}
+                <DarkModeToggle active={activeDarkMode} />
                 <form action="/api/auth/logout" method="post">
                   <button
                     type="submit"

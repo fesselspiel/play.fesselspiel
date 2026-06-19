@@ -1,14 +1,14 @@
 # Implementierungslog
 
-Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Aenderungen sollen hier nachgetragen werden.
+Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen sollen hier nachgetragen werden.
 
 ## Initiale App
 
 - Next.js 14 App Router Projekt erstellt.
 - Prisma und PostgreSQL angebunden.
 - Dockerfile und Docker Compose eingerichtet.
-- Traefik-Labels fuer `play.fesselspiel.com` vorbereitet.
-- Admin-Seed ueber Environment-Variablen.
+- Traefik-Labels für `play.fesselspiel.com` vorbereitet.
+- Admin-Seed über Environment-Variablen.
 - Grundlayout mit Sidebar, Mobile Header, Panels, Buttons und Formfeldern.
 
 ## Auth und Benutzer
@@ -22,7 +22,7 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Aenderungen 
 
 ## Domain-Korrektur
 
-- Domain von `play.festspiel.com` auf `play.fesselspiel.com` geaendert.
+- Domain von `play.festspiel.com` auf `play.fesselspiel.com` geändert.
 - Docker Compose, App-URL, Traefik-Router und UI-Texte angepasst.
 
 ## Deployment auf VPS
@@ -36,112 +36,112 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Aenderungen 
 
 ## Login UX
 
-- Passwortfeld mit Auge/Toggle ergaenzt, damit Eingaben sichtbar gemacht werden koennen.
+- Passwortfeld mit Auge/Toggle ergänzt, damit Eingaben sichtbar gemacht werden können.
 
 ## Telegram
 
-- Telegram-Einstellungen fuer Bot-Token und OpenAI-Key.
-- Werte werden verschluesselt gespeichert.
+- Telegram-Einstellungen für Bot-Token und OpenAI-Key.
+- Werte werden verschlüsselt gespeichert.
 - Chat- und Thread-Erkennung.
 - Button/Reload-Logik zum Einlesen von Updates.
-- Webhook setzen und loeschen.
-- Bot-Kommandos und spaeter Agentenlogik.
-- Agent beantwortet freie Nachrichten ueber OpenAI.
-- Agent kann Aktionen im Portal ausfuehren.
-- Kurzzeitgedaechtnis ueber die letzten ca. 10 Nachrichten.
-- Dialogsystem fuer Item-Anlage.
-- Dialog fragt benoetigte Felder ab und legt erst danach den Datensatz an.
-- Dialoge fuer Spielzeug und Stellung.
-- Telegram-Bilder koennen in laufenden Dialogen als Bild fuer das Item verwendet werden.
+- Webhook setzen und löschen.
+- Bot-Kommandos und später Agentenlogik.
+- Agent beantwortet freie Nachrichten über OpenAI.
+- Agent kann Aktionen im Portal ausführen.
+- Kurzzeitgedächtnis über die letzten ca. 10 Nachrichten.
+- Dialogsystem für Item-Anlage.
+- Dialog fragt benötigte Felder ab und legt erst danach den Datensatz an.
+- Dialoge für Spielzeug und Stellung.
+- Telegram-Bilder können in laufenden Dialogen als Bild für das Item verwendet werden.
 - Freie Telegram-Bilder werden automatisch als Medium gespeichert.
 - Unbekannte Telegram-Chats oder Threads werden nur als `PENDING` in der App gespeichert.
 - Der Bot schreibt beim reinen Erkennen eines Chats keine automatische Nachricht mehr in Telegram.
 - Telegram-Webhook akzeptiert eine chatweite Freigabe: Wenn ein `ACTIVE`-Eintrag ohne Thread-ID existiert, werden Nachrichten und Bilder aus allen Threads dieses Chats verarbeitet.
-- Telegram-Einstellungen zeigen erkannte `PENDING`-Chats separat an und koennen sie entweder threadgenau oder fuer den ganzen Chat aktivieren.
+- Telegram-Einstellungen zeigen erkannte `PENDING`-Chats separat an und können sie entweder threadgenau oder für den ganzen Chat aktivieren.
 
 ## Theme Changer
 
 - `UserSettings.theme` im Prisma-Schema.
 - Theme-Picker in Benutzereinstellungen/Profileinstellungen.
 - Sofortige Theme-Vorschau beim Anklicken, nicht erst nach Speichern.
-- Themes: Rot, Pink, Hellblau, Gelb, Orange, Violett, Gruen/Emerald, Mono.
-- CSS-Variablen fuer Canvas, Surface, Paper, Line, Ink, Graphite, Redbrand und Hover.
+- Themes: Rot, Pink, Hellblau, Gelb, Orange, Violett, Grün/Emerald, Mono.
+- CSS-Variablen für Canvas, Surface, Paper, Line, Ink, Graphite, Redbrand und Hover.
 - Hintergrundfarbe passt jetzt zum jeweiligen Farbschema.
-- `UserSettings.darkMode` speichert zusaetzlich den persoenlichen Hell-/Dunkelmodus.
-- Der Theme-Picker hat einen iPhone-artigen Toggle-Schalter fuer Dark Mode statt Checkbox.
+- `UserSettings.darkMode` speichert zusätzlich den persönlichen Hell-/Dunkelmodus.
+- Der Theme-Picker hat einen iPhone-artigen Toggle-Schalter für Dark Mode statt Checkbox.
 - Dark Mode wird sofort als Vorschau angewendet und pro Benutzer gespeichert.
-- Alle vorhandenen Farbschemas haben eine dunkle Variante mit schwarzem Hintergrund, dunklen Flaechen und angepasster Akzentfarbe.
+- Alle vorhandenen Farbschemas haben eine dunkle Variante mit schwarzem Hintergrund, dunklen Flächen und angepasster Akzentfarbe.
 
-## Geschuetzte Uploads
+## Geschützte Uploads
 
 - `FileAsset` Modell.
-- `src/lib/files.ts` fuer Speichern, URL-Erzeugung, ID-Erkennung und Loeschen.
+- `src/lib/files.ts` für Speichern, URL-Erzeugung, ID-Erkennung und Löschen.
 - Dateien werden benutzerbezogen unter `UPLOAD_PATH/<ownerId>/...` gespeichert.
 - Keine absoluten Pfade in der UI.
 - Keine direkte statische Auslieferung aus dem Dateisystem.
-- Zugriff ueber `/api/files/[id]` mit Login- und Owner-Pruefung.
-- Bilder und Dateien koennen hochgeladen werden.
-- Beim Loeschen von Medien oder Nachrichten wird die Datei physisch entfernt.
+- Zugriff über `/api/files/[id]` mit Login- und Owner-Prüfung.
+- Bilder und Dateien können hochgeladen werden.
+- Beim Löschen von Medien oder Nachrichten wird die Datei physisch entfernt.
 
 ## Medienseite
 
 - Medienseite optisch ausgebaut.
 - Galerie-Ansicht mit Bild-/Video-Karten.
-- Spotlight fuer neueste Medien.
+- Spotlight für neueste Medien.
 - Album-Gruppierung.
-- Metadaten wie Dateiname, MIME-Type, Groesse und Erstellungsdatum.
+- Metadaten wie Dateiname, MIME-Type, Größe und Erstellungsdatum.
 - Upload-Formular.
 - Album-Formular.
-- Loeschaktion je Medium.
+- Löschaktion je Medium.
 
 ## Mobile Navigation
 
-- Mobile Navigation vom horizontalen Icon/Text-Menue zu Hamburger-Menue umgebaut.
+- Mobile Navigation vom horizontalen Icon/Text-Menü zu Hamburger-Menü umgebaut.
 - Hamburger oben rechts.
-- Dropdown klappt nach unten auf und schwebt ueber dem Inhalt.
-- Menue schliesst nach Klick auf einen Eintrag.
-- Danach optisch korrigiert: geschlossene Liste ohne Luecken zwischen den Menuepunkten.
+- Dropdown klappt nach unten auf und schwebt über dem Inhalt.
+- Menü schließt nach Klick auf einen Eintrag.
+- Danach optisch korrigiert: geschlossene Liste ohne Lücken zwischen den Menüpunkten.
 
-## Bearbeiten und Loeschen
+## Bearbeiten und Löschen
 
-Ergaenzt fuer:
+Ergaenzt für:
 
 - Spielzeuge
 - Stellungen
-- Aktivitaeten
+- Aktivitäten
 - Events
 - Sessions
 
 Details:
 
 - Spielzeug bearbeiten unter `/toys/[slug]/edit`.
-- Spielzeug loeschen inklusive Bilddatei.
+- Spielzeug löschen inklusive Bilddatei.
 - Stellung bearbeiten unter `/positions/[slug]/edit`.
-- Stellung loeschen inklusive Bilddatei.
-- Aktivitaet bearbeiten unter `/activities/[slug]/edit`.
-- Aktivitaet loeschen inklusive Verknuepfungen.
+- Stellung löschen inklusive Bilddatei.
+- Aktivität bearbeiten unter `/activities/[slug]/edit`.
+- Aktivität löschen inklusive Verknüpfungen.
 - Event bearbeiten unter `/events/[id]/edit`.
-- Event loeschen inklusive Check-ins.
+- Event löschen inklusive Check-ins.
 - Session bearbeiten unter `/sessions/[id]/edit`.
-- Session loeschen aus Kalender, Historie und Auswertung.
-- Slugs koennen beim Bearbeiten geaendert werden.
+- Session löschen aus Kalender, Historie und Auswertung.
+- Slugs können beim Bearbeiten geändert werden.
 - `uniqueSlugForUpdate` erlaubt den eigenen bestehenden Slug und verhindert Konflikte.
-- Datums-/Zeitfelder nutzen `formatDateTimeLocal` fuer `datetime-local`.
+- Datums-/Zeitfelder nutzen `formatDateTimeLocal` für `datetime-local`.
 
 ## Dokumentation
 
 - Wiederverwendbare Markdown-Dokumentation unter `docs/` angelegt.
-- Projektueberblick, Deployment, Implementierungslog, Architektur und Prompt-Historie dokumentiert.
-- Regel festgelegt: Bei weiteren Aenderungen die Docs mitpflegen.
+- Projektüberblick, Deployment, Implementierungslog, Architektur und Prompt-Historie dokumentiert.
+- Regel festgelegt: Bei weiteren Änderungen die Docs mitpflegen.
 
 ## Telegram-HTML-Ausgaben
 
 - Telegram-Sendefunktion um `parse_mode: HTML` erweitert.
 - Fallback eingebaut: Wenn Telegram HTML nicht akzeptiert, wird dieselbe Nachricht ohne Parse-Mode gesendet.
-- HTML-Escape-Helper fuer sichere Telegram-Ausgabe ergaenzt.
-- Slash-Command-Listen `/toys`, `/positions`, `/activities`, `/sessions`, `/status`, `/id` mit fetten Ueberschriften, nummerierten Eintraegen und klickbaren Links formatiert.
-- Agent-Tool-Ergebnisse fuer Portalstatus und Suche werden direkt als Telegram-HTML formatiert.
-- Dialog-Ergebnisse fuer neu angelegte Spielzeuge/Stellungen nutzen klickbare Links.
+- HTML-Escape-Helper für sichere Telegram-Ausgabe ergänzt.
+- Slash-Command-Listen `/toys`, `/positions`, `/activities`, `/sessions`, `/status`, `/id` mit fetten Überschriften, nummerierten Einträgen und klickbaren Links formatiert.
+- Agent-Tool-Ergebnisse für Portalstatus und Suche werden direkt als Telegram-HTML formatiert.
+- Dialog-Ergebnisse für neu angelegte Spielzeuge/Stellungen nutzen klickbare Links.
 
 ## Spielzeug-Detailheader
 
@@ -150,68 +150,68 @@ Details:
 
 ## Kurzanleitungen pro Seite
 
-- Wiederverwendbare Komponente `PageGuide` in `src/components/ui.tsx` ergaenzt.
-- Auf allen App-Seiten mit `PageHeader` kurze Beschreibungen eingefuegt: Zweck der Seite, was man dort tun kann und wie der Benutzer vorgeht.
-- Login-Seite um einen kurzen Hinweis zur Anmeldung und zum Passwort-Auge ergaenzt.
-- Texte bewusst kompakt gehalten, damit sie Orientierung geben ohne die Arbeitsoberflaeche zu ueberladen.
-- PageGuide wurde spaeter von einer prominenten Box unter der Ueberschrift zu einer eingeklappten Info-Schaltflaeche unten rechts umgebaut.
-- Die Hilfe ist damit ausserhalb des Hauptsichtfelds, aber bei Bedarf per Klick aufklappbar.
+- Wiederverwendbare Komponente `PageGuide` in `src/components/ui.tsx` ergänzt.
+- Auf allen App-Seiten mit `PageHeader` kurze Beschreibungen eingefügt: Zweck der Seite, was man dort tun kann und wie der Benutzer vorgeht.
+- Login-Seite um einen kurzen Hinweis zur Anmeldung und zum Passwort-Auge ergänzt.
+- Texte bewusst kompakt gehalten, damit sie Orientierung geben ohne die Arbeitsoberflaeche zu überladen.
+- PageGuide wurde später von einer prominenten Box unter der Überschrift zu einer eingeklappten Info-Schaltfläche unten rechts umgebaut.
+- Die Hilfe ist damit außerhalb des Hauptsichtfelds, aber bei Bedarf per Klick aufklappbar.
 - PageGuide wurde danach aus dem schwebenden `fixed` Overlay entfernt.
-- Die Hilfe ist jetzt ein normales, dezentes Element am Seitenende rechts und liegt nicht mehr ueber dem Inhalt.
-- Auf der Medienseite wurde der erklaerende Header-Subtitle entfernt; die Formulierung steht jetzt als Titel in der unteren Info-Box.
-- Rein erklaerende Header-Untertitel wurden auf allen Uebersichts-, Neu-, Bearbeiten- und Einstellungsseiten entfernt. Die Erklaerungen stehen jetzt als Titel/Inhalt in der unteren `PageGuide`-Info-Box.
+- Die Hilfe ist jetzt ein normales, dezentes Element am Seitenende rechts und liegt nicht mehr über dem Inhalt.
+- Auf der Medienseite wurde der erklärende Header-Subtitle entfernt; die Formulierung steht jetzt als Titel in der unteren Info-Box.
+- Rein erklärende Header-Untertitel wurden auf allen Übersichts-, Neu-, Bearbeiten- und Einstellungsseiten entfernt. Die Erklärungen stehen jetzt als Titel/Inhalt in der unteren `PageGuide`-Info-Box.
 - Funktionale Detailseiten-Anzeigen wie Slug, Pfad oder kopierbare URL bleiben im Header sichtbar.
 
 ## Detailseiten-Aktionen
 
-- Bearbeiten-Aktionen auf Detailseiten fuer Spielzeuge, Stellungen und Aktivitaeten aus dem Header entfernt.
+- Bearbeiten-Aktionen auf Detailseiten für Spielzeuge, Stellungen und Aktivitäten aus dem Header entfernt.
 - Bearbeiten liegt jetzt in einem Aktionsbereich am unteren Ende der Detailseite.
 - Der Header bleibt dadurch ruhiger und zeigt primaer Titel, URL/Status und Inhalt.
-- Auf Aktivitaets-Detailseiten kopiert ein Klick auf den sichtbaren Pfad im Header die komplette HTTPS-URL in die Zwischenablage, ohne die Anzeige zu veraendern.
+- Auf Aktivitäts-Detailseiten kopiert ein Klick auf den sichtbaren Pfad im Header die komplette HTTPS-URL in die Zwischenablage, ohne die Anzeige zu verändern.
 
 ## Upload-UX und iPhone-Bilder
 
-- Next.js Server-Action Body-Limit auf `50mb` angehoben, damit iPhone-Fotos und groessere Uploads nicht still an der Standardgrenze scheitern.
-- Wiederverwendbare Komponente `FileUploadField` eingefuehrt.
-- Datei-Auswahl zeigt jetzt sichtbaren Auswahlbereich, Dateiname, Groesse und bei Bildern eine Vorschau.
-- Beim Bearbeiten von Spielzeugen und Stellungen wird das aktuelle Bild angezeigt; ein neu ausgewaehltes Bild ersetzt es automatisch.
-- Die Checkbox zum Entfernen erscheint nur, wenn kein neues Bild gewaehlt wurde. Sie setzt den Eintrag wieder auf das System-Standardbild.
+- Next.js Server-Action Body-Limit auf `50mb` angehoben, damit iPhone-Fotos und größere Uploads nicht still an der Standardgrenze scheitern.
+- Wiederverwendbare Komponente `FileUploadField` eingeführt.
+- Datei-Auswahl zeigt jetzt sichtbaren Auswahlbereich, Dateiname, Größe und bei Bildern eine Vorschau.
+- Beim Bearbeiten von Spielzeugen und Stellungen wird das aktuelle Bild angezeigt; ein neu ausgewähltes Bild ersetzt es automatisch.
+- Die Checkbox zum Entfernen erscheint nur, wenn kein neues Bild gewählt wurde. Sie setzt den Eintrag wieder auf das System-Standardbild.
 - Datei-Uploads in Spielzeugen, Stellungen, Medien und Nachrichten verwenden die neue Komponente.
-- Fuer Spielzeug- und Stellungsbilder wurde ein direkter Upload-Endpunkt `/api/uploads` ergaenzt.
+- Für Spielzeug- und Stellungsbilder wurde ein direkter Upload-Endpunkt `/api/uploads` ergänzt.
 - Bei Bildauswahl wird die Datei sofort hochgeladen; der Speichern-Button speichert danach nur noch die fertige `/api/files/...` Referenz.
-- Solange der direkte Upload noch laeuft oder fehlgeschlagen ist, verhindert die Komponente das Absenden und zeigt einen Hinweis.
-- Der oeffentliche Upload scheiterte zusaetzlich an Nginx mit `413 Request Entity Too Large`, weil fuer `play.fesselspiel.com` kein `client_max_body_size` gesetzt war.
+- Solange der direkte Upload noch läuft oder fehlgeschlagen ist, verhindert die Komponente das Absenden und zeigt einen Hinweis.
+- Der öffentliche Upload scheiterte zusätzlich an Nginx mit `413 Request Entity Too Large`, weil für `play.fesselspiel.com` kein `client_max_body_size` gesetzt war.
 - Nginx-Site `play.fesselspiel.com` auf `client_max_body_size 50m` gesetzt, Konfiguration getestet und Nginx neu geladen.
 
 ## Dashboard-Wochenansicht
 
-- Die Liste `Naechste Aktivitaeten` auf dem Dashboard wurde durch `Gemeinsame Woche` ersetzt.
-- Angezeigt werden heute plus die naechsten sechs Tage.
-- Geplante Aktivitaeten und Events werden zusammen als klickbare Eintraege je Tag dargestellt.
-- Tage mit Eintraegen erhalten eine rote Akzentmarkierung, leere Tage bleiben neutral.
-- Der Bereich hat einen direkten Button zum Planen neuer Aktivitaeten.
+- Die Liste `Nächste Aktivitäten` auf dem Dashboard wurde durch `Gemeinsame Woche` ersetzt.
+- Angezeigt werden heute plus die nächsten sechs Tage.
+- Geplante Aktivitäten und Events werden zusammen als klickbare Einträge je Tag dargestellt.
+- Tage mit Einträgen erhalten eine rote Akzentmarkierung, leere Tage bleiben neutral.
+- Der Bereich hat einen direkten Button zum Planen neuer Aktivitäten.
 
 ## Seitentitel als Dashboard-Link
 
 - Die wiederverwendbare Komponente `PageHeader` verlinkt den sichtbaren Seitentitel jetzt auf `/`.
-- Dadurch fuehrt ein Klick auf Seitentitel wie `Spielzeuge`, `Medien`, `Events` oder Detailtitel direkt zurueck zum Dashboard.
-- Der Link hat einen dezenten roten Hover-Zustand und einen sichtbaren Fokusrahmen fuer Tastaturbedienung.
+- Dadurch führt ein Klick auf Seitentitel wie `Spielzeuge`, `Medien`, `Events` oder Detailtitel direkt zurück zum Dashboard.
+- Der Link hat einen dezenten roten Hover-Zustand und einen sichtbaren Fokusrahmen für Tastaturbedienung.
 
 ## Navigation: Lass uns spielen
 
-- Der Hauptmenuepunkt `Aktivitaeten` heisst jetzt `Lass uns spielen`.
-- Die Menue-Reihenfolge wurde angepasst: Dashboard, Lass uns spielen, Stellungen, Spielsachen.
-- Der separate Menuepunkt `Events` wurde aus Desktop- und Mobile-Navigation entfernt, damit Termine nicht als doppeltes Hauptmodul neben der Spielplanung wirken.
-- Bestehende Event-Daten werden nicht geloescht; Termine aus Events erscheinen weiterhin in der Dashboard-Wochenansicht als `Termin`.
-- Die Aktivitaetsuebersicht, Neu-Anlage, Detailseite und Bearbeitung wurden in der sichtbaren Sprache auf `Lass uns spielen`, `Spielidee`, `Spielplan` und `Spielsachen` umgestellt.
-- Die Dashboard-Kachel `Events` wurde entfernt; stattdessen gibt es Kacheln fuer `Lass uns spielen`, `Stellungen` und `Spielsachen`.
+- Der Hauptmenüpunkt `Aktivitäten` heißt jetzt `Lass uns spielen`.
+- Die Menü-Reihenfolge wurde angepasst: Dashboard, Lass uns spielen, Stellungen, Spielsachen.
+- Der separate Menüpunkt `Events` wurde aus Desktop- und Mobile-Navigation entfernt, damit Termine nicht als doppeltes Hauptmodul neben der Spielplanung wirken.
+- Bestehende Event-Daten werden nicht gelöscht; Termine aus Events erscheinen weiterhin in der Dashboard-Wochenansicht als `Termin`.
+- Die Aktivitätsübersicht, Neu-Anlage, Detailseite und Bearbeitung wurden in der sichtbaren Sprache auf `Lass uns spielen`, `Spielidee`, `Spielplan` und `Spielsachen` umgestellt.
+- Die Dashboard-Kachel `Events` wurde entfernt; stattdessen gibt es Kacheln für `Lass uns spielen`, `Stellungen` und `Spielsachen`.
 
 ## Navigation: Einstellungen gebuendelt
 
 - Die Hauptnavigation wurde weiter verschlankt.
 - `Profil`, `Benutzer` und `Telegram` sind nicht mehr eigene Hauptpunkte.
 - Stattdessen gibt es den Hauptpunkt `Einstellungen` mit den Unterpunkten `Profil`, `Benutzer` und `Telegram`.
-- Die Buendelung wurde fuer Desktop-Sidebar und mobiles Hamburger-Menue umgesetzt.
+- Die Buendelung wurde für Desktop-Sidebar und mobiles Hamburger-Menü umgesetzt.
 
 ## Spielzeug-URL-Anzeige reduziert
 
@@ -223,19 +223,19 @@ Details:
 
 ## Paar-/Gruppen-Kreise
 
-- Daten waren bisher strikt pro Benutzer ueber `ownerId` sichtbar.
-- Neues Modell `Circle` eingefuehrt; Benutzer koennen einem Kreis zugeordnet werden.
-- Mitglieder desselben Kreises sehen automatisch gemeinsame Inhalte, ohne einzelne Freigaben setzen zu muessen.
+- Daten waren bisher strikt pro Benutzer über `ownerId` sichtbar.
+- Neues Modell `Circle` eingeführt; Benutzer können einem Kreis zugeordnet werden.
+- Mitglieder desselben Kreises sehen automatisch gemeinsame Inhalte, ohne einzelne Freigaben setzen zu müssen.
 - Benutzerverwaltung erweitert:
   - Kreise anlegen.
   - Beim Anlegen und Bearbeiten Benutzer einem Kreis zuordnen.
   - Kreisnamen bearbeiten.
-  - Mitglieder eines Kreises per Checkbox hinzufuegen oder entfernen.
-- Zentrale Zugriffshilfen in `src/lib/access.ts` eingefuehrt:
+  - Mitglieder eines Kreises per Checkbox hinzufügen oder entfernen.
+- Zentrale Zugriffshilfen in `src/lib/access.ts` eingeführt:
   - `accessibleOwnerIds`
   - `ownerScope`
   - `isAccessibleOwner`
-- Kreiszugriff fuer Weboberflaeche umgesetzt:
+- Kreiszugriff für Weboberflaeche umgesetzt:
   - Dashboard
   - Spielsachen
   - Stellungen
@@ -244,28 +244,28 @@ Details:
   - Sessions
   - Medien
   - Dateiauslieferung
-- Nachrichtenempfaenger innerhalb des Kreises
-- Neue Datensaetze behalten weiterhin den Ersteller als `ownerId`, sind aber fuer Kreis-Mitglieder sichtbar und bearbeitbar.
-- Admins koennen Kreise in der Benutzerverwaltung nachtraeglich umbenennen und die Mitgliedschaft zentral pflegen.
+- Nachrichtenempfänger innerhalb des Kreises
+- Neue Datensätze behalten weiterhin den Ersteller als `ownerId`, sind aber für Kreis-Mitglieder sichtbar und bearbeitbar.
+- Admins können Kreise in der Benutzerverwaltung nachträglich umbenennen und die Mitgliedschaft zentral pflegen.
 - Die Kreisverwaltung ist als aufklappbarer Bereich umgesetzt.
-- Einzelne Kreise werden ebenfalls als Accordion dargestellt; bei mehreren Kreisen bleiben sie zunaechst eingeklappt.
+- Einzelne Kreise werden ebenfalls als Accordion dargestellt; bei mehreren Kreisen bleiben sie zunächst eingeklappt.
 
-## Kompakte Listen fuer Spielsachen und Stellungen
+## Kompakte Listen für Spielsachen und Stellungen
 
-- Die Uebersichten fuer Spielsachen und Stellungen wurden von grossen Kartenrastern auf kompakte Listen umgestellt.
+- Die Übersichten für Spielsachen und Stellungen wurden von großen Kartenrastern auf kompakte Listen umgestellt.
 - Jede Zeile zeigt Thumbnail, Titel und kurze Metadaten.
-- Native `details/summary`-Elemente ermoeglichen Ausklappen ohne zusaetzliches JavaScript.
+- Native `details/summary`-Elemente ermöglichen Ausklappen ohne zusätzliches JavaScript.
 - Im ausgeklappten Bereich stehen Beschreibung und ein klarer Button zur Detailseite.
 - Dadurch sind lange Kataloge auf Mobile und Desktop schneller scannbar.
-- Nachbesserung: Der aufgeklappte Bereich enthaelt wieder ein grosses Bild, Beschreibung, Slug, Zaehler fuer Verknuepfungen und bei Stellungen verknuepfte Spielsachen als Chips.
+- Nachbesserung: Der aufgeklappte Bereich enthält wieder ein großes Bild, Beschreibung, Slug, Zähler für Verknüpfungen und bei Stellungen verknüpfte Spielsachen als Chips.
 
 ## Protokoll statt Nachrichten
 
-- Der bisherige Hauptmenuepunkt `Nachrichten` wurde aus der Hauptnavigation entfernt.
+- Der bisherige Hauptmenüpunkt `Nachrichten` wurde aus der Hauptnavigation entfernt.
 - Unter `Einstellungen` gibt es jetzt den Punkt `Protokoll`, weiterhin unter der Route `/messages`.
-- Die alte Nachricht-senden-Oberflaeche wurde entfernt, damit der Bereich nicht mehr wie ein unfertiger Messenger wirkt.
-- Neues Prisma-Modell `AuditLog` fuer App-Aktionen eingefuehrt.
-- Neuer Helper `src/lib/audit.ts` schreibt Protokolleintraege fehlertolerant.
+- Die alte Nachricht-senden-Oberfläche wurde entfernt, damit der Bereich nicht mehr wie ein unfertiger Messenger wirkt.
+- Neues Prisma-Modell `AuditLog` für App-Aktionen eingeführt.
+- Neuer Helper `src/lib/audit.ts` schreibt Protokolleinträge fehlertolerant.
 - Erste protokollierte Aktionen:
   - Login erfolgreich.
   - Login fehlgeschlagen.
@@ -273,13 +273,13 @@ Details:
   - Session per Web angelegt.
   - Session aufgerufen.
   - Session bearbeitet.
-  - Session geloescht.
+  - Session gelöscht.
   - Session per API gestartet, automatisch geschlossen oder beendet.
   - Session-Bilder und Kommentare.
   - Telegram-Texte, Telegram-Bilder, gespeicherte Telegram-Medien und Bot-Antworten.
-- Die Protokollseite gruppiert Eintraege nach Tag und Stunde mit aufklappbaren Bereichen.
-- Es werden seitenweise nur 120 Audit-Eintraege geladen; alte Telegram-/Nachrichten-Eintraege werden nur auf der ersten Seite als Altprotokoll eingeblendet.
-- Links fuehren, wo moeglich, direkt zum betroffenen Datensatz oder zur Datei.
+- Die Protokollseite gruppiert Einträge nach Tag und Stunde mit aufklappbaren Bereichen.
+- Es werden seitenweise nur 120 Audit-Einträge geladen; alte Telegram-/Nachrichten-Einträge werden nur auf der ersten Seite als Altprotokoll eingeblendet.
+- Links führen, wo möglich, direkt zum betroffenen Datensatz oder zur Datei.
 - Alte Telegram-HTML-Nachrichten werden im Protokoll mit erlaubten Tags wie `<b>`, `<i>`, `<code>` und Telegram-Links formatiert dargestellt statt als roher Klartext.
 
 ## Spielplan-Anfragen und Katalog-Reihenfolge
@@ -287,78 +287,78 @@ Details:
 - `ActivityStatus` wurde um `REQUESTED` erweitert.
 - In `Lass uns spielen` kann ein Spielplan jetzt den Status `angefragt` haben.
 - Der Uhrzeit-Auswahler beim Neuanlegen nutzt Viertelstunden statt einzelner Minuten.
-- Angefragte Spielplaene erscheinen in der Wochenansicht des Dashboards.
-- Angefragte Spielplaene koennen im Dashboard und auf der Detailseite bestaetigt werden; der Status wird dann `geplant`.
+- Angefragte Spielpläne erscheinen in der Wochenansicht des Dashboards.
+- Angefragte Spielpläne können im Dashboard und auf der Detailseite bestätigt werden; der Status wird dann `geplant`.
 - Telegram-Kommandos erweitert:
   - `/activity_request Titel` legt eine Anfrage an.
-  - `/activities` listet angefragte und geplante Spielplaene.
-  - Angefragte Eintraege enthalten klickbare Befehle wie `/activity_confirm_1`.
-  - `/activity_confirm_1` bestaetigt den entsprechenden angefragten Spielplan aus der aktuellen Liste.
-- Der Telegram-Agent kann Aktivitaeten jetzt auch als `REQUESTED` anlegen und den Status auf `REQUESTED`, `PLANNED`, `DONE` oder `DISCARDED` setzen.
+  - `/activities` listet angefragte und geplante Spielpläne.
+  - Angefragte Einträge enthalten klickbare Befehle wie `/activity_confirm_1`.
+  - `/activity_confirm_1` bestätigt den entsprechenden angefragten Spielplan aus der aktuellen Liste.
+- Der Telegram-Agent kann Aktivitäten jetzt auch als `REQUESTED` anlegen und den Status auf `REQUESTED`, `PLANNED`, `DONE` oder `DISCARDED` setzen.
 - Spielzeuge und Stellungen haben ein neues Feld `sortOrder`.
-- Die Uebersichten fuer Spielzeuge und Stellungen koennen per Drag-and-drop sortiert werden.
-- Neue API `/api/reorder` speichert die Reihenfolge fuer berechtigte Spielzeuge und Stellungen.
+- Die Übersichten für Spielzeuge und Stellungen können per Drag-and-drop sortiert werden.
+- Neue API `/api/reorder` speichert die Reihenfolge für berechtigte Spielzeuge und Stellungen.
 
 ## Dashboard-Reihenfolge
 
 - Die Wochen-/Kalenderansicht `Gemeinsame Woche` wurde im Dashboard direkt unter den Header verschoben.
 - Kennzahlen-Kacheln und letzte Sessions stehen darunter.
-- Dadurch ist sofort sichtbar, was in den naechsten Tagen ansteht.
+- Dadurch ist sofort sichtbar, was in den nächsten Tagen ansteht.
 
 ## Dashboard-Spielampel
 
-- Auf dem Dashboard steht vor der Wochenansicht eine Spielampel fuer alle aktiven Mitglieder des eigenen Kreises.
+- Auf dem Dashboard steht vor der Wochenansicht eine Spielampel für alle aktiven Mitglieder des eigenen Kreises.
 - Jeder Benutzer sieht die Ampel der anderen, kann aber nur die eigene Ampel umschalten.
-- Es gibt nur Rot und Gruen:
+- Es gibt nur Rot und Grün:
   - Rot: gerade nicht.
-  - Gruen: voll Lust.
+  - Grün: voll Lust.
 - Der Status wird in `UserSettings.playReady` gespeichert.
 - `UserSettings.playReadyUpdatedAt` merkt den letzten Umschaltzeitpunkt.
 - Jeder Ampelwechsel verschickt eine Telegram-Nachricht an aktive gespeicherte Chats im selben Kreis, sofern ein Bot-Token vorhanden ist.
-- Die Telegram-Nachricht nutzt HTML-Markup, nennt Benutzer und den neuen Zustand mit passendem Rot-/Gruen-Emoji.
-- Wenn fuer denselben Telegram-Chat ein konkreter Thread aktiv ist, werden Push-Nachrichten an diesen Thread gesendet und nicht an den threadlosen Hauptgruppen-Eintrag.
-- Telegram-Kanaele haben optionale Ziele: einzelner Benutzer oder ganzer Kreis.
-- In den Telegram-Einstellungen koennen aktive Kanaele aufgeklappt, bearbeitet, geloescht und einem Benutzer oder Kreis zugeordnet werden.
-- Push-Nachrichten werden nur noch an Kanaele mit explizitem Ziel gesendet; unzugeordnete Kanaele empfangen keine Ampel-Pushes.
+- Die Telegram-Nachricht nutzt HTML-Markup, nennt Benutzer und den neuen Zustand mit passendem Rot-/Grün-Emoji.
+- Wenn für denselben Telegram-Chat ein konkreter Thread aktiv ist, werden Push-Nachrichten an diesen Thread gesendet und nicht an den threadlosen Hauptgruppen-Eintrag.
+- Telegram-Kanäle haben optionale Ziele: einzelner Benutzer oder ganzer Kreis.
+- In den Telegram-Einstellungen können aktive Kanäle aufgeklappt, bearbeitet, gelöscht und einem Benutzer oder Kreis zugeordnet werden.
+- Push-Nachrichten werden nur noch an Kanäle mit explizitem Ziel gesendet; unzugeordnete Kanäle empfangen keine Ampel-Pushes.
 - Der Telegram-Webhook verarbeitet nur noch exakt aktivierte `Chat-ID + Thread-ID`-Kombinationen. Andere Threads, andere Gruppen und die Hauptgruppe werden still ignoriert und nicht als Pending gespeichert.
-- Erkannte Pending-Threads koennen in den Telegram-Einstellungen geloescht werden und zeigen die letzte erkannte Testnachricht inklusive Absender/Zeitpunkt.
+- Erkannte Pending-Threads können in den Telegram-Einstellungen gelöscht werden und zeigen die letzte erkannte Testnachricht inklusive Absender/Zeitpunkt.
 - Bei erkannten Threads mit Thread-ID wird kein Button mehr angeboten, um den gesamten Chat zu aktivieren.
-- Die manuelle Telegram-Chat-Anlage wurde entfernt; Kanaele werden nur noch ueber erkannte Testnachrichten uebernommen.
-- Aktive Kanaele zeigen im aufgeklappten Bereich ebenfalls die zuletzt erkannte Testnachricht.
-- Telegram-Testnachricht-Einlesen faengt Telegram-/Browser-Fehler ab und zeigt statt technischer Exceptions eine verstaendliche Meldung.
-- Gespeicherte Telegram- und OpenAI-Token zeigen in den Einstellungen die letzten sechs Zeichen an, damit der hinterlegte Schluessel erkennbar ist.
-- Beim Telegram-Token wird zusaetzlich der aktive Bot-Name ueber Telegram `getMe` angezeigt, wenn der gespeicherte Token gueltig ist.
-- Der Speichern-Button fuer Zugangsdaten zeigt waehrend der Server-Action `Speichert...` und danach eine sichtbare Erfolgsmeldung.
+- Die manuelle Telegram-Chat-Anlage wurde entfernt; Kanäle werden nur noch über erkannte Testnachrichten übernommen.
+- Aktive Kanäle zeigen im aufgeklappten Bereich ebenfalls die zuletzt erkannte Testnachricht.
+- Telegram-Testnachricht-Einlesen fängt Telegram-/Browser-Fehler ab und zeigt statt technischer Exceptions eine verständliche Meldung.
+- Gespeicherte Telegram- und OpenAI-Token zeigen in den Einstellungen die letzten sechs Zeichen an, damit der hinterlegte Schlüssel erkennbar ist.
+- Beim Telegram-Token wird zusätzlich der aktive Bot-Name über Telegram `getMe` angezeigt, wenn der gespeicherte Token gültig ist.
+- Der Speichern-Button für Zugangsdaten zeigt während der Server-Action `Speichert...` und danach eine sichtbare Erfolgsmeldung.
 
 ## Medienseite als Bild-Feed
 
 - Die Medienseite wurde von einer informationslastigen Verwaltungsansicht auf einen bildzentrierten Feed umgestellt.
 - Upload, Albumanlage und Filter sind jetzt kompakte, aufklappbare Werkzeuge oberhalb des Feeds.
-- Medien erscheinen als quadratische Kacheln im Instagram-aehnlichen Raster.
+- Medien erscheinen als quadratische Kacheln im Instagram-ähnlichen Raster.
 - Metadaten werden erst beim Hover/Fokus als Overlay angezeigt.
-- Ein Klick auf ein Medium oeffnet eine grosse Detailansicht mit Bild/Video, Metadaten, Dateiinfos, Oeffnen- und Loeschaktion.
-- Neues Modell `MediaComment` ermoeglicht Kommentare/Notizen direkt am Medium.
-- Medien koennen in der Detailansicht einem Album zugeordnet werden.
-- Im Album-Werkzeug koennen mehrere Medien per Thumbnail-Auswahl gleichzeitig einem Album hinzugefuegt werden.
-- Layout-Reihenfolge angepasst: Album-Auswahlchips stehen direkt ueber dem Bildraster, Upload/Albumverwaltung/Filter stehen darunter.
+- Ein Klick auf ein Medium öffnet eine große Detailansicht mit Bild/Video, Metadaten, Dateiinfos, Öffnen- und Löschaktion.
+- Neues Modell `MediaComment` ermöglicht Kommentare/Notizen direkt am Medium.
+- Medien können in der Detailansicht einem Album zugeordnet werden.
+- Im Album-Werkzeug können mehrere Medien per Thumbnail-Auswahl gleichzeitig einem Album hinzugefügt werden.
+- Layout-Reihenfolge angepasst: Album-Auswahlchips stehen direkt über dem Bildraster, Upload/Albumverwaltung/Filter stehen darunter.
 
 ## Datenexport und Datenimport
 
 - Neue Einstellungsseite `Daten` unter `/settings/data`.
-- Export erzeugt ein ZIP-Archiv ueber `/api/settings/data-transfer`.
-- Das Archiv enthaelt `data.json` mit Portal-Inhalten und einen `files/`-Ordner mit geschuetzten Upload-Dateien.
-- Exportiert werden Spielsachen, Stellungen, Aktivitaeten, Sessions, Medien, Alben, Medienkommentare, Termine, Check-ins und zugehoerige Dateien, soweit sie fuer den angemeldeten Benutzer sichtbar sind.
-- Nicht exportiert werden Passwoerter, Login-Tokens, Telegram-Token und OpenAI-Keys.
-- Import nimmt ein Fesselspiel-ZIP entgegen und fuegt die Inhalte dem aktuell angemeldeten Benutzer hinzu.
-- Beim Import werden neue Datei-IDs erzeugt, Datei-URLs neu verknuepft und Slugs automatisch eindeutig gemacht.
-- Bestehende Inhalte werden beim Import nicht geloescht oder ueberschrieben.
+- Export erzeugt ein ZIP-Archiv über `/api/settings/data-transfer`.
+- Das Archiv enthält `data.json` mit Portal-Inhalten und einen `files/`-Ordner mit geschützten Upload-Dateien.
+- Exportiert werden Spielsachen, Stellungen, Aktivitäten, Sessions, Medien, Alben, Medienkommentare, Termine, Check-ins und zugehörige Dateien, soweit sie für den angemeldeten Benutzer sichtbar sind.
+- Nicht exportiert werden Passwörter, Login-Tokens, Telegram-Token und OpenAI-Keys.
+- Import nimmt ein Fesselspiel-ZIP entgegen und fügt die Inhalte dem aktuell angemeldeten Benutzer hinzu.
+- Beim Import werden neue Datei-IDs erzeugt, Datei-URLs neu verknüpft und Slugs automatisch eindeutig gemacht.
+- Bestehende Inhalte werden beim Import nicht gelöscht oder überschrieben.
 
 ## Externe API und Bearer Tokens
 
-- Neues Datenmodell `ApiToken` fuer externe API-Zugriffe.
+- Neues Datenmodell `ApiToken` für externe API-Zugriffe.
 - Tokens werden nur einmalig im Klartext angezeigt; gespeichert wird ein HMAC-Hash und die letzten sechs Zeichen.
 - Neue Einstellungsseite `API Tokens` unter `/settings/api`.
-- Tokens koennen per `Authorization: Bearer <token>` oder fuer einfache Alexa-/Shortcut-Aufrufe per URL-Parameter `?token=<token>` verwendet werden.
+- Tokens können per `Authorization: Bearer <token>` oder für einfache Alexa-/Shortcut-Aufrufe per URL-Parameter `?token=<token>` verwendet werden.
 - Erste externe Endpunkte:
   - `GET /api/external/status?token=...`
   - `GET|POST /api/external/sessions/start?token=...&note=...`
@@ -371,19 +371,19 @@ Details:
   - `moodBefore`
   - `moodAfter`
   - Notizfelder
-- Externe Medienuploads werden als geschuetzte Dateien gespeichert und direkt als Medium angelegt.
+- Externe Medienuploads werden als geschützte Dateien gespeichert und direkt als Medium angelegt.
 
 ## Telegram-Benutzer-Mapping
 
 - Neues Datenmodell `TelegramUserMapping`.
-- Neues Datenmodell `TelegramKnownUser` fuer automatisch erkannte Telegram-Absender.
-- In den Telegram-Einstellungen koennen Telegram-Usernames wie `@name` einem App-Benutzer zugeordnet werden.
-- Der Telegram-Webhook prueft pro Nachricht `message.from.username`.
-- Wenn ein Mapping existiert, werden Befehle, Agentenaktionen, Dialoge und Bildspeicherungen aus Sicht dieses App-Benutzers ausgefuehrt.
-- Ohne Mapping bleibt das bisherige Verhalten bestehen: Der Besitzer der Telegram-Einstellung ist der ausfuehrende Benutzer.
+- Neues Datenmodell `TelegramKnownUser` für automatisch erkannte Telegram-Absender.
+- In den Telegram-Einstellungen können Telegram-Usernames wie `@name` einem App-Benutzer zugeordnet werden.
+- Der Telegram-Webhook prüft pro Nachricht `message.from.username`.
+- Wenn ein Mapping existiert, werden Befehle, Agentenaktionen, Dialoge und Bildspeicherungen aus Sicht dieses App-Benutzers ausgeführt.
+- Ohne Mapping bleibt das bisherige Verhalten bestehen: Der Besitzer der Telegram-Einstellung ist der ausführende Benutzer.
 - Aktive Telegram-Absender werden mit Telegram-ID, Username, Name und letzter Nachricht gespeichert.
-- Erkannte Telegram-Benutzer koennen direkt in den Telegram-Einstellungen einem App-Benutzer zugeordnet werden.
-- Das Mapping nutzt bevorzugt die Telegram-ID und faellt auf den Username zurueck.
+- Erkannte Telegram-Benutzer können direkt in den Telegram-Einstellungen einem App-Benutzer zugeordnet werden.
+- Das Mapping nutzt bevorzugt die Telegram-ID und fällt auf den Username zurück.
 - Telegram-Hilfenachrichten bleiben im HTML-Modus formatiert, aber Slash-Befehle werden nicht mehr in `<code>` verpackt, damit Telegram sie wieder als Befehle antippen kann.
 - Der manuelle Telegram-Sende-Endpunkt verwendet ebenfalls HTML-Markup und deaktivierte Link-Vorschauen.
 
@@ -394,9 +394,9 @@ Details:
 - Neue Detailroute `/sessions/[slug]` zeigt Start, Ende, Dauer, Stimmungen, Notizen, Bilder und Kommentare.
 - Die alte Bearbeitungsroute wurde auf `/sessions/[slug]/edit` vereinheitlicht und findet Sessions per Slug oder ID.
 - Session-Stimmungslabels enthalten Emojis; fehlende Werte zeigen `😐 neutral`.
-- Session-Bilder werden als geschuetzte Medien mit `sessionId` gespeichert.
-- Einzelne Session-Bilder koennen kommentiert werden.
-- Sessions selbst koennen kommentiert werden.
+- Session-Bilder werden als geschützte Medien mit `sessionId` gespeichert.
+- Einzelne Session-Bilder können kommentiert werden.
+- Sessions selbst können kommentiert werden.
 - Dashboard und Session-Historie verlinken direkt auf die neue Detailseite.
 - Export/Import sichert und rekonstruiert Session-Kommentare sowie die Zuordnung von Medien zu Sessions.
 - Laufende Sessions ohne Endzeit werden auf Dashboard und Sessions-Seite sichtbar hervorgehoben.
@@ -405,50 +405,50 @@ Details:
 ## KG Time Tracker und Demo-Seed
 
 - Der Seed legt Demo-Spielzeuge, Demo-Stellung und den Demo-Spielplan `Entspannungsabend` nur noch an, wenn `SEED_DEMO_DATA=true` gesetzt ist.
-- Dadurch taucht der Demo-Spielplan nach Loeschen und Neustart nicht mehr automatisch wieder auf.
-- Der auf dem VPS vorhandene Demo-Spielplan `entspannungsabend` wurde einmalig geloescht.
-- Neues Prisma-Modell `KgSession` fuer KG-Tragezeiten.
+- Dadurch taucht der Demo-Spielplan nach Löschen und Neustart nicht mehr automatisch wieder auf.
+- Der auf dem VPS vorhandene Demo-Spielplan `entspannungsabend` wurde einmalig gelöscht.
+- Neues Prisma-Modell `KgSession` für KG-Tragezeiten.
 - Unter `Sessions` gibt es zwei Reiter:
   - `Segufix Time Tracker`
   - `KG Time Tracker`
 - Der KG Time Tracker erfasst Startzeit, Endzeit, Dauer und Notiz minutengenau.
-- KG-Jahresuebersicht nutzt Blau statt Rot, damit sie vom Segufix-Kalender unterscheidbar bleibt.
+- KG-Jahresübersicht nutzt Blau statt Rot, damit sie vom Segufix-Kalender unterscheidbar bleibt.
 - Neue externe API-Endpunkte:
   - `/api/external/kg/start`
   - `/api/external/kg/stop`
-- Der externe Status-Endpunkt gibt zusaetzlich `openKgSession` zurueck.
+- Der externe Status-Endpunkt gibt zusätzlich `openKgSession` zurück.
 - Telegram-Kommandos erweitert:
-  - `/kg` zeigt KG-Auswertung fuer das aktuelle Jahr.
-  - `/kg_start Notiz` startet den KG Tracker und schliesst einen offenen KG-Eintrag automatisch.
+  - `/kg` zeigt KG-Auswertung für das aktuelle Jahr.
+  - `/kg_start Notiz` startet den KG Tracker und schließt einen offenen KG-Eintrag automatisch.
   - `/kg_stop Notiz` beendet den laufenden KG Tracker.
 - Der Telegram-Agent kann den KG Tracker ebenfalls per freier Sprache starten und stoppen.
-- Datenexport/-import enthaelt jetzt auch KG-Eintraege.
+- Datenexport/-import enthält jetzt auch KG-Einträge.
 
 ## Profiltext und Profilbild
 
 - Die sichtbaren Profilfelder wurden vereinfacht.
-- Das Feld `Beschreibung` heisst jetzt `Profiltext`.
+- Das Feld `Beschreibung` heißt jetzt `Profiltext`.
 - Das bisher sichtbare JSON-Feld `Eigene Felder als JSON` wurde aus der Profiloberflaeche entfernt; vorhandene Werte bleiben in der Datenbank erhalten.
-- `Profile.imageUrl` wurde als geschuetztes Profilbild-Feld ergaenzt.
-- Profilbilder werden ueber den bestehenden geschuetzten Upload gespeichert und bei Ersatz/Entfernung aus dem Dateisystem geloescht.
+- `Profile.imageUrl` wurde als geschütztes Profilbild-Feld ergänzt.
+- Profilbilder werden über den bestehenden geschützten Upload gespeichert und bei Ersatz/Entfernung aus dem Dateisystem gelöscht.
 - Profilbilder erscheinen in Sidebar, Dashboard-Spielampel und Benutzerverwaltung.
 
 ## Session-Reiter und mobiler Kalender
 
 - Die Umschaltung zwischen Segufix und KG Time Tracker ist jetzt als Registerkarten/Tabs gestaltet statt als lose Buttons.
 - Die Jahreskalender verwenden auf Mobile kleinere Tagesfelder, ausgeblendete Tageszahlen und Monatsinitialen.
-- Dadurch bleibt die Jahresuebersicht auch auf schmalen Displays sichtbar, ohne die Seite horizontal zu sprengen.
+- Dadurch bleibt die Jahresübersicht auch auf schmalen Displays sichtbar, ohne die Seite horizontal zu sprengen.
 
 ## Zeitdarstellung
 
 - Zentrale Datums- und Uhrzeitformatierung nutzt jetzt fest `Europe/Berlin`.
-- `datetime-local`-Formularwerte werden ebenfalls fuer Berlin-Zeit vorbereitet.
+- `datetime-local`-Formularwerte werden ebenfalls für Berlin-Zeit vorbereitet.
 - In der Admin-Benutzerverwaltung gibt es eine Systemzeit-Anzeige mit App-Zeitzone, Anzeigezeit und Server-UTC-Zeit.
 
 ## Feature-Video
 
 - Ein kurzes peppiges Feature-Video wurde als MP4 erzeugt.
-- Das Video erklaert Dashboard, Spielampel, Lass uns spielen, Spielsachen, Stellungen, Medien, Sessions und Telegram-Agent.
+- Das Video erklärt Dashboard, Spielampel, Lass uns spielen, Spielsachen, Stellungen, Medien, Sessions und Telegram-Agent.
 - Die Techno-Musik ist synthetisch erzeugt und nicht aus externen Musikquellen kopiert.
 - Das Rendering erfolgte ausschliesslich in Docker/FFmpeg; auf dem Server wurde nichts installiert.
 - Datei: `entfernt`
@@ -458,18 +458,18 @@ Details:
 
 - Profil- und Benutzerformulare nutzen `SubmitButton`, damit Buttons beim Absenden sichtbar auf "wird gespeichert" wechseln.
 - Dashboard-Wochentage verlinken leere Tage und Kalender-Icons direkt auf `/activities/new?date=YYYY-MM-DD`.
-- Die neue Spielplanung uebernimmt dieses Datum automatisch.
+- Die neue Spielplanung übernimmt dieses Datum automatisch.
 - Benutzerverwaltung und Kreise sind als aufklappbare Bereiche umgesetzt.
 - Beim Anlegen eines Benutzers ist E-Mail optional, wenn ein Benutzername gesetzt ist.
-- Benutzername wird beim Verlassen des Feldes gegen `/api/users/check-username` geprueft.
-- Passwortlaenge wird nicht mehr clientseitig begrenzt.
-- Benutzer koennen direkt beim Anlegen ein Profilbild hochladen.
-- Das mobile Einstellungsmenue enthaelt am Ende einen Logout-Button.
+- Benutzername wird beim Verlassen des Feldes gegen `/api/users/check-username` geprüft.
+- Passwortlänge wird nicht mehr clientseitig begrenzt.
+- Benutzer können direkt beim Anlegen ein Profilbild hochladen.
+- Das mobile Einstellungsmenü enthält am Ende einen Logout-Button.
 - Die Systemzeit steht in der Admin-Benutzerverwaltung weiter unten und hat eine einfache Zeitkorrektur in Minuten (`UserSettings.timeOffsetMinutes`).
-- Das Protokoll hat ein Suchfeld mit Live-Vorschlaegen; Treffer springen direkt zum passenden Eintrag.
-- Telegram-Protokolleintraege werden so zusammengefuehrt, dass empfangene Nachricht und Antwort nicht mehr wie getrennte Fremdeintraege wirken.
+- Das Protokoll hat ein Suchfeld mit Live-Vorschlägen; Treffer springen direkt zum passenden Eintrag.
+- Telegram-Protokolleinträge werden so zusammengeführt, dass empfangene Nachricht und Antwort nicht mehr wie getrennte Fremdeinträge wirken.
 - Medien ohne Album werden nicht mehr als eigenes Ziel angeboten.
-- Fuer jeden Benutzer wird ein Standardalbum `Standard` angelegt.
+- Für jeden Benutzer wird ein Standardalbum `Standard` angelegt.
 - Alte Standardalben mit dem Namen `Eingang` werden automatisch zu `Standard` umbenannt.
 - Neue Uploads aus Webformularen, Session-Detailseiten, Import, externer API und Telegram landen automatisch in `Standard`, wenn kein Album gesetzt ist.
 - Telegram-Bilduploads senden nach dem Speichern eine HTML-formatierte Albumauswahl mit anklickbaren `/media_album_...`-Kommandos.
@@ -477,29 +477,42 @@ Details:
 ## Telegram-Aktionsregeln
 
 - Neues Prisma-Modell `TelegramNotificationRule`.
-- Admins koennen in den Telegram-Einstellungen aktionsbasierte Regeln anlegen.
+- Admins können in den Telegram-Einstellungen aktionsbasierte Regeln anlegen.
 - Das Aktions-Dropdown kombiniert bekannte Systemaktionen mit bereits im Protokoll vorhandenen Aktionen.
 - Jede Regel besteht aus Aktion, Ziel-Benutzer oder Ziel-Kreis, HTML-Nachricht und Aktiv-Status.
 - Nachrichten unterstuetzen Variablen: `{title}`, `{actor}`, `{event}`, `{action}`, `{url}`, `{details}`.
-- `logAction` prueft nach dem Speichern eines Protokolleintrags passende Regeln und sendet Telegram-HTML an aktive Kanaele, die diesem Benutzer oder Kreis zugeordnet sind.
-- Dadurch koennen z.B. Ampelwechsel, Spielanfragen, Telegram-Nachrichten, API-Sessions oder Logins gezielt an Benutzer oder Kreise gepusht werden.
+- `logAction` prüft nach dem Speichern eines Protokolleintrags passende Regeln und sendet Telegram-HTML an aktive Kanäle, die diesem Benutzer oder Kreis zugeordnet sind.
+- Dadurch können z.B. Ampelwechsel, Spielanfragen, Telegram-Nachrichten, API-Sessions oder Logins gezielt an Benutzer oder Kreise gepusht werden.
 
 ## Medien-Alben nachgeschaerft
 
-- In der Bild-Detailansicht kann direkt ein neues Album fuer das geoeffnete Bild angelegt werden.
+- In der Bild-Detailansicht kann direkt ein neues Album für das geöffnete Bild angelegt werden.
 - Nach dem Anlegen bleibt die Detailansicht offen und das Bild wird sofort dem neuen Album zugeordnet.
 - Der Album-Bereich ist in `Neues Album`, `Medien verschieben` und `Alben verwalten` getrennt.
 - Album-Speichern nutzt den wiederverwendbaren `SubmitButton` mit Ladefeedback.
-- Sichtbarkeit heisst jetzt in der UI `Nur ich`, `Zirkel`, `Alle`.
+- Sichtbarkeit heißt jetzt in der UI `Nur ich`, `Zirkel`, `Alle`.
 - Die Medienseite respektiert diese Sichtbarkeit: eigene Medien immer, Zirkel-Medien nur mit `Zirkel`/`Alle`, globale Medien mit `Alle`.
-- Alben koennen geloescht werden.
-- Beim Loeschen werden Medien standardmaessig in das Standardalbum verschoben.
-- Optional koennen Medien und Dateien bewusst mitgeloescht werden.
-- Das Standardalbum selbst kann nicht geloescht werden.
+- Alben können gelöscht werden.
+- Beim Löschen werden Medien standardmäßig in das Standardalbum verschoben.
+- Optional können Medien und Dateien bewusst mitgelöscht werden.
+- Das Standardalbum selbst kann nicht gelöscht werden.
 
 ## Navigation, Admin-Dateien und Demo-Seed
 
 - Logout nutzt jetzt einen `303`-Redirect, damit POST-Logout im Browser sauber auf `/login` landet.
-- Admins duerfen geschuetzte Dateien aktiver Benutzer sehen; dadurch erscheinen Profilbilder in Dashboard und Benutzerverwaltung auch ausserhalb des eigenen Kreises.
-- Das Dashboard zeigt fuer Admins ohne eigenen Kreis alle aktiven Benutzer in der Spielampel.
-- Demo-Daten werden nicht mehr allein durch `SEED_DEMO_DATA=true` erneut angelegt; zusaetzlich ist `SEED_ALLOW_DEMO_RECREATE=true` erforderlich.
+- Admins dürfen geschützte Dateien aktiver Benutzer sehen; dadurch erscheinen Profilbilder in Dashboard und Benutzerverwaltung auch außerhalb des eigenen Kreises.
+- Das Dashboard zeigt für Admins ohne eigenen Kreis alle aktiven Benutzer in der Spielampel.
+- Demo-Daten werden nicht mehr allein durch `SEED_DEMO_DATA=true` erneut angelegt; zusätzlich ist `SEED_ALLOW_DEMO_RECREATE=true` erforderlich.
+
+## Umlaute, Tracker-Texte und Telegram-Regeln
+
+- Sichtbare deutsche Texte in App und Dokumentation wurden von Umschreibungen wie `ae`, `oe`, `ue` auf echte Umlaute umgestellt. Slugs und technische ASCII-Erzeugung bleiben unverändert.
+- Im Segufix Time Tracker wurden die drei Textfelder `Stimmung vorher Text`, `Stimmung nachher Text` und `Notizen` zu einem Feld `Sessionkommentar` zusammengeführt.
+- Alte Inhalte aus den beiden Stimmungstext-Feldern werden in Detail- und Bearbeitungsansicht in den gemeinsamen Kommentar übernommen.
+- Der KG Time Tracker nutzt statt `Notizen` das Feld `Sessionbeschreibung`.
+- KG-Historieneinträge und markierte KG-Kalendertage verlinken auf die neue Detailroute `/sessions/kg/[id]`.
+- Segufix-Historienkarten verlinken zusätzlich über den Textbereich direkt auf die jeweilige Detailseite.
+- Die Sortierung der Stellungen ist nicht mehr prominent per Drag-and-drop sichtbar, sondern für Admins unten als eingeklappter Bereich mit Hoch-/Runter-Schaltern erreichbar.
+- Unter Einstellungen wurde ein Dark-Mode-Toggle eingefügt, auch im mobilen Hamburger-Menü zwischen Protokoll und Abmelden.
+- Telegram-Aktionsregeln senden jetzt auch dann, wenn eine Regel auf einen Kreis zielt, der aktive Telegram-Thread aber einem Mitglied dieses Kreises zugeordnet ist. Umgekehrt kann eine Benutzer-Regel auch den zugehörigen Kreis-Thread erreichen.
+- Telegram-Kommandos wie `/activity_confirm_1` und `/media_album_...` werden in HTML-Nachrichten als normaler Text ausgegeben, nicht in `<code>`, damit Telegram sie antippbar erkennt.

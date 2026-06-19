@@ -126,6 +126,11 @@ export default async function SessionDetailPage({ params }: { params: { slug: st
     title: "Session aufgerufen",
     href: `/sessions/${slug}`
   });
+  const sessionComment = [
+    session.notes,
+    session.moodBeforeText ? `Vorher: ${session.moodBeforeText}` : "",
+    session.moodAfterText ? `Nachher: ${session.moodAfterText}` : ""
+  ].filter(Boolean).join("\n");
 
   return (
     <AppShell>
@@ -140,7 +145,7 @@ export default async function SessionDetailPage({ params }: { params: { slug: st
         }
       />
       <PageGuide title="Session-Details, Bilder und Kommentare">
-        Diese Detailseite sammelt Zeiten, Stimmungen, Notizen, Bilder und Kommentare zu einer Session. Lade Bilder hoch, kommentiere einzelne Medien oder fuege einen Kommentar zur Session insgesamt hinzu.
+        Diese Detailseite sammelt Zeiten, Stimmungen, Sessionkommentar, Bilder und Kommentare zu einer Session. Lade Bilder hoch, kommentiere einzelne Medien oder füge einen Kommentar zur Session insgesamt hinzu.
       </PageGuide>
 
       <div className="space-y-6">
@@ -164,10 +169,8 @@ export default async function SessionDetailPage({ params }: { params: { slug: st
         </div>
 
         <Panel>
-          <h2 className="mb-3 text-lg font-semibold">Notizen</h2>
-          <p className="whitespace-pre-wrap text-sm leading-6 text-graphite">{session.notes || "Keine Notizen hinterlegt."}</p>
-          {session.moodBeforeText ? <p className="mt-3 text-sm leading-6 text-graphite"><strong>Vorher:</strong> {session.moodBeforeText}</p> : null}
-          {session.moodAfterText ? <p className="mt-3 text-sm leading-6 text-graphite"><strong>Nachher:</strong> {session.moodAfterText}</p> : null}
+          <h2 className="mb-3 text-lg font-semibold">Sessionkommentar</h2>
+          <p className="whitespace-pre-wrap text-sm leading-6 text-graphite">{sessionComment || "Kein Kommentar hinterlegt."}</p>
         </Panel>
 
         <Panel>

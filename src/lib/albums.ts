@@ -14,7 +14,7 @@ export async function ensureDefaultAlbum(ownerId: string) {
     data: {
       ownerId,
       title: defaultAlbumTitle,
-      description: "Standardalbum fuer neue Uploads und Telegram-Bilder.",
+      description: "Standardalbum für neue Uploads und Telegram-Bilder.",
       visibility: "PRIVATE"
     }
   });

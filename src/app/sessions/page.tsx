@@ -31,9 +31,9 @@ async function createSession(formData: FormData) {
       durationMinutes: minutesBetween(startTime, endTime),
       notes: String(formData.get("notes") || "").trim(),
       moodBefore: String(formData.get("moodBefore") || "NEUTRAL") as MoodBeforeValue,
-      moodBeforeText: String(formData.get("moodBeforeText") || "").trim(),
       moodAfter: String(formData.get("moodAfter") || "RELAXED") as MoodAfterValue,
-      moodAfterText: String(formData.get("moodAfterText") || "").trim()
+      moodBeforeText: "",
+      moodAfterText: ""
     }
   });
   await logAction({
@@ -102,7 +102,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
           <Link href={`/sessions?tracker=kg&year=${year}`} aria-current="page" className="-mb-px rounded-t-md border border-line border-b-surface bg-surface px-3 py-2 text-sm font-semibold text-sky-700">KG Time Tracker</Link>
         </nav>
         <PageGuide title="KG-Tragezeiten minutengenau dokumentieren">
-          Der KG Time Tracker erfasst Tragezeiten mit Startminute, Endminute, Dauer und Notiz. Die Jahresuebersicht nutzt Blau, damit sie klar vom roten Segufix-Kalender unterscheidbar ist.
+          Der KG Time Tracker erfasst Tragezeiten mit Startminute, Endminute, Dauer und Sessionbeschreibung. Die Jahresübersicht nutzt Blau, damit sie klar vom roten Segufix-Kalender unterscheidbar ist.
         </PageGuide>
         <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
           <Panel>
@@ -110,13 +110,13 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
             <form action={createKgSession} className="space-y-4">
               <Field label="Startzeit"><input className={inputClass} name="startTime" type="datetime-local" step={60} required /></Field>
               <Field label="Endzeit"><input className={inputClass} name="endTime" type="datetime-local" step={60} /></Field>
-              <Field label="Notizen"><textarea className={inputClass} name="notes" rows={4} /></Field>
+              <Field label="Sessionbeschreibung"><textarea className={inputClass} name="notes" rows={4} /></Field>
               <Button><Save className="h-4 w-4" /> KG-Zeit speichern</Button>
             </form>
           </Panel>
           <div className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-3">
-              <SoftPanel><div className="text-sm text-graphite">Eintraege</div><div className="mt-2 text-2xl font-semibold">{kgSessions.length}</div></SoftPanel>
+              <SoftPanel><div className="text-sm text-graphite">Einträge</div><div className="mt-2 text-2xl font-semibold">{kgSessions.length}</div></SoftPanel>
               <SoftPanel><div className="text-sm text-graphite">Gesamtzeit</div><div className="mt-2 text-2xl font-semibold">{formatMinutes(totalMinutes)}</div></SoftPanel>
               <SoftPanel><div className="text-sm text-graphite">Durchschnitt</div><div className="mt-2 text-2xl font-semibold">{formatMinutes(avgDuration)}</div></SoftPanel>
             </div>
@@ -125,17 +125,17 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                 <h2 className="mb-3 text-lg font-semibold">Laufender KG-Tracker</h2>
                 <div className="space-y-2">
                   {openSessions.map((session) => (
-                    <div key={session.id} className="rounded-md border border-sky-600 bg-sky-600/10 p-3 text-sm">
+                    <Link key={session.id} href={`/sessions/kg/${session.id}`} className="block rounded-md border border-sky-600 bg-sky-600/10 p-3 text-sm hover:bg-sky-600/15">
                       <strong>{formatDateTime(session.startTime)}</strong>
                       <span className="ml-2 text-graphite">ohne Endzeit</span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </Panel>
             ) : null}
             <Panel>
               <div className="mb-4 flex items-center justify-between gap-3">
-                <a href={`/sessions?tracker=kg&year=${year - 1}`} className="rounded-md border border-line px-3 py-2 text-sm">Zurueck</a>
+                <a href={`/sessions?tracker=kg&year=${year - 1}`} className="rounded-md border border-line px-3 py-2 text-sm">Zurück</a>
                 <h2 className="text-lg font-semibold">{year}</h2>
                 <a href={`/sessions?tracker=kg&year=${year + 1}`} className="rounded-md border border-line px-3 py-2 text-sm">Weiter</a>
               </div>
@@ -152,7 +152,8 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                       const daySessions = byDay.get(`${monthIndex}-${day}`) || [];
                       const minutes = daySessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
                       const className = `calendar-cell h-5 rounded-sm ${!valid ? "bg-transparent" : daySessions.length ? "bg-sky-600" : "bg-paper"}`;
-                      return <span key={`${month}-${day}`} title={daySessions.length ? `${daySessions.length} KG-Eintraege, ${formatMinutes(minutes)}` : ""} className={className} />;
+                      if (!daySessions.length) return <span key={`${month}-${day}`} className={className} />;
+                      return <a key={`${month}-${day}`} href={`/sessions/kg/${daySessions[0].id}`} title={`${daySessions.length} KG-Einträge, ${formatMinutes(minutes)}`} className={className} />;
                     })}
                   </div>
                 ))}
@@ -162,14 +163,14 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
               <h2 className="mb-4 text-lg font-semibold">Historie</h2>
               <div className="space-y-3">
                 {kgSessions.map((session) => (
-                  <article key={session.id} className="rounded-md border border-line p-3">
+                  <Link key={session.id} href={`/sessions/kg/${session.id}`} className="block rounded-md border border-line p-3 hover:bg-paper">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <strong>{formatDateTime(session.startTime)}</strong>
                       <span className="text-sm text-graphite">{formatMinutes(session.durationMinutes)}</span>
                     </div>
                     <p className="mt-1 text-sm text-graphite">Ende: {formatDateTime(session.endTime)}</p>
                     {session.notes ? <p className="mt-2 text-sm text-graphite">{session.notes}</p> : null}
-                  </article>
+                  </Link>
                 ))}
               </div>
             </Panel>
@@ -198,8 +199,8 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
         <Link href={`/sessions?year=${year}`} aria-current="page" className="-mb-px rounded-t-md border border-line border-b-surface bg-surface px-3 py-2 text-sm font-semibold text-redbrand">Segufix Time Tracker</Link>
         <Link href={`/sessions?tracker=kg&year=${year}`} className="-mb-px rounded-t-md border border-transparent px-3 py-2 text-sm font-semibold text-graphite hover:bg-paper hover:text-ink">KG Time Tracker</Link>
       </nav>
-      <PageGuide title="Session-Erfassung, Jahresuebersicht und Auswertung">
-        Der Timetracker dokumentiert Sessions mit Start, Ende, Dauer, Stimmung und Notizen. Erfasse links neue Eintraege, nutze den Jahreskalender zur Orientierung und bearbeite bestehende Sessions in der Historie.
+      <PageGuide title="Session-Erfassung, Jahresübersicht und Auswertung">
+        Der Timetracker dokumentiert Sessions mit Start, Ende, Dauer, Stimmung und Kommentar. Erfasse links neue Einträge, nutze den Jahreskalender zur Orientierung und bearbeite bestehende Sessions in der Historie.
       </PageGuide>
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <Panel>
@@ -212,14 +213,12 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                 {Object.entries(moodBefore).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </Field>
-            <Field label="Stimmung vorher Text"><textarea className={inputClass} name="moodBeforeText" rows={2} /></Field>
             <Field label="Stimmung nachher">
               <select className={selectClass} name="moodAfter" defaultValue="RELAXED">
                 {Object.entries(moodAfter).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </Field>
-            <Field label="Stimmung nachher Text"><textarea className={inputClass} name="moodAfterText" rows={2} /></Field>
-            <Field label="Notizen"><textarea className={inputClass} name="notes" rows={4} /></Field>
+            <Field label="Sessionkommentar"><textarea className={inputClass} name="notes" rows={5} /></Field>
             <Button><Save className="h-4 w-4" /> Session speichern</Button>
           </form>
         </Panel>
@@ -244,7 +243,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
           ) : null}
           <Panel>
             <div className="mb-4 flex items-center justify-between gap-3">
-              <a href={`/sessions?year=${year - 1}`} className="rounded-md border border-line px-3 py-2 text-sm">Zurueck</a>
+              <a href={`/sessions?year=${year - 1}`} className="rounded-md border border-line px-3 py-2 text-sm">Zurück</a>
               <h2 className="text-lg font-semibold">{year}</h2>
               <a href={`/sessions?year=${year + 1}`} className="rounded-md border border-line px-3 py-2 text-sm">Weiter</a>
             </div>
@@ -279,9 +278,13 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
             <h2 className="mb-4 text-lg font-semibold">Historie</h2>
             <div className="space-y-3">
               {sessions.map((session) => (
-                <article key={session.id} id={`session-${session.id}`} className="rounded-md border border-line p-3">
+                <article key={session.id} id={`session-${session.id}`} className="rounded-md border border-line p-3 hover:bg-paper">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <strong>{formatDateTime(session.startTime)}</strong>
+                    <Link href={`/sessions/${sessionSlugs.get(session.id)}`} className="min-w-0 flex-1">
+                      <strong className="block">{formatDateTime(session.startTime)}</strong>
+                      <p className="mt-2 text-sm text-graphite">Vorher: {session.moodBefore ? moodBefore[session.moodBefore] : neutralMood} · Nachher: {session.moodAfter ? moodAfter[session.moodAfter] : neutralMood}</p>
+                      {session.notes ? <p className="mt-2 text-sm text-graphite">{session.notes}</p> : null}
+                    </Link>
                     <div className="flex items-center gap-3">
                       <span className="text-sm text-graphite">{formatMinutes(session.durationMinutes)}</span>
                       <Link href={`/sessions/${sessionSlugs.get(session.id)}`} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-line px-3 py-1.5 text-sm font-semibold hover:bg-paper">
@@ -293,8 +296,6 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                       </Link>
                     </div>
                   </div>
-                  <p className="mt-2 text-sm text-graphite">Vorher: {session.moodBefore ? moodBefore[session.moodBefore] : neutralMood} · Nachher: {session.moodAfter ? moodAfter[session.moodAfter] : neutralMood}</p>
-                  {session.notes ? <p className="mt-2 text-sm text-graphite">{session.notes}</p> : null}
                 </article>
               ))}
             </div>

@@ -25,7 +25,7 @@ export default async function ToyDetailPage({ params }: { params: { slug: string
         subtitle={displayUrl}
       />
       <PageGuide>
-        Diese Detailseite zeigt Bild, Beschreibung, Zeitstempel, QR-Code und alle Verknuepfungen dieses Spielzeugs. Nutze Bearbeiten, um Text, Slug oder Bild zu aendern; der QR-Code fuehrt dauerhaft auf diese URL.
+        Diese Detailseite zeigt Bild, Beschreibung, Zeitstempel, QR-Code und alle Verknüpfungen dieses Spielzeugs. Nutze Bearbeiten, um Text, Slug oder Bild zu ändern; der QR-Code fuehrt dauerhaft auf diese URL.
       </PageGuide>
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <Panel>
@@ -43,7 +43,7 @@ export default async function ToyDetailPage({ params }: { params: { slug: string
           <SoftPanel>
             <h2 className="mb-3 text-lg font-semibold">QR-Code</h2>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`/api/qr?url=${encodeURIComponent(url)}`} alt={`QR-Code fuer ${toy.title}`} className="mx-auto h-56 w-56 rounded-md bg-white p-3" />
+            <img src={`/api/qr?url=${encodeURIComponent(url)}`} alt={`QR-Code für ${toy.title}`} className="mx-auto h-56 w-56 rounded-md bg-white p-3" />
             <div className="mt-4 grid grid-cols-2 gap-2">
               <a href={`/api/qr?download=1&url=${encodeURIComponent(url)}`} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-redbrand px-3 py-2 text-sm font-semibold text-white">
                 <Download className="h-4 w-4" />
@@ -56,7 +56,7 @@ export default async function ToyDetailPage({ params }: { params: { slug: string
             </div>
           </SoftPanel>
           <Panel>
-            <h2 className="mb-3 text-lg font-semibold">Verknuepfungen</h2>
+            <h2 className="mb-3 text-lg font-semibold">Verknüpfungen</h2>
             <div className="space-y-2 text-sm">
               {toy.positions.map((position) => (
                 <Link key={position.id} href={`/positions/${position.slug}`} className="block rounded-md bg-paper px-3 py-2 hover:text-redbrand">{position.name}</Link>
@@ -64,14 +64,14 @@ export default async function ToyDetailPage({ params }: { params: { slug: string
               {toy.activities.map((activity) => (
                 <Link key={activity.id} href={`/activities/${activity.slug}`} className="block rounded-md bg-paper px-3 py-2 hover:text-redbrand">{activity.title}</Link>
               ))}
-              {!toy.positions.length && !toy.activities.length ? <p className="text-graphite">Noch keine Verknuepfungen.</p> : null}
+              {!toy.positions.length && !toy.activities.length ? <p className="text-graphite">Noch keine Verknüpfungen.</p> : null}
             </div>
           </Panel>
         </div>
       </div>
       <Panel className="mt-6">
         <h2 className="mb-2 text-lg font-semibold">Aktionen</h2>
-        <p className="mb-4 text-sm text-graphite">Aendere diesen Eintrag nur, wenn Bild, Text, Slug oder Beschreibung aktualisiert werden sollen.</p>
+        <p className="mb-4 text-sm text-graphite">Ändere diesen Eintrag nur, wenn Bild, Text, Slug oder Beschreibung aktualisiert werden sollen.</p>
         <div className="flex flex-wrap items-center gap-3">
           <Link href={`/toys/${toy.slug}/edit`} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
             <Pencil className="h-4 w-4" />

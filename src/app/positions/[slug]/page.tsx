@@ -19,7 +19,7 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
         subtitle={`/positions/${position.slug}`}
       />
       <PageGuide>
-        Diese Seite dokumentiert eine einzelne Stellung. Du siehst Bild, Beschreibung, verknuepfte Spielzeuge und Aktivitaeten; ueber Bearbeiten kannst du Inhalte und Verknuepfungen anpassen.
+        Diese Seite dokumentiert eine einzelne Stellung. Du siehst Bild, Beschreibung, verknüpfte Spielzeuge und Aktivitäten; über Bearbeiten kannst du Inhalte und Verknüpfungen anpassen.
       </PageGuide>
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <Panel>
@@ -37,7 +37,7 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
             </div>
           </SoftPanel>
           <SoftPanel>
-            <h2 className="mb-3 text-lg font-semibold">Aktivitaeten</h2>
+            <h2 className="mb-3 text-lg font-semibold">Aktivitäten</h2>
             <div className="space-y-2">
               {position.activities.map((activity) => <Link key={activity.id} href={`/activities/${activity.slug}`} className="block rounded-md bg-white px-3 py-2 text-sm hover:text-redbrand">{activity.title}</Link>)}
             </div>
@@ -46,7 +46,7 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
       </div>
       <Panel className="mt-6">
         <h2 className="mb-2 text-lg font-semibold">Aktionen</h2>
-        <p className="mb-4 text-sm text-graphite">Bearbeite diese Stellung, wenn Bild, Beschreibung oder die verknuepften Spielzeuge angepasst werden sollen.</p>
+        <p className="mb-4 text-sm text-graphite">Bearbeite diese Stellung, wenn Bild, Beschreibung oder die verknüpften Spielzeuge angepasst werden sollen.</p>
         <Link href={`/positions/${position.slug}/edit`} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
           <Pencil className="h-4 w-4" />
           Bearbeiten

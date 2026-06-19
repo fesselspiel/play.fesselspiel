@@ -20,7 +20,7 @@ function storageRoot() {
 
 function storageAbsolutePath(storagePath: string) {
   const absolute = path.resolve(storageRoot(), storagePath);
-  if (!absolute.startsWith(`${storageRoot()}${path.sep}`)) throw new Error("Ungueltiger Dateipfad");
+  if (!absolute.startsWith(`${storageRoot()}${path.sep}`)) throw new Error("Ungültiger Dateipfad");
   return absolute;
 }
 
@@ -35,7 +35,7 @@ export function fileIdFromUrl(url?: string | null) {
 
 export async function saveUploadedFile(ownerId: string, file: File | null | undefined) {
   if (!file || file.size === 0) return null;
-  if (file.size > env.maxUploadBytes) throw new Error(`Datei ist groesser als ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB`);
+  if (file.size > env.maxUploadBytes) throw new Error(`Datei ist größer als ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB`);
 
   const id = randomUUID();
   const extension = safeExtension(file.name);
@@ -73,7 +73,7 @@ export async function saveFileBuffer({
   mimeType: string;
 }) {
   if (!bytes.length) return null;
-  if (bytes.length > env.maxUploadBytes) throw new Error(`Datei ist groesser als ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB`);
+  if (bytes.length > env.maxUploadBytes) throw new Error(`Datei ist größer als ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB`);
 
   const id = randomUUID();
   const extension = safeExtension(originalName);

@@ -44,7 +44,7 @@ export default async function EventsPage() {
     <AppShell>
       <PageHeader title="Events" />
       <PageGuide title="Termine und Teilnahme dokumentieren">
-        Events dienen zur Terminverwaltung und Teilnahme-Dokumentation. Lege links einen Termin an, nutze rechts Bearbeiten fuer Aenderungen und trage Check-in-Notizen ein, wenn du teilgenommen hast.
+        Events dienen zur Terminverwaltung und Teilnahme-Dokumentation. Lege links einen Termin an, nutze rechts Bearbeiten für Änderungen und trage Check-in-Notizen ein, wenn du teilgenommen hast.
       </PageGuide>
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <Panel>

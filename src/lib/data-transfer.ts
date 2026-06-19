@@ -140,7 +140,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
   const rawData = await zip.file("data.json")?.async("string");
   if (!rawData) throw new Error("Im Archiv fehlt data.json");
   const data = JSON.parse(rawData) as Partial<TransferData>;
-  if (data.format !== "fesselspiel-export" || data.version !== 1) throw new Error("Dieses Archivformat wird nicht unterstuetzt");
+  if (data.format !== "fesselspiel-export" || data.version !== 1) throw new Error("Dieses Archivformat wird nicht unterstützt");
 
   const fileMap = new Map<string, string>();
   for (const entry of records(data.files)) {
@@ -193,7 +193,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
 
   const activityMap = new Map<string, string>();
   for (const entry of records(data.activities)) {
-    const title = String(entry.title || "Importierte Aktivitaet");
+    const title = String(entry.title || "Importierte Aktivität");
     const slug = await uniqueSlug("activityPlan", String(entry.slug || title));
     const toolIds = strings(entry.toolIds).map((id) => toyMap.get(id)).filter((id): id is string => Boolean(id));
     const positionIds = strings(entry.positionIds).map((id) => positionMap.get(id)).filter((id): id is string => Boolean(id));

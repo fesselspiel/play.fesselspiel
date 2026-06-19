@@ -36,14 +36,15 @@ async function startSession(request: NextRequest) {
   }
   const startTime = dateFromValue(values.get("startTime")) || new Date();
   const moodBefore = oneOf(values.get("moodBefore"), ["NEEDS_WORK", "OKAY", "NEUTRAL", "PLEASANT", "VERY_PLEASANT"] as const);
+  const notes = [values.get("note") || values.get("notes") || "Per API gestartet", values.get("moodBeforeText") ? `Vorher: ${values.get("moodBeforeText")}` : ""].filter(Boolean).join("\n");
   const session = await prisma.segufixSession.create({
     data: {
       ownerId: auth.user.id,
       slug: await uniqueSessionSlug(startTime),
       startTime,
-      notes: values.get("note") || values.get("notes") || "Per API gestartet",
+      notes,
       moodBefore,
-      moodBeforeText: values.get("moodBeforeText") || null
+      moodBeforeText: null
     }
   });
   await logAction({

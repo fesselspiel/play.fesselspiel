@@ -15,6 +15,7 @@ import {
   UsersRound
 } from "lucide-react";
 import { currentUser } from "@/lib/auth";
+import { DarkModeToggle } from "@/components/dark-mode-toggle";
 import { MobileMenu } from "@/components/mobile-menu";
 
 const nav = [
@@ -63,6 +64,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
                   {label}
                 </Link>
               ))}
+              {user ? <DarkModeToggle active={Boolean(user.settings?.darkMode)} /> : null}
             </div>
           </details>
         </nav>
@@ -87,7 +89,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         ) : null}
       </aside>
       <main className="min-h-screen lg:pl-72">
-        <MobileMenu />
+        <MobileMenu activeDarkMode={Boolean(user?.settings?.darkMode)} />
         <div className="mx-auto flex min-h-[calc(100vh-4.5rem)] max-w-7xl flex-col px-4 py-6 sm:px-6 lg:min-h-screen lg:px-8">{children}</div>
       </main>
     </div>

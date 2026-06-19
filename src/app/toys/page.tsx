@@ -24,8 +24,8 @@ export default async function ToysPage() {
           </Link>
         }
       />
-      <PageGuide title="Persoenliche Ausruestung mit Slug-URLs und QR-Codes">
-        Hier verwaltest du deinen Spielzeugkatalog. Oeffne einen Eintrag fuer Details, QR-Code und Verknuepfungen oder lege ueber den roten Button ein neues Spielzeug mit Bild, Beschreibung und eigener URL an.
+      <PageGuide title="Persönliche Ausrüstung mit Slug-URLs und QR-Codes">
+        Hier verwaltest du deinen Spielzeugkatalog. Öffne einen Eintrag für Details, QR-Code und Verknüpfungen oder lege über den roten Button ein neues Spielzeug mit Bild, Beschreibung und eigener URL an.
       </PageGuide>
       {toys.length ? (
         <SortableToyList items={toys.map((toy) => ({

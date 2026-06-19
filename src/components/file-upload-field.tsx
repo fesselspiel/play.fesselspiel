@@ -56,7 +56,7 @@ export function FileUploadField({
       }
       if (uploadState === "error") {
         event.preventDefault();
-        setUploadMessage("Der Upload ist fehlgeschlagen. Waehle die Datei bitte erneut aus.");
+        setUploadMessage("Der Upload ist fehlgeschlagen. Wähle die Datei bitte erneut aus.");
       }
     };
     form.addEventListener("submit", handleSubmit);
@@ -129,13 +129,13 @@ export function FileUploadField({
           }}
         />
         {accept?.includes("image") ? <ImagePlus className="h-5 w-5 text-redbrand" /> : <Upload className="h-5 w-5 text-redbrand" />}
-        <span className="font-semibold text-ink">{file ? file.name : "Datei auswaehlen"}</span>
+        <span className="font-semibold text-ink">{file ? file.name : "Datei auswählen"}</span>
         <span>
           {file
             ? uploadState === "uploading"
-              ? `${Math.round(file.size / 1024)} KB ausgewaehlt, Upload laeuft...`
-              : `${Math.round(file.size / 1024)} KB ausgewaehlt`
-            : help || "Tippen, um eine Datei auszuwaehlen."}
+              ? `${Math.round(file.size / 1024)} KB ausgewählt, Upload läuft...`
+              : `${Math.round(file.size / 1024)} KB ausgewählt`
+            : help || "Tippen, um eine Datei auszuwählen."}
         </span>
       </label>
 
@@ -158,7 +158,7 @@ export function FileUploadField({
           }}
         >
           <X className="h-4 w-4" />
-          Auswahl zuruecksetzen
+          Auswahl zurücksetzen
         </button>
       ) : null}
 

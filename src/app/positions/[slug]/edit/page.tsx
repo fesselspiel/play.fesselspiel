@@ -69,7 +69,7 @@ export default async function EditPositionPage({ params }: { params: { slug: str
     <AppShell>
       <PageHeader title="Stellung bearbeiten" />
       <PageGuide>
-        Bearbeite hier Name, Slug, Bild, Beschreibung und die verknuepften Spielzeuge. Beim Ersetzen oder Entfernen eines Bildes wird die alte Datei bereinigt.
+        Bearbeite hier Name, Slug, Bild, Beschreibung und die verknüpften Spielzeuge. Beim Ersetzen oder Entfernen eines Bildes wird die alte Datei bereinigt.
       </PageGuide>
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <form action={updatePosition} className="max-w-3xl space-y-4">
@@ -84,7 +84,7 @@ export default async function EditPositionPage({ params }: { params: { slug: str
             currentUrl={position.imageUrl || null}
             currentAlt={position.name}
             removeName="removeImage"
-            help="Ein neu ausgewaehltes Bild ersetzt das aktuelle Bild automatisch."
+            help="Ein neu ausgewähltes Bild ersetzt das aktuelle Bild automatisch."
           />
           <Field label="Beschreibung"><textarea className={inputClass} name="description" rows={5} defaultValue={position.description || ""} /></Field>
           <div>
@@ -99,7 +99,7 @@ export default async function EditPositionPage({ params }: { params: { slug: str
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button><Save className="h-4 w-4" /> Aenderungen speichern</Button>
+            <Button><Save className="h-4 w-4" /> Änderungen speichern</Button>
             <Link href={`/positions/${position.slug}`} className="focus-ring inline-flex min-h-10 items-center justify-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
               Abbrechen
             </Link>
@@ -107,9 +107,9 @@ export default async function EditPositionPage({ params }: { params: { slug: str
         </form>
         <form action={deletePosition} className="rounded-lg border border-line bg-paper p-5">
           <input type="hidden" name="id" value={position.id} />
-          <h2 className="text-lg font-semibold">Loeschen</h2>
-          <p className="mt-2 text-sm text-graphite">Entfernt die Stellung, ihre Verknuepfungen und das hinterlegte Bild vom Server.</p>
-          <Button variant="danger" className="mt-4 w-full"><Trash2 className="h-4 w-4" /> Stellung loeschen</Button>
+          <h2 className="text-lg font-semibold">Löschen</h2>
+          <p className="mt-2 text-sm text-graphite">Entfernt die Stellung, ihre Verknüpfungen und das hinterlegte Bild vom Server.</p>
+          <Button variant="danger" className="mt-4 w-full"><Trash2 className="h-4 w-4" /> Stellung löschen</Button>
         </form>
       </div>
     </AppShell>

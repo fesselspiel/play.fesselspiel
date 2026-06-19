@@ -30,7 +30,7 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "get_portal_status",
-      description: "Zeigt eine kompakte Uebersicht ueber das Portal des aktiven Benutzers.",
+      description: "Zeigt eine kompakte Übersicht über das Portal des aktiven Benutzers.",
       parameters: { type: "object", properties: {}, additionalProperties: false }
     }
   },
@@ -38,11 +38,11 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "search_portal",
-      description: "Sucht Spielzeuge, Stellungen, Aktivitaeten und Sessions im Portal.",
+      description: "Sucht Spielzeuge, Stellungen, Aktivitäten und Sessions im Portal.",
       parameters: {
         type: "object",
         properties: {
-          query: { type: "string", description: "Suchtext. Leer lassen fuer aktuelle Listen." },
+          query: { type: "string", description: "Suchtext. Leer lassen für aktuelle Listen." },
           area: { type: "string", enum: ["all", "toys", "positions", "activities", "sessions"] }
         },
         required: ["query", "area"],
@@ -72,7 +72,7 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "create_position",
-      description: "Legt eine Stellung/Position an und kann vorhandene Spielzeuge per Titel verknuepfen.",
+      description: "Legt eine Stellung/Position an und kann vorhandene Spielzeuge per Titel verknüpfen.",
       parameters: {
         type: "object",
         properties: {
@@ -90,7 +90,7 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "create_activity",
-      description: "Plant eine Aktivitaet mit optionalem Datum, Notiz, Spielzeugen und Stellungen.",
+      description: "Plant eine Aktivität mit optionalem Datum, Notiz, Spielzeugen und Stellungen.",
       parameters: {
         type: "object",
         properties: {
@@ -111,7 +111,7 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "set_activity_status",
-      description: "Setzt eine vorhandene Aktivitaet auf angefragt, geplant, durchgefuehrt oder verworfen. Zum Bestaetigen einer Anfrage auf PLANNED setzen.",
+      description: "Setzt eine vorhandene Aktivität auf angefragt, geplant, durchgeführt oder verworfen. Zum Bestätigen einer Anfrage auf PLANNED setzen.",
       parameters: {
         type: "object",
         properties: {
@@ -132,8 +132,7 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
         type: "object",
         properties: {
           note: { type: "string" },
-          moodBefore: { type: "string", enum: ["NEEDS_WORK", "OKAY", "NEUTRAL", "PLEASANT", "VERY_PLEASANT"] },
-          moodBeforeText: { type: "string" }
+          moodBefore: { type: "string", enum: ["NEEDS_WORK", "OKAY", "NEUTRAL", "PLEASANT", "VERY_PLEASANT"] }
         },
         additionalProperties: false
       }
@@ -148,8 +147,7 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
         type: "object",
         properties: {
           note: { type: "string" },
-          moodAfter: { type: "string", enum: ["WORSE", "UNCHANGED", "SLIGHTLY_BETTER", "MUCH_BETTER", "RELAXED"] },
-          moodAfterText: { type: "string" }
+          moodAfter: { type: "string", enum: ["WORSE", "UNCHANGED", "SLIGHTLY_BETTER", "MUCH_BETTER", "RELAXED"] }
         },
         additionalProperties: false
       }
@@ -235,7 +233,7 @@ function htmlLine(label: string, value: unknown) {
 }
 
 function htmlList(title: string, rows: string[]) {
-  if (!rows.length) return `<b>${telegramHtml(title)}</b>\nKeine Eintraege gefunden.`;
+  if (!rows.length) return `<b>${telegramHtml(title)}</b>\nKeine Einträge gefunden.`;
   return [`<b>${telegramHtml(title)}</b>`, ...rows].join("\n\n");
 }
 
@@ -249,7 +247,7 @@ function formatToolResultHtml(result: ToolCallResult) {
       "<b>Portalstatus</b>",
       htmlLine("Spielzeuge", data.toys),
       htmlLine("Stellungen", data.positions),
-      htmlLine("Geplante Aktivitaeten", data.plannedActivities),
+      htmlLine("Geplante Aktivitäten", data.plannedActivities),
       htmlLine("Sessions dieses Jahr", data.sessionsThisYear),
       htmlLine("Gesamtdauer", data.totalSessionDuration),
       htmlLine("Offene Session", data.openSession || "nein")
@@ -269,7 +267,7 @@ function formatToolResultHtml(result: ToolCallResult) {
         toys.map((toy, index) => {
           const title = String(toy.title || "Ohne Titel");
           const description = toy.description ? `\n${telegramHtml(toy.description)}` : "";
-          return `<b>${index + 1}. ${telegramHtml(title)}</b>${description}\n${telegramLink(String(toy.url || ""), "oeffnen")}`;
+          return `<b>${index + 1}. ${telegramHtml(title)}</b>${description}\n${telegramLink(String(toy.url || ""), "öffnen")}`;
         })
       )
     );
@@ -281,7 +279,7 @@ function formatToolResultHtml(result: ToolCallResult) {
         positions.map((position, index) => {
           const name = String(position.name || "Ohne Name");
           const description = position.description ? `\n${telegramHtml(position.description)}` : "";
-          return `<b>${index + 1}. ${telegramHtml(name)}</b>${description}\n${telegramLink(String(position.url || ""), "oeffnen")}`;
+          return `<b>${index + 1}. ${telegramHtml(name)}</b>${description}\n${telegramLink(String(position.url || ""), "öffnen")}`;
         })
       )
     );
@@ -289,7 +287,7 @@ function formatToolResultHtml(result: ToolCallResult) {
   if (activities.length) {
     sections.push(
       htmlList(
-        "Aktivitaeten",
+        "Aktivitäten",
         activities.map((activity, index) => {
           const tools = Array.isArray(activity.toys) ? activity.toys.join(", ") : "";
           const linkedPositions = Array.isArray(activity.positions) ? activity.positions.join(", ") : "";
@@ -299,7 +297,7 @@ function formatToolResultHtml(result: ToolCallResult) {
             htmlLine("Termin", activity.plannedAt),
             tools ? htmlLine("Spielzeuge", tools) : "",
             linkedPositions ? htmlLine("Stellungen", linkedPositions) : "",
-            telegramLink(String(activity.url || ""), "oeffnen")
+            telegramLink(String(activity.url || ""), "öffnen")
           ]
             .filter(Boolean)
             .join("\n");
@@ -453,7 +451,7 @@ async function createPosition(userId: string, args: Record<string, unknown>): Pr
 
 async function createActivity(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   const title = clean(args.title);
-  if (!title) return { ok: false, message: "Aktivitaet fehlt." };
+  if (!title) return { ok: false, message: "Aktivität fehlt." };
   const plannedAtRaw = clean(args.plannedAt);
   const plannedAt = plannedAtRaw ? new Date(plannedAtRaw) : null;
   if (plannedAtRaw && Number.isNaN(plannedAt?.getTime())) return { ok: false, message: "Datum/Uhrzeit konnte nicht gelesen werden." };
@@ -475,7 +473,7 @@ async function createActivity(userId: string, args: Record<string, unknown>): Pr
   });
   return {
     ok: true,
-    message: `Aktivitaet geplant: ${activity.title}`,
+    message: `Aktivität geplant: ${activity.title}`,
     data: {
       title: activity.title,
       plannedAt: formatDateTime(activity.plannedAt),
@@ -489,19 +487,19 @@ async function createActivity(userId: string, args: Record<string, unknown>): Pr
 async function setActivityStatus(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   const titleOrSlug = clean(args.titleOrSlug);
   const status = clean(args.status) as "REQUESTED" | "PLANNED" | "DONE" | "DISCARDED";
-  if (!titleOrSlug || !["REQUESTED", "PLANNED", "DONE", "DISCARDED"].includes(status)) return { ok: false, message: "Aktivitaet oder Status fehlt." };
+  if (!titleOrSlug || !["REQUESTED", "PLANNED", "DONE", "DISCARDED"].includes(status)) return { ok: false, message: "Aktivität oder Status fehlt." };
   const activity = await prisma.activityPlan.findFirst({
     where: { ownerId: userId, OR: [{ slug: titleOrSlug }, { title: contains(titleOrSlug) }] },
     orderBy: { updatedAt: "desc" }
   });
-  if (!activity) return { ok: false, message: "Aktivitaet nicht gefunden." };
+  if (!activity) return { ok: false, message: "Aktivität nicht gefunden." };
   const updated = await prisma.activityPlan.update({ where: { id: activity.id }, data: { status } });
-  return { ok: true, message: `Aktivitaet aktualisiert: ${updated.title}`, data: { status: updated.status, url: link(`/activities/${updated.slug}`) } };
+  return { ok: true, message: `Aktivität aktualisiert: ${updated.title}`, data: { status: updated.status, url: link(`/activities/${updated.slug}`) } };
 }
 
 async function startSession(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   const open = await prisma.segufixSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
-  if (open) return { ok: false, message: `Es laeuft bereits eine Session seit ${formatDateTime(open.startTime)}.` };
+  if (open) return { ok: false, message: `Es läuft bereits eine Session seit ${formatDateTime(open.startTime)}.` };
   const moodBefore = clean(args.moodBefore) || undefined;
   const startTime = new Date();
   const session = await prisma.segufixSession.create({
@@ -511,7 +509,7 @@ async function startSession(userId: string, args: Record<string, unknown>): Prom
       startTime,
       notes: clean(args.note) || "Per Telegram-Agent gestartet",
       moodBefore: moodBefore as never,
-      moodBeforeText: clean(args.moodBeforeText)
+      moodBeforeText: ""
     }
   });
   return { ok: true, message: `Session gestartet: ${formatDateTime(session.startTime)}`, data: { url: link(`/sessions/${session.slug}`) } };
@@ -530,7 +528,7 @@ async function stopSession(userId: string, args: Record<string, unknown>): Promi
       durationMinutes,
       notes: [session.notes, clean(args.note)].filter(Boolean).join("\n"),
       moodAfter: moodAfter as never,
-      moodAfterText: clean(args.moodAfterText)
+      moodAfterText: ""
     }
   });
   return { ok: true, message: `Session beendet: ${formatMinutes(updated.durationMinutes)}` };
@@ -629,7 +627,7 @@ async function recentTelegramDialogue(userId: string, currentText: string) {
 
 export async function answerWithPortalAgent(input: PortalAgentInput) {
   if (isMemoryOnlyRequest(input.text)) {
-    return "Gemerkter Kontext fuer diesen Telegram-Verlauf. Ich beziehe mich bei den naechsten Antworten darauf.";
+    return "Gemerkter Kontext für diesen Telegram-Verlauf. Ich beziehe mich bei den nächsten Antworten darauf.";
   }
 
   const apiKey = decryptSecret(input.openAiKeyEnc) || env.openAiApiKey;
@@ -643,13 +641,13 @@ export async function answerWithPortalAgent(input: PortalAgentInput) {
     {
       role: "system",
       content:
-        "Du bist der Telegram-Agent fuer das Portal play.fesselspiel.com. Antworte auf Deutsch, knapp und konkret. " +
-        "Du darfst Fragen zum Portal beantworten und ueber die bereitgestellten Tools Portal-Aktionen ausfuehren. " +
+        "Du bist der Telegram-Agent für das Portal play.fesselspiel.com. Antworte auf Deutsch, knapp und konkret. " +
+        "Du darfst Fragen zum Portal beantworten und über die bereitgestellten Tools Portal-Aktionen ausführen. " +
         "Fuehre Schreibaktionen nur aus, wenn die Absicht des Nutzers klar ist. Frage bei fehlenden Pflichtangaben nach. " +
-        "Wenn der Nutzer nur sagt, dass du dir etwas merken, notieren oder als Kontext behalten sollst, fuehre keine Portal-Schreibaktion aus. " +
+        "Wenn der Nutzer nur sagt, dass du dir etwas merken, notieren oder als Kontext behalten sollst, führe keine Portal-Schreibaktion aus. " +
         "Nutze den Dialogverlauf, um kurze Folgeauftraege wie 'das', 'den letzten Plan', 'morgen' oder 'mach daraus' korrekt auf den vorherigen Kontext zu beziehen. " +
-        "Erfinde keine vorhandenen Datensaetze. Nutze Suchen/Status, wenn du Portalwissen brauchst. " +
-        "Wenn du Listen ausgibst, nutze knappes Telegram-HTML mit <b>Ueberschriften</b>, nummerierten Eintraegen und Links. Nutze kein Markdown. " +
+        "Erfinde keine vorhandenen Datensätze. Nutze Suchen/Status, wenn du Portalwissen brauchst. " +
+        "Wenn du Listen ausgibst, nutze knappes Telegram-HTML mit <b>Überschriften</b>, nummerierten Einträgen und Links. Nutze kein Markdown. " +
         "Halte Inhalte konsens-, sicherheits- und dokumentationsorientiert und vermeide explizite Ausformulierungen. " +
         `Heute ist ${new Intl.DateTimeFormat("de-DE", { dateStyle: "full", timeZone: "Europe/Berlin" }).format(new Date())}. ` +
         `Aktiver Telegram-Kontext: Chat-ID ${input.chatId}, Thread-ID ${input.threadId || "-"}.`
@@ -686,5 +684,5 @@ export async function answerWithPortalAgent(input: PortalAgentInput) {
     }
   }
 
-  return "Ich habe mehrere Portalaktionen geprueft, aber keine klare Abschlussantwort erzeugt. Bitte formuliere den Auftrag etwas konkreter.";
+  return "Ich habe mehrere Portalaktionen geprüft, aber keine klare Abschlussantwort erzeugt. Bitte formuliere den Auftrag etwas konkreter.";
 }

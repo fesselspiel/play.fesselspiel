@@ -25,7 +25,7 @@ export function SoftPanel({ children, className = "" }: { children: ReactNode; c
   return <section className={`rounded-lg bg-paper p-5 ${className}`}>{children}</section>;
 }
 
-export function PageGuide({ children, title = "Kurz erklaert" }: { children: ReactNode; title?: string }) {
+export function PageGuide({ children, title = "Kurz erklärt" }: { children: ReactNode; title?: string }) {
   return (
     <details className="order-last mt-10 max-w-full self-end sm:max-w-md">
       <summary className="focus-ring flex min-h-9 cursor-pointer list-none items-center gap-2 rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-graphite hover:bg-paper hover:text-ink [&::-webkit-details-marker]:hidden">
@@ -36,7 +36,7 @@ export function PageGuide({ children, title = "Kurz erklaert" }: { children: Rea
         <h2 className="mb-2 text-sm font-semibold text-ink">{title}</h2>
         <div className="space-y-2">
           <p>{children}</p>
-          <p>Nutze die sichtbaren Buttons und Formulare auf dieser Seite von oben nach unten. Aenderungen werden erst gespeichert, wenn du den jeweiligen Speichern- oder Aktionsbutton ausloest.</p>
+          <p>Nutze die sichtbaren Buttons und Formulare auf dieser Seite von oben nach unten. Änderungen werden erst gespeichert, wenn du den jeweiligen Speichern- oder Aktionsbutton auslöst.</p>
         </div>
       </div>
     </details>

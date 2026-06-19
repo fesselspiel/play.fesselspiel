@@ -26,7 +26,7 @@ function clean(value: string) {
 
 function normalizeSkip(value: string) {
   const normalized = value.trim().toLowerCase();
-  return ["keine", "kein", "ohne", "ueberspringen", "überspringen", "-", "nein"].includes(normalized);
+  return ["keine", "kein", "ohne", "überspringen", "überspringen", "-", "nein"].includes(normalized);
 }
 
 function link(path: string) {
@@ -68,7 +68,7 @@ async function latestActiveDraft(userId: string) {
 
 function initialKind(text: string): DraftKind | null {
   const normalized = text.toLowerCase();
-  const createIntent = /(anlegen|erstellen|neu|hinzufuegen|hinzufügen|speichern)/i.test(normalized);
+  const createIntent = /(anlegen|erstellen|neu|hinzufügen|hinzufügen|speichern)/i.test(normalized);
   if (!createIntent) return null;
   if (/(spielzeug|toy|equipment|ausruestung|ausrüstung)/i.test(normalized)) return "toy";
   if (/(stellung|position)/i.test(normalized)) return "position";
@@ -85,11 +85,11 @@ function initialTitle(text: string, kind: DraftKind) {
   if (quoted) return quoted;
   const pattern =
     kind === "toy"
-      ? /(?:spielzeug|toy|equipment|ausruestung|ausrüstung)\s+(.+?)(?:\s+(?:anlegen|erstellen|speichern|hinzufuegen|hinzufügen))?$/i
-      : /(?:stellung|position)\s+(.+?)(?:\s+(?:anlegen|erstellen|speichern|hinzufuegen|hinzufügen))?$/i;
+      ? /(?:spielzeug|toy|equipment|ausruestung|ausrüstung)\s+(.+?)(?:\s+(?:anlegen|erstellen|speichern|hinzufügen|hinzufügen))?$/i
+      : /(?:stellung|position)\s+(.+?)(?:\s+(?:anlegen|erstellen|speichern|hinzufügen|hinzufügen))?$/i;
   const match = text.match(pattern);
   const candidate = match ? clean(match[1]) : "";
-  if (!candidate || /^(anlegen|erstellen|neu|hinzufuegen|hinzufügen)$/i.test(candidate)) return "";
+  if (!candidate || /^(anlegen|erstellen|neu|hinzufügen|hinzufügen)$/i.test(candidate)) return "";
   return candidate;
 }
 
@@ -104,7 +104,7 @@ function nextQuestion(draft: ItemDraft) {
   if (!draft.fields.name) return "Wie soll die Stellung heissen?";
   if (!draft.fields.description) return "Welche Beschreibung soll auf die Detailseite?";
   if (draft.fields.imageUrl === undefined) return "Sende jetzt ein Bild hier in den Chat oder schreibe 'ohne'.";
-  if (!draft.fields.toyTitles) return "Welche Spielzeuge sollen verknuepft werden? Schreibe Titel kommagetrennt oder 'keine'.";
+  if (!draft.fields.toyTitles) return "Welche Spielzeuge sollen verknüpft werden? Schreibe Titel kommagetrennt oder 'keine'.";
   return null;
 }
 
@@ -159,7 +159,7 @@ async function createFromDraft(userId: string, draft: ItemDraft) {
     const imageUrl = draft.fields.imageUrl || "";
     const slug = await uniqueSlug("toy", title);
     const toy = await prisma.toy.create({ data: { ownerId: userId, title, description, imageUrl, slug } });
-    return `<b>Spielzeug angelegt</b>\n${telegramHtml(toy.title)}\n${telegramLink(link(`/toys/${toy.slug}`), "oeffnen")}`;
+    return `<b>Spielzeug angelegt</b>\n${telegramHtml(toy.title)}\n${telegramLink(link(`/toys/${toy.slug}`), "öffnen")}`;
   }
 
   const name = draft.fields.name || "";
@@ -180,7 +180,7 @@ async function createFromDraft(userId: string, draft: ItemDraft) {
     include: { tools: true }
   });
   const linked = position.tools.length ? `\n<b>Verknuepft:</b> ${telegramHtml(position.tools.map((toy) => toy.title).join(", "))}` : "";
-  return `<b>Stellung angelegt</b>\n${telegramHtml(position.name)}${linked}\n${telegramLink(link(`/positions/${position.slug}`), "oeffnen")}`;
+  return `<b>Stellung angelegt</b>\n${telegramHtml(position.name)}${linked}\n${telegramLink(link(`/positions/${position.slug}`), "öffnen")}`;
 }
 
 export async function handleItemCreationDialogue(userId: string, text: string) {

@@ -64,8 +64,8 @@ export default async function ProfilePage() {
   return (
     <AppShell>
       <PageHeader title="Profil & Einstellungen" />
-      <PageGuide title="Profilinformationen und persoenliches Erscheinungsbild">
-        Hier pflegst du sichtbare Profilangaben und persoenliche Einstellungen. Aendere Basisdaten, Profiltext, Profilbild und teste Farbschemas direkt im Theme-Picker, bevor du speicherst.
+      <PageGuide title="Profilinformationen und persönliches Erscheinungsbild">
+        Hier pflegst du sichtbare Profilangaben und persönliche Einstellungen. Ändere Basisdaten, Profiltext, Profilbild und teste Farbschemas direkt im Theme-Picker, bevor du speicherst.
       </PageGuide>
       <Panel className="max-w-3xl">
         <form action={saveProfile} className="space-y-4">
@@ -91,7 +91,7 @@ export default async function ProfilePage() {
             currentAlt={user.profile?.displayName || user.name || ""}
             removeName="removeProfileImage"
             removeLabel="Profilbild entfernen"
-            help="Quadratisches Bild oder Foto auswaehlen."
+            help="Quadratisches Bild oder Foto auswählen."
           />
           <ThemePicker activeTheme={activeTheme} activeMode={activeMode} />
           <SubmitButton pendingLabel="Profil wird gespeichert..."><Save className="h-4 w-4" /> Profil speichern</SubmitButton>

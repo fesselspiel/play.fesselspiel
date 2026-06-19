@@ -18,12 +18,12 @@ const HELP_TEXT = `<b>Befehle</b>
 /start - Bot starten
 /help - Befehle anzeigen
 /id - Chat-ID und Thread-ID anzeigen
-/status - kurze Uebersicht
+/status - kurze Übersicht
 /toys - Spielzeuge anzeigen
 /positions - Stellungen anzeigen
-/activities - geplante Aktivitaeten anzeigen
+/activities - geplante Aktivitäten anzeigen
 /activity_request Titel - Spielplan anfragen
-/activity_confirm_1 - angefragten Spielplan aus der Liste bestaetigen
+/activity_confirm_1 - angefragten Spielplan aus der Liste bestätigen
 /sessions - Session-Auswertung aktuelles Jahr
 /session_start Notiz - Segufix-Session starten
 /session_stop Notiz - laufende Session beenden
@@ -41,11 +41,11 @@ function htmlLine(label: string, value: unknown) {
 }
 
 function htmlList(title: string, rows: string[]) {
-  if (!rows.length) return `<b>${telegramHtml(title)}</b>\nKeine Eintraege gefunden.`;
+  if (!rows.length) return `<b>${telegramHtml(title)}</b>\nKeine Einträge gefunden.`;
   return [`<b>${telegramHtml(title)}</b>`, ...rows].join("\n\n");
 }
 
-const activityStatusLabel = { REQUESTED: "angefragt", PLANNED: "geplant", DONE: "durchgefuehrt", DISCARDED: "verworfen" } as const;
+const activityStatusLabel = { REQUESTED: "angefragt", PLANNED: "geplant", DONE: "durchgeführt", DISCARDED: "verworfen" } as const;
 
 function commandOf(text: string) {
   const trimmed = text.trim();
@@ -70,12 +70,12 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
       prisma.segufixSession.count({ where: { ownerId: userId } }),
       prisma.kgSession.count({ where: { ownerId: userId } })
     ]);
-    return ["<b>Portalstatus</b>", htmlLine("Spielzeuge", toys), htmlLine("Stellungen", positions), htmlLine("Geplante Aktivitaeten", activities), htmlLine("Segufix-Sessions", sessions), htmlLine("KG-Eintraege", kgSessions)].join("\n");
+    return ["<b>Portalstatus</b>", htmlLine("Spielzeuge", toys), htmlLine("Stellungen", positions), htmlLine("Geplante Aktivitäten", activities), htmlLine("Segufix-Sessions", sessions), htmlLine("KG-Einträge", kgSessions)].join("\n");
   }
 
   if (parsed.command.startsWith("/media_album_")) {
     const match = parsed.command.match(/^\/media_album_(\d+)_(.+)$/);
-    if (!match) return "Ungueltiger Album-Befehl.";
+    if (!match) return "Ungültiger Album-Befehl.";
     const albumIndex = Number(match[1]);
     const mediaId = match[2];
     const [media, albums] = await Promise.all([
@@ -93,7 +93,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
       title: `Bild per Telegram in Album verschoben: ${album.title}`,
       href: "/media"
     });
-    return [`<b>Bild einsortiert</b>`, htmlLine("Bild", media.title), htmlLine("Album", album.title), telegramLink(`${env.appUrl}/media?view=${media.id}`, "in Medien oeffnen")].join("\n");
+    return [`<b>Bild einsortiert</b>`, htmlLine("Bild", media.title), htmlLine("Album", album.title), telegramLink(`${env.appUrl}/media?view=${media.id}`, "in Medien öffnen")].join("\n");
   }
 
   if (parsed.command === "/toys") {
@@ -101,7 +101,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     return htmlList(
       "Spielzeuge",
       toys.map((toy, index) =>
-        [`<b>${index + 1}. ${telegramHtml(toy.title)}</b>`, toy.description ? telegramHtml(toy.description) : "", telegramLink(`${env.appUrl}/toys/${toy.slug}`, "oeffnen")]
+        [`<b>${index + 1}. ${telegramHtml(toy.title)}</b>`, toy.description ? telegramHtml(toy.description) : "", telegramLink(`${env.appUrl}/toys/${toy.slug}`, "öffnen")]
           .filter(Boolean)
           .join("\n")
       )
@@ -113,7 +113,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     return htmlList(
       "Stellungen",
       positions.map((position, index) =>
-        [`<b>${index + 1}. ${telegramHtml(position.name)}</b>`, position.description ? telegramHtml(position.description) : "", telegramLink(`${env.appUrl}/positions/${position.slug}`, "oeffnen")]
+        [`<b>${index + 1}. ${telegramHtml(position.name)}</b>`, position.description ? telegramHtml(position.description) : "", telegramLink(`${env.appUrl}/positions/${position.slug}`, "öffnen")]
           .filter(Boolean)
           .join("\n")
       )
@@ -129,15 +129,15 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     });
     const requested = activities.filter((activity) => activity.status === "REQUESTED");
     return htmlList(
-      "Spielplaene",
+      "Spielpläne",
       activities.map((activity, index) =>
         [
           `<b>${index + 1}. ${telegramHtml(activity.title)}</b>`,
           htmlLine("Status", activityStatusLabel[activity.status]),
           htmlLine("Termin", formatDateTime(activity.plannedAt)),
           htmlLine("Bausteine", `${activity.tools.length} Spielzeuge, ${activity.positions.length} Stellungen`),
-          telegramLink(`${env.appUrl}/activities/${activity.slug}`, "oeffnen"),
-          activity.status === "REQUESTED" ? `<code>/activity_confirm_${requested.findIndex((entry) => entry.id === activity.id) + 1}</code>` : ""
+          telegramLink(`${env.appUrl}/activities/${activity.slug}`, "öffnen"),
+          activity.status === "REQUESTED" ? `/activity_confirm_${requested.findIndex((entry) => entry.id === activity.id) + 1}` : ""
         ].join("\n")
       )
     );
@@ -162,29 +162,29 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
       title: `Spielplan per Telegram angefragt: ${activity.title}`,
       href: `/activities/${activity.slug}`
     });
-    return [`<b>Spielplan angefragt</b>`, telegramHtml(activity.title), telegramLink(`${env.appUrl}/activities/${activity.slug}`, "oeffnen")].join("\n");
+    return [`<b>Spielplan angefragt</b>`, telegramHtml(activity.title), telegramLink(`${env.appUrl}/activities/${activity.slug}`, "öffnen")].join("\n");
   }
 
   if (parsed.command.startsWith("/activity_confirm_")) {
     const index = Number(parsed.command.replace("/activity_confirm_", ""));
-    if (!Number.isInteger(index) || index < 1) return "Ungueltige Bestaetigungsnummer. Nutze /activities fuer die aktuelle Liste.";
+    if (!Number.isInteger(index) || index < 1) return "Ungültige Bestätigungsnummer. Nutze /activities für die aktuelle Liste.";
     const requested = await prisma.activityPlan.findMany({
       where: { ownerId: userId, status: "REQUESTED" },
       orderBy: [{ plannedAt: "asc" }, { createdAt: "asc" }],
       take: 20
     });
     const activity = requested[index - 1];
-    if (!activity) return "Diese Anfrage wurde nicht gefunden. Nutze /activities fuer die aktuelle Liste.";
+    if (!activity) return "Diese Anfrage wurde nicht gefunden. Nutze /activities für die aktuelle Liste.";
     const updated = await prisma.activityPlan.update({ where: { id: activity.id }, data: { status: "PLANNED" } });
     await logAction({
       actorId: userId,
       action: "activity_confirmed_telegram",
       entityType: "activity",
       entityId: updated.id,
-      title: `Spielplan per Telegram bestaetigt: ${updated.title}`,
+      title: `Spielplan per Telegram bestätigt: ${updated.title}`,
       href: `/activities/${updated.slug}`
     });
-    return [`<b>Spielplan bestaetigt</b>`, telegramHtml(updated.title), telegramLink(`${env.appUrl}/activities/${updated.slug}`, "oeffnen")].join("\n");
+    return [`<b>Spielplan bestätigt</b>`, telegramHtml(updated.title), telegramLink(`${env.appUrl}/activities/${updated.slug}`, "öffnen")].join("\n");
   }
 
   if (parsed.command === "/sessions") {
@@ -202,12 +202,12 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     const sessions = await prisma.kgSession.findMany({ where: { ownerId: userId, startTime: { gte: yearStart } } });
     const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
     const open = sessions.filter((session) => !session.endTime).length;
-    return [`<b>KG Time Tracker ${now.getFullYear()}</b>`, htmlLine("Eintraege", sessions.length), htmlLine("Gesamtzeit", formatMinutes(total)), htmlLine("Offen", open), telegramLink(`${env.appUrl}/sessions?tracker=kg`, "KG Tracker oeffnen")].join("\n");
+    return [`<b>KG Time Tracker ${now.getFullYear()}</b>`, htmlLine("Einträge", sessions.length), htmlLine("Gesamtzeit", formatMinutes(total)), htmlLine("Offen", open), telegramLink(`${env.appUrl}/sessions?tracker=kg`, "KG Tracker öffnen")].join("\n");
   }
 
   if (parsed.command === "/session_start") {
     const open = await prisma.segufixSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
-    if (open) return `Es laeuft bereits eine Session seit ${formatDateTime(open.startTime)}. Beende sie mit /session_stop.`;
+    if (open) return `Es läuft bereits eine Session seit ${formatDateTime(open.startTime)}. Beende sie mit /session_stop.`;
     const startTime = new Date();
     const session = await prisma.segufixSession.create({
       data: {
@@ -217,7 +217,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
         notes: parsed.args || "Per Telegram gestartet"
       }
     });
-    return [`Session gestartet: ${formatDateTime(session.startTime)}`, telegramLink(`${env.appUrl}/sessions/${session.slug}`, "Session oeffnen")].join("\n");
+    return [`Session gestartet: ${formatDateTime(session.startTime)}`, telegramLink(`${env.appUrl}/sessions/${session.slug}`, "Session öffnen")].join("\n");
   }
 
   if (parsed.command === "/session_stop") {
@@ -264,7 +264,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
       title: "KG-Tracker per Telegram gestartet",
       href: "/sessions?tracker=kg"
     });
-    return [`<b>KG-Tracker gestartet</b>`, htmlLine("Start", formatDateTime(session.startTime)), telegramLink(`${env.appUrl}/sessions?tracker=kg`, "KG Tracker oeffnen")].join("\n");
+    return [`<b>KG-Tracker gestartet</b>`, htmlLine("Start", formatDateTime(session.startTime)), telegramLink(`${env.appUrl}/sessions?tracker=kg`, "KG Tracker öffnen")].join("\n");
   }
 
   if (parsed.command === "/kg_stop") {
@@ -288,7 +288,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
       title: "KG-Tracker per Telegram beendet",
       href: "/sessions?tracker=kg"
     });
-    return [`<b>KG-Tracker beendet</b>`, htmlLine("Dauer", formatMinutes(durationMinutes)), telegramLink(`${env.appUrl}/sessions?tracker=kg`, "KG Tracker oeffnen")].join("\n");
+    return [`<b>KG-Tracker beendet</b>`, htmlLine("Dauer", formatMinutes(durationMinutes)), telegramLink(`${env.appUrl}/sessions?tracker=kg`, "KG Tracker öffnen")].join("\n");
   }
 
   return `Unbekannter Befehl: ${parsed.command}\n\n${HELP_TEXT}`;
@@ -402,7 +402,7 @@ export async function POST(request: Request) {
             title: `Bild aus Telegram gespeichert: ${media.title}`,
             href: "/media"
           });
-          const albumLines = albums.map((album, index) => `<code>/media_album_${index + 1}_${media.id}</code> - ${telegramHtml(album.title)}`);
+          const albumLines = albums.map((album, index) => `/media_album_${index + 1}_${media.id} - ${telegramHtml(album.title)}`);
           return [
             "<b>Bild in Medien gespeichert</b>",
             telegramHtml(media.title),

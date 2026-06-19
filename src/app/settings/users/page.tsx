@@ -107,7 +107,7 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
     <AppShell>
       <PageHeader title="Benutzerverwaltung" />
       <PageGuide title="Benutzer, Rollen und Kreise verwalten">
-        Diese Seite ist fuer Admins gedacht. Lege neue Konten an, erstelle einen Kreis fuer ein Paar oder eine Gruppe und ordne Benutzer diesem Kreis zu. Mitglieder desselben Kreises sehen automatisch gemeinsame Inhalte.
+        Diese Seite ist für Admins gedacht. Lege neue Konten an, erstelle einen Kreis für ein Paar oder eine Gruppe und ordne Benutzer diesem Kreis zu. Mitglieder desselben Kreises sehen automatisch gemeinsame Inhalte.
       </PageGuide>
       {searchParams?.error ? (
         <div className="mb-4 rounded-md border border-redbrand bg-redbrand/10 px-4 py-3 text-sm font-semibold text-redbrand">
@@ -198,7 +198,7 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
                 <Field label="E-Mail"><input className={inputClass} name="email" type="email" placeholder="Optional, wenn Benutzername gesetzt ist" /></Field>
                 <Field label="Benutzername"><UsernameField /></Field>
                 <Field label="Passwort"><input className={inputClass} name="password" type="password" required /></Field>
-                <FileUploadField name="profileImage" label="Profilbild" accept="image/*" help="Optionales Profilbild auswaehlen." />
+                <FileUploadField name="profileImage" label="Profilbild" accept="image/*" help="Optionales Profilbild auswählen." />
                 <Field label="Rolle"><select className={selectClass} name="role"><option value="USER">Benutzer</option><option value="ADMIN">Admin</option></select></Field>
                 <Field label="Kreis">
                   <select className={selectClass} name="circleId" defaultValue="">

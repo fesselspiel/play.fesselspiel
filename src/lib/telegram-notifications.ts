@@ -25,7 +25,7 @@ function renderTemplate(template: string, audit: AuditForNotification, actor?: P
     event: telegramHtml(actionLabel(audit.action)),
     entityType: telegramHtml(audit.entityType || ""),
     entityId: telegramHtml(audit.entityId || ""),
-    url: url ? `<a href="${telegramHtml(url)}">In der App oeffnen</a>` : "",
+    url: url ? `<a href="${telegramHtml(url)}">In der App öffnen</a>` : "",
     details: telegramHtml(audit.details ? JSON.stringify(audit.details) : "")
   };
   return template.replace(/\{([a-zA-Z]+)\}/g, (match, key) => values[key] ?? match).trim();
@@ -45,16 +45,23 @@ export async function dispatchAuditNotifications(audit: AuditForNotification) {
     ? await prisma.user.findUnique({ where: { id: audit.actorId }, include: { profile: true } })
     : null;
   const sent = new Set<string>();
-  await Promise.allSettled(
-    rules.flatMap((rule) => {
-      if (!rule.settings.telegramBotTokenEnc) return [];
-      const chats = rule.settings.telegramChats.filter((chat) => {
-        if (rule.targetUserId) return chat.targetUserId === rule.targetUserId;
-        if (rule.targetCircleId) return chat.targetCircleId === rule.targetCircleId;
-        return false;
-      });
-      const message = renderTemplate(rule.message, audit, actor);
-      return chats
+  const tasks: Promise<unknown>[] = [];
+  for (const rule of rules) {
+    if (!rule.settings.telegramBotTokenEnc) continue;
+    const targetUserIds = rule.targetCircleId
+      ? new Set((await prisma.user.findMany({ where: { circleId: rule.targetCircleId }, select: { id: true } })).map((member) => member.id))
+      : new Set<string>();
+    const targetUserCircleId = rule.targetUserId
+      ? (await prisma.user.findUnique({ where: { id: rule.targetUserId }, select: { circleId: true } }))?.circleId || null
+      : null;
+    const chats = rule.settings.telegramChats.filter((chat) => {
+      if (rule.targetUserId) return chat.targetUserId === rule.targetUserId || Boolean(targetUserCircleId && chat.targetCircleId === targetUserCircleId);
+      if (rule.targetCircleId) return chat.targetCircleId === rule.targetCircleId || Boolean(chat.targetUserId && targetUserIds.has(chat.targetUserId));
+      return false;
+    });
+    const message = renderTemplate(rule.message, audit, actor);
+    tasks.push(
+      ...chats
         .filter((chat) => {
           const key = `${rule.settings.telegramBotTokenEnc}:${chat.chatId}:${chat.threadId || ""}`;
           if (sent.has(key)) return false;
@@ -66,7 +73,11 @@ export async function dispatchAuditNotifications(audit: AuditForNotification) {
             parseMode: "HTML",
             disableWebPagePreview: true
           })
-        );
-    })
-  );
+        )
+    );
+  }
+  const results = await Promise.allSettled(tasks);
+  results.forEach((result) => {
+    if (result.status === "rejected") console.error("telegram notification failed", result.reason);
+  });
 }

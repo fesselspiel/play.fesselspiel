@@ -39,13 +39,13 @@ export default async function NewPositionPage() {
   return (
     <AppShell>
       <PageHeader title="Stellung anlegen" />
-      <PageGuide title="Positionen mit Spielzeugen verknuepfen">
-        Lege hier eine neue Stellung mit Name, Bild und Beschreibung an. Waehle vorhandene Spielzeuge aus, damit die Stellung spaeter in Aktivitaeten passend vorgeschlagen und verlinkt werden kann.
+      <PageGuide title="Positionen mit Spielzeugen verknüpfen">
+        Lege hier eine neue Stellung mit Name, Bild und Beschreibung an. Wähle vorhandene Spielzeuge aus, damit die Stellung später in Aktivitäten passend vorgeschlagen und verlinkt werden kann.
       </PageGuide>
       <form action={createPosition} className="max-w-3xl space-y-4">
-        <Field label="Name"><input className={inputClass} name="name" required placeholder="Rueckenlage" /></Field>
+        <Field label="Name"><input className={inputClass} name="name" required placeholder="Rückenlage" /></Field>
         <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" placeholder="rueckenlage" /></Field>
-        <FileUploadField name="image" uploadedUrlName="imageUploadedUrl" label="Bild" accept="image/*" help="Waehle ein Bild aus der Mediathek oder Kamera aus." />
+        <FileUploadField name="image" uploadedUrlName="imageUploadedUrl" label="Bild" accept="image/*" help="Wähle ein Bild aus der Mediathek oder Kamera aus." />
         <Field label="Beschreibung"><textarea className={inputClass} name="description" rows={5} /></Field>
         <div>
           <div className="mb-2 text-sm font-medium text-graphite">Spielzeuge</div>

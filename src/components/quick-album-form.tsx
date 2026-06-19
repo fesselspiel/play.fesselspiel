@@ -14,7 +14,7 @@ export function QuickAlbumForm({
   return (
     <form action={action} className="space-y-3 border-t border-line p-4">
       <input type="hidden" name="mediaId" value={mediaId} />
-      <Field label="Neues Album fuer dieses Bild">
+      <Field label="Neues Album für dieses Bild">
         <input className={inputClass} name="title" placeholder="Albumname" required />
       </Field>
       <Field label="Sichtbarkeit">

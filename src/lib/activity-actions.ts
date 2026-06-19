@@ -17,7 +17,7 @@ export async function confirmRequestedActivity(formData: FormData) {
     action: "activity_confirmed",
     entityType: "activity",
     entityId: updated.id,
-    title: `Spielplan bestaetigt: ${updated.title}`,
+    title: `Spielplan bestätigt: ${updated.title}`,
     href: `/activities/${updated.slug}`
   });
   redirect(`/activities/${updated.slug}`);
