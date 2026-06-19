@@ -278,3 +278,12 @@ Details:
 - Medien koennen in der Detailansicht einem Album zugeordnet oder wieder auf `Kein Album` gesetzt werden.
 - Im Album-Werkzeug koennen mehrere Medien per Thumbnail-Auswahl gleichzeitig einem Album hinzugefuegt werden.
 - Layout-Reihenfolge angepasst: Album-Auswahlchips stehen direkt ueber dem Bildraster, Upload/Albumverwaltung/Filter stehen darunter.
+
+## Feature-Video
+
+- Ein kurzes peppiges Feature-Video wurde als MP4 erzeugt.
+- Das Video erklaert Dashboard, Spielampel, Lass uns spielen, Spielsachen, Stellungen, Medien, Sessions und Telegram-Agent.
+- Die Techno-Musik ist synthetisch erzeugt und nicht aus externen Musikquellen kopiert.
+- Das Rendering erfolgte ausschliesslich in Docker/FFmpeg; auf dem Server wurde nichts installiert.
+- Datei: `entfernt`
+- Plattform-Link: `entfernt`

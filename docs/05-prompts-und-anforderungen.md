@@ -516,3 +516,22 @@ Umsetzung:
 - Album-Chips stehen direkt oberhalb des Bildrasters.
 - Das Bildraster folgt unmittelbar danach.
 - Upload, Albumverwaltung und Filter stehen unterhalb des Rasters.
+
+## Feature-Video-Prompt
+
+Anforderung:
+
+- Ein peppiges Video soll die Funktionen der Seite erklaeren.
+- Gewuenscht war ReMotion beziehungsweise ein ReMotion-Skill.
+- Der ReMotion-Skill war in der Session nicht verfuegbar.
+- Nichts soll auf dem Server installiert werden; Rendering nur in Docker.
+- Das Video soll mit cooler Techno-Musik unterlegt werden.
+- Der fertige absolute Plattform-Link soll bereitgestellt werden.
+
+Umsetzung:
+
+- Synthetische Techno-Spur lokal erzeugt.
+- MP4 mit animierten Feature-Folien in einem FFmpeg-Docker-Container gerendert.
+- Keine Serverinstallation, nur Docker-Container.
+- Ergebnis liegt unter `entfernt`.
+- Abrufbar unter `entfernt`.
