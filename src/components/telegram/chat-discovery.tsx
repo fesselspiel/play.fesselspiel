@@ -116,6 +116,16 @@ export function TelegramChatDiscovery() {
     }
   }
 
+  function formatDetectedAt(value: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    try {
+      return date.toLocaleString("de-DE");
+    } catch {
+      return date.toISOString();
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
@@ -155,7 +165,7 @@ export function TelegramChatDiscovery() {
               <div className="mt-3 rounded-md bg-surface p-3 text-sm">
                 <div className="font-semibold text-ink">Letzte erkannte Testnachricht</div>
                 <div className="mt-1 text-graphite">{candidate.text || "Keine Textvorschau."}</div>
-                <div className="mt-1 text-xs text-graphite">Von: {candidate.from || "-"} · Erkannt: {new Date(candidate.createdAt).toLocaleString("de-DE")}</div>
+                <div className="mt-1 text-xs text-graphite">Von: {candidate.from || "-"} · Erkannt: {formatDetectedAt(candidate.createdAt)}</div>
               </div>
               <div className="mt-3">
                 <Button type="button" variant={saved === key ? "secondary" : "primary"} onClick={() => save(candidate)}>

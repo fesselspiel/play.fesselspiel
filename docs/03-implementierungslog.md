@@ -283,6 +283,8 @@ Details:
 - Der Telegram-Webhook verarbeitet nur noch exakt aktivierte `Chat-ID + Thread-ID`-Kombinationen. Andere Threads, andere Gruppen und die Hauptgruppe werden still ignoriert und nicht als Pending gespeichert.
 - Erkannte Pending-Threads koennen in den Telegram-Einstellungen geloescht werden und zeigen die letzte erkannte Testnachricht inklusive Absender/Zeitpunkt.
 - Bei erkannten Threads mit Thread-ID wird kein Button mehr angeboten, um den gesamten Chat zu aktivieren.
+- Die manuelle Telegram-Chat-Anlage wurde entfernt; Kanaele werden nur noch ueber erkannte Testnachrichten uebernommen.
+- Aktive Kanaele zeigen im aufgeklappten Bereich ebenfalls die zuletzt erkannte Testnachricht.
 
 ## Medienseite als Bild-Feed
 

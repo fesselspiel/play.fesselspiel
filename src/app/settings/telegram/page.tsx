@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Check, Globe2, Save, Search, Send, Trash2 } from "lucide-react";
+import { Check, Globe2, Save, Send, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
 import { TelegramChatDiscovery } from "@/components/telegram/chat-discovery";
@@ -79,32 +79,6 @@ async function saveSettings(formData: FormData) {
       openAiApiKeyEnc: encryptSecret(String(formData.get("openAiApiKey") || ""))
     }
   });
-  redirect("/settings/telegram");
-}
-
-async function addChat(formData: FormData) {
-  "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
-  const settings = await prisma.userSettings.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id } });
-  const chatId = String(formData.get("chatId"));
-  const threadId = String(formData.get("threadId") || "") || null;
-  const targetData = await readTargetData(user, formData);
-  const existing = await prisma.telegramChat.findFirst({ where: { settingsId: settings.id, chatId, threadId } });
-  if (existing) {
-    await prisma.telegramChat.update({ where: { id: existing.id }, data: { title: String(formData.get("title") || "").trim(), status: "ACTIVE", ...targetData } });
-  } else {
-    await prisma.telegramChat.create({
-      data: {
-        settingsId: settings.id,
-        ...targetData,
-        chatId,
-        threadId,
-        title: String(formData.get("title") || "").trim(),
-        status: "ACTIVE"
-      }
-    });
-  }
   redirect("/settings/telegram");
 }
 
@@ -322,18 +296,6 @@ export default async function TelegramPage() {
             </div>
           </Panel>
           <Panel>
-            <h2 className="mb-4 text-lg font-semibold">Chat manuell speichern</h2>
-            <form action={addChat} className="grid gap-3 sm:grid-cols-2">
-              <Field label="Chat-ID"><input className={inputClass} name="chatId" required /></Field>
-              <Field label="Thread-ID optional"><input className={inputClass} name="threadId" /></Field>
-              <Field label="Titel"><input className={inputClass} name="title" placeholder="Privater Chat" /></Field>
-              <TargetFields users={targetUsers} circles={targetCircles} targetType="user" targetUserId={user.id} />
-              <div className="flex items-end gap-2">
-                <Button><Search className="h-4 w-4" /> Uebernehmen</Button>
-              </div>
-            </form>
-          </Panel>
-          <Panel>
             <h2 className="mb-4 text-lg font-semibold">Aktive Kanaele</h2>
             <div className="space-y-3">
               {activeChats.map((chat) => (
@@ -349,6 +311,11 @@ export default async function TelegramPage() {
                     <Badge tone="green">aktiv</Badge>
                   </summary>
                   <div className="mt-4 border-t border-line pt-4">
+                    <div className="mb-4 rounded-md bg-surface p-3">
+                      <div className="font-semibold text-ink">Letzte erkannte Testnachricht</div>
+                      <div className="mt-1 text-graphite">{chat.lastMessageText || "Keine Textvorschau gespeichert."}</div>
+                      <div className="mt-1 text-xs text-graphite">Von: {chat.lastMessageFrom || "-"} · Erkannt: {chat.lastMessageAt ? chat.lastMessageAt.toLocaleString("de-DE") : "-"}</div>
+                    </div>
                     <form action={updateChat} className="grid gap-3 sm:grid-cols-2">
                       <input type="hidden" name="chatIdInternal" value={chat.id} />
                       <Field label="Titel"><input className={inputClass} name="title" defaultValue={chat.title || ""} /></Field>
