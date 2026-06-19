@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { sendTelegramMessage, telegramHtml } from "@/lib/telegram";
 
 type AuditForNotification = AuditLog;
+type RuleForNotification = Awaited<ReturnType<typeof findRulesForAudit>>[number];
 
 function fullUrl(href?: string | null) {
   if (!href) return "";
@@ -16,7 +17,7 @@ function actorName(actor?: { profile?: { displayName?: string | null } | null; n
   return actor?.profile?.displayName || actor?.name || actor?.username || actor?.email || "System";
 }
 
-function renderTemplate(template: string, audit: AuditForNotification, actor?: Parameters<typeof actorName>[0]) {
+function renderTemplate(template: string, audit: Pick<AuditForNotification, "action" | "title" | "href" | "entityType" | "entityId" | "details">, actor?: Parameters<typeof actorName>[0]) {
   const url = fullUrl(audit.href);
   const values: Record<string, string> = {
     title: telegramHtml(audit.title),
@@ -31,8 +32,8 @@ function renderTemplate(template: string, audit: AuditForNotification, actor?: P
   return template.replace(/\{([a-zA-Z]+)\}/g, (match, key) => values[key] ?? match).trim();
 }
 
-export async function dispatchAuditNotifications(audit: AuditForNotification) {
-  const rules = await prisma.telegramNotificationRule.findMany({
+async function findRulesForAudit(audit: Pick<AuditForNotification, "action">) {
+  return prisma.telegramNotificationRule.findMany({
     where: { action: audit.action, active: true },
     include: {
       settings: { include: { telegramChats: { where: { status: "ACTIVE" } } } },
@@ -40,6 +41,47 @@ export async function dispatchAuditNotifications(audit: AuditForNotification) {
       targetCircle: true
     }
   });
+}
+
+async function sendRule(rule: RuleForNotification, audit: Pick<AuditForNotification, "action" | "title" | "href" | "entityType" | "entityId" | "details">, actor: Parameters<typeof actorName>[0] | null, sent: Set<string>) {
+  if (!rule.settings.telegramBotTokenEnc) return [];
+  const targetUserIds = rule.targetCircleId
+    ? new Set((await prisma.user.findMany({ where: { circleId: rule.targetCircleId }, select: { id: true } })).map((member) => member.id))
+    : new Set<string>();
+  const targetUserCircleId = rule.targetUserId
+    ? (await prisma.user.findUnique({ where: { id: rule.targetUserId }, select: { circleId: true } }))?.circleId || null
+    : null;
+  const chats = rule.settings.telegramChats.filter((chat) => {
+    if (rule.targetUserId) return chat.targetUserId === rule.targetUserId || Boolean(targetUserCircleId && chat.targetCircleId === targetUserCircleId);
+    if (rule.targetCircleId) return chat.targetCircleId === rule.targetCircleId || Boolean(chat.targetUserId && targetUserIds.has(chat.targetUserId));
+    return false;
+  });
+  const message = renderTemplate(rule.message, audit, actor);
+  return chats
+    .filter((chat) => {
+      const key = `${rule.settings.telegramBotTokenEnc}:${chat.chatId}:${chat.threadId || ""}`;
+      if (sent.has(key)) return false;
+      sent.add(key);
+      return true;
+    })
+    .map((chat) =>
+      sendTelegramMessage(rule.settings.telegramBotTokenEnc!, chat.chatId, chat.threadId, message, {
+        parseMode: "HTML",
+        disableWebPagePreview: true
+      })
+    );
+}
+
+async function settleTelegramTasks(tasks: Promise<unknown>[]) {
+  const results = await Promise.allSettled(tasks);
+  results.forEach((result) => {
+    if (result.status === "rejected") console.error("telegram notification failed", result.reason);
+  });
+  return results;
+}
+
+export async function dispatchAuditNotifications(audit: AuditForNotification) {
+  const rules = await findRulesForAudit(audit);
   if (!rules.length) return;
   const actor = audit.actorId
     ? await prisma.user.findUnique({ where: { id: audit.actorId }, include: { profile: true } })
@@ -47,37 +89,33 @@ export async function dispatchAuditNotifications(audit: AuditForNotification) {
   const sent = new Set<string>();
   const tasks: Promise<unknown>[] = [];
   for (const rule of rules) {
-    if (!rule.settings.telegramBotTokenEnc) continue;
-    const targetUserIds = rule.targetCircleId
-      ? new Set((await prisma.user.findMany({ where: { circleId: rule.targetCircleId }, select: { id: true } })).map((member) => member.id))
-      : new Set<string>();
-    const targetUserCircleId = rule.targetUserId
-      ? (await prisma.user.findUnique({ where: { id: rule.targetUserId }, select: { circleId: true } }))?.circleId || null
-      : null;
-    const chats = rule.settings.telegramChats.filter((chat) => {
-      if (rule.targetUserId) return chat.targetUserId === rule.targetUserId || Boolean(targetUserCircleId && chat.targetCircleId === targetUserCircleId);
-      if (rule.targetCircleId) return chat.targetCircleId === rule.targetCircleId || Boolean(chat.targetUserId && targetUserIds.has(chat.targetUserId));
-      return false;
-    });
-    const message = renderTemplate(rule.message, audit, actor);
-    tasks.push(
-      ...chats
-        .filter((chat) => {
-          const key = `${rule.settings.telegramBotTokenEnc}:${chat.chatId}:${chat.threadId || ""}`;
-          if (sent.has(key)) return false;
-          sent.add(key);
-          return true;
-        })
-        .map((chat) =>
-          sendTelegramMessage(rule.settings.telegramBotTokenEnc!, chat.chatId, chat.threadId, message, {
-            parseMode: "HTML",
-            disableWebPagePreview: true
-          })
-        )
-    );
+    tasks.push(...(await sendRule(rule, audit, actor, sent)));
   }
-  const results = await Promise.allSettled(tasks);
-  results.forEach((result) => {
-    if (result.status === "rejected") console.error("telegram notification failed", result.reason);
+  await settleTelegramTasks(tasks);
+}
+
+export async function testTelegramNotificationRule(ruleId: string, settingsId: string, actorId: string) {
+  const rule = await prisma.telegramNotificationRule.findFirst({
+    where: { id: ruleId, settingsId },
+    include: {
+      settings: { include: { telegramChats: { where: { status: "ACTIVE" } } } },
+      targetUser: { include: { profile: true } },
+      targetCircle: true
+    }
   });
+  if (!rule) return { sent: 0, failed: 0 };
+  const actor = await prisma.user.findUnique({ where: { id: actorId }, include: { profile: true } });
+  const tasks = await sendRule(rule, {
+    action: rule.action,
+    title: `Test: ${actionLabel(rule.action)}`,
+    href: "/settings/telegram#notifications",
+    entityType: "telegramNotificationRule",
+    entityId: rule.id,
+    details: { test: true }
+  }, actor, new Set<string>());
+  const results = await settleTelegramTasks(tasks);
+  return {
+    sent: results.filter((result) => result.status === "fulfilled").length,
+    failed: results.filter((result) => result.status === "rejected").length
+  };
 }

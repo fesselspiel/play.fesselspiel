@@ -12,6 +12,7 @@ import { fileAssetUrl, saveUploadedFile } from "@/lib/files";
 import { moodAfter, moodBefore, neutralMood } from "@/lib/moods";
 import { prisma } from "@/lib/prisma";
 import { ensureSessionSlug } from "@/lib/session-slug";
+import { stopSegufixSession } from "@/lib/session-actions";
 
 async function addSessionMedia(formData: FormData) {
   "use server";
@@ -167,6 +168,17 @@ export default async function SessionDetailPage({ params }: { params: { slug: st
             <div className="mt-2 font-semibold text-ink">{session.moodAfter ? moodAfter[session.moodAfter] : neutralMood}</div>
           </SoftPanel>
         </div>
+
+        {!session.endTime && session.ownerId === user.id ? (
+          <Panel className="border-redbrand bg-redbrand/10">
+            <h2 className="mb-2 text-lg font-semibold">Session läuft</h2>
+            <p className="mb-4 text-sm text-graphite">Diese Session hat noch keine Endzeit. Mit dem Button wird die Endzeit auf jetzt gesetzt und die Dauer automatisch berechnet.</p>
+            <form action={stopSegufixSession}>
+              <input type="hidden" name="id" value={session.id} />
+              <Button>Session beenden</Button>
+            </form>
+          </Panel>
+        ) : null}
 
         <Panel>
           <h2 className="mb-3 text-lg font-semibold">Sessionkommentar</h2>

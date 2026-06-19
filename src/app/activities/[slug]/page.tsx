@@ -36,7 +36,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <Panel>
         <p className="text-sm text-graphite">{activity.category || "Spielidee"} · {formatDateTime(activity.plannedAt)}</p>
-          {activity.status === "REQUESTED" ? (
+          {activity.status === "REQUESTED" && activity.ownerId !== user.id ? (
             <form action={confirmRequestedActivity} className="mt-4">
               <input type="hidden" name="id" value={activity.id} />
               <Button>Spielplan bestätigen</Button>

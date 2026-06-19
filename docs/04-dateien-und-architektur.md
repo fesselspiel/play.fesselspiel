@@ -189,6 +189,8 @@ UI-Hinweis:
 - `src/components/quick-album-form.tsx`: Inline-Albumanlage aus der Medien-Detailansicht heraus.
 - `src/components/dark-mode-toggle.tsx`: kompakter Dark-Mode-Schalter für Desktop- und Mobile-Einstellungen.
 - `src/app/api/settings/dark-mode/route.ts`: speichert Dark Mode direkt am aktuellen Benutzer.
+- `src/components/telegram/notification-target-fields.tsx`: Client-Zielauswahl für Telegram-Regeln ohne widersprüchliche Benutzer-/Kreis-Felder.
+- `src/lib/session-actions.ts`: Server Actions für laufende Sessions, aktuell `stopSegufixSession`.
 
 ## Sichtbarkeit
 
@@ -212,6 +214,7 @@ UI-Hinweis:
 - KG-Sessions haben eine Detailroute unter `/sessions/kg/[id]`.
 - Historien- und Kalenderansichten verlinken direkt auf diese Detailseiten.
 - Segufix-Sessiontexte werden als gemeinsamer `Sessionkommentar` über `SegufixSession.notes` geführt; alte `moodBeforeText`- und `moodAfterText`-Werte werden nur noch in diesen Kommentar eingebettet.
+- Laufende eigene Segufix-Sessions können per Server Action beendet werden; dabei wird `endTime` auf jetzt gesetzt und `durationMinutes` neu berechnet.
 
 ## Bearbeiten/Löschen
 

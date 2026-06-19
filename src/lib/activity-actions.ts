@@ -9,7 +9,7 @@ export async function confirmRequestedActivity(formData: FormData) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const id = String(formData.get("id") || "");
-  const activity = await prisma.activityPlan.findFirst({ where: { id, ...(await ownerScope(user)), status: "REQUESTED" } });
+  const activity = await prisma.activityPlan.findFirst({ where: { id, ...(await ownerScope(user)), status: "REQUESTED", ownerId: { not: user.id } } });
   if (!activity) notFound();
   const updated = await prisma.activityPlan.update({ where: { id: activity.id }, data: { status: "PLANNED" } });
   await logAction({

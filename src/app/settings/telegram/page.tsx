@@ -4,11 +4,13 @@ import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
 import { TelegramChatDiscovery } from "@/components/telegram/chat-discovery";
+import { NotificationTargetFields } from "@/components/telegram/notification-target-fields";
 import { currentUser } from "@/lib/auth";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { formatDateTime } from "@/lib/dates";
 import { actionLabel, defaultNotificationTemplate, knownAuditActions } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
+import { testTelegramNotificationRule } from "@/lib/telegram-notifications";
 
 type TelegramTargetUser = {
   id: string;
@@ -265,6 +267,17 @@ async function deleteNotificationRule(formData: FormData) {
   redirect("/settings/telegram#notifications");
 }
 
+async function testNotificationRule(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/settings/telegram");
+  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
+  if (!settings) redirect("/settings/telegram#notifications");
+  const result = await testTelegramNotificationRule(String(formData.get("ruleId") || ""), settings.id, user.id);
+  redirect(`/settings/telegram?testSent=${result.sent}&testFailed=${result.failed}#notifications`);
+}
+
 async function activateDetectedChat(formData: FormData) {
   "use server";
   const user = await currentUser();
@@ -351,7 +364,11 @@ function TargetFields({
   );
 }
 
-export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string } }) {
+function notificationUsers(users: TelegramTargetUser[]) {
+  return users.map((entry) => ({ id: entry.id, label: userLabel(entry) }));
+}
+
+export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const [settings, targetUsers, targetCircles, auditActions] = await Promise.all([
@@ -400,6 +417,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
   const telegramTokenSuffix = secretSuffix(settings?.telegramBotTokenEnc);
   const openAiKeySuffix = secretSuffix(settings?.openAiApiKeyEnc);
   const telegramBotName = await readTelegramBotName(settings?.telegramBotTokenEnc);
+  const notificationTargetUsers = notificationUsers(targetUsers);
   return (
     <AppShell>
       <PageHeader title="Telegram" />
@@ -590,8 +608,14 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
             <Panel>
               <h2 id="notifications" className="mb-4 flex items-center gap-2 text-lg font-semibold"><BellRing className="h-5 w-5 text-redbrand" /> Aktions-Benachrichtigungen</h2>
               <p className="mb-4 text-sm leading-6 text-graphite">
-                Wähle eine protokollierte Aktion, ein Telegram-Ziel und eine HTML-Nachricht. Wenn die Aktion im Portal passiert, wird die Nachricht an aktive Kanaele geschickt, die diesem Benutzer oder Kreis zugeordnet sind.
+                Wähle eine protokollierte Aktion, ein Telegram-Ziel und eine HTML-Nachricht. Wenn die Aktion im Portal passiert, wird die Nachricht an aktive Kanäle geschickt, die diesem Benutzer oder Kreis zugeordnet sind.
               </p>
+              {searchParams?.testSent ? (
+                <div className="mb-4 rounded-md border border-line bg-paper p-3 text-sm text-graphite">
+                  Test gesendet: <strong className="text-ink">{searchParams.testSent}</strong>
+                  {Number(searchParams.testFailed || 0) ? <span className="ml-2 text-redbrand">Fehler: {searchParams.testFailed}</span> : null}
+                </div>
+              ) : null}
               <form action={createNotificationRule} className="space-y-4 rounded-lg border border-line bg-paper p-4">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Aktion">
@@ -599,7 +623,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                       {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
                     </select>
                   </Field>
-                  <TargetFields users={targetUsers} circles={targetCircles} allowNone={false} />
+                  <NotificationTargetFields users={notificationTargetUsers} circles={targetCircles} targetType="circle" />
                 </div>
                 <Field label="Telegram-Nachricht als HTML">
                   <textarea className={inputClass} name="message" rows={5} defaultValue={defaultNotificationTemplate()} required />
@@ -627,7 +651,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                             {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
                           </select>
                         </Field>
-                        <TargetFields users={targetUsers} circles={targetCircles} targetType={targetTypeFor(rule)} targetUserId={rule.targetUserId} targetCircleId={rule.targetCircleId} allowNone={false} />
+                        <NotificationTargetFields users={notificationTargetUsers} circles={targetCircles} targetType={targetTypeFor(rule)} targetUserId={rule.targetUserId} targetCircleId={rule.targetCircleId} />
                       </div>
                       <Field label="Telegram-Nachricht als HTML">
                         <textarea className={inputClass} name="message" rows={5} defaultValue={rule.message} required />
@@ -640,10 +664,16 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                         <SubmitButton pendingLabel="Regel wird gespeichert..."><Save className="h-4 w-4" /> Regel speichern</SubmitButton>
                       </div>
                     </form>
-                    <form action={deleteNotificationRule} className="mt-3">
-                      <input type="hidden" name="ruleId" value={rule.id} />
-                      <Button variant="danger"><Trash2 className="h-4 w-4" /> Regel löschen</Button>
-                    </form>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <form action={testNotificationRule}>
+                        <input type="hidden" name="ruleId" value={rule.id} />
+                        <Button><Send className="h-4 w-4" /> Test senden</Button>
+                      </form>
+                      <form action={deleteNotificationRule}>
+                        <input type="hidden" name="ruleId" value={rule.id} />
+                        <Button variant="danger"><Trash2 className="h-4 w-4" /> Regel löschen</Button>
+                      </form>
+                    </div>
                   </details>
                 ))}
                 {!notificationRules.length ? <p className="rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite">Noch keine aktionsbasierten Telegram-Regeln angelegt.</p> : null}

@@ -22,6 +22,7 @@ export const knownAuditActions = [
   ["session_deleted", "Session gelöscht"],
   ["session_media_commented", "Session-Bild kommentiert"],
   ["session_media_uploaded", "Session-Bild hochgeladen"],
+  ["session_stopped", "Session beendet"],
   ["session_started_api", "Session per API gestartet"],
   ["session_stopped_api", "Session per API beendet"],
   ["session_updated", "Session bearbeitet"],

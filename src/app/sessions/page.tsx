@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
 import { moodAfter, moodBefore, moodScore, neutralMood } from "@/lib/moods";
 import { ensureSessionSlug, uniqueSessionSlug } from "@/lib/session-slug";
+import { stopSegufixSession } from "@/lib/session-actions";
 
 type MoodBeforeValue = keyof typeof moodBefore;
 type MoodAfterValue = keyof typeof moodAfter;
@@ -233,10 +234,18 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
               <h2 className="mb-3 text-lg font-semibold">Laufende Sessions</h2>
               <div className="space-y-2">
                 {openSessions.map((session) => (
-                  <Link key={session.id} href={`/sessions/${sessionSlugs.get(session.id)}`} className="block rounded-md border border-redbrand bg-redbrand/10 p-3 text-sm hover:bg-redbrand/15">
-                    <strong>{formatDateTime(session.startTime)}</strong>
-                    <span className="ml-2 text-graphite">ohne Endzeit</span>
-                  </Link>
+                  <div key={session.id} className="rounded-md border border-redbrand bg-redbrand/10 p-3 text-sm">
+                    <Link href={`/sessions/${sessionSlugs.get(session.id)}`} className="block hover:text-redbrand">
+                      <strong>{session.notes?.split("\n")[0] || "Segufix-Session"}</strong>
+                      <span className="ml-2 text-graphite">seit {formatDateTime(session.startTime)}</span>
+                    </Link>
+                    {session.ownerId === user.id ? (
+                      <form action={stopSegufixSession} className="mt-3">
+                        <input type="hidden" name="id" value={session.id} />
+                        <Button>Session beenden</Button>
+                      </form>
+                    ) : null}
+                  </div>
                 ))}
               </div>
             </Panel>

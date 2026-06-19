@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
 import { sendTelegramMessage, telegramHtml } from "@/lib/telegram";
 import { ensureSessionSlug } from "@/lib/session-slug";
+import { stopSegufixSession } from "@/lib/session-actions";
 
 const dayFormatter = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "Europe/Berlin" });
 const timeFormatter = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
@@ -163,7 +164,7 @@ export default async function DashboardPage() {
           time: activity.plannedAt ? timeFormatter.format(activity.plannedAt) : "",
           type: "Plan",
           status: activity.status,
-          confirmId: activity.status === "REQUESTED" ? activity.id : "",
+          confirmId: activity.status === "REQUESTED" && activity.ownerId !== user.id ? activity.id : "",
           meta: `${activity.tools.length} Spielsachen · ${activity.positions.length} Stellungen`
         })),
       ...weekEvents
@@ -244,10 +245,20 @@ export default async function DashboardPage() {
             <h2 className="mb-3 text-lg font-semibold">Laufende Session</h2>
             <div className="space-y-2">
               {openSessions.map((session) => (
-                <Link key={session.id} href={`/sessions/${sessionSlugs.get(session.id)}`} className="block rounded-md border border-redbrand bg-redbrand/10 p-3 text-sm hover:bg-redbrand/15">
-                  <strong>{formatDateTime(session.startTime)}</strong>
-                  <span className="ml-2 text-graphite">ohne Endzeit</span>
-                </Link>
+                <div key={session.id} className="rounded-md border border-redbrand bg-redbrand/10 p-3 text-sm">
+                  <Link href={`/sessions/${sessionSlugs.get(session.id)}`} className="block hover:text-redbrand">
+                    <strong>{session.notes?.split("\n")[0] || "Segufix-Session"}</strong>
+                    <span className="ml-2 text-graphite">seit {formatDateTime(session.startTime)}</span>
+                  </Link>
+                  {session.ownerId === user.id ? (
+                    <form action={stopSegufixSession} className="mt-3">
+                      <input type="hidden" name="id" value={session.id} />
+                      <button className="focus-ring min-h-9 rounded-md bg-redbrand px-3 py-1.5 text-xs font-semibold text-white hover:bg-redbrandHover">
+                        Session beenden
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
               ))}
             </div>
           </Panel>

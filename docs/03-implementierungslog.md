@@ -522,3 +522,13 @@ Details:
 - Die Profilseite prüft gespeicherte Profilbild-URLs gegen vorhandene `FileAsset`-Datensätze.
 - Verwaiste Bild-URLs werden nicht mehr weiter als aktuelles Profilbild übernommen.
 - Auf dem VPS wurde eine verwaiste Profilbild-Referenz bereinigt, deren Datei-Datensatz nicht mehr existierte.
+
+## Spielanfragen, laufende Sessions und Telegram-Regeltests
+
+- Der Bestätigen-Knopf für angefragte Spielpläne erscheint nur noch bei anderen Mitgliedern im Zirkel, nicht beim Ersteller der Anfrage.
+- Die Server Action zum Bestätigen blockiert ebenfalls Selbstbestätigungen.
+- Laufende eigene Segufix-Sessions zeigen auf Dashboard, Session-Übersicht und Session-Detailseite einen Button `Session beenden`.
+- `Session beenden` setzt die Endzeit auf den aktuellen Zeitpunkt, berechnet die Dauer neu und protokolliert `session_stopped`.
+- Laufende Sessions zeigen als Titel die erste Zeile des Sessionkommentars oder `Segufix-Session`.
+- Die Zielauswahl bei Telegram-Aktionsbenachrichtigungen zeigt nur noch die passende Auswahl für `Ein Benutzer` oder `Ganzer Kreis`; widersprüchliche Benutzer-/Kreis-Kombinationen sind im Formular nicht mehr auswählbar.
+- Jede Telegram-Aktionsregel hat einen Button `Test senden`, der genau diese Regel mit Testdaten über dieselbe Versandlogik wie echte Protokollereignisse ausführt.

@@ -684,3 +684,20 @@ Umsetzung:
 - Dark-Mode-Toggle wurde in Desktop- und Mobile-Einstellungen ergänzt.
 - Telegram-Regeln matchen Kreis- und Benutzerziele gegenseitig über die Kreiszugehörigkeit.
 - Slash-Kommandos werden in Telegram-HTML nicht mehr als `<code>` ausgegeben.
+
+## Spielanfrage-, Session- und Regeltest-Prompt
+
+Anforderung:
+
+- Wer selbst einen Spielplan angefragt hat, soll ihn nicht selbst bestätigen können.
+- Laufende Sessions sollen direkt beendet werden können, auch aus Dashboard und Detailseite.
+- Bei Aktionsbenachrichtigungen darf nicht gleichzeitig widersprüchlich Benutzer und Kreis ausgewählt werden.
+- Telegram-Regeln brauchen einen Testbutton, damit man sie ohne echte Portalaktion prüfen kann.
+
+Umsetzung:
+
+- Bestätigen-Button und Server Action schließen den Ersteller der Anfrage aus.
+- Neue Server Action `stopSegufixSession` beendet eigene laufende Segufix-Sessions.
+- Dashboard und Session-Seiten zeigen `Session beenden`, wenn die laufende Session dem aktuellen Benutzer gehört.
+- Telegram-Regeln nutzen eine dynamische Zielauswahl: entweder Benutzer oder Kreis.
+- `Test senden` ruft gezielt die ausgewählte Regel mit Testdaten auf.
