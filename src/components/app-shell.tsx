@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ReactNode } from "react";
 import {
+  DatabaseBackup,
   Images,
   LayoutDashboard,
   MessageCircle,
@@ -28,7 +29,8 @@ const nav = [
 const settingsNav = [
   ["Profil", "/profile", UserRound],
   ["Benutzer", "/settings/users", UsersRound],
-  ["Telegram", "/settings/telegram", Settings]
+  ["Telegram", "/settings/telegram", Settings],
+  ["Daten", "/settings/data", DatabaseBackup]
 ] as const;
 
 export async function AppShell({ children }: { children: ReactNode }) {

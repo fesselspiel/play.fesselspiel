@@ -302,6 +302,17 @@ Details:
 - Im Album-Werkzeug koennen mehrere Medien per Thumbnail-Auswahl gleichzeitig einem Album hinzugefuegt werden.
 - Layout-Reihenfolge angepasst: Album-Auswahlchips stehen direkt ueber dem Bildraster, Upload/Albumverwaltung/Filter stehen darunter.
 
+## Datenexport und Datenimport
+
+- Neue Einstellungsseite `Daten` unter `/settings/data`.
+- Export erzeugt ein ZIP-Archiv ueber `/api/settings/data-transfer`.
+- Das Archiv enthaelt `data.json` mit Portal-Inhalten und einen `files/`-Ordner mit geschuetzten Upload-Dateien.
+- Exportiert werden Spielsachen, Stellungen, Aktivitaeten, Sessions, Medien, Alben, Medienkommentare, Termine, Check-ins und zugehoerige Dateien, soweit sie fuer den angemeldeten Benutzer sichtbar sind.
+- Nicht exportiert werden Passwoerter, Login-Tokens, Telegram-Token und OpenAI-Keys.
+- Import nimmt ein Fesselspiel-ZIP entgegen und fuegt die Inhalte dem aktuell angemeldeten Benutzer hinzu.
+- Beim Import werden neue Datei-IDs erzeugt, Datei-URLs neu verknuepft und Slugs automatisch eindeutig gemacht.
+- Bestehende Inhalte werden beim Import nicht geloescht oder ueberschrieben.
+
 ## Feature-Video
 
 - Ein kurzes peppiges Feature-Video wurde als MP4 erzeugt.
