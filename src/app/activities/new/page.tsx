@@ -3,6 +3,7 @@ import { Save } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
+import { activityStatusLabel, type ActivityStatusValue, quarterHourOptions } from "@/lib/activity-status";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
@@ -31,7 +32,7 @@ async function createActivity(formData: FormData) {
       category: String(formData.get("category") || "").trim(),
       note: String(formData.get("note") || "").trim(),
       plannedAt,
-      status: String(formData.get("status") || "PLANNED") as "PLANNED" | "DONE" | "DISCARDED",
+      status: String(formData.get("status") || "PLANNED") as ActivityStatusValue,
       tools: { connect: accessibleTools.map(({ id }) => ({ id })) },
       positions: { connect: accessiblePositions.map(({ id }) => ({ id })) }
     }
@@ -44,8 +45,8 @@ export default async function NewActivityPage() {
   if (!user) redirect("/login");
   const scope = await ownerScope(user);
   const [toys, positions] = await Promise.all([
-    prisma.toy.findMany({ where: scope, orderBy: { title: "asc" } }),
-    prisma.position.findMany({ where: scope, orderBy: { name: "asc" } })
+    prisma.toy.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }),
+    prisma.position.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] })
   ]);
   return (
     <AppShell>
@@ -60,12 +61,14 @@ export default async function NewActivityPage() {
           <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" placeholder="entspannungsabend" /></Field>
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Datum"><input className={inputClass} name="date" type="date" /></Field>
-            <Field label="Uhrzeit"><input className={inputClass} name="time" type="time" /></Field>
+            <Field label="Uhrzeit">
+              <select className={selectClass} name="time" defaultValue="20:00">
+                {quarterHourOptions().map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </Field>
             <Field label="Status">
               <select className={selectClass} name="status" defaultValue="PLANNED">
-                <option value="PLANNED">geplant</option>
-                <option value="DONE">durchgefuehrt</option>
-                <option value="DISCARDED">verworfen</option>
+                {Object.entries(activityStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </Field>
           </div>

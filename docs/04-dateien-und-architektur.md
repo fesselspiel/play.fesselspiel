@@ -44,6 +44,7 @@ Telegram-Formatierung:
 - `src/components/mobile-menu.tsx`: Hamburger-Menue fuer mobile Ansicht.
 - `src/components/login-form.tsx`: Loginformular mit Passwort-Auge.
 - `src/components/theme-picker.tsx`: Theme-Auswahl mit Sofortvorschau.
+- `src/components/sortable-catalog.tsx`: Drag-and-drop-Listen fuer Spielzeuge und Stellungen.
 - `src/components/ui.tsx`: PageHeader, PageGuide, Panel, SoftPanel, Field, Button, Badge, EmptyState.
 - `src/components/telegram/chat-discovery.tsx`: Telegram Chat-/Thread-Erkennung und Webhook-Steuerung.
 
@@ -98,6 +99,7 @@ Telegram-Formatierung:
 - `src/app/messages/page.tsx`: Protokollseite unter Einstellungen, gruppiert App-Aktionen und alte Telegram-/Nachrichten-Eintraege.
 - `src/app/api/files/[id]/route.ts`
 - `src/app/api/uploads/route.ts`
+- `src/app/api/reorder/route.ts`: Speichert Drag-and-drop-Reihenfolgen fuer Spielzeug- und Stellungslisten.
 
 ### Einstellungen
 
@@ -127,9 +129,9 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `Profile`: Profilfelder.
 - `Circle`: Paar-/Gruppenkreis; Mitglieder sehen gemeinsame Inhalte.
 - `FileAsset`: geschuetzte Upload-Datei.
-- `Toy`: Spielzeug mit Slug, Bild, Beschreibung.
-- `Position`: Stellung mit Slug, Bild, Beschreibung.
-- `ActivityPlan`: Aktivitaet mit Status, Termin, Spielzeugen und Stellungen.
+- `Toy`: Spielzeug mit Slug, Bild, Beschreibung und `sortOrder`.
+- `Position`: Stellung mit Slug, Bild, Beschreibung und `sortOrder`.
+- `ActivityPlan`: Aktivitaet mit Status, Termin, Spielzeugen und Stellungen. Statuswerte: `REQUESTED`, `PLANNED`, `DONE`, `DISCARDED`.
 - `SegufixSession`: Session-Tracking.
 - `Album`: Medienalbum.
 - `Media`: Bild oder Video.

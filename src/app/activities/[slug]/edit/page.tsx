@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
+import { activityStatusLabel, type ActivityStatusValue } from "@/lib/activity-status";
 import { isAccessibleOwner, ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { formatDateTimeLocal } from "@/lib/dates";
@@ -36,7 +37,7 @@ async function updateActivity(formData: FormData) {
       category: String(formData.get("category") || "").trim(),
       note: String(formData.get("note") || "").trim(),
       plannedAt: plannedAtRaw ? new Date(plannedAtRaw) : null,
-      status: String(formData.get("status") || "PLANNED") as "PLANNED" | "DONE" | "DISCARDED",
+      status: String(formData.get("status") || "PLANNED") as ActivityStatusValue,
       tools: { set: ownedTools.map((tool) => ({ id: tool.id })) },
       positions: { set: ownedPositions.map((position) => ({ id: position.id })) }
     }
@@ -55,7 +56,7 @@ async function deleteActivity(formData: FormData) {
   redirect("/activities");
 }
 
-const statusLabel = { PLANNED: "geplant", DONE: "durchgefuehrt", DISCARDED: "verworfen" } as const;
+const statusLabel = activityStatusLabel;
 
 export default async function EditActivityPage({ params }: { params: { slug: string } }) {
   const user = await currentUser();
@@ -64,8 +65,8 @@ export default async function EditActivityPage({ params }: { params: { slug: str
   if (!activity || !(await isAccessibleOwner(user, activity.ownerId))) notFound();
   const scope = await ownerScope(user);
   const [toys, positions] = await Promise.all([
-    prisma.toy.findMany({ where: scope, orderBy: { title: "asc" } }),
-    prisma.position.findMany({ where: scope, orderBy: { name: "asc" } })
+    prisma.toy.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }),
+    prisma.position.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] })
   ]);
   const selectedTools = new Set(activity.tools.map((tool) => tool.id));
   const selectedPositions = new Set(activity.positions.map((position) => position.id));
@@ -84,7 +85,7 @@ export default async function EditActivityPage({ params }: { params: { slug: str
             <Field label="Kategorie"><input className={inputClass} name="category" defaultValue={activity.category || ""} /></Field>
             <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" defaultValue={activity.slug} /></Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Datum und Uhrzeit"><input className={inputClass} name="plannedAt" type="datetime-local" defaultValue={formatDateTimeLocal(activity.plannedAt)} /></Field>
+              <Field label="Datum und Uhrzeit"><input className={inputClass} name="plannedAt" type="datetime-local" step={900} defaultValue={formatDateTimeLocal(activity.plannedAt)} /></Field>
               <Field label="Status">
                 <select className={selectClass} name="status" defaultValue={activity.status}>
                   {Object.entries(statusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}

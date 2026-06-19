@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronDown, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { SortableToyList } from "@/components/sortable-catalog";
 import { EmptyState, PageGuide, PageHeader } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
@@ -10,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 export default async function ToysPage() {
   const user = await currentUser();
   if (!user) redirect("/login");
-  const toys = await prisma.toy.findMany({ where: await ownerScope(user), include: { positions: true, activities: true }, orderBy: { title: "asc" } });
+  const toys = await prisma.toy.findMany({ where: await ownerScope(user), include: { positions: true, activities: true }, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] });
 
   return (
     <AppShell>
@@ -27,45 +28,15 @@ export default async function ToysPage() {
         Hier verwaltest du deinen Spielzeugkatalog. Oeffne einen Eintrag fuer Details, QR-Code und Verknuepfungen oder lege ueber den roten Button ein neues Spielzeug mit Bild, Beschreibung und eigener URL an.
       </PageGuide>
       {toys.length ? (
-        <div className="space-y-3">
-          {toys.map((toy) => (
-            <details key={toy.id} className="group overflow-hidden rounded-lg border border-line bg-surface">
-              <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 px-3 py-3 hover:bg-paper [&::-webkit-details-marker]:hidden">
-                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-paper sm:h-16 sm:w-16">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={toy.imageUrl || "/toy-placeholder.svg"} alt="" className="h-full w-full object-cover" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-base font-semibold text-ink">{toy.title}</h2>
-                  <div className="mt-1 truncate text-xs font-medium text-redbrand">/toys/{toy.slug}</div>
-                </div>
-                <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open:rotate-180" />
-              </summary>
-              <div className="border-t border-line bg-paper p-4">
-                <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-                  <div className="aspect-[4/3] overflow-hidden rounded-md bg-surface">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={toy.imageUrl || "/toy-placeholder.svg"} alt="" className="h-full w-full object-cover" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-graphite">
-                      <span className="rounded-md bg-surface px-2 py-1">/toys/{toy.slug}</span>
-                      <span className="rounded-md bg-surface px-2 py-1">{toy.positions.length} Stellungen</span>
-                      <span className="rounded-md bg-surface px-2 py-1">{toy.activities.length} Spielplaene</span>
-                    </div>
-                    <p className="mt-4 text-sm leading-6 text-graphite">{toy.description || "Keine Beschreibung hinterlegt."}</p>
-                    <div className="mt-4 flex flex-wrap items-center gap-3">
-                      <Link href={`/toys/${toy.slug}`} className="inline-flex min-h-10 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
-                        Detail oeffnen
-                      </Link>
-                      <span className="text-xs text-graphite">Detailseite mit QR-Code, Copy-Link, Verknuepfungen und Bearbeitung.</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </details>
-          ))}
-        </div>
+        <SortableToyList items={toys.map((toy) => ({
+          id: toy.id,
+          title: toy.title,
+          slug: toy.slug,
+          description: toy.description,
+          imageUrl: toy.imageUrl,
+          positionCount: toy.positions.length,
+          activityCount: toy.activities.length
+        }))} />
       ) : (
         <EmptyState title="Noch keine Spielzeuge angelegt">
           <Link href="/toys/new" className="font-semibold text-redbrand">Ersten Eintrag erstellen</Link>

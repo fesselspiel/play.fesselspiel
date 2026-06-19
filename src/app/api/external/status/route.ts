@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const [toys, positions, activities, media, openSession] = await Promise.all([
     prisma.toy.count({ where: scope }),
     prisma.position.count({ where: scope }),
-    prisma.activityPlan.count({ where: { ...scope, status: "PLANNED" } }),
+    prisma.activityPlan.count({ where: { ...scope, status: { in: ["REQUESTED", "PLANNED"] } } }),
     prisma.media.count({ where: scope }),
     prisma.segufixSession.findFirst({ where: { ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } })
   ]);

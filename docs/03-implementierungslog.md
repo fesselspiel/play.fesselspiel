@@ -282,6 +282,23 @@ Details:
 - Links fuehren, wo moeglich, direkt zum betroffenen Datensatz oder zur Datei.
 - Alte Telegram-HTML-Nachrichten werden im Protokoll mit erlaubten Tags wie `<b>`, `<i>`, `<code>` und Telegram-Links formatiert dargestellt statt als roher Klartext.
 
+## Spielplan-Anfragen und Katalog-Reihenfolge
+
+- `ActivityStatus` wurde um `REQUESTED` erweitert.
+- In `Lass uns spielen` kann ein Spielplan jetzt den Status `angefragt` haben.
+- Der Uhrzeit-Auswahler beim Neuanlegen nutzt Viertelstunden statt einzelner Minuten.
+- Angefragte Spielplaene erscheinen in der Wochenansicht des Dashboards.
+- Angefragte Spielplaene koennen im Dashboard und auf der Detailseite bestaetigt werden; der Status wird dann `geplant`.
+- Telegram-Kommandos erweitert:
+  - `/activity_request Titel` legt eine Anfrage an.
+  - `/activities` listet angefragte und geplante Spielplaene.
+  - Angefragte Eintraege enthalten klickbare Befehle wie `/activity_confirm_1`.
+  - `/activity_confirm_1` bestaetigt den entsprechenden angefragten Spielplan aus der aktuellen Liste.
+- Der Telegram-Agent kann Aktivitaeten jetzt auch als `REQUESTED` anlegen und den Status auf `REQUESTED`, `PLANNED`, `DONE` oder `DISCARDED` setzen.
+- Spielzeuge und Stellungen haben ein neues Feld `sortOrder`.
+- Die Uebersichten fuer Spielzeuge und Stellungen koennen per Drag-and-drop sortiert werden.
+- Neue API `/api/reorder` speichert die Reihenfolge fuer berechtigte Spielzeuge und Stellungen.
+
 ## Dashboard-Reihenfolge
 
 - Die Wochen-/Kalenderansicht `Gemeinsame Woche` wurde im Dashboard direkt unter den Header verschoben.

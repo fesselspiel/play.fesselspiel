@@ -98,6 +98,7 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           category: { type: "string" },
           note: { type: "string" },
           plannedAt: { type: "string", description: "ISO-8601 Datum/Zeit oder leer, z.B. 2026-06-18T20:00:00+02:00" },
+          status: { type: "string", enum: ["REQUESTED", "PLANNED"] },
           toyTitles: { type: "array", items: { type: "string" } },
           positionNames: { type: "array", items: { type: "string" } }
         },
@@ -110,12 +111,12 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "set_activity_status",
-      description: "Setzt eine vorhandene Aktivitaet auf geplant, durchgefuehrt oder verworfen.",
+      description: "Setzt eine vorhandene Aktivitaet auf angefragt, geplant, durchgefuehrt oder verworfen. Zum Bestaetigen einer Anfrage auf PLANNED setzen.",
       parameters: {
         type: "object",
         properties: {
           titleOrSlug: { type: "string" },
-          status: { type: "string", enum: ["PLANNED", "DONE", "DISCARDED"] }
+          status: { type: "string", enum: ["REQUESTED", "PLANNED", "DONE", "DISCARDED"] }
         },
         required: ["titleOrSlug", "status"],
         additionalProperties: false
@@ -305,7 +306,7 @@ async function getPortalStatus(userId: string): Promise<ToolCallResult> {
   const [toys, positions, plannedActivities, sessions, openSession] = await Promise.all([
     prisma.toy.count({ where: { ownerId: userId } }),
     prisma.position.count({ where: { ownerId: userId } }),
-    prisma.activityPlan.count({ where: { ownerId: userId, status: "PLANNED" } }),
+    prisma.activityPlan.count({ where: { ownerId: userId, status: { in: ["REQUESTED", "PLANNED"] } } }),
     prisma.segufixSession.findMany({ where: { ownerId: userId, startTime: { gte: yearStart } } }),
     prisma.segufixSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } })
   ]);
@@ -438,6 +439,7 @@ async function createActivity(userId: string, args: Record<string, unknown>): Pr
       category: clean(args.category),
       note: clean(args.note),
       plannedAt,
+      status: clean(args.status) === "REQUESTED" ? "REQUESTED" : "PLANNED",
       tools: { connect: toys.map((toy) => ({ id: toy.id })) },
       positions: { connect: positions.map((position) => ({ id: position.id })) }
     },
@@ -458,8 +460,8 @@ async function createActivity(userId: string, args: Record<string, unknown>): Pr
 
 async function setActivityStatus(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   const titleOrSlug = clean(args.titleOrSlug);
-  const status = clean(args.status) as "PLANNED" | "DONE" | "DISCARDED";
-  if (!titleOrSlug || !["PLANNED", "DONE", "DISCARDED"].includes(status)) return { ok: false, message: "Aktivitaet oder Status fehlt." };
+  const status = clean(args.status) as "REQUESTED" | "PLANNED" | "DONE" | "DISCARDED";
+  if (!titleOrSlug || !["REQUESTED", "PLANNED", "DONE", "DISCARDED"].includes(status)) return { ok: false, message: "Aktivitaet oder Status fehlt." };
   const activity = await prisma.activityPlan.findFirst({
     where: { ownerId: userId, OR: [{ slug: titleOrSlug }, { title: contains(titleOrSlug) }] },
     orderBy: { updatedAt: "desc" }

@@ -9,6 +9,7 @@ import { fileAssetUrl, saveFileBuffer } from "@/lib/files";
 import { downloadTelegramFile, largestTelegramPhoto, sendTelegramMessage, telegramHtml, telegramLink, transcribeTelegramVoice } from "@/lib/telegram";
 import type { TelegramUpdate } from "@/lib/telegram";
 import { uniqueSessionSlug } from "@/lib/session-slug";
+import { uniqueSlug } from "@/lib/slug";
 
 type TelegramMessageFrom = NonNullable<TelegramUpdate["message"]>["from"];
 
@@ -20,6 +21,8 @@ const HELP_TEXT = `<b>Befehle</b>
 /toys - Spielzeuge anzeigen
 /positions - Stellungen anzeigen
 /activities - geplante Aktivitaeten anzeigen
+/activity_request Titel - Spielplan anfragen
+/activity_confirm_1 - angefragten Spielplan aus der Liste bestaetigen
 /sessions - Session-Auswertung aktuelles Jahr
 /session_start Notiz - Segufix-Session starten
 /session_stop Notiz - laufende Session beenden
@@ -37,6 +40,8 @@ function htmlList(title: string, rows: string[]) {
   if (!rows.length) return `<b>${telegramHtml(title)}</b>\nKeine Eintraege gefunden.`;
   return [`<b>${telegramHtml(title)}</b>`, ...rows].join("\n\n");
 }
+
+const activityStatusLabel = { REQUESTED: "angefragt", PLANNED: "geplant", DONE: "durchgefuehrt", DISCARDED: "verworfen" } as const;
 
 function commandOf(text: string) {
   const trimmed = text.trim();
@@ -57,14 +62,14 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     const [toys, positions, activities, sessions] = await Promise.all([
       prisma.toy.count({ where: { ownerId: userId } }),
       prisma.position.count({ where: { ownerId: userId } }),
-      prisma.activityPlan.count({ where: { ownerId: userId, status: "PLANNED" } }),
+      prisma.activityPlan.count({ where: { ownerId: userId, status: { in: ["REQUESTED", "PLANNED"] } } }),
       prisma.segufixSession.count({ where: { ownerId: userId } })
     ]);
     return ["<b>Portalstatus</b>", htmlLine("Spielzeuge", toys), htmlLine("Stellungen", positions), htmlLine("Geplante Aktivitaeten", activities), htmlLine("Sessions", sessions)].join("\n");
   }
 
   if (parsed.command === "/toys") {
-    const toys = await prisma.toy.findMany({ where: { ownerId: userId }, orderBy: { title: "asc" }, take: 12 });
+    const toys = await prisma.toy.findMany({ where: { ownerId: userId }, orderBy: [{ sortOrder: "asc" }, { title: "asc" }], take: 12 });
     return htmlList(
       "Spielzeuge",
       toys.map((toy, index) =>
@@ -76,7 +81,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   }
 
   if (parsed.command === "/positions") {
-    const positions = await prisma.position.findMany({ where: { ownerId: userId }, orderBy: { name: "asc" }, take: 12 });
+    const positions = await prisma.position.findMany({ where: { ownerId: userId }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], take: 12 });
     return htmlList(
       "Stellungen",
       positions.map((position, index) =>
@@ -89,22 +94,69 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
 
   if (parsed.command === "/activities") {
     const activities = await prisma.activityPlan.findMany({
-      where: { ownerId: userId, status: "PLANNED" },
+      where: { ownerId: userId, status: { in: ["REQUESTED", "PLANNED"] } },
       include: { tools: true, positions: true },
-      orderBy: { plannedAt: "asc" },
+      orderBy: [{ status: "asc" }, { plannedAt: "asc" }],
       take: 8
     });
+    const requested = activities.filter((activity) => activity.status === "REQUESTED");
     return htmlList(
-      "Geplante Aktivitaeten",
+      "Spielplaene",
       activities.map((activity, index) =>
         [
           `<b>${index + 1}. ${telegramHtml(activity.title)}</b>`,
+          htmlLine("Status", activityStatusLabel[activity.status]),
           htmlLine("Termin", formatDateTime(activity.plannedAt)),
           htmlLine("Bausteine", `${activity.tools.length} Spielzeuge, ${activity.positions.length} Stellungen`),
-          telegramLink(`${env.appUrl}/activities/${activity.slug}`, "oeffnen")
+          telegramLink(`${env.appUrl}/activities/${activity.slug}`, "oeffnen"),
+          activity.status === "REQUESTED" ? `<code>/activity_confirm_${requested.findIndex((entry) => entry.id === activity.id) + 1}</code>` : ""
         ].join("\n")
       )
     );
+  }
+
+  if (parsed.command === "/activity_request") {
+    const title = parsed.args || "Spielanfrage";
+    const activity = await prisma.activityPlan.create({
+      data: {
+        ownerId: userId,
+        title,
+        slug: await uniqueSlug("activityPlan", title),
+        status: "REQUESTED",
+        note: "Per Telegram angefragt"
+      }
+    });
+    await logAction({
+      actorId: userId,
+      action: "activity_requested_telegram",
+      entityType: "activity",
+      entityId: activity.id,
+      title: `Spielplan per Telegram angefragt: ${activity.title}`,
+      href: `/activities/${activity.slug}`
+    });
+    return [`<b>Spielplan angefragt</b>`, telegramHtml(activity.title), telegramLink(`${env.appUrl}/activities/${activity.slug}`, "oeffnen")].join("\n");
+  }
+
+  if (parsed.command.startsWith("/activity_confirm_")) {
+    const index = Number(parsed.command.replace("/activity_confirm_", ""));
+    if (!Number.isInteger(index) || index < 1) return "Ungueltige Bestaetigungsnummer. Nutze /activities fuer die aktuelle Liste.";
+    const requested = await prisma.activityPlan.findMany({
+      where: { ownerId: userId, status: "REQUESTED" },
+      orderBy: [{ plannedAt: "asc" }, { createdAt: "asc" }],
+      take: 20
+    });
+    const activity = requested[index - 1];
+    if (!activity) return "Diese Anfrage wurde nicht gefunden. Nutze /activities fuer die aktuelle Liste.";
+    const updated = await prisma.activityPlan.update({ where: { id: activity.id }, data: { status: "PLANNED" } });
+    await logAction({
+      actorId: userId,
+      action: "activity_confirmed_telegram",
+      entityType: "activity",
+      entityId: updated.id,
+      title: `Spielplan per Telegram bestaetigt: ${updated.title}`,
+      href: `/activities/${updated.slug}`
+    });
+    return [`<b>Spielplan bestaetigt</b>`, telegramHtml(updated.title), telegramLink(`${env.appUrl}/activities/${updated.slug}`, "oeffnen")].join("\n");
   }
 
   if (parsed.command === "/sessions") {

@@ -200,7 +200,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
         category: typeof entry.category === "string" ? entry.category : null,
         note: typeof entry.note === "string" ? entry.note : null,
         plannedAt: toDate(entry.plannedAt),
-        status: String(entry.status || "PLANNED") as "PLANNED" | "DONE" | "DISCARDED",
+        status: String(entry.status || "PLANNED") as "REQUESTED" | "PLANNED" | "DONE" | "DISCARDED",
         tools: { connect: toolIds.map((id) => ({ id })) },
         positions: { connect: positionIds.map((id) => ({ id })) }
       }

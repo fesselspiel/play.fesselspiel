@@ -4,6 +4,8 @@ import { Activity, CalendarDays, Images, MessageCircle, Plus, ShieldCheck, Timer
 import { AppShell } from "@/components/app-shell";
 import { Badge, PageGuide, Panel, PageHeader, SoftPanel } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
+import { confirmRequestedActivity } from "@/lib/activity-actions";
+import { activityStatusLabel, activityStatusTone } from "@/lib/activity-status";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
@@ -105,13 +107,13 @@ export default async function DashboardPage() {
   const scope = await ownerScope(user);
   const [toyCount, plannedCount, sessionCount, mediaCount, messageCount, sessions, weekActivities, weekEvents, circleUsers] = await Promise.all([
     prisma.toy.count({ where: scope }),
-    prisma.activityPlan.count({ where: { ...scope, status: "PLANNED" } }),
+    prisma.activityPlan.count({ where: { ...scope, status: { in: ["REQUESTED", "PLANNED"] } } }),
     prisma.segufixSession.count({ where: { ...scope, startTime: { gte: yearStart } } }),
     prisma.media.count({ where: scope }),
     prisma.message.count({ where: { OR: [{ senderId: user.id }, { recipientId: user.id }] } }),
     prisma.segufixSession.findMany({ where: scope, orderBy: { startTime: "desc" }, take: 4 }),
     prisma.activityPlan.findMany({
-      where: { ...scope, status: "PLANNED", plannedAt: { gte: todayStart, lt: weekEnd } },
+      where: { ...scope, status: { in: ["REQUESTED", "PLANNED"] }, plannedAt: { gte: todayStart, lt: weekEnd } },
       include: { tools: true, positions: true },
       orderBy: { plannedAt: "asc" }
     }),
@@ -149,6 +151,8 @@ export default async function DashboardPage() {
           href: `/activities/${activity.slug}`,
           time: activity.plannedAt ? timeFormatter.format(activity.plannedAt) : "",
           type: "Plan",
+          status: activity.status,
+          confirmId: activity.status === "REQUESTED" ? activity.id : "",
           meta: `${activity.tools.length} Spielsachen · ${activity.positions.length} Stellungen`
         })),
       ...weekEvents
@@ -159,6 +163,8 @@ export default async function DashboardPage() {
           href: "/activities",
           time: timeFormatter.format(event.startsAt),
           type: "Termin",
+          status: "PLANNED",
+          confirmId: "",
           meta: event.location || "Termin"
         }))
     ].sort((a, b) => a.time.localeCompare(b.time));
@@ -253,13 +259,25 @@ export default async function DashboardPage() {
                 <div className="mt-4 space-y-2">
                   {day.entries.length ? (
                     day.entries.map((entry) => (
-                      <Link key={`${entry.type}-${entry.id}`} href={entry.href} className="block rounded-md border border-line bg-surface p-2 text-sm hover:border-redbrand">
-                        <div className="flex items-center justify-between gap-2">
-                          <strong className="line-clamp-1">{entry.title}</strong>
-                          <Badge tone={entry.type === "Plan" ? "red" : "neutral"}>{entry.type}</Badge>
-                        </div>
-                        <div className="mt-1 text-xs text-graphite">{entry.time} · {entry.meta}</div>
-                      </Link>
+                      <div key={`${entry.type}-${entry.id}`} className="rounded-md border border-line bg-surface p-2 text-sm hover:border-redbrand">
+                        <Link href={entry.href} className="block">
+                          <div className="flex items-center justify-between gap-2">
+                            <strong className="line-clamp-1">{entry.title}</strong>
+                            <Badge tone={entry.type === "Plan" ? activityStatusTone(entry.status as never) : "neutral"}>
+                              {entry.type === "Plan" ? activityStatusLabel[entry.status as keyof typeof activityStatusLabel] : entry.type}
+                            </Badge>
+                          </div>
+                          <div className="mt-1 text-xs text-graphite">{entry.time} · {entry.meta}</div>
+                        </Link>
+                        {entry.confirmId ? (
+                          <form action={confirmRequestedActivity} className="mt-2">
+                            <input type="hidden" name="id" value={entry.confirmId} />
+                            <button className="focus-ring min-h-9 rounded-md bg-redbrand px-3 py-1.5 text-xs font-semibold text-white hover:bg-redbrandHover">
+                              Bestaetigen
+                            </button>
+                          </form>
+                        ) : null}
+                      </div>
                     ))
                   ) : (
                     <p className="rounded-md border border-dashed border-line bg-surface p-3 text-sm text-graphite">Noch nichts geplant.</p>

@@ -3,14 +3,16 @@ import { notFound, redirect } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { CopySubtitle } from "@/components/copy-subtitle";
-import { Badge, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
+import { Badge, Button, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
+import { confirmRequestedActivity } from "@/lib/activity-actions";
+import { activityStatusLabel, activityStatusTone } from "@/lib/activity-status";
 import { isAccessibleOwner } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
 
-const statusLabel = { PLANNED: "geplant", DONE: "durchgefuehrt", DISCARDED: "verworfen" } as const;
+const statusLabel = activityStatusLabel;
 
 export default async function ActivityDetailPage({ params }: { params: { slug: string } }) {
   const user = await currentUser();
@@ -25,7 +27,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
         title={activity.title}
         subtitle={<CopySubtitle value={url} label={path} />}
         action={
-          <Badge tone="red">{statusLabel[activity.status]}</Badge>
+          <Badge tone={activityStatusTone(activity.status)}>{statusLabel[activity.status]}</Badge>
         }
       />
       <PageGuide>
@@ -33,7 +35,13 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
       </PageGuide>
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <Panel>
-          <p className="text-sm text-graphite">{activity.category || "Spielidee"} · {formatDateTime(activity.plannedAt)}</p>
+        <p className="text-sm text-graphite">{activity.category || "Spielidee"} · {formatDateTime(activity.plannedAt)}</p>
+          {activity.status === "REQUESTED" ? (
+            <form action={confirmRequestedActivity} className="mt-4">
+              <input type="hidden" name="id" value={activity.id} />
+              <Button>Spielplan bestaetigen</Button>
+            </form>
+          ) : null}
           <p className="mt-5 leading-7 text-graphite">{activity.note || "Keine Notiz hinterlegt."}</p>
         </Panel>
         <div className="space-y-6">

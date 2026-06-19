@@ -19,6 +19,7 @@ enum Visibility {
 }
 
 enum ActivityStatus {
+  REQUESTED
   PLANNED
   DONE
   DISCARDED
@@ -175,13 +176,14 @@ model Toy {
   slug        String         @unique
   description String?
   imageUrl    String?
+  sortOrder   Int            @default(0)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   positions   Position[]     @relation("PositionTools")
   activities  ActivityPlan[] @relation("ActivityTools")
 
-  @@index([ownerId, title])
+  @@index([ownerId, sortOrder, title])
 }
 
 model Position {
@@ -191,13 +193,14 @@ model Position {
   slug        String         @unique
   description String?
   imageUrl    String?
+  sortOrder   Int            @default(0)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   tools       Toy[]          @relation("PositionTools")
   activities  ActivityPlan[] @relation("ActivityPositions")
 
-  @@index([ownerId, name])
+  @@index([ownerId, sortOrder, name])
 }
 
 model ActivityPlan {

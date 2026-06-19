@@ -35,7 +35,7 @@ async function createPosition(formData: FormData) {
 export default async function NewPositionPage() {
   const user = await currentUser();
   if (!user) redirect("/login");
-  const toys = await prisma.toy.findMany({ where: await ownerScope(user), orderBy: { title: "asc" } });
+  const toys = await prisma.toy.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { title: "asc" }] });
   return (
     <AppShell>
       <PageHeader title="Stellung anlegen" />

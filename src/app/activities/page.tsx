@@ -3,12 +3,13 @@ import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, EmptyState, PageGuide, PageHeader, SoftPanel } from "@/components/ui";
+import { activityStatusLabel, activityStatusTone } from "@/lib/activity-status";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
 
-const statusLabel = { PLANNED: "geplant", DONE: "durchgefuehrt", DISCARDED: "verworfen" } as const;
+const statusLabel = activityStatusLabel;
 
 export default async function ActivitiesPage() {
   const user = await currentUser();
@@ -37,7 +38,7 @@ export default async function ActivitiesPage() {
                     <h2 className="text-lg font-semibold">{activity.title}</h2>
                     <p className="mt-1 text-sm text-graphite">{activity.category || "Aktivitaet"} · {formatDateTime(activity.plannedAt)}</p>
                   </div>
-                  <Badge tone={activity.status === "PLANNED" ? "red" : "neutral"}>{statusLabel[activity.status]}</Badge>
+                  <Badge tone={activityStatusTone(activity.status)}>{statusLabel[activity.status]}</Badge>
                 </div>
                 <p className="mt-4 text-sm text-graphite">{activity.note || "Keine Notiz."}</p>
                 <p className="mt-4 text-xs text-graphite">{activity.tools.length} Spielzeuge · {activity.positions.length} Stellungen</p>

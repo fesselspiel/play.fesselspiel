@@ -62,7 +62,7 @@ export default async function EditPositionPage({ params }: { params: { slug: str
   if (!user) redirect("/login");
   const position = await prisma.position.findUnique({ where: { slug: params.slug }, include: { tools: true } });
   if (!position || !(await isAccessibleOwner(user, position.ownerId))) notFound();
-  const toys = await prisma.toy.findMany({ where: await ownerScope(user), orderBy: { title: "asc" } });
+  const toys = await prisma.toy.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { title: "asc" }] });
   const selected = new Set(position.tools.map((tool) => tool.id));
 
   return (
