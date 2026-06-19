@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   DatabaseBackup,
   Images,
+  KeyRound,
   LayoutDashboard,
   Menu,
   MessageCircle,
@@ -32,7 +33,8 @@ const mobileSettingsNav = [
   ["Profil", "/profile", UserRound],
   ["Benutzer", "/settings/users", UsersRound],
   ["Telegram", "/settings/telegram", Settings],
-  ["Daten", "/settings/data", DatabaseBackup]
+  ["Daten", "/settings/data", DatabaseBackup],
+  ["API Tokens", "/settings/api", KeyRound]
 ] as const;
 
 export function MobileMenu() {

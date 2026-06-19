@@ -313,6 +313,34 @@ Details:
 - Beim Import werden neue Datei-IDs erzeugt, Datei-URLs neu verknuepft und Slugs automatisch eindeutig gemacht.
 - Bestehende Inhalte werden beim Import nicht geloescht oder ueberschrieben.
 
+## Externe API und Bearer Tokens
+
+- Neues Datenmodell `ApiToken` fuer externe API-Zugriffe.
+- Tokens werden nur einmalig im Klartext angezeigt; gespeichert wird ein HMAC-Hash und die letzten sechs Zeichen.
+- Neue Einstellungsseite `API Tokens` unter `/settings/api`.
+- Tokens koennen per `Authorization: Bearer <token>` oder fuer einfache Alexa-/Shortcut-Aufrufe per URL-Parameter `?token=<token>` verwendet werden.
+- Erste externe Endpunkte:
+  - `GET /api/external/status?token=...`
+  - `GET|POST /api/external/sessions/start?token=...&note=...`
+  - `GET|POST /api/external/sessions/stop?token=...&note=...`
+  - `GET|POST /api/external/sessions/toggle?token=...`
+  - `POST /api/external/media` mit `multipart/form-data`, Feld `file`
+- Session-Endpunkte akzeptieren optionale ISO-Zeiten:
+  - `startTime`
+  - `endTime`
+  - `moodBefore`
+  - `moodAfter`
+  - Notizfelder
+- Externe Medienuploads werden als geschuetzte Dateien gespeichert und direkt als Medium angelegt.
+
+## Telegram-Benutzer-Mapping
+
+- Neues Datenmodell `TelegramUserMapping`.
+- In den Telegram-Einstellungen koennen Telegram-Usernames wie `@name` einem App-Benutzer zugeordnet werden.
+- Der Telegram-Webhook prueft pro Nachricht `message.from.username`.
+- Wenn ein Mapping existiert, werden Befehle, Agentenaktionen, Dialoge und Bildspeicherungen aus Sicht dieses App-Benutzers ausgefuehrt.
+- Ohne Mapping bleibt das bisherige Verhalten bestehen: Der Besitzer der Telegram-Einstellung ist der ausfuehrende Benutzer.
+
 ## Feature-Video
 
 - Ein kurzes peppiges Feature-Video wurde als MP4 erzeugt.

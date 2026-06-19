@@ -78,6 +78,8 @@ model User {
   sentMessages      Message[]       @relation("MessageSender")
   receivedMessages  Message[]       @relation("MessageRecipient")
   telegramChatTargets TelegramChat[] @relation("TelegramChatTargetUser")
+  apiTokens         ApiToken[]
+  telegramMappings  TelegramUserMapping[] @relation("TelegramMappedAppUser")
 
   @@index([circleId])
 }
@@ -125,9 +127,25 @@ model UserSettings {
   telegramBotTokenEnc String?
   openAiApiKeyEnc     String?
   telegramChats       TelegramChat[]
+  telegramUserMappings TelegramUserMapping[]
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
   user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ApiToken {
+  id           String    @id @default(cuid())
+  userId       String
+  name         String
+  tokenHash    String    @unique
+  tokenLastSix String
+  active       Boolean   @default(true)
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, active])
 }
 
 model Toy {
@@ -294,4 +312,18 @@ model TelegramChat {
   @@unique([settingsId, chatId, threadId])
   @@index([targetUserId])
   @@index([targetCircleId])
+}
+
+model TelegramUserMapping {
+  id               String       @id @default(cuid())
+  settingsId       String
+  telegramUsername String
+  appUserId        String
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  settings         UserSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  appUser          User         @relation("TelegramMappedAppUser", fields: [appUserId], references: [id], onDelete: Cascade)
+
+  @@unique([settingsId, telegramUsername])
+  @@index([appUserId])
 }

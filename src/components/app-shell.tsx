@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import {
   DatabaseBackup,
   Images,
+  KeyRound,
   LayoutDashboard,
   MessageCircle,
   Settings,
@@ -30,7 +31,8 @@ const settingsNav = [
   ["Profil", "/profile", UserRound],
   ["Benutzer", "/settings/users", UsersRound],
   ["Telegram", "/settings/telegram", Settings],
-  ["Daten", "/settings/data", DatabaseBackup]
+  ["Daten", "/settings/data", DatabaseBackup],
+  ["API Tokens", "/settings/api", KeyRound]
 ] as const;
 
 export async function AppShell({ children }: { children: ReactNode }) {

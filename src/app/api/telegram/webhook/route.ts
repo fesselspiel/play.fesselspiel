@@ -144,11 +144,21 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
 }
 
 async function findActiveTelegramChat(chatId: string, threadId: string | null) {
-  const include = { settings: { include: { user: true } } } as const;
+  const include = { settings: { include: { user: true, telegramUserMappings: { include: { appUser: true } } } } } as const;
   return prisma.telegramChat.findFirst({
     where: { chatId, threadId, status: "ACTIVE" },
     include
   });
+}
+
+function mappedTelegramUserId(
+  chat: Awaited<ReturnType<typeof findActiveTelegramChat>>,
+  username?: string
+) {
+  const normalized = String(username || "").trim().replace(/^@+/, "").toLowerCase();
+  if (!chat || !normalized) return chat?.settings.userId || "";
+  const mapping = chat.settings.telegramUserMappings.find((entry) => entry.telegramUsername === normalized && entry.appUser.active);
+  return mapping?.appUserId || chat.settings.userId;
 }
 
 export async function POST(request: Request) {
@@ -161,6 +171,7 @@ export async function POST(request: Request) {
   if (!chat?.settings.telegramBotTokenEnc) {
     return NextResponse.json({ ok: true, ignored: true });
   }
+  const actorUserId = mappedTelegramUserId(chat, message.from?.username);
 
   const photo = largestTelegramPhoto(message);
   const imageDocument = message.document?.mime_type?.startsWith("image/") ? message.document : null;
@@ -173,7 +184,7 @@ export async function POST(request: Request) {
       imageDocument?.mime_type || "image/jpeg"
     );
     const asset = await saveFileBuffer({
-      ownerId: chat.settings.userId,
+      ownerId: actorUserId,
       bytes: downloaded.bytes,
       originalName: downloaded.originalName,
       mimeType: downloaded.mimeType
@@ -181,15 +192,15 @@ export async function POST(request: Request) {
     if (!asset) return NextResponse.json({ ok: true });
     const imageUrl = fileAssetUrl(asset.id);
     const caption = message.caption?.trim();
-    await prisma.message.create({ data: { senderId: chat.settings.userId, body: `Telegram: [Bild]${caption ? ` ${caption}` : ""}`, mediaUrl: imageUrl } });
+    await prisma.message.create({ data: { senderId: actorUserId, body: `Telegram: [Bild]${caption ? ` ${caption}` : ""}`, mediaUrl: imageUrl } });
 
-    const itemDialogueAnswer = await handleItemCreationImage(chat.settings.userId, imageUrl);
+    const itemDialogueAnswer = await handleItemCreationImage(actorUserId, imageUrl);
     const answer: string =
       itemDialogueAnswer ??
       (await prisma.media
         .create({
           data: {
-            ownerId: chat.settings.userId,
+            ownerId: actorUserId,
             title: caption || `Telegram Bild ${formatDateTime(new Date())}`,
             kind: "IMAGE",
             url: imageUrl,
@@ -199,7 +210,7 @@ export async function POST(request: Request) {
         .then((media) => `Bild in Medien gespeichert: ${media.title}`));
 
     await sendTelegramMessage(chat.settings.telegramBotTokenEnc, chatId, threadId, answer, { parseMode: "HTML", disableWebPagePreview: true });
-    await prisma.message.create({ data: { senderId: chat.settings.userId, body: `Telegram-Agent: ${answer}` } });
+    await prisma.message.create({ data: { senderId: actorUserId, body: `Telegram-Agent: ${answer}` } });
     await prisma.telegramChat.update({ where: { id: chat.id }, data: { lastMessageAt: new Date() } });
     return NextResponse.json({ ok: true });
   }
@@ -209,20 +220,20 @@ export async function POST(request: Request) {
     body = await transcribeTelegramVoice(chat.settings.telegramBotTokenEnc, chat.settings.openAiApiKeyEnc, message.voice.file_id);
   }
   if (body) {
-    await prisma.message.create({ data: { senderId: chat.settings.userId, body: `Telegram: ${body}` } });
-    const itemDialogueAnswer = commandOf(body) ? null : await handleItemCreationDialogue(chat.settings.userId, body);
+    await prisma.message.create({ data: { senderId: actorUserId, body: `Telegram: ${body}` } });
+    const itemDialogueAnswer = commandOf(body) ? null : await handleItemCreationDialogue(actorUserId, body);
     const answer = commandOf(body)
-      ? await handleCommand(chat.settings.userId, body, chatId, threadId)
+      ? await handleCommand(actorUserId, body, chatId, threadId)
       : itemDialogueAnswer ||
         (await answerWithPortalAgent({
-          userId: chat.settings.userId,
+          userId: actorUserId,
           text: body,
           chatId,
           threadId,
           openAiKeyEnc: chat.settings.openAiApiKeyEnc
         }));
     await sendTelegramMessage(chat.settings.telegramBotTokenEnc, chatId, threadId, answer, { parseMode: "HTML", disableWebPagePreview: true });
-    await prisma.message.create({ data: { senderId: chat.settings.userId, body: `Telegram-Agent: ${answer}` } });
+    await prisma.message.create({ data: { senderId: actorUserId, body: `Telegram-Agent: ${answer}` } });
   }
   await prisma.telegramChat.update({ where: { id: chat.id }, data: { lastMessageAt: new Date() } });
   return NextResponse.json({ ok: true });

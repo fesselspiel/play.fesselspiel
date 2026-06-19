@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Check, Globe2, Save, Send, Trash2 } from "lucide-react";
+import { Check, Globe2, Save, Send, Trash2, UserRound } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
@@ -62,6 +62,10 @@ function targetTypeFor(chat: { targetUserId: string | null; targetCircleId: stri
   if (chat.targetUserId) return "user";
   if (chat.targetCircleId) return "circle";
   return "none";
+}
+
+function normalizeTelegramUsername(value: string) {
+  return value.trim().replace(/^@+/, "").toLowerCase();
 }
 
 function secretSuffix(value?: string | null) {
@@ -155,6 +159,44 @@ async function deleteChat(formData: FormData) {
   });
   if (chat) await prisma.telegramChat.delete({ where: { id: chat.id } });
   redirect("/settings/telegram");
+}
+
+async function createTelegramUserMapping(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
+  if (!settings) redirect("/settings/telegram");
+  const telegramUsername = normalizeTelegramUsername(String(formData.get("telegramUsername") || ""));
+  const appUserId = String(formData.get("appUserId") || "");
+  if (!telegramUsername || !appUserId) redirect("/settings/telegram");
+  const appUser = await prisma.user.findFirst({
+    where: {
+      id: appUserId,
+      active: true,
+      ...(user.role === "ADMIN" ? {} : { OR: [{ id: user.id }, ...(user.circleId ? [{ circleId: user.circleId }] : [])] })
+    },
+    select: { id: true }
+  });
+  if (!appUser) redirect("/settings/telegram");
+  await prisma.telegramUserMapping.upsert({
+    where: { settingsId_telegramUsername: { settingsId: settings.id, telegramUsername } },
+    update: { appUserId: appUser.id },
+    create: { settingsId: settings.id, telegramUsername, appUserId: appUser.id }
+  });
+  redirect("/settings/telegram#mappings");
+}
+
+async function deleteTelegramUserMapping(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
+  if (!settings) redirect("/settings/telegram");
+  await prisma.telegramUserMapping.deleteMany({
+    where: { id: String(formData.get("mappingId") || ""), settingsId: settings.id }
+  });
+  redirect("/settings/telegram#mappings");
 }
 
 async function activateDetectedChat(formData: FormData) {
@@ -251,6 +293,10 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
         telegramChats: {
           include: { targetUser: { include: { profile: true } }, targetCircle: true },
           orderBy: [{ status: "asc" }, { updatedAt: "desc" }]
+        },
+        telegramUserMappings: {
+          include: { appUser: { include: { profile: true } } },
+          orderBy: { telegramUsername: "asc" }
         }
       }
     }),
@@ -269,6 +315,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
   ]);
   const activeChats = settings?.telegramChats.filter((chat) => chat.status === "ACTIVE") || [];
   const pendingChats = settings?.telegramChats.filter((chat) => chat.status === "PENDING") || [];
+  const mappings = settings?.telegramUserMappings || [];
   const telegramTokenSuffix = secretSuffix(settings?.telegramBotTokenEnc);
   const openAiKeySuffix = secretSuffix(settings?.openAiApiKeyEnc);
   const telegramBotName = await readTelegramBotName(settings?.telegramBotTokenEnc);
@@ -397,6 +444,36 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                 </details>
               ))}
               {!activeChats.length ? <p className="text-sm text-graphite">Noch kein Chat bestaetigt.</p> : null}
+            </div>
+          </Panel>
+          <Panel>
+            <h2 id="mappings" className="mb-4 flex items-center gap-2 text-lg font-semibold"><UserRound className="h-5 w-5 text-redbrand" /> Telegram-Benutzer zuordnen</h2>
+            <form action={createTelegramUserMapping} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+              <Field label="Telegram Username">
+                <input className={inputClass} name="telegramUsername" placeholder="@telegramname" required />
+              </Field>
+              <Field label="App-Benutzer">
+                <select className={selectClass} name="appUserId" required>
+                  {targetUsers.map((entry) => <option key={entry.id} value={entry.id}>{userLabel(entry)}</option>)}
+                </select>
+              </Field>
+              <Button><Save className="h-4 w-4" /> Zuordnen</Button>
+            </form>
+            <div className="mt-4 space-y-2">
+              {mappings.map((mapping) => (
+                <div key={mapping.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-paper p-3 text-sm">
+                  <div>
+                    <strong>@{mapping.telegramUsername}</strong>
+                    <span className="mx-2 text-graphite">{"->"}</span>
+                    <span>{userLabel(mapping.appUser)}</span>
+                  </div>
+                  <form action={deleteTelegramUserMapping}>
+                    <input type="hidden" name="mappingId" value={mapping.id} />
+                    <Button variant="danger"><Trash2 className="h-4 w-4" /> Loeschen</Button>
+                  </form>
+                </div>
+              ))}
+              {!mappings.length ? <p className="text-sm text-graphite">Noch keine Telegram-Benutzer zugeordnet.</p> : null}
             </div>
           </Panel>
           <Panel>
