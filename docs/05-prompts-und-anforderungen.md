@@ -398,6 +398,18 @@ Umsetzung:
 - Kreis-Mitglieder sehen automatisch gemeinsame Spielsachen, Stellungen, Spielplaene, Termine, Sessions, Medien, Dateien und passende Nachrichten.
 - Neue Inhalte behalten ihren Ersteller als Besitzer, werden aber allen aktiven Kreis-Mitgliedern angezeigt.
 
+Nachbesserung:
+
+- Admins muessen Kreise nachtraeglich bearbeiten koennen.
+- Der Kreisname muss aenderbar sein.
+- Mitglieder muessen zentral in einen Kreis aufgenommen oder aus einem Kreis entfernt werden koennen.
+
+Umsetzung:
+
+- Benutzerverwaltung enthaelt einen Bereich `Kreise bearbeiten`.
+- Pro Kreis gibt es ein Formular fuer Kreisname und Mitglieder-Checkboxen.
+- Beim Speichern wird der Kreis umbenannt, angehakte Benutzer werden hinzugefuegt und nicht mehr angehakte Benutzer aus diesem Kreis entfernt.
+
 ## Kompakte-Listen-Prompt
 
 Anforderung:

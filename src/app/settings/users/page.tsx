@@ -37,6 +37,22 @@ async function createCircle(formData: FormData) {
   redirect("/settings/users");
 }
 
+async function updateCircle(formData: FormData) {
+  "use server";
+  await requireAdmin();
+  const id = String(formData.get("id") || "");
+  const name = String(formData.get("name") || "").trim();
+  const memberIds = formData.getAll("memberIds").map(String).filter(Boolean);
+  const circle = await prisma.circle.findUnique({ where: { id } });
+  if (!circle || !name) redirect("/settings/users");
+  await prisma.$transaction([
+    prisma.circle.update({ where: { id }, data: { name } }),
+    prisma.user.updateMany({ where: { circleId: id, id: { notIn: memberIds } }, data: { circleId: null } }),
+    ...(memberIds.length ? [prisma.user.updateMany({ where: { id: { in: memberIds } }, data: { circleId: id } })] : [])
+  ]);
+  redirect(`/settings/users#circle-${id}`);
+}
+
 async function updateUser(formData: FormData) {
   "use server";
   await requireAdmin();
@@ -73,6 +89,42 @@ export default async function UsersPage() {
               <Field label="Name"><input className={inputClass} name="name" placeholder="Anna & Gabriel" required /></Field>
               <Button><UsersRound className="h-4 w-4" /> Kreis anlegen</Button>
             </form>
+          </Panel>
+          <Panel>
+            <h2 className="mb-4 text-lg font-semibold">Kreise bearbeiten</h2>
+            <div className="space-y-4">
+              {circles.map((circle) => {
+                const members = users.filter((entry) => entry.circleId === circle.id);
+                return (
+                  <form key={circle.id} id={`circle-${circle.id}`} action={updateCircle} className="space-y-3 rounded-md border border-line bg-paper p-3">
+                    <input name="id" type="hidden" value={circle.id} />
+                    <Field label="Kreisname"><input className={inputClass} name="name" defaultValue={circle.name} required /></Field>
+                    <div>
+                      <div className="mb-2 text-sm font-medium text-graphite">Mitglieder</div>
+                      <div className="space-y-2">
+                        {users.map((entry) => {
+                          const label = entry.profile?.displayName || entry.name || entry.email;
+                          return (
+                            <label key={entry.id} className="flex items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2 text-sm">
+                              <span className="min-w-0">
+                                <span className="block truncate font-semibold text-ink">{label}</span>
+                                <span className="block truncate text-xs text-graphite">{entry.email}</span>
+                              </span>
+                              <input name="memberIds" type="checkbox" value={entry.id} defaultChecked={entry.circleId === circle.id} className="h-4 w-4 shrink-0 accent-redbrand" />
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-xs text-graphite">{members.length} Mitglied{members.length === 1 ? "" : "er"}</p>
+                      <Button>Kreis speichern</Button>
+                    </div>
+                  </form>
+                );
+              })}
+              {!circles.length ? <p className="text-sm text-graphite">Noch kein Kreis angelegt.</p> : null}
+            </div>
           </Panel>
           <Panel>
             <h2 className="mb-4 text-lg font-semibold">Benutzer anlegen</h2>

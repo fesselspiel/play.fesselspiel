@@ -221,6 +221,8 @@ Details:
 - Benutzerverwaltung erweitert:
   - Kreise anlegen.
   - Beim Anlegen und Bearbeiten Benutzer einem Kreis zuordnen.
+  - Kreisnamen bearbeiten.
+  - Mitglieder eines Kreises per Checkbox hinzufuegen oder entfernen.
 - Zentrale Zugriffshilfen in `src/lib/access.ts` eingefuehrt:
   - `accessibleOwnerIds`
   - `ownerScope`
@@ -236,6 +238,7 @@ Details:
   - Dateiauslieferung
 - Nachrichtenempfaenger innerhalb des Kreises
 - Neue Datensaetze behalten weiterhin den Ersteller als `ownerId`, sind aber fuer Kreis-Mitglieder sichtbar und bearbeitbar.
+- Admins koennen Kreise in der Benutzerverwaltung nachtraeglich umbenennen und die Mitgliedschaft zentral pflegen.
 
 ## Kompakte Listen fuer Spielsachen und Stellungen
 
