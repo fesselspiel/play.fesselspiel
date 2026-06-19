@@ -532,3 +532,9 @@ Details:
 - Laufende Sessions zeigen als Titel die erste Zeile des Sessionkommentars oder `Segufix-Session`.
 - Die Zielauswahl bei Telegram-Aktionsbenachrichtigungen zeigt nur noch die passende Auswahl für `Ein Benutzer` oder `Ganzer Kreis`; widersprüchliche Benutzer-/Kreis-Kombinationen sind im Formular nicht mehr auswählbar.
 - Jede Telegram-Aktionsregel hat einen Button `Test senden`, der genau diese Regel mit Testdaten über dieselbe Versandlogik wie echte Protokollereignisse ausführt.
+
+## Logout-Button
+
+- Logout wird in der UI nicht mehr als reines HTML-Formular ausgelöst.
+- Neuer Client-Button `LogoutButton` sendet `POST /api/auth/logout` per `fetch` mit Session-Credentials und navigiert danach aktiv nach `/login`.
+- Das verhindert, dass der mobile Menüzustand den Formular-Submit vorzeitig unmountet.

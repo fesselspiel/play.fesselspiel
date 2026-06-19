@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
+import { LogoutButton } from "@/components/logout-button";
 import { MobileMenu } from "@/components/mobile-menu";
 
 const nav = [
@@ -69,7 +70,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
           </details>
         </nav>
         {user ? (
-          <form action="/api/auth/logout" method="post" className="absolute bottom-6 left-5 right-5">
+          <div className="absolute bottom-6 left-5 right-5">
             <div className="mb-3 flex items-center gap-3 rounded-md bg-paper p-3 text-xs text-graphite">
               {user.profile?.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -84,8 +85,8 @@ export async function AppShell({ children }: { children: ReactNode }) {
                 <div className="truncate">{user.email}</div>
               </div>
             </div>
-            <button className="focus-ring w-full rounded-md border border-line px-3 py-2 text-sm font-medium hover:bg-paper">Abmelden</button>
-          </form>
+            <LogoutButton className="focus-ring w-full rounded-md border border-line px-3 py-2 text-sm font-medium hover:bg-paper disabled:opacity-60" />
+          </div>
         ) : null}
       </aside>
       <main className="min-h-screen lg:pl-72">

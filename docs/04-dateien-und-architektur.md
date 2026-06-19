@@ -188,6 +188,7 @@ UI-Hinweis:
 - `src/components/protocol-search.tsx`: Client-Suche für das Protokoll mit Vorschlägen und Sprunglinks.
 - `src/components/quick-album-form.tsx`: Inline-Albumanlage aus der Medien-Detailansicht heraus.
 - `src/components/dark-mode-toggle.tsx`: kompakter Dark-Mode-Schalter für Desktop- und Mobile-Einstellungen.
+- `src/components/logout-button.tsx`: Client-Logout mit `fetch` und anschließender Navigation zu `/login`.
 - `src/app/api/settings/dark-mode/route.ts`: speichert Dark Mode direkt am aktuellen Benutzer.
 - `src/components/telegram/notification-target-fields.tsx`: Client-Zielauswahl für Telegram-Regeln ohne widersprüchliche Benutzer-/Kreis-Felder.
 - `src/lib/session-actions.ts`: Server Actions für laufende Sessions, aktuell `stopSegufixSession`.

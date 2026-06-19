@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
+import { LogoutButton } from "@/components/logout-button";
 
 const mobileNav = [
   ["Dashboard", "/", LayoutDashboard],
@@ -91,15 +92,7 @@ export function MobileMenu({ activeDarkMode = false }: { activeDarkMode?: boolea
                   </Link>
                 ))}
                 <DarkModeToggle active={activeDarkMode} />
-                <form action="/api/auth/logout" method="post">
-                  <button
-                    type="submit"
-                    onClick={() => setOpen(false)}
-                    className="flex min-h-10 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium text-redbrand hover:bg-surface"
-                  >
-                    Abmelden
-                  </button>
-                </form>
+                <LogoutButton className="flex min-h-10 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium text-redbrand hover:bg-surface disabled:opacity-60" />
               </div>
             </details>
           </nav>
