@@ -20,11 +20,12 @@ export async function POST(request: Request) {
   const chat = existing
     ? await prisma.telegramChat.update({
         where: { id: existing.id },
-        data: { title: parsed.data.title || existing.title, status: "ACTIVE", lastMessageAt: new Date() }
+        data: { title: parsed.data.title || existing.title, status: "ACTIVE", targetUserId: existing.targetUserId || user.id, lastMessageAt: new Date() }
       })
     : await prisma.telegramChat.create({
         data: {
           settingsId: settings.id,
+          targetUserId: user.id,
           chatId: parsed.data.chatId,
           threadId,
           title: parsed.data.title || parsed.data.chatId,

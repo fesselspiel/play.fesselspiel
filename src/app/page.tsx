@@ -49,13 +49,21 @@ async function togglePlayReady() {
     include: { profile: true }
   });
   const actorName = actor?.profile?.displayName || actor?.name || actor?.username || actor?.email || "Unbekannt";
+  const currentUserId = user.id;
+  const currentCircleId = user.circleId;
   const telegramSettings = await prisma.userSettings.findMany({
-    where: user.circleId
-      ? { telegramBotTokenEnc: { not: null }, user: { circleId: user.circleId, active: true } }
-      : { telegramBotTokenEnc: { not: null }, userId: user.id },
+    where: currentCircleId
+      ? { telegramBotTokenEnc: { not: null }, user: { circleId: currentCircleId, active: true } }
+      : { telegramBotTokenEnc: { not: null }, userId: currentUserId },
     include: { telegramChats: { where: { status: "ACTIVE" } } }
   });
   const seenTargets = new Set<string>();
+  function matchesTelegramTarget(chat: { targetUserId: string | null; targetCircleId: string | null }) {
+    if (chat.targetUserId || chat.targetCircleId) {
+      return chat.targetUserId === currentUserId || Boolean(currentCircleId && chat.targetCircleId === currentCircleId);
+    }
+    return false;
+  }
   const message = [
     "🚦 <b>Spielampel geändert</b>",
     "",
@@ -67,8 +75,9 @@ async function togglePlayReady() {
   await Promise.allSettled(
     telegramSettings.flatMap((setting) => {
       if (!setting.telegramBotTokenEnc) return [];
-      const threadSpecificChatIds = new Set(setting.telegramChats.filter((chat) => chat.threadId).map((chat) => chat.chatId));
-      return setting.telegramChats
+      const targetedChats = setting.telegramChats.filter((chat) => matchesTelegramTarget(chat));
+      const threadSpecificChatIds = new Set(targetedChats.filter((chat) => chat.threadId).map((chat) => chat.chatId));
+      return targetedChats
         .filter((chat) => chat.threadId || !threadSpecificChatIds.has(chat.chatId))
         .filter((chat) => {
           const key = `${setting.telegramBotTokenEnc}:${chat.chatId}:${chat.threadId || ""}`;

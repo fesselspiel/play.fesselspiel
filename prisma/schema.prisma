@@ -77,6 +77,7 @@ model User {
   files             FileAsset[]
   sentMessages      Message[]       @relation("MessageSender")
   receivedMessages  Message[]       @relation("MessageRecipient")
+  telegramChatTargets TelegramChat[] @relation("TelegramChatTargetUser")
 
   @@index([circleId])
 }
@@ -87,6 +88,7 @@ model Circle {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   users     User[]
+  telegramChatTargets TelegramChat[] @relation("TelegramChatTargetCircle")
 }
 
 model FileAsset {
@@ -274,6 +276,8 @@ model Message {
 model TelegramChat {
   id              String             @id @default(cuid())
   settingsId      String
+  targetUserId    String?
+  targetCircleId  String?
   chatId          String
   threadId        String?
   title           String?
@@ -282,6 +286,10 @@ model TelegramChat {
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   settings        UserSettings       @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  targetUser      User?              @relation("TelegramChatTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+  targetCircle    Circle?            @relation("TelegramChatTargetCircle", fields: [targetCircleId], references: [id], onDelete: SetNull)
 
   @@unique([settingsId, chatId, threadId])
+  @@index([targetUserId])
+  @@index([targetCircleId])
 }

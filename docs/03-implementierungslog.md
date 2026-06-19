@@ -277,6 +277,9 @@ Details:
 - Jeder Ampelwechsel verschickt eine Telegram-Nachricht an aktive gespeicherte Chats im selben Kreis, sofern ein Bot-Token vorhanden ist.
 - Die Telegram-Nachricht nutzt HTML-Markup, nennt Benutzer und den neuen Zustand mit passendem Rot-/Gruen-Emoji.
 - Wenn fuer denselben Telegram-Chat ein konkreter Thread aktiv ist, werden Push-Nachrichten an diesen Thread gesendet und nicht an den threadlosen Hauptgruppen-Eintrag.
+- Telegram-Kanaele haben optionale Ziele: einzelner Benutzer oder ganzer Kreis.
+- In den Telegram-Einstellungen koennen aktive Kanaele aufgeklappt, bearbeitet, geloescht und einem Benutzer oder Kreis zugeordnet werden.
+- Push-Nachrichten werden nur noch an Kanaele mit explizitem Ziel gesendet; unzugeordnete Kanaele empfangen keine Ampel-Pushes.
 
 ## Medienseite als Bild-Feed
 
