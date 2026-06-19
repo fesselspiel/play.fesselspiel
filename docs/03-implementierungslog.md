@@ -286,6 +286,9 @@ Details:
 - Die manuelle Telegram-Chat-Anlage wurde entfernt; Kanaele werden nur noch ueber erkannte Testnachrichten uebernommen.
 - Aktive Kanaele zeigen im aufgeklappten Bereich ebenfalls die zuletzt erkannte Testnachricht.
 - Telegram-Testnachricht-Einlesen faengt Telegram-/Browser-Fehler ab und zeigt statt technischer Exceptions eine verstaendliche Meldung.
+- Gespeicherte Telegram- und OpenAI-Token zeigen in den Einstellungen die letzten sechs Zeichen an, damit der hinterlegte Schluessel erkennbar ist.
+- Beim Telegram-Token wird zusaetzlich der aktive Bot-Name ueber Telegram `getMe` angezeigt, wenn der gespeicherte Token gueltig ist.
+- Der Speichern-Button fuer Zugangsdaten zeigt waehrend der Server-Action `Speichert...` und danach eine sichtbare Erfolgsmeldung.
 
 ## Medienseite als Bild-Feed
 

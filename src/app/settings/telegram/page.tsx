@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { Check, Globe2, Save, Send, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { SubmitButton } from "@/components/submit-button";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
 import { TelegramChatDiscovery } from "@/components/telegram/chat-discovery";
 import { currentUser } from "@/lib/auth";
-import { encryptSecret } from "@/lib/crypto";
+import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { prisma } from "@/lib/prisma";
 
 type TelegramTargetUser = {
@@ -63,6 +64,43 @@ function targetTypeFor(chat: { targetUserId: string | null; targetCircleId: stri
   return "none";
 }
 
+function secretSuffix(value?: string | null) {
+  try {
+    const decrypted = decryptSecret(value);
+    if (!decrypted) return "";
+    return decrypted.slice(-6);
+  } catch {
+    return "";
+  }
+}
+
+function readSecret(value?: string | null) {
+  try {
+    return decryptSecret(value);
+  } catch {
+    return "";
+  }
+}
+
+async function readTelegramBotName(value?: string | null) {
+  const token = readSecret(value);
+  if (!token) return null;
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${token}/getMe`, {
+      cache: "no-store"
+    });
+    const payload = await response.json() as {
+      ok?: boolean;
+      result?: { first_name?: string; username?: string };
+    };
+    if (!payload.ok || !payload.result) return null;
+    const username = payload.result.username ? `@${payload.result.username}` : "";
+    return [payload.result.first_name, username].filter(Boolean).join(" ");
+  } catch {
+    return null;
+  }
+}
+
 async function saveSettings(formData: FormData) {
   "use server";
   const user = await currentUser();
@@ -79,7 +117,7 @@ async function saveSettings(formData: FormData) {
       openAiApiKeyEnc: encryptSecret(String(formData.get("openAiApiKey") || ""))
     }
   });
-  redirect("/settings/telegram");
+  redirect("/settings/telegram?saved=secrets");
 }
 
 async function updateChat(formData: FormData) {
@@ -203,7 +241,7 @@ function TargetFields({
   );
 }
 
-export default async function TelegramPage() {
+export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const [settings, targetUsers, targetCircles] = await Promise.all([
@@ -231,6 +269,9 @@ export default async function TelegramPage() {
   ]);
   const activeChats = settings?.telegramChats.filter((chat) => chat.status === "ACTIVE") || [];
   const pendingChats = settings?.telegramChats.filter((chat) => chat.status === "PENDING") || [];
+  const telegramTokenSuffix = secretSuffix(settings?.telegramBotTokenEnc);
+  const openAiKeySuffix = secretSuffix(settings?.openAiApiKeyEnc);
+  const telegramBotName = await readTelegramBotName(settings?.telegramBotTokenEnc);
   return (
     <AppShell>
       <PageHeader title="Telegram" />
@@ -240,10 +281,25 @@ export default async function TelegramPage() {
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <Panel>
           <h2 className="mb-4 text-lg font-semibold">Zugangsdaten</h2>
+          {searchParams?.saved === "secrets" ? <p className="mb-4 rounded-md bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">Zugangsdaten gespeichert.</p> : null}
           <form action={saveSettings} className="space-y-4">
-            <Field label="Telegram Bot API-Key"><input className={inputClass} name="telegramBotToken" type="password" placeholder={settings?.telegramBotTokenEnc ? "Gespeichert" : ""} /></Field>
-            <Field label="OpenAI API-Key fuer Voice-Transkription"><input className={inputClass} name="openAiApiKey" type="password" placeholder={settings?.openAiApiKeyEnc ? "Gespeichert" : ""} /></Field>
-            <Button><Save className="h-4 w-4" /> Sicher speichern</Button>
+            <Field label="Telegram Bot API-Key">
+              <input className={inputClass} name="telegramBotToken" type="password" placeholder={telegramTokenSuffix ? `Gespeichert ...${telegramTokenSuffix}` : ""} />
+              {telegramTokenSuffix ? (
+                <p className="mt-2 rounded-md bg-surface px-3 py-2 text-sm text-graphite">
+                  Aktiver Bot: <strong className="text-ink">{telegramBotName || "Token gespeichert, Bot-Name nicht abrufbar"}</strong> · endet auf <strong className="text-ink">...{telegramTokenSuffix}</strong>
+                </p>
+              ) : null}
+            </Field>
+            <Field label="OpenAI API-Key fuer Voice-Transkription">
+              <input className={inputClass} name="openAiApiKey" type="password" placeholder={openAiKeySuffix ? `Gespeichert ...${openAiKeySuffix}` : ""} />
+              {openAiKeySuffix ? (
+                <p className="mt-2 rounded-md bg-surface px-3 py-2 text-sm text-graphite">
+                  KI-Key gespeichert · endet auf <strong className="text-ink">...{openAiKeySuffix}</strong>
+                </p>
+              ) : null}
+            </Field>
+            <SubmitButton pendingLabel="Speichert..."><Save className="h-4 w-4" /> Sicher speichern</SubmitButton>
           </form>
         </Panel>
         <div className="space-y-6">
