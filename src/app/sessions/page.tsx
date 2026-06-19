@@ -97,10 +97,10 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
     return (
       <AppShell>
         <PageHeader title="KG Time Tracker" />
-        <div className="mb-5 flex flex-wrap gap-2">
-          <Link href={`/sessions?year=${year}`} className="rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-paper">Segufix Time Tracker</Link>
-          <Link href={`/sessions?tracker=kg&year=${year}`} className="rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white">KG Time Tracker</Link>
-        </div>
+        <nav className="mb-5 flex border-b border-line" aria-label="Tracker">
+          <Link href={`/sessions?year=${year}`} className="-mb-px rounded-t-md border border-transparent px-3 py-2 text-sm font-semibold text-graphite hover:bg-paper hover:text-ink">Segufix Time Tracker</Link>
+          <Link href={`/sessions?tracker=kg&year=${year}`} aria-current="page" className="-mb-px rounded-t-md border border-line border-b-surface bg-surface px-3 py-2 text-sm font-semibold text-sky-700">KG Time Tracker</Link>
+        </nav>
         <PageGuide title="KG-Tragezeiten minutengenau dokumentieren">
           Der KG Time Tracker erfasst Tragezeiten mit Startminute, Endminute, Dauer und Notiz. Die Jahresuebersicht nutzt Blau, damit sie klar vom roten Segufix-Kalender unterscheidbar ist.
         </PageGuide>
@@ -133,7 +133,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                 </div>
               </Panel>
             ) : null}
-            <Panel className="overflow-x-auto">
+            <Panel>
               <div className="mb-4 flex items-center justify-between gap-3">
                 <a href={`/sessions?tracker=kg&year=${year - 1}`} className="rounded-md border border-line px-3 py-2 text-sm">Zurueck</a>
                 <h2 className="text-lg font-semibold">{year}</h2>
@@ -141,17 +141,17 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
               </div>
               <div className="grid calendar-grid gap-1 text-xs">
                 <div />
-                {Array.from({ length: 31 }, (_, i) => <div key={i} className="text-center text-graphite">{i + 1}</div>)}
+                {Array.from({ length: 31 }, (_, i) => <div key={i} className="calendar-day-number text-center text-graphite">{i + 1}</div>)}
                 {months.map((month, monthIndex) => (
                   <div key={month} className="contents">
-                    <div key={`${month}-label`} className="py-1 font-medium text-graphite">{month}</div>
+                    <div key={`${month}-label`} className="calendar-month-label py-1 font-medium text-graphite">{month}</div>
                     {Array.from({ length: 31 }, (_, dayIndex) => {
                       const day = dayIndex + 1;
                       const date = new Date(year, monthIndex, day);
                       const valid = date.getMonth() === monthIndex;
                       const daySessions = byDay.get(`${monthIndex}-${day}`) || [];
                       const minutes = daySessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
-                      const className = `h-5 rounded-sm ${!valid ? "bg-transparent" : daySessions.length ? "bg-sky-600" : "bg-paper"}`;
+                      const className = `calendar-cell h-5 rounded-sm ${!valid ? "bg-transparent" : daySessions.length ? "bg-sky-600" : "bg-paper"}`;
                       return <span key={`${month}-${day}`} title={daySessions.length ? `${daySessions.length} KG-Eintraege, ${formatMinutes(minutes)}` : ""} className={className} />;
                     })}
                   </div>
@@ -194,10 +194,10 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
   return (
     <AppShell>
       <PageHeader title="Segufix-Timetracker" />
-      <div className="mb-5 flex flex-wrap gap-2">
-        <Link href={`/sessions?year=${year}`} className="rounded-md bg-redbrand px-3 py-2 text-sm font-semibold text-white">Segufix Time Tracker</Link>
-        <Link href={`/sessions?tracker=kg&year=${year}`} className="rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-paper">KG Time Tracker</Link>
-      </div>
+      <nav className="mb-5 flex border-b border-line" aria-label="Tracker">
+        <Link href={`/sessions?year=${year}`} aria-current="page" className="-mb-px rounded-t-md border border-line border-b-surface bg-surface px-3 py-2 text-sm font-semibold text-redbrand">Segufix Time Tracker</Link>
+        <Link href={`/sessions?tracker=kg&year=${year}`} className="-mb-px rounded-t-md border border-transparent px-3 py-2 text-sm font-semibold text-graphite hover:bg-paper hover:text-ink">KG Time Tracker</Link>
+      </nav>
       <PageGuide title="Session-Erfassung, Jahresuebersicht und Auswertung">
         Der Timetracker dokumentiert Sessions mit Start, Ende, Dauer, Stimmung und Notizen. Erfasse links neue Eintraege, nutze den Jahreskalender zur Orientierung und bearbeite bestehende Sessions in der Historie.
       </PageGuide>
@@ -242,7 +242,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
               </div>
             </Panel>
           ) : null}
-          <Panel className="overflow-x-auto">
+          <Panel>
             <div className="mb-4 flex items-center justify-between gap-3">
               <a href={`/sessions?year=${year - 1}`} className="rounded-md border border-line px-3 py-2 text-sm">Zurueck</a>
               <h2 className="text-lg font-semibold">{year}</h2>
@@ -250,17 +250,17 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
             </div>
             <div className="grid calendar-grid gap-1 text-xs">
               <div />
-              {Array.from({ length: 31 }, (_, i) => <div key={i} className="text-center text-graphite">{i + 1}</div>)}
+              {Array.from({ length: 31 }, (_, i) => <div key={i} className="calendar-day-number text-center text-graphite">{i + 1}</div>)}
               {months.map((month, monthIndex) => (
                 <div key={month} className="contents">
-                  <div key={`${month}-label`} className="py-1 font-medium text-graphite">{month}</div>
+                  <div key={`${month}-label`} className="calendar-month-label py-1 font-medium text-graphite">{month}</div>
                   {Array.from({ length: 31 }, (_, dayIndex) => {
                     const day = dayIndex + 1;
                     const date = new Date(year, monthIndex, day);
                     const valid = date.getMonth() === monthIndex;
                     const daySessions = byDay.get(`${monthIndex}-${day}`) || [];
                     const minutes = daySessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
-                    const className = `h-5 rounded-sm ${!valid ? "bg-transparent" : daySessions.length ? "bg-redbrand" : "bg-paper"}`;
+                    const className = `calendar-cell h-5 rounded-sm ${!valid ? "bg-transparent" : daySessions.length ? "bg-redbrand" : "bg-paper"}`;
                     if (!daySessions.length) return <span key={`${month}-${day}`} className={className} />;
                     return (
                       <a

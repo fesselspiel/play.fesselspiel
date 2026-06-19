@@ -115,6 +115,7 @@ model Profile {
   userId    String   @unique
   displayName String?
   bio       String?
+  imageUrl  String?
   fields    Json     @default("{}")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

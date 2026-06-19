@@ -137,6 +137,7 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `User`: Account, Rolle, Login, Beziehungen.
 - `UserSettings`: Theme, Dark Mode, Spielampel-Status, Telegram/OpenAI Secrets, Telegram Chats.
 - `Profile`: Profilfelder.
+- `Profile.imageUrl`: geschuetztes Profilbild ueber `/api/files/<id>`.
 - `Circle`: Paar-/Gruppenkreis; Mitglieder sehen gemeinsame Inhalte.
 - `FileAsset`: geschuetzte Upload-Datei.
 - `Toy`: Spielzeug mit Slug, Bild, Beschreibung und `sortOrder`.

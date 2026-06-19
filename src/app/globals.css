@@ -193,3 +193,31 @@ a {
 .calendar-grid {
   grid-template-columns: 92px repeat(31, minmax(18px, 1fr));
 }
+
+@media (max-width: 640px) {
+  .calendar-grid {
+    grid-template-columns: 18px repeat(31, minmax(4px, 1fr));
+    gap: 2px;
+  }
+
+  .calendar-day-number {
+    display: none;
+  }
+
+  .calendar-month-label {
+    overflow: hidden;
+    width: 18px;
+    font-size: 0;
+    line-height: 9px;
+  }
+
+  .calendar-month-label::first-letter {
+    font-size: 9px;
+  }
+
+  .calendar-cell {
+    height: 8px;
+    min-width: 0;
+    border-radius: 1px;
+  }
+}

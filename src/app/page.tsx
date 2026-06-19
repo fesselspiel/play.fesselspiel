@@ -202,7 +202,14 @@ export default async function DashboardPage() {
                 <span className={`flex min-h-28 w-full items-center gap-4 rounded-lg border p-4 text-left transition ${
                   ready ? "border-emerald-500 bg-emerald-500/10" : "border-redbrand bg-redbrand/10"
                 } ${isSelf ? "hover:scale-[1.01]" : ""}`}>
-                  <span className={`h-12 w-12 shrink-0 rounded-full shadow-soft ${ready ? "bg-emerald-500" : "bg-redbrand"}`} />
+                  {member.profile?.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={member.profile.imageUrl} alt="" className={`h-12 w-12 shrink-0 rounded-full object-cover ring-4 ${ready ? "ring-emerald-500" : "ring-redbrand"}`} />
+                  ) : (
+                    <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white shadow-soft ${ready ? "bg-emerald-500" : "bg-redbrand"}`}>
+                      {displayName.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
                   <span className="min-w-0">
                     <span className="block truncate text-base font-semibold text-ink">{displayName}</span>
                     <span className={`mt-1 block text-sm font-semibold ${ready ? "text-emerald-700" : "text-redbrand"}`}>{stateLabel}</span>

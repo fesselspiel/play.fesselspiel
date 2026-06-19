@@ -35,6 +35,7 @@ async function main() {
       userId: admin.id,
       displayName: "Fesselspiel",
       bio: "Privater Raum fuer Planung, Kommunikation und Dokumentation.",
+      imageUrl: "",
       fields: { beziehungsform: "Paar", notizen: "Eigene Profilfelder frei anpassbar" }
     }
   });

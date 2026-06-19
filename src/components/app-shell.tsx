@@ -68,9 +68,19 @@ export async function AppShell({ children }: { children: ReactNode }) {
         </nav>
         {user ? (
           <form action="/api/auth/logout" method="post" className="absolute bottom-6 left-5 right-5">
-            <div className="mb-3 rounded-md bg-paper p-3 text-xs text-graphite">
-              <div className="font-semibold text-ink">{user.name || user.username || user.email}</div>
-              <div>{user.email}</div>
+            <div className="mb-3 flex items-center gap-3 rounded-md bg-paper p-3 text-xs text-graphite">
+              {user.profile?.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.profile.imageUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
+              ) : (
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-redbrand text-sm font-semibold text-white">
+                  {(user.profile?.displayName || user.name || user.username || user.email).slice(0, 1).toUpperCase()}
+                </span>
+              )}
+              <div className="min-w-0">
+                <div className="truncate font-semibold text-ink">{user.profile?.displayName || user.name || user.username || user.email}</div>
+                <div className="truncate">{user.email}</div>
+              </div>
             </div>
             <button className="focus-ring w-full rounded-md border border-line px-3 py-2 text-sm font-medium hover:bg-paper">Abmelden</button>
           </form>

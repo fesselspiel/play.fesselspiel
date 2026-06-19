@@ -424,6 +424,21 @@ Details:
 - Der Telegram-Agent kann den KG Tracker ebenfalls per freier Sprache starten und stoppen.
 - Datenexport/-import enthaelt jetzt auch KG-Eintraege.
 
+## Profiltext und Profilbild
+
+- Die sichtbaren Profilfelder wurden vereinfacht.
+- Das Feld `Beschreibung` heisst jetzt `Profiltext`.
+- Das bisher sichtbare JSON-Feld `Eigene Felder als JSON` wurde aus der Profiloberflaeche entfernt; vorhandene Werte bleiben in der Datenbank erhalten.
+- `Profile.imageUrl` wurde als geschuetztes Profilbild-Feld ergaenzt.
+- Profilbilder werden ueber den bestehenden geschuetzten Upload gespeichert und bei Ersatz/Entfernung aus dem Dateisystem geloescht.
+- Profilbilder erscheinen in Sidebar, Dashboard-Spielampel und Benutzerverwaltung.
+
+## Session-Reiter und mobiler Kalender
+
+- Die Umschaltung zwischen Segufix und KG Time Tracker ist jetzt als Registerkarten/Tabs gestaltet statt als lose Buttons.
+- Die Jahreskalender verwenden auf Mobile kleinere Tagesfelder, ausgeblendete Tageszahlen und Monatsinitialen.
+- Dadurch bleibt die Jahresuebersicht auch auf schmalen Displays sichtbar, ohne die Seite horizontal zu sprengen.
+
 ## Zeitdarstellung
 
 - Zentrale Datums- und Uhrzeitformatierung nutzt jetzt fest `Europe/Berlin`.

@@ -121,9 +121,17 @@ export default async function UsersPage() {
                             const label = entry.profile?.displayName || entry.name || entry.email;
                             return (
                               <label key={entry.id} className="flex items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2 text-sm">
-                                <span className="min-w-0">
-                                  <span className="block truncate font-semibold text-ink">{label}</span>
-                                  <span className="block truncate text-xs text-graphite">{entry.email}</span>
+                                <span className="flex min-w-0 items-center gap-3">
+                                  {entry.profile?.imageUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={entry.profile.imageUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
+                                  ) : (
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-redbrand text-xs font-semibold text-white">{label.slice(0, 1).toUpperCase()}</span>
+                                  )}
+                                  <span className="min-w-0">
+                                    <span className="block truncate font-semibold text-ink">{label}</span>
+                                    <span className="block truncate text-xs text-graphite">{entry.email}</span>
+                                  </span>
                                 </span>
                                 <input name="memberIds" type="checkbox" value={entry.id} defaultChecked={entry.circleId === circle.id} className="h-4 w-4 shrink-0 accent-redbrand" />
                               </label>
@@ -178,10 +186,18 @@ export default async function UsersPage() {
             {users.map((entry) => (
               <form key={entry.id} id={`user-${entry.id}`} action={updateUser} className="grid gap-3 rounded-md border border-line p-3 xl:grid-cols-[1fr_140px_180px_110px_auto] xl:items-center">
                 <input name="id" value={entry.id} type="hidden" />
-                <div>
-                  <strong>{entry.name || entry.email}</strong>
-                  <p className="text-sm text-graphite">{entry.email}</p>
-                  <p className="text-xs text-graphite">{entry.circle?.name || "Kein Kreis"}</p>
+                <div className="flex min-w-0 items-center gap-3">
+                  {entry.profile?.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={entry.profile.imageUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
+                  ) : (
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-redbrand text-sm font-semibold text-white">{(entry.profile?.displayName || entry.name || entry.email).slice(0, 1).toUpperCase()}</span>
+                  )}
+                  <div className="min-w-0">
+                    <strong className="block truncate">{entry.profile?.displayName || entry.name || entry.email}</strong>
+                    <p className="truncate text-sm text-graphite">{entry.email}</p>
+                    <p className="truncate text-xs text-graphite">{entry.circle?.name || "Kein Kreis"}</p>
+                  </div>
                 </div>
                 <select className={selectClass} name="role" defaultValue={entry.role}>
                   <option value="USER">Benutzer</option>
