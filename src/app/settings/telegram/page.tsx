@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Save, Search, Send } from "lucide-react";
+import { Check, Globe2, Save, Search, Send } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
 import { TelegramChatDiscovery } from "@/components/telegram/chat-discovery";
@@ -50,10 +50,60 @@ async function addChat(formData: FormData) {
   redirect("/settings/telegram");
 }
 
+async function activateDetectedChat(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
+  if (!settings) redirect("/settings/telegram");
+  const chat = await prisma.telegramChat.findFirst({
+    where: {
+      id: String(formData.get("chatId") || ""),
+      settingsId: settings.id
+    }
+  });
+  if (!chat) redirect("/settings/telegram");
+  const scope = String(formData.get("scope") || "thread");
+  if (scope === "chat") {
+    const existingWholeChat = await prisma.telegramChat.findFirst({
+      where: { settingsId: settings.id, chatId: chat.chatId, threadId: null }
+    });
+    if (existingWholeChat) {
+      await prisma.telegramChat.update({
+        where: { id: existingWholeChat.id },
+        data: { title: chat.title || existingWholeChat.title, status: "ACTIVE", lastMessageAt: new Date() }
+      });
+    } else {
+      await prisma.telegramChat.create({
+        data: {
+          settingsId: settings.id,
+          chatId: chat.chatId,
+          threadId: null,
+          title: chat.title,
+          status: "ACTIVE",
+          lastMessageAt: new Date()
+        }
+      });
+    }
+  } else {
+    await prisma.telegramChat.update({
+      where: { id: chat.id },
+      data: { status: "ACTIVE", lastMessageAt: new Date() }
+    });
+  }
+  redirect("/settings/telegram");
+}
+
 export default async function TelegramPage() {
   const user = await currentUser();
   if (!user) redirect("/login");
-  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id }, include: { telegramChats: true } });
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId: user.id },
+    include: { telegramChats: { orderBy: [{ status: "asc" }, { updatedAt: "desc" }] } }
+  });
+  const activeChats = settings?.telegramChats.filter((chat) => chat.status === "ACTIVE") || [];
+  const activeWholeChatIds = new Set(activeChats.filter((chat) => !chat.threadId).map((chat) => chat.chatId));
+  const pendingChats = settings?.telegramChats.filter((chat) => chat.status === "PENDING" && !activeWholeChatIds.has(chat.chatId)) || [];
   return (
     <AppShell>
       <PageHeader title="Telegram" subtitle="Bot-Token, Chat/Thread-Bestaetigung und Voice-Transkriptions-Key vorbereiten." />
@@ -76,6 +126,34 @@ export default async function TelegramPage() {
             <TelegramChatDiscovery />
           </Panel>
           <Panel>
+            <h2 className="mb-4 text-lg font-semibold">Erkannte Chats</h2>
+            <div className="space-y-3">
+              {pendingChats.map((chat) => (
+                <div key={chat.id} className="rounded-md border border-line bg-paper p-3 text-sm">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div><span className="text-graphite">Titel:</span> {chat.title || chat.chatId}</div>
+                    <div><span className="text-graphite">Status:</span> <Badge tone="neutral">wartet</Badge></div>
+                    <div><span className="text-graphite">Chat-ID:</span> <strong>{chat.chatId}</strong></div>
+                    <div><span className="text-graphite">Thread-ID:</span> <strong>{chat.threadId || "-"}</strong></div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <form action={activateDetectedChat}>
+                      <input type="hidden" name="chatId" value={chat.id} />
+                      <input type="hidden" name="scope" value="thread" />
+                      <Button type="submit" variant="secondary"><Check className="h-4 w-4" /> Nur diesen Thread aktivieren</Button>
+                    </form>
+                    <form action={activateDetectedChat}>
+                      <input type="hidden" name="chatId" value={chat.id} />
+                      <input type="hidden" name="scope" value="chat" />
+                      <Button type="submit"><Globe2 className="h-4 w-4" /> Ganzen Chat aktivieren</Button>
+                    </form>
+                  </div>
+                </div>
+              ))}
+              {!pendingChats.length ? <p className="text-sm text-graphite">Keine neuen Chats oder Threads erkannt.</p> : null}
+            </div>
+          </Panel>
+          <Panel>
             <h2 className="mb-4 text-lg font-semibold">Chat manuell speichern</h2>
             <form action={addChat} className="grid gap-3 sm:grid-cols-2">
               <Field label="Chat-ID"><input className={inputClass} name="chatId" required /></Field>
@@ -89,7 +167,7 @@ export default async function TelegramPage() {
           <Panel>
             <h2 className="mb-4 text-lg font-semibold">Aktive Kanaele</h2>
             <div className="space-y-2">
-              {settings?.telegramChats.map((chat) => (
+              {activeChats.map((chat) => (
                 <div key={chat.id} className="flex items-center justify-between gap-3 rounded-md bg-paper p-3 text-sm">
                   <span>
                     {chat.title || chat.chatId}
@@ -99,7 +177,7 @@ export default async function TelegramPage() {
                   <Badge tone={chat.status === "ACTIVE" ? "green" : "neutral"}>{chat.status.toLowerCase()}</Badge>
                 </div>
               ))}
-              {!settings?.telegramChats.length ? <p className="text-sm text-graphite">Noch kein Chat bestaetigt.</p> : null}
+              {!activeChats.length ? <p className="text-sm text-graphite">Noch kein Chat bestaetigt.</p> : null}
             </div>
           </Panel>
           <Panel>

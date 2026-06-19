@@ -56,6 +56,8 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Aenderungen 
 - Freie Telegram-Bilder werden automatisch als Medium gespeichert.
 - Unbekannte Telegram-Chats oder Threads werden nur als `PENDING` in der App gespeichert.
 - Der Bot schreibt beim reinen Erkennen eines Chats keine automatische Nachricht mehr in Telegram.
+- Telegram-Webhook akzeptiert eine chatweite Freigabe: Wenn ein `ACTIVE`-Eintrag ohne Thread-ID existiert, werden Nachrichten und Bilder aus allen Threads dieses Chats verarbeitet.
+- Telegram-Einstellungen zeigen erkannte `PENDING`-Chats separat an und koennen sie entweder threadgenau oder fuer den ganzen Chat aktivieren.
 
 ## Theme Changer
 

@@ -143,16 +143,26 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   return `Unbekannter Befehl: ${parsed.command}\n\n${HELP_TEXT}`;
 }
 
+async function findActiveTelegramChat(chatId: string, threadId: string | null) {
+  const include = { settings: { include: { user: true } } } as const;
+  const exactChat = await prisma.telegramChat.findFirst({
+    where: { chatId, threadId, status: "ACTIVE" },
+    include
+  });
+  if (exactChat || !threadId) return exactChat;
+  return prisma.telegramChat.findFirst({
+    where: { chatId, threadId: null, status: "ACTIVE" },
+    include
+  });
+}
+
 export async function POST(request: Request) {
   const update = (await request.json()) as TelegramUpdate;
   const message = update.message;
   if (!message) return NextResponse.json({ ok: true });
   const chatId = String(message.chat.id);
   const threadId = message.message_thread_id ? String(message.message_thread_id) : null;
-  const chat = await prisma.telegramChat.findFirst({
-    where: { chatId, threadId, status: "ACTIVE" },
-    include: { settings: { include: { user: true } } }
-  });
+  const chat = await findActiveTelegramChat(chatId, threadId);
   if (!chat?.settings.telegramBotTokenEnc) {
     const settings = await prisma.userSettings.findFirst({ where: { telegramBotTokenEnc: { not: null } } });
     const tokenEnc = settings?.telegramBotTokenEnc;

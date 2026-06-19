@@ -116,6 +116,8 @@ Aktuelle Design-Eigenschaften:
 - Dialoge zum Anlegen von Spielzeugen und Stellungen
 - Bildupload im Telegram-Chat fuer laufende Dialoge
 - freier Telegram-Bildupload wird automatisch als Medium gespeichert
+- erkannte Chats/Threads bleiben zunaechst in der App auf `PENDING`
+- Freigabe ist threadgenau oder fuer den ganzen Telegram-Chat moeglich
 
 ## URL-Konzept
 
