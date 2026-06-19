@@ -10,17 +10,25 @@ import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "
 import { prisma } from "@/lib/prisma";
 import { normalizeTheme, normalizeThemeMode } from "@/lib/themes";
 
+async function existingProfileImageUrl(ownerId: string, url?: string | null) {
+  const fileId = fileIdFromUrl(url);
+  if (!fileId) return "";
+  const asset = await prisma.fileAsset.findFirst({ where: { id: fileId, ownerId } });
+  return asset ? url || "" : "";
+}
+
 async function saveProfile(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
   const currentProfile = await prisma.profile.findUnique({ where: { userId: user.id } });
+  const currentImageUrl = await existingProfileImageUrl(user.id, currentProfile?.imageUrl);
   const uploadedImageUrl = String(formData.get("profileImageUploadedUrl") || "");
   const image = uploadedImageUrl ? null : await saveUploadedFile(user.id, formData.get("profileImage") as File | null);
   const removeImage = formData.get("removeProfileImage") === "on";
-  const oldFileId = fileIdFromUrl(currentProfile?.imageUrl);
+  const oldFileId = fileIdFromUrl(currentImageUrl);
   if ((uploadedImageUrl || image || removeImage) && oldFileId) await deleteOwnedFile(user.id, oldFileId);
-  const nextImageUrl = removeImage ? "" : uploadedImageUrl || (image ? fileAssetUrl(image.id) : currentProfile?.imageUrl || "");
+  const nextImageUrl = removeImage ? "" : uploadedImageUrl || (image ? fileAssetUrl(image.id) : currentImageUrl);
   await prisma.user.update({
     where: { id: user.id },
     data: {
@@ -61,6 +69,7 @@ export default async function ProfilePage() {
   if (!user) redirect("/login");
   const activeTheme = normalizeTheme(user.settings?.theme);
   const activeMode = normalizeThemeMode(user.settings?.darkMode);
+  const profileImageUrl = await existingProfileImageUrl(user.id, user.profile?.imageUrl);
   return (
     <AppShell>
       <PageHeader title="Profil & Einstellungen" />
@@ -69,12 +78,12 @@ export default async function ProfilePage() {
       </PageGuide>
       <Panel className="max-w-3xl">
         <form action={saveProfile} className="space-y-4">
-          {user.profile?.imageUrl ? (
+          {profileImageUrl ? (
             <div className="flex items-center gap-4 rounded-lg bg-paper p-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={user.profile.imageUrl} alt="" className="h-20 w-20 rounded-full object-cover" />
+              <img src={profileImageUrl} alt="" className="h-20 w-20 rounded-full object-cover" />
               <div>
-                <div className="text-sm font-semibold text-ink">{user.profile.displayName || user.name || user.email}</div>
+                <div className="text-sm font-semibold text-ink">{user.profile?.displayName || user.name || user.email}</div>
                 <div className="text-sm text-graphite">Aktuelles Profilbild</div>
               </div>
             </div>
@@ -87,7 +96,7 @@ export default async function ProfilePage() {
             uploadedUrlName="profileImageUploadedUrl"
             label="Profilbild"
             accept="image/*"
-            currentUrl={user.profile?.imageUrl || ""}
+            currentUrl={profileImageUrl}
             currentAlt={user.profile?.displayName || user.name || ""}
             removeName="removeProfileImage"
             removeLabel="Profilbild entfernen"

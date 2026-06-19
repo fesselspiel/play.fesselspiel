@@ -516,3 +516,9 @@ Details:
 - Unter Einstellungen wurde ein Dark-Mode-Toggle eingefügt, auch im mobilen Hamburger-Menü zwischen Protokoll und Abmelden.
 - Telegram-Aktionsregeln senden jetzt auch dann, wenn eine Regel auf einen Kreis zielt, der aktive Telegram-Thread aber einem Mitglied dieses Kreises zugeordnet ist. Umgekehrt kann eine Benutzer-Regel auch den zugehörigen Kreis-Thread erreichen.
 - Telegram-Kommandos wie `/activity_confirm_1` und `/media_album_...` werden in HTML-Nachrichten als normaler Text ausgegeben, nicht in `<code>`, damit Telegram sie antippbar erkennt.
+
+## Profilbild-Referenzen
+
+- Die Profilseite prüft gespeicherte Profilbild-URLs gegen vorhandene `FileAsset`-Datensätze.
+- Verwaiste Bild-URLs werden nicht mehr weiter als aktuelles Profilbild übernommen.
+- Auf dem VPS wurde eine verwaiste Profilbild-Referenz bereinigt, deren Datei-Datensatz nicht mehr existierte.
