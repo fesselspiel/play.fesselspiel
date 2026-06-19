@@ -67,7 +67,7 @@ export default async function EditPositionPage({ params }: { params: { slug: str
 
   return (
     <AppShell>
-      <PageHeader title="Stellung bearbeiten" subtitle={`/positions/${position.slug}`} />
+      <PageHeader title="Stellung bearbeiten" />
       <PageGuide>
         Bearbeite hier Name, Slug, Bild, Beschreibung und die verknuepften Spielzeuge. Beim Ersetzen oder Entfernen eines Bildes wird die alte Datei bereinigt.
       </PageGuide>

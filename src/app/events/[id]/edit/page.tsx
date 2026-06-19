@@ -46,7 +46,7 @@ export default async function EditEventPage({ params }: { params: { id: string }
 
   return (
     <AppShell>
-      <PageHeader title="Event bearbeiten" subtitle={event.title} />
+      <PageHeader title="Event bearbeiten" />
       <PageGuide>
         Aendere hier Titel, Ort, Startzeit und Beschreibung des Events. Beim Loeschen werden der Termin und seine Check-ins entfernt.
       </PageGuide>

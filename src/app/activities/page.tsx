@@ -22,10 +22,9 @@ export default async function ActivitiesPage() {
     <AppShell>
       <PageHeader
         title="Lass uns spielen"
-        subtitle="Plane gemeinsame Spielideen aus Bausteinen: Idee, Spielsachen, Stellungen, Notiz und Termin."
         action={<Link href="/activities/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" /> Spielidee</Link>}
       />
-      <PageGuide>
+      <PageGuide title="Spielideen planen">
         Hier planst du gemeinsame Spielideen aus Bausteinen. Oeffne einen Plan fuer Details oder erstelle eine neue Idee mit Datum, Status, Notiz, Spielsachen und Stellungen.
       </PageGuide>
       {activities.length ? (

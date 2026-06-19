@@ -38,8 +38,8 @@ export default async function NewPositionPage() {
   const toys = await prisma.toy.findMany({ where: await ownerScope(user), orderBy: { title: "asc" } });
   return (
     <AppShell>
-      <PageHeader title="Stellung anlegen" subtitle="Verknuepfe Positionen direkt mit vorhandenen Spielzeugen." />
-      <PageGuide>
+      <PageHeader title="Stellung anlegen" />
+      <PageGuide title="Positionen mit Spielzeugen verknuepfen">
         Lege hier eine neue Stellung mit Name, Bild und Beschreibung an. Waehle vorhandene Spielzeuge aus, damit die Stellung spaeter in Aktivitaeten passend vorgeschlagen und verlinkt werden kann.
       </PageGuide>
       <form action={createPosition} className="max-w-3xl space-y-4">

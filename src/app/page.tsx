@@ -156,7 +156,6 @@ export default async function DashboardPage() {
     <AppShell>
       <PageHeader
         title="Dashboard"
-        subtitle="Private Uebersicht fuer Lass uns spielen, Stellungen, Spielsachen, Medien und Session-Dokumentation."
         action={
           <Link href="/activities/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-[#bc0711]">
             <Plus className="h-4 w-4" />
@@ -164,7 +163,7 @@ export default async function DashboardPage() {
           </Link>
         }
       />
-      <PageGuide>
+      <PageGuide title="Private Uebersicht">
         Das Dashboard ist die Startuebersicht fuer dein Portal. Nutze die Kennzahlen als schnelle Navigation zu Lass uns spielen, Stellungen, Spielsachen, Medien, Nachrichten und Sessions; darunter siehst du die naechsten Spielideen, Termine und die letzten Session-Eintraege.
       </PageGuide>
 

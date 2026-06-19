@@ -42,8 +42,8 @@ export default async function EventsPage() {
   const events = await prisma.event.findMany({ where: await ownerScope(user), include: { checkIns: true }, orderBy: { startsAt: "asc" } });
   return (
     <AppShell>
-      <PageHeader title="Events" subtitle="Eigene Termine und Veranstaltungen mit Teilnahme-Dokumentation." />
-      <PageGuide>
+      <PageHeader title="Events" />
+      <PageGuide title="Termine und Teilnahme dokumentieren">
         Events dienen zur Terminverwaltung und Teilnahme-Dokumentation. Lege links einen Termin an, nutze rechts Bearbeiten fuer Aenderungen und trage Check-in-Notizen ein, wenn du teilgenommen hast.
       </PageGuide>
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">

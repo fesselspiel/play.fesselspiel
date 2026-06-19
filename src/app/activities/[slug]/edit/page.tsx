@@ -72,7 +72,7 @@ export default async function EditActivityPage({ params }: { params: { slug: str
 
   return (
     <AppShell>
-      <PageHeader title="Spielplan bearbeiten" subtitle={`/activities/${activity.slug}`} />
+      <PageHeader title="Spielplan bearbeiten" />
       <PageGuide>
         Passe hier Titel, Slug, Termin, Status, Notiz und die verknuepften Spielsachen oder Stellungen an. Loeschen entfernt nur diesen Plan, nicht die verwendeten Bausteine.
       </PageGuide>

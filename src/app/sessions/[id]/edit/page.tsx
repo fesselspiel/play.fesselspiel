@@ -58,8 +58,8 @@ export default async function EditSessionPage({ params }: { params: { id: string
 
   return (
     <AppShell>
-      <PageHeader title="Session bearbeiten" subtitle="Zeiten, Stimmung und Notizen aktualisieren." />
-      <PageGuide>
+      <PageHeader title="Session bearbeiten" />
+      <PageGuide title="Zeiten, Stimmung und Notizen aktualisieren">
         Korrigiere hier Zeiten, Stimmungen und Notizen einer Session. Die Dauer wird aus Start- und Endzeit neu berechnet; Loeschen entfernt den Eintrag aus Kalender und Auswertungen.
       </PageGuide>
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">

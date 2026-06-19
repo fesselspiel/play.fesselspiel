@@ -77,8 +77,8 @@ export default async function UsersPage() {
   ]);
   return (
     <AppShell>
-      <PageHeader title="Benutzerverwaltung" subtitle="Benutzer anlegen, Rollen vergeben, Kreise fuer Paare/Gruppen verwalten und Konten deaktivieren." />
-      <PageGuide>
+      <PageHeader title="Benutzerverwaltung" />
+      <PageGuide title="Benutzer, Rollen und Kreise verwalten">
         Diese Seite ist fuer Admins gedacht. Lege neue Konten an, erstelle einen Kreis fuer ein Paar oder eine Gruppe und ordne Benutzer diesem Kreis zu. Mitglieder desselben Kreises sehen automatisch gemeinsame Inhalte.
       </PageGuide>
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">

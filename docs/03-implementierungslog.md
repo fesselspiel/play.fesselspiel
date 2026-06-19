@@ -159,6 +159,8 @@ Details:
 - PageGuide wurde danach aus dem schwebenden `fixed` Overlay entfernt.
 - Die Hilfe ist jetzt ein normales, dezentes Element am Seitenende rechts und liegt nicht mehr ueber dem Inhalt.
 - Auf der Medienseite wurde der erklaerende Header-Subtitle entfernt; die Formulierung steht jetzt als Titel in der unteren Info-Box.
+- Rein erklaerende Header-Untertitel wurden auf allen Uebersichts-, Neu-, Bearbeiten- und Einstellungsseiten entfernt. Die Erklaerungen stehen jetzt als Titel/Inhalt in der unteren `PageGuide`-Info-Box.
+- Funktionale Detailseiten-Anzeigen wie Slug, Pfad oder kopierbare URL bleiben im Header sichtbar.
 
 ## Detailseiten-Aktionen
 

@@ -55,8 +55,8 @@ export default async function MessagesPage() {
   ]);
   return (
     <AppShell>
-      <PageHeader title="Nachrichten" subtitle="Direktnachrichten mit optionalem geschuetztem Datei-Anhang." />
-      <PageGuide>
+      <PageHeader title="Nachrichten" />
+      <PageGuide title="Direktnachrichten mit geschuetztem Datei-Anhang">
         Nachrichten dienen der privaten Kommunikation im Portal. Waehle einen Empfaenger oder Alle, schreibe deine Nachricht, haenge optional eine Datei an und loesche eigene Nachrichten bei Bedarf wieder.
       </PageGuide>
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">

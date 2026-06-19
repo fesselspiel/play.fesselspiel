@@ -30,7 +30,6 @@ export default async function PositionsPage({ searchParams }: { searchParams: { 
     <AppShell>
       <PageHeader
         title="Stellungen"
-        subtitle="Positionen mit Bildern, Beschreibungen und Verknuepfungen zu Spielzeugen und Aktivitaeten."
         action={
           <Link href="/positions/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white">
             <Plus className="h-4 w-4" />
@@ -38,7 +37,7 @@ export default async function PositionsPage({ searchParams }: { searchParams: { 
           </Link>
         }
       />
-      <PageGuide>
+      <PageGuide title="Positionen mit Bildern und Verknuepfungen">
         Stellungen sind wiederverwendbare Bausteine fuer Aktivitaeten. Suche nach Namen, filtere nach Spielzeug und oeffne einen Eintrag, um Bild, Beschreibung, Verknuepfungen und Bearbeitung zu sehen.
       </PageGuide>
       <form className="mb-5 grid gap-3 rounded-lg bg-paper p-4 sm:grid-cols-[1fr_260px_auto]">

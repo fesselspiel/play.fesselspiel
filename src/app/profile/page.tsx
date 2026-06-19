@@ -61,8 +61,8 @@ export default async function ProfilePage() {
   const activeMode = normalizeThemeMode(user.settings?.darkMode);
   return (
     <AppShell>
-      <PageHeader title="Profil & Einstellungen" subtitle="Basisdaten, frei definierbare Profilinformationen und persoenliches Erscheinungsbild." />
-      <PageGuide>
+      <PageHeader title="Profil & Einstellungen" />
+      <PageGuide title="Profilinformationen und persoenliches Erscheinungsbild">
         Hier pflegst du deine sichtbaren Profilangaben und persoenlichen Einstellungen. Aendere Basisdaten, speichere eigene JSON-Felder und teste Farbschemas direkt im Theme-Picker, bevor du speicherst.
       </PageGuide>
       <Panel className="max-w-3xl">

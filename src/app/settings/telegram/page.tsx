@@ -106,8 +106,8 @@ export default async function TelegramPage() {
   const pendingChats = settings?.telegramChats.filter((chat) => chat.status === "PENDING" && !activeWholeChatIds.has(chat.chatId)) || [];
   return (
     <AppShell>
-      <PageHeader title="Telegram" subtitle="Bot-Token, Chat/Thread-Bestaetigung und Voice-Transkriptions-Key vorbereiten." />
-      <PageGuide>
+      <PageHeader title="Telegram" />
+      <PageGuide title="Bot, Chats und Voice-Transkription verbinden">
         Hier verbindest du Telegram mit dem Portal. Speichere Bot-Token und OpenAI-Key, lies Chats ein, uebernimm Chat-ID und Thread-ID und setze den Webhook, damit der Bot Nachrichten, Bilder und Aktionen verarbeiten kann.
       </PageGuide>
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">

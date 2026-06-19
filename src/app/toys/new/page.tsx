@@ -28,8 +28,8 @@ export default async function NewToyPage() {
   if (!user) redirect("/login");
   return (
     <AppShell>
-      <PageHeader title="Spielzeug anlegen" subtitle="Der Slug wird automatisch erzeugt und kann hier manuell ueberschrieben werden." />
-      <PageGuide>
+      <PageHeader title="Spielzeug anlegen" />
+      <PageGuide title="Spielzeug mit Bild, Slug und QR-Code anlegen">
         Erfasse hier ein neues Spielzeug mit Titel, optionalem Slug, Bild und Beschreibung. Nach dem Speichern bekommt der Eintrag eine Detailseite mit geschuetztem Bild und QR-Code.
       </PageGuide>
       <form action={createToy} className="max-w-2xl space-y-4">

@@ -56,8 +56,8 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
 
   return (
     <AppShell>
-      <PageHeader title="Segufix-Timetracker" subtitle="Erfassung, Jahresuebersicht und Auswertung von Sessions." />
-      <PageGuide>
+      <PageHeader title="Segufix-Timetracker" />
+      <PageGuide title="Session-Erfassung, Jahresuebersicht und Auswertung">
         Der Timetracker dokumentiert Sessions mit Start, Ende, Dauer, Stimmung und Notizen. Erfasse links neue Eintraege, nutze den Jahreskalender zur Orientierung und bearbeite bestehende Sessions in der Historie.
       </PageGuide>
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">

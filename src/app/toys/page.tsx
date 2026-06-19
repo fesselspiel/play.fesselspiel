@@ -16,7 +16,6 @@ export default async function ToysPage() {
     <AppShell>
       <PageHeader
         title="Spielzeugkatalog"
-        subtitle="Persoenliche Ausruestung mit Slug-URLs, QR-Codes und Verknuepfungen."
         action={
           <Link href="/toys/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white">
             <Plus className="h-4 w-4" />
@@ -24,7 +23,7 @@ export default async function ToysPage() {
           </Link>
         }
       />
-      <PageGuide>
+      <PageGuide title="Persoenliche Ausruestung mit Slug-URLs und QR-Codes">
         Hier verwaltest du deinen Spielzeugkatalog. Oeffne einen Eintrag fuer Details, QR-Code und Verknuepfungen oder lege ueber den roten Button ein neues Spielzeug mit Bild, Beschreibung und eigener URL an.
       </PageGuide>
       {toys.length ? (

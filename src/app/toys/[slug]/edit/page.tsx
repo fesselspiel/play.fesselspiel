@@ -61,7 +61,7 @@ export default async function EditToyPage({ params }: { params: { slug: string }
 
   return (
     <AppShell>
-      <PageHeader title="Spielzeug bearbeiten" subtitle={toy.slug} />
+      <PageHeader title="Spielzeug bearbeiten" />
       <PageGuide>
         Aendere hier Titel, Slug, Bild und Beschreibung. Ein neues Bild ersetzt das alte; wenn du das Bild entfernst oder den Eintrag loeschst, wird die gespeicherte Datei ebenfalls vom Server entfernt.
       </PageGuide>
