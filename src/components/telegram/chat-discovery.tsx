@@ -33,6 +33,13 @@ export function TelegramChatDiscovery() {
   const [webhookInfo, setWebhookInfo] = useState<WebhookInfo | null>(null);
   const [saved, setSaved] = useState("");
 
+  function friendlyError(err: unknown, fallback: string) {
+    const message = err instanceof Error ? err.message : "";
+    if (!message) return fallback;
+    if (message.includes("expected pattern")) return fallback;
+    return message;
+  }
+
   async function loadWebhookInfo() {
     setError("");
     const response = await fetch("/api/telegram/webhook-info", { cache: "no-store" });
@@ -57,7 +64,7 @@ export function TelegramChatDiscovery() {
       await loadWebhookInfo();
       if (action === "delete") await loadUpdates();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Webhook konnte nicht geaendert werden.");
+      setError(friendlyError(err, "Webhook konnte nicht geaendert werden."));
     } finally {
       setLoading(false);
     }
@@ -81,7 +88,7 @@ export function TelegramChatDiscovery() {
       setCandidates(payload.candidates || []);
       if (!payload.candidates?.length) setError("Keine Testnachricht gefunden. Schreibe dem Bot zuerst eine Nachricht im gewuenschten Chat oder Thread.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Telegram konnte nicht gelesen werden.");
+      setError(friendlyError(err, "Keine Testnachricht gefunden. Sende zuerst eine neue Testnachricht im gewuenschten Telegram-Thread."));
     } finally {
       setLoading(false);
     }
@@ -110,7 +117,7 @@ export function TelegramChatDiscovery() {
       setSaved(key);
       window.location.reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Chat konnte nicht gespeichert werden.");
+      setError(friendlyError(err, "Chat konnte nicht gespeichert werden."));
     } finally {
       setSavingKey("");
     }

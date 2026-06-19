@@ -285,6 +285,7 @@ Details:
 - Bei erkannten Threads mit Thread-ID wird kein Button mehr angeboten, um den gesamten Chat zu aktivieren.
 - Die manuelle Telegram-Chat-Anlage wurde entfernt; Kanaele werden nur noch ueber erkannte Testnachrichten uebernommen.
 - Aktive Kanaele zeigen im aufgeklappten Bereich ebenfalls die zuletzt erkannte Testnachricht.
+- Telegram-Testnachricht-Einlesen faengt Telegram-/Browser-Fehler ab und zeigt statt technischer Exceptions eine verstaendliche Meldung.
 
 ## Medienseite als Bild-Feed
 

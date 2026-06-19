@@ -8,7 +8,22 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
   const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
   if (!settings?.telegramBotTokenEnc) return NextResponse.json({ error: "Telegram Token fehlt" }, { status: 400 });
-  const updates = await getTelegramUpdates(settings.telegramBotTokenEnc);
-  const candidates = updates.result.map(toChatCandidate).filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate));
-  return NextResponse.json({ ok: updates.ok, candidates });
+  try {
+    const updates = await getTelegramUpdates(settings.telegramBotTokenEnc);
+    const candidates = updates.result.map(toChatCandidate).filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate));
+    return NextResponse.json({ ok: updates.ok, candidates });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Telegram konnte nicht gelesen werden.";
+    if (message.includes("409") || message.toLowerCase().includes("webhook")) {
+      return NextResponse.json(
+        {
+          ok: false,
+          candidates: [],
+          error: "Telegram gibt keine Testnachrichten aus, solange der Webhook aktiv ist. Loesche den Webhook kurz, sende eine Testnachricht und lies danach erneut ein."
+        },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json({ ok: false, candidates: [], error: "Telegram konnte gerade keine Testnachrichten liefern." }, { status: 502 });
+  }
 }
