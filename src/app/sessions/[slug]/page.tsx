@@ -5,6 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { Button, Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { logAction } from "@/lib/audit";
 import { ownerScope } from "@/lib/access";
+import { ensureDefaultAlbum } from "@/lib/albums";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
 import { fileAssetUrl, saveUploadedFile } from "@/lib/files";
@@ -21,9 +22,11 @@ async function addSessionMedia(formData: FormData) {
   if (!session) notFound();
   const asset = await saveUploadedFile(user.id, formData.get("file") as File | null);
   if (!asset) redirect(`/sessions/${await ensureSessionSlug(session)}`);
+  const album = await ensureDefaultAlbum(user.id);
   await prisma.media.create({
     data: {
       ownerId: user.id,
+      albumId: album.id,
       sessionId: session.id,
       title: String(formData.get("title") || asset.originalName || "Session Bild").trim(),
       kind: asset.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE",

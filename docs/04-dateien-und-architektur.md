@@ -136,6 +136,7 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 
 - `User`: Account, Rolle, Login, Beziehungen.
 - `UserSettings`: Theme, Dark Mode, Spielampel-Status, Telegram/OpenAI Secrets, Telegram Chats.
+- `UserSettings.timeOffsetMinutes`: einfache Admin-Zeitkorrektur fuer die angezeigte Systemzeit.
 - `Profile`: Profilfelder.
 - `Profile.imageUrl`: geschuetztes Profilbild ueber `/api/files/<id>`.
 - `Circle`: Paar-/Gruppenkreis; Mitglieder sehen gemeinsame Inhalte.
@@ -146,7 +147,7 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `SegufixSession`: Session-Tracking.
 - `KgSession`: KG-Tragezeit-Tracking mit Start, Ende, Dauer und Notiz.
 - `Album`: Medienalbum.
-- `Media`: Bild oder Video.
+- `Media`: Bild oder Video; neue Medien werden immer einem Album zugeordnet, standardmaessig `Eingang`.
 - `MediaComment`: Kommentar oder Notiz zu einem Medium.
 - `Event`: Termin.
 - `CheckIn`: Teilnahme/Check-in.
@@ -169,6 +170,14 @@ UI-Hinweis:
 - Bei Bildersatz gewinnt eine neu ausgewaehlte Datei automatisch gegen die Entfernen-Option.
 - `next.config.mjs` setzt `experimental.serverActions.bodySizeLimit` auf `50mb`, passend zur Upload-Grenze der App.
 - Spielzeug- und Stellungsbilder werden beim Auswaehlen direkt an `/api/uploads` gesendet. Die anschliessende Server Action speichert nur die zurueckgegebene geschuetzte Datei-URL.
+- `ensureDefaultAlbum(ownerId)` in `src/lib/albums.ts` legt bei Bedarf das Standardalbum `Eingang` an.
+- Medienuploads ueber Web, Telegram, externe API, Session-Detailseite und Import verwenden dieses Album als Fallback.
+
+## Wiederverwendbare UI-Helfer
+
+- `src/components/submit-button.tsx`: Button mit `useFormStatus`, Pending-Text und deaktiviertem Zustand beim Speichern.
+- `src/components/username-field.tsx`: Benutzername-Feld mit Blur-Pruefung gegen `/api/users/check-username`.
+- `src/components/protocol-search.tsx`: Client-Suche fuer das Protokoll mit Vorschlaegen und Sprunglinks.
 
 ## Slug-Architektur
 

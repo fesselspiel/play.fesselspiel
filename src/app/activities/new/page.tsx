@@ -40,7 +40,7 @@ async function createActivity(formData: FormData) {
   redirect(`/activities/${slug}`);
 }
 
-export default async function NewActivityPage() {
+export default async function NewActivityPage({ searchParams }: { searchParams?: { date?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const scope = await ownerScope(user);
@@ -48,6 +48,7 @@ export default async function NewActivityPage() {
     prisma.toy.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }),
     prisma.position.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] })
   ]);
+  const defaultDate = String(searchParams?.date || "").match(/^\d{4}-\d{2}-\d{2}$/) ? String(searchParams?.date) : "";
   return (
     <AppShell>
       <PageHeader title="Lass uns spielen" />
@@ -60,7 +61,7 @@ export default async function NewActivityPage() {
           <Field label="Kategorie"><input className={inputClass} name="category" placeholder="Entspannung, Bondage, Foto-Session" /></Field>
           <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" placeholder="entspannungsabend" /></Field>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Datum"><input className={inputClass} name="date" type="date" /></Field>
+            <Field label="Datum"><input className={inputClass} name="date" type="date" defaultValue={defaultDate} /></Field>
             <Field label="Uhrzeit">
               <select className={selectClass} name="time" defaultValue="20:00">
                 {quarterHourOptions().map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}

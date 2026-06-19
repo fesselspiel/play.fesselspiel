@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ensureDefaultAlbum } from "@/lib/albums";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { answerWithPortalAgent } from "@/lib/telegram-agent";
@@ -70,6 +71,29 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
       prisma.kgSession.count({ where: { ownerId: userId } })
     ]);
     return ["<b>Portalstatus</b>", htmlLine("Spielzeuge", toys), htmlLine("Stellungen", positions), htmlLine("Geplante Aktivitaeten", activities), htmlLine("Segufix-Sessions", sessions), htmlLine("KG-Eintraege", kgSessions)].join("\n");
+  }
+
+  if (parsed.command.startsWith("/media_album_")) {
+    const match = parsed.command.match(/^\/media_album_(\d+)_(.+)$/);
+    if (!match) return "Ungueltiger Album-Befehl.";
+    const albumIndex = Number(match[1]);
+    const mediaId = match[2];
+    const [media, albums] = await Promise.all([
+      prisma.media.findFirst({ where: { id: mediaId, ownerId: userId } }),
+      prisma.album.findMany({ where: { ownerId: userId }, orderBy: { title: "asc" } })
+    ]);
+    const album = albums[albumIndex - 1];
+    if (!media || !album) return "Medium oder Album wurde nicht gefunden.";
+    await prisma.media.update({ where: { id: media.id }, data: { albumId: album.id } });
+    await logAction({
+      actorId: userId,
+      action: "media_album_changed_telegram",
+      entityType: "media",
+      entityId: media.id,
+      title: `Bild per Telegram in Album verschoben: ${album.title}`,
+      href: "/media"
+    });
+    return [`<b>Bild einsortiert</b>`, htmlLine("Bild", media.title), htmlLine("Album", album.title), telegramLink(`${env.appUrl}/media?view=${media.id}`, "in Medien oeffnen")].join("\n");
   }
 
   if (parsed.command === "/toys") {
@@ -361,6 +385,7 @@ export async function POST(request: Request) {
         .create({
           data: {
             ownerId: actorUserId,
+            albumId: (await ensureDefaultAlbum(actorUserId)).id,
             title: caption || `Telegram Bild ${formatDateTime(new Date())}`,
             kind: "IMAGE",
             url: imageUrl,
@@ -368,6 +393,7 @@ export async function POST(request: Request) {
           }
         })
         .then(async (media) => {
+          const albums = await prisma.album.findMany({ where: { ownerId: actorUserId }, orderBy: { title: "asc" } });
           await logAction({
             actorId: actorUserId,
             action: "media_created_telegram",
@@ -376,7 +402,17 @@ export async function POST(request: Request) {
             title: `Bild aus Telegram gespeichert: ${media.title}`,
             href: "/media"
           });
-          return `Bild in Medien gespeichert: ${media.title}`;
+          const albumLines = albums.map((album, index) => `<code>/media_album_${index + 1}_${media.id}</code> - ${telegramHtml(album.title)}`);
+          return [
+            "<b>Bild in Medien gespeichert</b>",
+            telegramHtml(media.title),
+            htmlLine("Album", albums.find((album) => album.id === media.albumId)?.title || "Eingang"),
+            "",
+            "<b>In anderes Album verschieben</b>",
+            ...albumLines,
+            "",
+            "Wenn du nichts anklickst, bleibt das Bild im Standardalbum."
+          ].join("\n");
         }));
 
     await sendTelegramMessage(chat.settings.telegramBotTokenEnc, chatId, threadId, answer, { parseMode: "HTML", disableWebPagePreview: true });

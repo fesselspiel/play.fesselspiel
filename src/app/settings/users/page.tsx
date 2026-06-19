@@ -2,16 +2,26 @@ import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { UserPlus, UsersRound } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { FileUploadField } from "@/components/file-upload-field";
+import { SubmitButton } from "@/components/submit-button";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
+import { UsernameField } from "@/components/username-field";
 import { currentUser, requireAdmin } from "@/lib/auth";
 import { appTimeZone, formatDateTime } from "@/lib/dates";
+import { fileAssetUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 
 async function createUser(formData: FormData) {
   "use server";
   await requireAdmin();
-  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const rawEmail = String(formData.get("email") || "").trim().toLowerCase();
   const username = String(formData.get("username") || "").trim() || null;
+  if (!rawEmail && !username) redirect("/settings/users?error=missing-login");
+  if (username) {
+    const existing = await prisma.user.findUnique({ where: { username } });
+    if (existing) redirect("/settings/users?error=username-exists");
+  }
+  const email = rawEmail || `${username}@local.fesselspiel`;
   const password = String(formData.get("password") || "");
   const passwordHash = await bcrypt.hash(password, 12);
   const user = await prisma.user.create({
@@ -27,6 +37,8 @@ async function createUser(formData: FormData) {
       settings: { create: {} }
     }
   });
+  const image = await saveUploadedFile(user.id, formData.get("profileImage") as File | null);
+  if (image) await prisma.profile.update({ where: { userId: user.id }, data: { imageUrl: fileAssetUrl(image.id) } });
   redirect(`/settings/users#user-${user.id}`);
 }
 
@@ -68,7 +80,19 @@ async function updateUser(formData: FormData) {
   redirect("/settings/users");
 }
 
-export default async function UsersPage() {
+async function updateTimeSettings(formData: FormData) {
+  "use server";
+  const admin = await requireAdmin();
+  const timeOffsetMinutes = Number(formData.get("timeOffsetMinutes") || 0) || 0;
+  await prisma.userSettings.upsert({
+    where: { userId: admin.id },
+    update: { timeOffsetMinutes },
+    create: { userId: admin.id, timeOffsetMinutes }
+  });
+  redirect("/settings/users#systemzeit");
+}
+
+export default async function UsersPage({ searchParams }: { searchParams?: { error?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   if (user.role !== "ADMIN") redirect("/");
@@ -77,22 +101,21 @@ export default async function UsersPage() {
     prisma.circle.findMany({ orderBy: { name: "asc" } })
   ]);
   const serverNow = new Date();
+  const timeOffsetMinutes = user.settings?.timeOffsetMinutes || 0;
+  const adjustedNow = new Date(serverNow.getTime() + timeOffsetMinutes * 60000);
   return (
     <AppShell>
       <PageHeader title="Benutzerverwaltung" />
       <PageGuide title="Benutzer, Rollen und Kreise verwalten">
         Diese Seite ist fuer Admins gedacht. Lege neue Konten an, erstelle einen Kreis fuer ein Paar oder eine Gruppe und ordne Benutzer diesem Kreis zu. Mitglieder desselben Kreises sehen automatisch gemeinsame Inhalte.
       </PageGuide>
+      {searchParams?.error ? (
+        <div className="mb-4 rounded-md border border-redbrand bg-redbrand/10 px-4 py-3 text-sm font-semibold text-redbrand">
+          {searchParams.error === "username-exists" ? "Der Benutzername ist bereits vergeben." : "Bitte E-Mail oder Benutzername angeben."}
+        </div>
+      ) : null}
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <div className="space-y-6">
-          <Panel>
-            <h2 className="mb-3 text-lg font-semibold">Systemzeit</h2>
-            <div className="space-y-1 text-sm text-graphite">
-              <div>App-Zeitzone: <strong className="text-ink">{appTimeZone}</strong></div>
-              <div>Anzeigezeit: <strong className="text-ink">{formatDateTime(serverNow)}</strong></div>
-              <div>Server UTC: <strong className="text-ink">{serverNow.toISOString()}</strong></div>
-            </div>
-          </Panel>
           <Panel>
             <h2 className="mb-4 text-lg font-semibold">Kreis anlegen</h2>
             <form action={createCircle} className="space-y-4">
@@ -164,27 +187,71 @@ export default async function UsersPage() {
             </details>
           </Panel>
           <Panel>
-            <h2 className="mb-4 text-lg font-semibold">Benutzer anlegen</h2>
-            <form action={createUser} className="space-y-4">
-              <Field label="Name"><input className={inputClass} name="name" /></Field>
-              <Field label="E-Mail"><input className={inputClass} name="email" type="email" required /></Field>
-              <Field label="Benutzername"><input className={inputClass} name="username" /></Field>
-              <Field label="Passwort"><input className={inputClass} name="password" type="password" required minLength={8} /></Field>
-              <Field label="Rolle"><select className={selectClass} name="role"><option value="USER">Benutzer</option><option value="ADMIN">Admin</option></select></Field>
-              <Field label="Kreis">
-                <select className={selectClass} name="circleId" defaultValue="">
-                  <option value="">Kein Kreis</option>
-                  {circles.map((circle) => <option key={circle.id} value={circle.id}>{circle.name}</option>)}
-                </select>
+            <details className="group">
+              <summary className="focus-ring flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 text-lg font-semibold text-ink hover:text-redbrand [&::-webkit-details-marker]:hidden">
+                Benutzer anlegen
+                <span className="text-sm font-medium text-graphite group-open:hidden">aufklappen</span>
+                <span className="hidden text-sm font-medium text-graphite group-open:inline">einklappen</span>
+              </summary>
+              <form action={createUser} className="mt-4 space-y-4">
+                <Field label="Name"><input className={inputClass} name="name" /></Field>
+                <Field label="E-Mail"><input className={inputClass} name="email" type="email" placeholder="Optional, wenn Benutzername gesetzt ist" /></Field>
+                <Field label="Benutzername"><UsernameField /></Field>
+                <Field label="Passwort"><input className={inputClass} name="password" type="password" required /></Field>
+                <FileUploadField name="profileImage" label="Profilbild" accept="image/*" help="Optionales Profilbild auswaehlen." />
+                <Field label="Rolle"><select className={selectClass} name="role"><option value="USER">Benutzer</option><option value="ADMIN">Admin</option></select></Field>
+                <Field label="Kreis">
+                  <select className={selectClass} name="circleId" defaultValue="">
+                    <option value="">Kein Kreis</option>
+                    {circles.map((circle) => <option key={circle.id} value={circle.id}>{circle.name}</option>)}
+                  </select>
+                </Field>
+                <SubmitButton pendingLabel="Benutzer wird angelegt..."><UserPlus className="h-4 w-4" /> Anlegen</SubmitButton>
+              </form>
+            </details>
+          </Panel>
+          <Panel className="order-last" id="systemzeit">
+            <h2 className="mb-3 text-lg font-semibold">Systemzeit</h2>
+            <div className="space-y-1 text-sm text-graphite">
+              <div>App-Zeitzone: <strong className="text-ink">{appTimeZone}</strong></div>
+              <div>Anzeigezeit: <strong className="text-ink">{formatDateTime(adjustedNow)}</strong></div>
+              <div>Server UTC: <strong className="text-ink">{serverNow.toISOString()}</strong></div>
+            </div>
+            <form action={updateTimeSettings} className="mt-4 space-y-3">
+              <Field label="Zeitkorrektur in Minuten">
+                <input className={inputClass} name="timeOffsetMinutes" type="number" step="1" defaultValue={timeOffsetMinutes} />
               </Field>
-              <Button><UserPlus className="h-4 w-4" /> Anlegen</Button>
+              <p className="text-xs text-graphite">Beispiel: 60 addiert eine Stunde, -60 zieht eine Stunde ab.</p>
+              <SubmitButton pendingLabel="Zeit wird gespeichert...">Zeit speichern</SubmitButton>
             </form>
           </Panel>
         </div>
         <Panel>
-          <div className="space-y-3">
-            {users.map((entry) => (
-              <form key={entry.id} id={`user-${entry.id}`} action={updateUser} className="grid gap-3 rounded-md border border-line p-3 xl:grid-cols-[1fr_140px_180px_110px_auto] xl:items-center">
+          <details className="group" open>
+            <summary className="focus-ring flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 text-lg font-semibold text-ink hover:text-redbrand [&::-webkit-details-marker]:hidden">
+              Benutzer bearbeiten
+              <span className="text-sm font-medium text-graphite group-open:hidden">aufklappen</span>
+              <span className="hidden text-sm font-medium text-graphite group-open:inline">einklappen</span>
+            </summary>
+            <div className="mt-4 space-y-3">
+              {users.map((entry) => (
+              <details key={entry.id} id={`user-${entry.id}`} className="overflow-hidden rounded-md border border-line bg-paper">
+                <summary className="focus-ring flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 hover:bg-surface [&::-webkit-details-marker]:hidden">
+                  <span className="flex min-w-0 items-center gap-3">
+                    {entry.profile?.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={entry.profile.imageUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
+                    ) : (
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-redbrand text-sm font-semibold text-white">{(entry.profile?.displayName || entry.name || entry.email).slice(0, 1).toUpperCase()}</span>
+                    )}
+                    <span className="min-w-0">
+                      <strong className="block truncate">{entry.profile?.displayName || entry.name || entry.email}</strong>
+                      <span className="block truncate text-xs text-graphite">{entry.email}</span>
+                    </span>
+                  </span>
+                  <Badge tone={entry.active ? "green" : "neutral"}>{entry.active ? "aktiv" : "inaktiv"}</Badge>
+                </summary>
+              <form action={updateUser} className="grid gap-3 border-t border-line bg-surface p-3 xl:grid-cols-[1fr_140px_180px_110px_auto] xl:items-center">
                 <input name="id" value={entry.id} type="hidden" />
                 <div className="flex min-w-0 items-center gap-3">
                   {entry.profile?.imageUrl ? (
@@ -216,8 +283,10 @@ export default async function UsersPage() {
                   <Button>Speichern</Button>
                 </div>
               </form>
+              </details>
             ))}
-          </div>
+            </div>
+          </details>
         </Panel>
       </div>
     </AppShell>

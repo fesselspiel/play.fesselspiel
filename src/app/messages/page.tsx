@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronRight, Clock3, ExternalLink, History } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { ProtocolSearch } from "@/components/protocol-search";
 import { Badge, EmptyState, PageGuide, PageHeader, Panel } from "@/components/ui";
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
@@ -20,6 +21,12 @@ type ProtocolEntry = {
   href?: string | null;
   source: "audit" | "telegram" | "message";
 };
+
+function detailBody(details: unknown) {
+  if (!details || typeof details !== "object") return "";
+  const data = details as Record<string, unknown>;
+  return String(data.text || data.answer || data.caption || "");
+}
 
 function hourLabel(value: Date) {
   return new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: appTimeZone }).format(value);
@@ -106,17 +113,23 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
     prisma.auditLog.count({ where: { OR: [{ actorId: { in: accessIds } }, { actorId: null }] } })
   ]);
 
-  const entries: ProtocolEntry[] = [
-    ...auditLogs.map((entry) => ({
+  const auditEntries: ProtocolEntry[] = auditLogs.map((entry) => ({
       id: entry.id,
       createdAt: entry.createdAt,
       actor: actorName(entry.actor),
       title: entry.title,
+      body: detailBody(entry.details),
       href: entry.href,
       source: "audit" as const
-    })),
-    ...legacyMessages.map((message) => {
+    }));
+  const legacyEntries: ProtocolEntry[] = legacyMessages.flatMap((message) => {
       const isTelegram = message.body.startsWith("Telegram");
+      const duplicateAudit = isTelegram && auditEntries.some((entry) =>
+        entry.actor === actorName(message.sender) &&
+        Math.abs(entry.createdAt.getTime() - message.createdAt.getTime()) < 10000 &&
+        entry.title.toLowerCase().includes(message.body.startsWith("Telegram-Agent") ? "antwort" : "telegram")
+      );
+      if (duplicateAudit) return [];
       return {
         id: message.id,
         createdAt: message.createdAt,
@@ -126,8 +139,8 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
         href: message.mediaUrl || null,
         source: isTelegram ? ("telegram" as const) : ("message" as const)
       };
-    })
-  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    });
+  const entries: ProtocolEntry[] = [...auditEntries, ...legacyEntries].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   const groups = groupEntries(entries);
   const hasNext = skip + pageSize < totalAuditLogs;
@@ -136,6 +149,7 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
     <AppShell>
       <PageHeader title="Protokoll" />
       <div className="space-y-4">
+        <ProtocolSearch suggestions={entries.map((entry) => ({ id: entry.id, title: entry.title, actor: entry.actor, body: entry.body || "" }))} />
         <Panel className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-paper text-redbrand">
@@ -167,7 +181,7 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
                       </summary>
                       <div className="space-y-2 bg-canvas/40 px-3 pb-3">
                         {hourEntries.map((entry) => (
-                          <article key={entry.id} className="rounded-md border border-line bg-surface p-3">
+                          <article key={entry.id} id={`entry-${entry.id}`} className="scroll-mt-24 rounded-md border border-line bg-surface p-3">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">

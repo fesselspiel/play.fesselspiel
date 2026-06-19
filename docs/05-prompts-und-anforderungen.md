@@ -541,6 +541,44 @@ Umsetzung:
 - Das Bildraster folgt unmittelbar danach.
 - Upload, Albumverwaltung und Filter stehen unterhalb des Rasters.
 
+Weitere Nachbesserung:
+
+- `Ohne Album` soll verschwinden.
+- Jedes Bild soll in einem Album liegen.
+- Es soll ein Standardalbum geben, in das neue Medien automatisch gespeichert werden.
+- Telegram-Bilduploads sollen im Standardalbum landen und danach eine Nachricht mit Album-Kommandos senden.
+
+Umsetzung:
+
+- Standardalbum heisst `Eingang`.
+- `ensureDefaultAlbum(ownerId)` legt es bei Bedarf an.
+- Medienseite, Session-Bilder, externe Medien-API, Import und Telegram nutzen `Eingang` als Fallback.
+- Die Telegram-Antwort nach einem Bild-Upload listet alle Alben mit anklickbaren `/media_album_<nummer>_<mediaId>`-Kommandos auf.
+
+## Einstellungen- und Protokoll-Prompt
+
+Anforderung:
+
+- Profil- und Einstellungsseiten sollen beim Speichern Button-Feedback zeigen.
+- Dashboard-Wochentage ohne Planung sollen direkt eine Planung fuer dieses Datum oeffnen.
+- Systemzeit soll weiter nach unten und korrigierbar sein.
+- Benutzerverwaltung soll einklappbar sein.
+- Benutzer anlegen soll Profilbild erlauben, E-Mail optional machen und keine Passwortlaengen-Regel erzwingen.
+- Logout soll auf Mobile unter Einstellungen erreichbar sein.
+- Protokolleintraege sollen gruppierter wirken und eine Suche mit Vorschlaegen haben.
+
+Umsetzung:
+
+- `SubmitButton` zeigt Pending-Texte wie `Profil wird gespeichert...`.
+- Dashboard erzeugt pro Tag `/activities/new?date=YYYY-MM-DD`; die neue Planung uebernimmt das Datum.
+- Admin-Zeitkorrektur wird als Minutenwert in `UserSettings.timeOffsetMinutes` gespeichert.
+- Kreise, Benutzer anlegen und Benutzer bearbeiten sind als Accordions aufgebaut.
+- Neuer Benutzer kann direkt ein Profilbild hochladen.
+- Benutzername wird auf Blur ueber `/api/users/check-username` geprueft.
+- E-Mail ist nur noch optionaler Zusatz; ohne E-Mail wird eine lokale interne Adresse aus dem Benutzernamen erzeugt.
+- Mobile Einstellungen zeigen nach dem Protokoll einen Logout-Button.
+- `ProtocolSearch` filtert die geladenen Protokolleintraege im Browser und springt per Anker zum Treffer.
+
 ## Feature-Video-Prompt
 
 Anforderung:

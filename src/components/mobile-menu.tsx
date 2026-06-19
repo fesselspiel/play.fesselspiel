@@ -89,6 +89,15 @@ export function MobileMenu() {
                     {label}
                   </Link>
                 ))}
+                <form action="/api/auth/logout" method="post">
+                  <button
+                    type="submit"
+                    onClick={() => setOpen(false)}
+                    className="flex min-h-10 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium text-redbrand hover:bg-surface"
+                  >
+                    Abmelden
+                  </button>
+                </form>
               </div>
             </details>
           </nav>

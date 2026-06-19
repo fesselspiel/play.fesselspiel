@@ -338,7 +338,7 @@ Details:
 - Metadaten werden erst beim Hover/Fokus als Overlay angezeigt.
 - Ein Klick auf ein Medium oeffnet eine grosse Detailansicht mit Bild/Video, Metadaten, Dateiinfos, Oeffnen- und Loeschaktion.
 - Neues Modell `MediaComment` ermoeglicht Kommentare/Notizen direkt am Medium.
-- Medien koennen in der Detailansicht einem Album zugeordnet oder wieder auf `Kein Album` gesetzt werden.
+- Medien koennen in der Detailansicht einem Album zugeordnet werden.
 - Im Album-Werkzeug koennen mehrere Medien per Thumbnail-Auswahl gleichzeitig einem Album hinzugefuegt werden.
 - Layout-Reihenfolge angepasst: Album-Auswahlchips stehen direkt ueber dem Bildraster, Upload/Albumverwaltung/Filter stehen darunter.
 
@@ -453,3 +453,22 @@ Details:
 - Das Rendering erfolgte ausschliesslich in Docker/FFmpeg; auf dem Server wurde nichts installiert.
 - Datei: `entfernt`
 - Plattform-Link: `entfernt`
+
+## Einstellungen, Protokoll und Medienalben
+
+- Profil- und Benutzerformulare nutzen `SubmitButton`, damit Buttons beim Absenden sichtbar auf "wird gespeichert" wechseln.
+- Dashboard-Wochentage verlinken leere Tage und Kalender-Icons direkt auf `/activities/new?date=YYYY-MM-DD`.
+- Die neue Spielplanung uebernimmt dieses Datum automatisch.
+- Benutzerverwaltung und Kreise sind als aufklappbare Bereiche umgesetzt.
+- Beim Anlegen eines Benutzers ist E-Mail optional, wenn ein Benutzername gesetzt ist.
+- Benutzername wird beim Verlassen des Feldes gegen `/api/users/check-username` geprueft.
+- Passwortlaenge wird nicht mehr clientseitig begrenzt.
+- Benutzer koennen direkt beim Anlegen ein Profilbild hochladen.
+- Das mobile Einstellungsmenue enthaelt am Ende einen Logout-Button.
+- Die Systemzeit steht in der Admin-Benutzerverwaltung weiter unten und hat eine einfache Zeitkorrektur in Minuten (`UserSettings.timeOffsetMinutes`).
+- Das Protokoll hat ein Suchfeld mit Live-Vorschlaegen; Treffer springen direkt zum passenden Eintrag.
+- Telegram-Protokolleintraege werden so zusammengefuehrt, dass empfangene Nachricht und Antwort nicht mehr wie getrennte Fremdeintraege wirken.
+- Medien ohne Album werden nicht mehr als eigenes Ziel angeboten.
+- Fuer jeden Benutzer wird ein Standardalbum `Eingang` angelegt.
+- Neue Uploads aus Webformularen, Session-Detailseiten, Import, externer API und Telegram landen automatisch in `Eingang`, wenn kein Album gesetzt ist.
+- Telegram-Bilduploads senden nach dem Speichern eine HTML-formatierte Albumauswahl mit anklickbaren `/media_album_...`-Kommandos.

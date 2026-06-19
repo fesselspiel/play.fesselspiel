@@ -2,8 +2,9 @@ import { redirect } from "next/navigation";
 import { Save } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { FileUploadField } from "@/components/file-upload-field";
+import { SubmitButton } from "@/components/submit-button";
 import { ThemePicker } from "@/components/theme-picker";
-import { Button, Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
+import { Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
 import { currentUser } from "@/lib/auth";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
@@ -93,7 +94,7 @@ export default async function ProfilePage() {
             help="Quadratisches Bild oder Foto auswaehlen."
           />
           <ThemePicker activeTheme={activeTheme} activeMode={activeMode} />
-          <Button><Save className="h-4 w-4" /> Profil speichern</Button>
+          <SubmitButton pendingLabel="Profil wird gespeichert..."><Save className="h-4 w-4" /> Profil speichern</SubmitButton>
         </form>
       </Panel>
     </AppShell>

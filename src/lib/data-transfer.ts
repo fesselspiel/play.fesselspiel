@@ -2,6 +2,7 @@ import JSZip from "jszip";
 import { readFile } from "fs/promises";
 import path from "path";
 import { accessibleOwnerIds, type AccessUser } from "@/lib/access";
+import { ensureDefaultAlbum } from "@/lib/albums";
 import { absolutePathForAsset, fileAssetUrl, fileIdFromUrl, saveFileBuffer } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
@@ -266,6 +267,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     });
     albumMap.set(String(entry.id || ""), created.id);
   }
+  const fallbackAlbum = await ensureDefaultAlbum(user.id);
 
   const mediaMap = new Map<string, string>();
   for (const entry of records(data.media)) {
@@ -274,7 +276,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     const created = await prisma.media.create({
       data: {
         ownerId: user.id,
-        albumId: albumMap.get(String(entry.albumId || "")) || null,
+        albumId: albumMap.get(String(entry.albumId || "")) || fallbackAlbum.id,
         sessionId: sessionMap.get(String(entry.sessionId || "")) || null,
         title: String(entry.title || "Importiertes Medium"),
         kind: String(entry.kind || "IMAGE") as "IMAGE" | "VIDEO",

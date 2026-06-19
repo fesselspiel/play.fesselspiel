@@ -15,6 +15,7 @@ import { ensureSessionSlug } from "@/lib/session-slug";
 const dayFormatter = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "Europe/Berlin" });
 const timeFormatter = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
 const keyFormatter = new Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeZone: "Europe/Berlin" });
+const inputDateFormatter = new Intl.DateTimeFormat("sv-SE", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/Berlin" });
 
 function dayKey(value: Date) {
   return keyFormatter.format(value);
@@ -168,7 +169,7 @@ export default async function DashboardPage() {
           meta: event.location || "Termin"
         }))
     ].sort((a, b) => a.time.localeCompare(b.time));
-    return { date, key, entries, isToday: index === 0 };
+    return { date, key, entries, isToday: index === 0, planUrl: `/activities/new?date=${inputDateFormatter.format(date)}` };
   });
 
   return (
@@ -261,7 +262,9 @@ export default async function DashboardPage() {
                     <div className="text-xs font-semibold uppercase text-graphite">{day.isToday ? "Heute" : dayFormatter.format(day.date).split(",")[0]}</div>
                     <div className="mt-1 text-lg font-semibold text-ink">{dayFormatter.format(day.date).replace(",", "")}</div>
                   </div>
-                  <CalendarDays className={`h-5 w-5 ${day.entries.length ? "text-redbrand" : "text-graphite"}`} />
+                  <Link href={day.planUrl} className="focus-ring rounded-md p-1" title="Diesen Tag planen">
+                    <CalendarDays className={`h-5 w-5 ${day.entries.length ? "text-redbrand" : "text-graphite"}`} />
+                  </Link>
                 </div>
                 <div className="mt-4 space-y-2">
                   {day.entries.length ? (
@@ -287,7 +290,9 @@ export default async function DashboardPage() {
                       </div>
                     ))
                   ) : (
-                    <p className="rounded-md border border-dashed border-line bg-surface p-3 text-sm text-graphite">Noch nichts geplant.</p>
+                    <Link href={day.planUrl} className="block rounded-md border border-dashed border-line bg-surface p-3 text-sm text-graphite hover:border-redbrand hover:text-redbrand">
+                      Noch nichts geplant.
+                    </Link>
                   )}
                 </div>
               </div>

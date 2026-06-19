@@ -21,6 +21,7 @@ import { AppShell } from "@/components/app-shell";
 import { FileUploadField } from "@/components/file-upload-field";
 import { Badge, Button, EmptyState, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
+import { ensureDefaultAlbum } from "@/lib/albums";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
@@ -40,11 +41,15 @@ async function createMedia(formData: FormData) {
   if (!user) redirect("/login");
   const file = await saveUploadedFile(user.id, formData.get("file") as File | null);
   if (!file) redirect("/media");
+  const selectedAlbumId = String(formData.get("albumId") || "");
+  const scope = await ownerScope(user);
+  const selectedAlbum = selectedAlbumId ? await prisma.album.findFirst({ where: { id: selectedAlbumId, ...scope } }) : null;
+  const targetAlbum = selectedAlbum || (await ensureDefaultAlbum(user.id));
   const kind = file.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE";
   await prisma.media.create({
     data: {
       ownerId: user.id,
-      albumId: String(formData.get("albumId") || "") || null,
+      albumId: targetAlbum.id,
       title: String(formData.get("title") || "").trim(),
       kind,
       url: fileAssetUrl(file.id),
@@ -92,13 +97,11 @@ async function updateMediaAlbum(formData: FormData) {
   const next = String(formData.get("next") || "/media");
   const media = await prisma.media.findFirst({ where: { id: mediaId, ...scope } });
   if (!media) redirect("/media");
-  if (albumId) {
-    const album = await prisma.album.findFirst({ where: { id: albumId, ...scope } });
-    if (!album) redirect(next);
-  }
+  const album = await prisma.album.findFirst({ where: { id: albumId, ...scope } });
+  if (!album) redirect(next);
   await prisma.media.update({
     where: { id: media.id },
-    data: { albumId: albumId || null }
+    data: { albumId: album.id }
   });
   redirect(next);
 }
@@ -174,11 +177,12 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
   const visibilityFilter = ["PRIVATE", "PARTNER", "SHARED"].includes(searchParams.visibility || "") ? searchParams.visibility || "" : "";
   const q = searchParams.q?.trim() || "";
   const scope = await ownerScope(user);
+  const defaultAlbum = await ensureDefaultAlbum(user.id);
   const [media, albums, albumMedia] = await Promise.all([
     prisma.media.findMany({
       where: {
         ...scope,
-        ...(albumFilter === "none" ? { albumId: null } : albumFilter ? { albumId: albumFilter } : {}),
+        ...(albumFilter ? { albumId: albumFilter } : {}),
         ...(kindFilter ? { kind: kindFilter as "IMAGE" | "VIDEO" } : {}),
         ...(visibilityFilter ? { visibility: visibilityFilter as "PRIVATE" | "PARTNER" | "SHARED" } : {}),
         ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {})
@@ -224,9 +228,6 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
           <Link href={mediaUrl({ ...baseFilters, album: undefined, view: undefined })} className={`focus-ring shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${!albumFilter ? "border-redbrand bg-redbrand text-white" : "border-line bg-surface text-ink hover:bg-paper"}`}>
             Alle
           </Link>
-          <Link href={mediaUrl({ ...baseFilters, album: "none", view: undefined })} className={`focus-ring shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${albumFilter === "none" ? "border-redbrand bg-redbrand text-white" : "border-line bg-surface text-ink hover:bg-paper"}`}>
-            Ohne Album
-          </Link>
           {albums.map((album) => (
             <Link key={album.id} href={mediaUrl({ ...baseFilters, album: album.id, view: undefined })} className={`focus-ring shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${albumFilter === album.id ? "border-redbrand bg-redbrand text-white" : "border-line bg-surface text-ink hover:bg-paper"}`}>
               {album.title}
@@ -259,7 +260,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                       <Eye className="h-3.5 w-3.5" />
                       {mediaTypeLabel(entry.kind)} · {visibilityLabel(entry.visibility)}
                     </span>
-                    <span className="mt-1 block truncate text-xs text-white/75">{asset?.originalName || entry.album?.title || "Ohne Album"}</span>
+                    <span className="mt-1 block truncate text-xs text-white/75">{asset?.originalName || entry.album?.title || defaultAlbum.title}</span>
                   </span>
                 </Link>
               );
@@ -281,8 +282,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
               <Field label="Titel"><input className={inputClass} name="title" required /></Field>
               <FileUploadField name="file" label="Datei" accept="image/*,video/*" required help="Bild oder Video auswaehlen." />
               <Field label="Album">
-                <select className={selectClass} name="albumId">
-                  <option value="">Kein Album</option>
+                <select className={selectClass} name="albumId" defaultValue={defaultAlbum.id}>
                   {albums.map((album) => <option key={album.id} value={album.id}>{album.title}</option>)}
                 </select>
               </Field>
@@ -394,7 +394,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                 <div className="flex flex-wrap gap-2">
                   <Badge tone="red">{mediaTypeLabel(selected.kind)}</Badge>
                   <Badge>{visibilityLabel(selected.visibility)}</Badge>
-                  <Badge>{selected.album?.title || "Ohne Album"}</Badge>
+                  <Badge>{selected.album?.title || defaultAlbum.title}</Badge>
                 </div>
                 <h2 className="text-xl font-semibold text-ink">{selected.title}</h2>
               </div>
@@ -408,8 +408,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                 <input type="hidden" name="mediaId" value={selected.id} />
                 <input type="hidden" name="next" value={selectedUrl} />
                 <Field label="Album">
-                  <select className={selectClass} name="albumId" defaultValue={selected.albumId || ""}>
-                    <option value="">Kein Album</option>
+                  <select className={selectClass} name="albumId" defaultValue={selected.albumId || defaultAlbum.id}>
                     {albums.map((album) => <option key={album.id} value={album.id}>{album.title}</option>)}
                   </select>
                 </Field>

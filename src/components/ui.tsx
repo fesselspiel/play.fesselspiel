@@ -17,8 +17,8 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
   );
 }
 
-export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-lg border border-line bg-surface p-5 shadow-soft ${className}`}>{children}</section>;
+export function Panel({ children, className = "", id }: { children: ReactNode; className?: string; id?: string }) {
+  return <section id={id} className={`rounded-lg border border-line bg-surface p-5 shadow-soft ${className}`}>{children}</section>;
 }
 
 export function SoftPanel({ children, className = "" }: { children: ReactNode; className?: string }) {

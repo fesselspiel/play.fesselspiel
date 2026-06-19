@@ -129,6 +129,7 @@ model UserSettings {
   darkMode            Boolean        @default(false)
   playReady           Boolean        @default(false)
   playReadyUpdatedAt  DateTime?
+  timeOffsetMinutes   Int            @default(0)
   telegramBotTokenEnc String?
   openAiApiKeyEnc     String?
   telegramChats       TelegramChat[]
