@@ -145,13 +145,8 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
 
 async function findActiveTelegramChat(chatId: string, threadId: string | null) {
   const include = { settings: { include: { user: true } } } as const;
-  const exactChat = await prisma.telegramChat.findFirst({
-    where: { chatId, threadId, status: "ACTIVE" },
-    include
-  });
-  if (exactChat || !threadId) return exactChat;
   return prisma.telegramChat.findFirst({
-    where: { chatId, threadId: null, status: "ACTIVE" },
+    where: { chatId, threadId, status: "ACTIVE" },
     include
   });
 }
@@ -164,33 +159,7 @@ export async function POST(request: Request) {
   const threadId = message.message_thread_id ? String(message.message_thread_id) : null;
   const chat = await findActiveTelegramChat(chatId, threadId);
   if (!chat?.settings.telegramBotTokenEnc) {
-    const settings = await prisma.userSettings.findFirst({ where: { telegramBotTokenEnc: { not: null } } });
-    const tokenEnc = settings?.telegramBotTokenEnc;
-    if (settings && tokenEnc) {
-      const existing = await prisma.telegramChat.findFirst({ where: { settingsId: settings.id, chatId, threadId } });
-      if (existing) {
-        await prisma.telegramChat.update({
-          where: { id: existing.id },
-          data: {
-            title: message.chat.title || message.chat.username || existing.title || chatId,
-            status: existing.status,
-            lastMessageAt: new Date()
-          }
-        });
-      } else {
-        await prisma.telegramChat.create({
-          data: {
-            settingsId: settings.id,
-            chatId,
-            threadId,
-            title: message.chat.title || message.chat.username || chatId,
-            status: "PENDING",
-            lastMessageAt: new Date()
-          }
-        });
-      }
-    }
-    return NextResponse.json({ ok: true, pending: true });
+    return NextResponse.json({ ok: true, ignored: true });
   }
 
   const photo = largestTelegramPhoto(message);

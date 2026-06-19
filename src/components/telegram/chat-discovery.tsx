@@ -13,6 +13,7 @@ type Candidate = {
   chatType: string;
   from: string;
   text: string;
+  createdAt: string;
 };
 
 type WebhookInfo = {
@@ -96,7 +97,13 @@ export function TelegramChatDiscovery() {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chatId: candidate.chatId, threadId: candidate.threadId, title: candidate.title })
+        body: JSON.stringify({
+          chatId: candidate.chatId,
+          threadId: candidate.threadId,
+          title: candidate.title,
+          lastMessageText: candidate.text,
+          lastMessageFrom: candidate.from
+        })
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Chat konnte nicht gespeichert werden.");
@@ -145,7 +152,11 @@ export function TelegramChatDiscovery() {
                 <div><span className="text-graphite">Titel:</span> {candidate.title}</div>
                 <div><span className="text-graphite">Von:</span> {candidate.from || "-"}</div>
               </div>
-              {candidate.text ? <p className="mt-2 text-sm text-graphite">{candidate.text}</p> : null}
+              <div className="mt-3 rounded-md bg-surface p-3 text-sm">
+                <div className="font-semibold text-ink">Letzte erkannte Testnachricht</div>
+                <div className="mt-1 text-graphite">{candidate.text || "Keine Textvorschau."}</div>
+                <div className="mt-1 text-xs text-graphite">Von: {candidate.from || "-"} · Erkannt: {new Date(candidate.createdAt).toLocaleString("de-DE")}</div>
+              </div>
               <div className="mt-3">
                 <Button type="button" variant={saved === key ? "secondary" : "primary"} onClick={() => save(candidate)}>
                   <Check className="h-4 w-4" />

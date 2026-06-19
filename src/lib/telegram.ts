@@ -16,6 +16,7 @@ export type TelegramUpdate = {
   update_id: number;
   message?: {
     message_id: number;
+    date?: number;
     message_thread_id?: number;
     text?: string;
     caption?: string;
@@ -95,7 +96,7 @@ export function toChatCandidate(update: TelegramUpdate): TelegramChatCandidate |
     chatType: message.chat.type || "unknown",
     from: message.from?.username || message.from?.first_name || "",
     text: message.text || message.caption || (message.voice ? "Sprachnachricht" : message.photo?.length || message.document ? "Datei" : ""),
-    createdAt: new Date().toISOString()
+    createdAt: message.date ? new Date(message.date * 1000).toISOString() : new Date().toISOString()
   };
 }
 

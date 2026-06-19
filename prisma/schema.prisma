@@ -282,6 +282,8 @@ model TelegramChat {
   threadId        String?
   title           String?
   status          TelegramChatStatus @default(PENDING)
+  lastMessageText String?
+  lastMessageFrom String?
   lastMessageAt   DateTime?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt

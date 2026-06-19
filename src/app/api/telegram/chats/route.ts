@@ -6,7 +6,9 @@ import { prisma } from "@/lib/prisma";
 const Body = z.object({
   chatId: z.string().min(1),
   threadId: z.string().nullable().optional(),
-  title: z.string().optional()
+  title: z.string().optional(),
+  lastMessageText: z.string().optional(),
+  lastMessageFrom: z.string().optional()
 });
 
 export async function POST(request: Request) {
@@ -17,10 +19,15 @@ export async function POST(request: Request) {
   const settings = await prisma.userSettings.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id } });
   const threadId = parsed.data.threadId || null;
   const existing = await prisma.telegramChat.findFirst({ where: { settingsId: settings.id, chatId: parsed.data.chatId, threadId } });
+  const detectedMessage = {
+    lastMessageText: parsed.data.lastMessageText || null,
+    lastMessageFrom: parsed.data.lastMessageFrom || null,
+    lastMessageAt: new Date()
+  };
   const chat = existing
     ? await prisma.telegramChat.update({
         where: { id: existing.id },
-        data: { title: parsed.data.title || existing.title, status: "ACTIVE", targetUserId: existing.targetUserId || user.id, lastMessageAt: new Date() }
+        data: { title: parsed.data.title || existing.title, status: "ACTIVE", targetUserId: existing.targetUserId || user.id, ...detectedMessage }
       })
     : await prisma.telegramChat.create({
         data: {
@@ -30,7 +37,7 @@ export async function POST(request: Request) {
           threadId,
           title: parsed.data.title || parsed.data.chatId,
           status: "ACTIVE",
-          lastMessageAt: new Date()
+          ...detectedMessage
         }
       });
   return NextResponse.json({ ok: true, chat });

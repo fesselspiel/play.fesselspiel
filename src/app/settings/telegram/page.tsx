@@ -256,8 +256,7 @@ export default async function TelegramPage() {
     })
   ]);
   const activeChats = settings?.telegramChats.filter((chat) => chat.status === "ACTIVE") || [];
-  const activeWholeChatIds = new Set(activeChats.filter((chat) => !chat.threadId).map((chat) => chat.chatId));
-  const pendingChats = settings?.telegramChats.filter((chat) => chat.status === "PENDING" && !activeWholeChatIds.has(chat.chatId)) || [];
+  const pendingChats = settings?.telegramChats.filter((chat) => chat.status === "PENDING") || [];
   return (
     <AppShell>
       <PageHeader title="Telegram" />
@@ -290,6 +289,11 @@ export default async function TelegramPage() {
                     <div><span className="text-graphite">Chat-ID:</span> <strong>{chat.chatId}</strong></div>
                     <div><span className="text-graphite">Thread-ID:</span> <strong>{chat.threadId || "-"}</strong></div>
                   </div>
+                  <div className="mt-3 rounded-md bg-surface p-3">
+                    <div className="font-semibold text-ink">Letzte erkannte Testnachricht</div>
+                    <div className="mt-1 text-graphite">{chat.lastMessageText || "Keine Textvorschau gespeichert."}</div>
+                    <div className="mt-1 text-xs text-graphite">Von: {chat.lastMessageFrom || "-"} · Erkannt: {chat.lastMessageAt ? chat.lastMessageAt.toLocaleString("de-DE") : "-"}</div>
+                  </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <form action={activateDetectedChat}>
                       <input type="hidden" name="chatId" value={chat.id} />
@@ -298,12 +302,18 @@ export default async function TelegramPage() {
                       <input type="hidden" name="targetUserId" value={user.id} />
                       <Button type="submit" variant="secondary"><Check className="h-4 w-4" /> Nur diesen Thread aktivieren</Button>
                     </form>
-                    <form action={activateDetectedChat}>
-                      <input type="hidden" name="chatId" value={chat.id} />
-                      <input type="hidden" name="scope" value="chat" />
-                      <input type="hidden" name="targetType" value="user" />
-                      <input type="hidden" name="targetUserId" value={user.id} />
-                      <Button type="submit"><Globe2 className="h-4 w-4" /> Ganzen Chat aktivieren</Button>
+                    {!chat.threadId ? (
+                      <form action={activateDetectedChat}>
+                        <input type="hidden" name="chatId" value={chat.id} />
+                        <input type="hidden" name="scope" value="chat" />
+                        <input type="hidden" name="targetType" value="user" />
+                        <input type="hidden" name="targetUserId" value={user.id} />
+                        <Button type="submit"><Globe2 className="h-4 w-4" /> Ganzen Chat aktivieren</Button>
+                      </form>
+                    ) : null}
+                    <form action={deleteChat}>
+                      <input type="hidden" name="chatIdInternal" value={chat.id} />
+                      <Button variant="danger"><Trash2 className="h-4 w-4" /> Erkennung loeschen</Button>
                     </form>
                   </div>
                 </div>

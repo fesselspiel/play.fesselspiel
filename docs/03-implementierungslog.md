@@ -280,6 +280,9 @@ Details:
 - Telegram-Kanaele haben optionale Ziele: einzelner Benutzer oder ganzer Kreis.
 - In den Telegram-Einstellungen koennen aktive Kanaele aufgeklappt, bearbeitet, geloescht und einem Benutzer oder Kreis zugeordnet werden.
 - Push-Nachrichten werden nur noch an Kanaele mit explizitem Ziel gesendet; unzugeordnete Kanaele empfangen keine Ampel-Pushes.
+- Der Telegram-Webhook verarbeitet nur noch exakt aktivierte `Chat-ID + Thread-ID`-Kombinationen. Andere Threads, andere Gruppen und die Hauptgruppe werden still ignoriert und nicht als Pending gespeichert.
+- Erkannte Pending-Threads koennen in den Telegram-Einstellungen geloescht werden und zeigen die letzte erkannte Testnachricht inklusive Absender/Zeitpunkt.
+- Bei erkannten Threads mit Thread-ID wird kein Button mehr angeboten, um den gesamten Chat zu aktivieren.
 
 ## Medienseite als Bild-Feed
 
