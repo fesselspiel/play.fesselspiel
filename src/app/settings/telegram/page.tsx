@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Check, Globe2, Save, Send, Trash2, UserRound } from "lucide-react";
+import { BellRing, Check, Globe2, Save, Send, Trash2, UserRound } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
@@ -7,6 +7,7 @@ import { TelegramChatDiscovery } from "@/components/telegram/chat-discovery";
 import { currentUser } from "@/lib/auth";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { formatDateTime } from "@/lib/dates";
+import { actionLabel, defaultNotificationTemplate, knownAuditActions } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
 
 type TelegramTargetUser = {
@@ -202,6 +203,68 @@ async function deleteTelegramUserMapping(formData: FormData) {
   redirect("/settings/telegram#mappings");
 }
 
+async function createNotificationRule(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/settings/telegram");
+  const settings = await prisma.userSettings.upsert({
+    where: { userId: user.id },
+    update: {},
+    create: { userId: user.id }
+  });
+  const action = String(formData.get("action") || "").trim();
+  const message = String(formData.get("message") || "").trim();
+  const targetData = await readTargetData(user, formData);
+  if (!action || !message || (!targetData.targetUserId && !targetData.targetCircleId)) redirect("/settings/telegram#notifications");
+  await prisma.telegramNotificationRule.create({
+    data: {
+      settingsId: settings.id,
+      action,
+      message,
+      ...targetData
+    }
+  });
+  redirect("/settings/telegram#notifications");
+}
+
+async function updateNotificationRule(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/settings/telegram");
+  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
+  if (!settings) redirect("/settings/telegram#notifications");
+  const id = String(formData.get("ruleId") || "");
+  const action = String(formData.get("action") || "").trim();
+  const message = String(formData.get("message") || "").trim();
+  const targetData = await readTargetData(user, formData);
+  if (!id || !action || !message || (!targetData.targetUserId && !targetData.targetCircleId)) redirect("/settings/telegram#notifications");
+  await prisma.telegramNotificationRule.updateMany({
+    where: { id, settingsId: settings.id },
+    data: {
+      action,
+      message,
+      active: formData.get("active") === "on",
+      ...targetData
+    }
+  });
+  redirect("/settings/telegram#notifications");
+}
+
+async function deleteNotificationRule(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/settings/telegram");
+  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
+  if (!settings) redirect("/settings/telegram#notifications");
+  await prisma.telegramNotificationRule.deleteMany({
+    where: { id: String(formData.get("ruleId") || ""), settingsId: settings.id }
+  });
+  redirect("/settings/telegram#notifications");
+}
+
 async function activateDetectedChat(formData: FormData) {
   "use server";
   const user = await currentUser();
@@ -253,19 +316,21 @@ function TargetFields({
   circles,
   targetType,
   targetUserId,
-  targetCircleId
+  targetCircleId,
+  allowNone = true
 }: {
   users: TelegramTargetUser[];
   circles: TelegramTargetCircle[];
   targetType?: string;
   targetUserId?: string | null;
   targetCircleId?: string | null;
+  allowNone?: boolean;
 }) {
   return (
     <>
       <Field label="Ziel">
-        <select className={selectClass} name="targetType" defaultValue={targetType || "none"}>
-          <option value="none">Kein spezielles Ziel</option>
+        <select className={selectClass} name="targetType" defaultValue={targetType || (allowNone ? "none" : "user")}>
+          {allowNone ? <option value="none">Kein spezielles Ziel</option> : null}
           <option value="user">Ein Benutzer</option>
           <option value="circle">Ganzer Kreis</option>
         </select>
@@ -289,7 +354,7 @@ function TargetFields({
 export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
-  const [settings, targetUsers, targetCircles] = await Promise.all([
+  const [settings, targetUsers, targetCircles, auditActions] = await Promise.all([
     prisma.userSettings.findUnique({
       where: { userId: user.id },
       include: {
@@ -301,7 +366,11 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
           include: { appUser: { include: { profile: true } } },
           orderBy: { telegramUsername: "asc" }
         },
-        telegramKnownUsers: { orderBy: { lastMessageAt: "desc" } }
+        telegramKnownUsers: { orderBy: { lastMessageAt: "desc" } },
+        telegramNotificationRules: {
+          include: { targetUser: { include: { profile: true } }, targetCircle: true },
+          orderBy: [{ active: "desc" }, { action: "asc" }]
+        }
       }
     }),
     prisma.user.findMany({
@@ -315,12 +384,19 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
     prisma.circle.findMany({
       where: user.role === "ADMIN" ? {} : user.circleId ? { id: user.circleId } : { id: "__none__" },
       orderBy: { name: "asc" }
+    }),
+    prisma.auditLog.findMany({
+      distinct: ["action"],
+      select: { action: true },
+      orderBy: { action: "asc" }
     })
   ]);
   const activeChats = settings?.telegramChats.filter((chat) => chat.status === "ACTIVE") || [];
   const pendingChats = settings?.telegramChats.filter((chat) => chat.status === "PENDING") || [];
   const mappings = settings?.telegramUserMappings || [];
   const knownUsers = settings?.telegramKnownUsers || [];
+  const notificationRules = settings?.telegramNotificationRules || [];
+  const actionOptions = Array.from(new Set([...knownAuditActions.map(([action]) => action), ...auditActions.map((entry) => entry.action)])).sort((a, b) => actionLabel(a).localeCompare(actionLabel(b)));
   const telegramTokenSuffix = secretSuffix(settings?.telegramBotTokenEnc);
   const openAiKeySuffix = secretSuffix(settings?.openAiApiKeyEnc);
   const telegramBotName = await readTelegramBotName(settings?.telegramBotTokenEnc);
@@ -510,6 +586,70 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
               {!mappings.length ? <p className="text-sm text-graphite">Noch keine Telegram-Benutzer zugeordnet.</p> : null}
             </div>
           </Panel>
+          {user.role === "ADMIN" ? (
+            <Panel>
+              <h2 id="notifications" className="mb-4 flex items-center gap-2 text-lg font-semibold"><BellRing className="h-5 w-5 text-redbrand" /> Aktions-Benachrichtigungen</h2>
+              <p className="mb-4 text-sm leading-6 text-graphite">
+                Waehle eine protokollierte Aktion, ein Telegram-Ziel und eine HTML-Nachricht. Wenn die Aktion im Portal passiert, wird die Nachricht an aktive Kanaele geschickt, die diesem Benutzer oder Kreis zugeordnet sind.
+              </p>
+              <form action={createNotificationRule} className="space-y-4 rounded-lg border border-line bg-paper p-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Aktion">
+                    <select className={selectClass} name="action" required>
+                      {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
+                    </select>
+                  </Field>
+                  <TargetFields users={targetUsers} circles={targetCircles} allowNone={false} />
+                </div>
+                <Field label="Telegram-Nachricht als HTML">
+                  <textarea className={inputClass} name="message" rows={5} defaultValue={defaultNotificationTemplate()} required />
+                </Field>
+                <p className="text-xs text-graphite">Variablen: {"{title}"}, {"{actor}"}, {"{event}"}, {"{action}"}, {"{url}"}, {"{details}"}</p>
+                <SubmitButton pendingLabel="Regel wird gespeichert..."><Save className="h-4 w-4" /> Regel anlegen</SubmitButton>
+              </form>
+              <div className="mt-5 space-y-3">
+                {notificationRules.map((rule) => (
+                  <details key={rule.id} className="rounded-md border border-line bg-paper p-3">
+                    <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                      <span className="min-w-0">
+                        <strong className="block truncate">{actionLabel(rule.action)}</strong>
+                        <span className="mt-1 block text-sm text-graphite">
+                          Ziel: {rule.targetCircle ? `Kreis ${rule.targetCircle.name}` : rule.targetUser ? userLabel(rule.targetUser) : "-"}
+                        </span>
+                      </span>
+                      <Badge tone={rule.active ? "green" : "neutral"}>{rule.active ? "aktiv" : "inaktiv"}</Badge>
+                    </summary>
+                    <form action={updateNotificationRule} className="mt-4 space-y-4 border-t border-line pt-4">
+                      <input type="hidden" name="ruleId" value={rule.id} />
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="Aktion">
+                          <select className={selectClass} name="action" defaultValue={rule.action} required>
+                            {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
+                          </select>
+                        </Field>
+                        <TargetFields users={targetUsers} circles={targetCircles} targetType={targetTypeFor(rule)} targetUserId={rule.targetUserId} targetCircleId={rule.targetCircleId} allowNone={false} />
+                      </div>
+                      <Field label="Telegram-Nachricht als HTML">
+                        <textarea className={inputClass} name="message" rows={5} defaultValue={rule.message} required />
+                      </Field>
+                      <label className="flex items-center gap-2 text-sm text-graphite">
+                        <input name="active" type="checkbox" defaultChecked={rule.active} className="h-4 w-4 accent-redbrand" />
+                        aktiv
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        <SubmitButton pendingLabel="Regel wird gespeichert..."><Save className="h-4 w-4" /> Regel speichern</SubmitButton>
+                      </div>
+                    </form>
+                    <form action={deleteNotificationRule} className="mt-3">
+                      <input type="hidden" name="ruleId" value={rule.id} />
+                      <Button variant="danger"><Trash2 className="h-4 w-4" /> Regel loeschen</Button>
+                    </form>
+                  </details>
+                ))}
+                {!notificationRules.length ? <p className="rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite">Noch keine aktionsbasierten Telegram-Regeln angelegt.</p> : null}
+              </div>
+            </Panel>
+          ) : null}
           <Panel>
             <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold"><Send className="h-5 w-5 text-redbrand" /> Voice-Verarbeitung</h2>
             <p className="text-sm leading-6 text-graphite">Voice-Nachrichten werden nach Aktivierung des Telegram-Pollings heruntergeladen, mit dem gespeicherten OpenAI-Key transkribiert und danach wie normale Textnachrichten verarbeitet.</p>

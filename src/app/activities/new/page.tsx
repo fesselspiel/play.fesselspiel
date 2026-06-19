@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { activityStatusLabel, type ActivityStatusValue, quarterHourOptions } from "@/lib/activity-status";
+import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
@@ -24,7 +25,8 @@ async function createActivity(formData: FormData) {
     toolIds.length ? prisma.toy.findMany({ where: { ...scope, id: { in: toolIds } }, select: { id: true } }) : [],
     positionIds.length ? prisma.position.findMany({ where: { ...scope, id: { in: positionIds } }, select: { id: true } }) : []
   ]);
-  await prisma.activityPlan.create({
+  const status = String(formData.get("status") || "PLANNED") as ActivityStatusValue;
+  const activity = await prisma.activityPlan.create({
     data: {
       ownerId: user.id,
       title,
@@ -32,10 +34,18 @@ async function createActivity(formData: FormData) {
       category: String(formData.get("category") || "").trim(),
       note: String(formData.get("note") || "").trim(),
       plannedAt,
-      status: String(formData.get("status") || "PLANNED") as ActivityStatusValue,
+      status,
       tools: { connect: accessibleTools.map(({ id }) => ({ id })) },
       positions: { connect: accessiblePositions.map(({ id }) => ({ id })) }
     }
+  });
+  await logAction({
+    actorId: user.id,
+    action: status === "REQUESTED" ? "activity_requested" : "activity_created",
+    entityType: "activity",
+    entityId: activity.id,
+    title: `${status === "REQUESTED" ? "Spielplan angefragt" : "Spielplan angelegt"}: ${activity.title}`,
+    href: `/activities/${activity.slug}`
   });
   redirect(`/activities/${slug}`);
 }

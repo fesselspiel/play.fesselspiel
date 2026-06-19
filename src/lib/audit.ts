@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { dispatchAuditNotifications } from "@/lib/telegram-notifications";
 
 export type AuditActionInput = {
   actorId?: string | null;
@@ -13,7 +14,7 @@ export type AuditActionInput = {
 
 export async function logAction(input: AuditActionInput) {
   try {
-    await prisma.auditLog.create({
+    const audit = await prisma.auditLog.create({
       data: {
         actorId: input.actorId || null,
         action: input.action,
@@ -24,6 +25,7 @@ export async function logAction(input: AuditActionInput) {
         href: input.href || null
       }
     });
+    await dispatchAuditNotifications(audit);
   } catch (error) {
     console.error("audit log failed", error);
   }

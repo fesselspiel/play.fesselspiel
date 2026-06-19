@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ensureDefaultAlbum } from "@/lib/albums";
+import { defaultAlbumTitle, ensureDefaultAlbum } from "@/lib/albums";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { answerWithPortalAgent } from "@/lib/telegram-agent";
@@ -406,7 +406,7 @@ export async function POST(request: Request) {
           return [
             "<b>Bild in Medien gespeichert</b>",
             telegramHtml(media.title),
-            htmlLine("Album", albums.find((album) => album.id === media.albumId)?.title || "Eingang"),
+            htmlLine("Album", albums.find((album) => album.id === media.albumId)?.title || defaultAlbumTitle),
             "",
             "<b>In anderes Album verschieben</b>",
             ...albumLines,

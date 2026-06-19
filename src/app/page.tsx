@@ -6,6 +6,7 @@ import { Badge, PageGuide, Panel, PageHeader, SoftPanel } from "@/components/ui"
 import { ownerScope } from "@/lib/access";
 import { confirmRequestedActivity } from "@/lib/activity-actions";
 import { activityStatusLabel, activityStatusTone } from "@/lib/activity-status";
+import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
@@ -53,6 +54,15 @@ async function togglePlayReady() {
     include: { profile: true }
   });
   const actorName = actor?.profile?.displayName || actor?.name || actor?.username || actor?.email || "Unbekannt";
+  await logAction({
+    actorId: user.id,
+    action: "play_ready_changed",
+    entityType: "userSettings",
+    entityId: user.id,
+    title: `Spielampel geaendert: ${actorName} ist ${playReadyLabel(next)}`,
+    details: { previous: playReadyLabel(previous), next: playReadyLabel(next) },
+    href: "/"
+  });
   const currentUserId = user.id;
   const currentCircleId = user.circleId;
   const telegramSettings = await prisma.userSettings.findMany({

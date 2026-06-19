@@ -469,6 +469,17 @@ Details:
 - Das Protokoll hat ein Suchfeld mit Live-Vorschlaegen; Treffer springen direkt zum passenden Eintrag.
 - Telegram-Protokolleintraege werden so zusammengefuehrt, dass empfangene Nachricht und Antwort nicht mehr wie getrennte Fremdeintraege wirken.
 - Medien ohne Album werden nicht mehr als eigenes Ziel angeboten.
-- Fuer jeden Benutzer wird ein Standardalbum `Eingang` angelegt.
-- Neue Uploads aus Webformularen, Session-Detailseiten, Import, externer API und Telegram landen automatisch in `Eingang`, wenn kein Album gesetzt ist.
+- Fuer jeden Benutzer wird ein Standardalbum `Standard` angelegt.
+- Alte Standardalben mit dem Namen `Eingang` werden automatisch zu `Standard` umbenannt.
+- Neue Uploads aus Webformularen, Session-Detailseiten, Import, externer API und Telegram landen automatisch in `Standard`, wenn kein Album gesetzt ist.
 - Telegram-Bilduploads senden nach dem Speichern eine HTML-formatierte Albumauswahl mit anklickbaren `/media_album_...`-Kommandos.
+
+## Telegram-Aktionsregeln
+
+- Neues Prisma-Modell `TelegramNotificationRule`.
+- Admins koennen in den Telegram-Einstellungen aktionsbasierte Regeln anlegen.
+- Das Aktions-Dropdown kombiniert bekannte Systemaktionen mit bereits im Protokoll vorhandenen Aktionen.
+- Jede Regel besteht aus Aktion, Ziel-Benutzer oder Ziel-Kreis, HTML-Nachricht und Aktiv-Status.
+- Nachrichten unterstuetzen Variablen: `{title}`, `{actor}`, `{event}`, `{action}`, `{url}`, `{details}`.
+- `logAction` prueft nach dem Speichern eines Protokolleintrags passende Regeln und sendet Telegram-HTML an aktive Kanaele, die diesem Benutzer oder Kreis zugeordnet sind.
+- Dadurch koennen z.B. Ampelwechsel, Spielanfragen, Telegram-Nachrichten, API-Sessions oder Logins gezielt an Benutzer oder Kreise gepusht werden.

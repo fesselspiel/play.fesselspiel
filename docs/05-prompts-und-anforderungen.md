@@ -550,10 +550,38 @@ Weitere Nachbesserung:
 
 Umsetzung:
 
-- Standardalbum heisst `Eingang`.
+- Standardalbum heisst `Standard`.
 - `ensureDefaultAlbum(ownerId)` legt es bei Bedarf an.
-- Medienseite, Session-Bilder, externe Medien-API, Import und Telegram nutzen `Eingang` als Fallback.
+- Medienseite, Session-Bilder, externe Medien-API, Import und Telegram nutzen `Standard` als Fallback.
 - Die Telegram-Antwort nach einem Bild-Upload listet alle Alben mit anklickbaren `/media_album_<nummer>_<mediaId>`-Kommandos auf.
+
+Weitere Nachbesserung:
+
+- Der Name `Eingang` gefaellt nicht, weil nicht alles dort "reingeht".
+- Gewuenscht ist ein Name aehnlich zu "Default", aber nicht "Default".
+
+Umsetzung:
+
+- Neuer Name: `Standard`.
+- Bestehende `Eingang`-Alben werden beim Zugriff und per Deploy-Script zu `Standard` umbenannt.
+
+## Telegram-Aktionsregeln-Prompt
+
+Anforderung:
+
+- Im Admin-Bereich soll es eine Logik geben, die alle Portal-Events beziehungsweise Aktionen auflistet.
+- Aktionen wie Ampel veraendert, Spiel angefragt oder Telegram-Nachricht empfangen sollen per Dropdown auswaehlbar sein.
+- Danach soll ein Benutzer oder Kreis ausgewaehlt werden.
+- Fuer diese Kombination soll eine Telegram-Nachricht definiert werden, die bei dieser Aktion an den Benutzer oder Kreis gesendet wird.
+
+Umsetzung:
+
+- Neues Modell `TelegramNotificationRule`.
+- Regeln werden in `/settings/telegram#notifications` verwaltet.
+- Das Dropdown nutzt bekannte Aktionen plus bereits gespeicherte `AuditLog.action`-Werte.
+- Regeln senden an aktive Telegram-Kanaele, deren Ziel-Benutzer oder Ziel-Kreis zur Regel passt.
+- Nachrichten werden als Telegram-HTML gesendet.
+- Templates koennen `{title}`, `{actor}`, `{event}`, `{action}`, `{url}` und `{details}` einsetzen.
 
 ## Einstellungen- und Protokoll-Prompt
 

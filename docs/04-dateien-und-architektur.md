@@ -135,7 +135,7 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 ## Prisma-Modelle
 
 - `User`: Account, Rolle, Login, Beziehungen.
-- `UserSettings`: Theme, Dark Mode, Spielampel-Status, Telegram/OpenAI Secrets, Telegram Chats.
+- `UserSettings`: Theme, Dark Mode, Spielampel-Status, Telegram/OpenAI Secrets, Telegram Chats und Telegram-Aktionsregeln.
 - `UserSettings.timeOffsetMinutes`: einfache Admin-Zeitkorrektur fuer die angezeigte Systemzeit.
 - `Profile`: Profilfelder.
 - `Profile.imageUrl`: geschuetztes Profilbild ueber `/api/files/<id>`.
@@ -147,13 +147,14 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `SegufixSession`: Session-Tracking.
 - `KgSession`: KG-Tragezeit-Tracking mit Start, Ende, Dauer und Notiz.
 - `Album`: Medienalbum.
-- `Media`: Bild oder Video; neue Medien werden immer einem Album zugeordnet, standardmaessig `Eingang`.
+- `Media`: Bild oder Video; neue Medien werden immer einem Album zugeordnet, standardmaessig `Standard`.
 - `MediaComment`: Kommentar oder Notiz zu einem Medium.
 - `Event`: Termin.
 - `CheckIn`: Teilnahme/Check-in.
 - `Message`: Altbestand fuer Telegram-/Nachrichtenverlauf.
 - `AuditLog`: Protokollierte App-Aktion mit Akteur, Aktion, Zieltyp, Ziel-ID, Titel, optionalen Details und Link.
 - `TelegramChat`: erkannte Telegram Chats/Threads.
+- `TelegramNotificationRule`: aktionsbasierte Telegram-Regel mit Aktion, Ziel-Benutzer/Ziel-Kreis, HTML-Nachricht und Aktiv-Status.
 
 ## Upload-Architektur
 
@@ -170,8 +171,15 @@ UI-Hinweis:
 - Bei Bildersatz gewinnt eine neu ausgewaehlte Datei automatisch gegen die Entfernen-Option.
 - `next.config.mjs` setzt `experimental.serverActions.bodySizeLimit` auf `50mb`, passend zur Upload-Grenze der App.
 - Spielzeug- und Stellungsbilder werden beim Auswaehlen direkt an `/api/uploads` gesendet. Die anschliessende Server Action speichert nur die zurueckgegebene geschuetzte Datei-URL.
-- `ensureDefaultAlbum(ownerId)` in `src/lib/albums.ts` legt bei Bedarf das Standardalbum `Eingang` an.
+- `ensureDefaultAlbum(ownerId)` in `src/lib/albums.ts` legt bei Bedarf das Standardalbum `Standard` an und benennt alte `Eingang`-Alben um.
 - Medienuploads ueber Web, Telegram, externe API, Session-Detailseite und Import verwenden dieses Album als Fallback.
+
+## Telegram-Aktionsregeln
+
+- `src/lib/notification-actions.ts`: bekannte Aktionen, lesbare Labels und Standardtemplate.
+- `src/lib/telegram-notifications.ts`: rendert Templates und sendet passende Telegram-Regeln.
+- `src/lib/audit.ts`: ruft nach jedem gespeicherten `AuditLog` den Dispatcher auf.
+- `/settings/telegram#notifications`: Admin-Oberflaeche zum Erstellen, Bearbeiten und Loeschen der Regeln.
 
 ## Wiederverwendbare UI-Helfer
 
