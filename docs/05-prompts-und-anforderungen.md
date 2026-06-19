@@ -467,13 +467,14 @@ Nachbesserung:
 
 - Wenn sich der Ampelstatus aendert, soll eine Telegram-Nachricht gesendet werden.
 - Die Nachricht soll sagen, wer den Status geaendert hat.
-- Die Nachricht soll alten und neuen Zustand enthalten.
+- Die Nachricht soll nur den neuen Zustand farblich anzeigen; der alte Zustand soll nicht mit Farbe angezeigt werden.
 - Die Nachricht soll schoene passende Emojis fuer Ampel, Rot und Gruen enthalten.
 - Die Nachricht soll als Telegram-HTML gut formatiert sein.
 
 Umsetzung:
 
 - Beim Umschalten wird eine HTML-Nachricht per `sendTelegramMessage(..., { parseMode: "HTML" })` verschickt.
+- Die Nachricht zeigt nur `Status: ...` mit dem neuen roten oder gruenen Zustand.
 - Ziel sind aktive Telegram-Chats aller Benutzer im selben Kreis, die einen Bot-Token gespeichert haben.
 - Doppelte Chat-/Thread-Ziele werden dedupliziert.
 

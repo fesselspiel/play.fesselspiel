@@ -265,7 +265,7 @@ Details:
 - Der Status wird in `UserSettings.playReady` gespeichert.
 - `UserSettings.playReadyUpdatedAt` merkt den letzten Umschaltzeitpunkt.
 - Jeder Ampelwechsel verschickt eine Telegram-Nachricht an aktive gespeicherte Chats im selben Kreis, sofern ein Bot-Token vorhanden ist.
-- Die Telegram-Nachricht nutzt HTML-Markup, nennt Benutzer, alten Zustand und neuen Zustand und verwendet Rot-/Gruen-Emojis.
+- Die Telegram-Nachricht nutzt HTML-Markup, nennt Benutzer und den neuen Zustand mit passendem Rot-/Gruen-Emoji.
 
 ## Medienseite als Bild-Feed
 

@@ -60,8 +60,7 @@ async function togglePlayReady() {
     "🚦 <b>Spielampel geändert</b>",
     "",
     `👤 <b>${telegramHtml(actorName)}</b>`,
-    `${playReadyEmoji(previous)} <b>Vorher:</b> ${telegramHtml(playReadyLabel(previous))}`,
-    `${playReadyEmoji(next)} <b>Jetzt:</b> ${telegramHtml(playReadyLabel(next))}`,
+    `${playReadyEmoji(next)} <b>Status:</b> ${telegramHtml(playReadyLabel(next))}`,
     "",
     next ? "💚 <i>Da ist gerade richtig Lust im Spiel.</i>" : "❤️ <i>Gerade lieber ruhig angehen lassen.</i>"
   ].join("\n");
