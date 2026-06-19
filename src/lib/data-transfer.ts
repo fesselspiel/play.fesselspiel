@@ -18,6 +18,7 @@ type TransferData = {
   positions: ExportRecord[];
   activities: ExportRecord[];
   sessions: ExportRecord[];
+  kgSessions: ExportRecord[];
   sessionComments: ExportRecord[];
   albums: ExportRecord[];
   media: ExportRecord[];
@@ -61,6 +62,7 @@ export async function buildDataExport(user: AccessUser) {
     positions,
     activities,
     sessions,
+    kgSessions,
     sessionComments,
     albums,
     media,
@@ -73,6 +75,7 @@ export async function buildDataExport(user: AccessUser) {
     prisma.position.findMany({ where: ownerScope, include: { tools: { select: { id: true } } }, orderBy: { createdAt: "asc" } }),
     prisma.activityPlan.findMany({ where: ownerScope, include: { tools: { select: { id: true } }, positions: { select: { id: true } } }, orderBy: { createdAt: "asc" } }),
     prisma.segufixSession.findMany({ where: ownerScope, orderBy: { startTime: "asc" } }),
+    prisma.kgSession.findMany({ where: ownerScope, orderBy: { startTime: "asc" } }),
     prisma.sessionComment.findMany({ where: { ownerId: { in: ownerIds } }, orderBy: { createdAt: "asc" } }),
     prisma.album.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
     prisma.media.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
@@ -106,6 +109,7 @@ export async function buildDataExport(user: AccessUser) {
       positions: undefined
     })),
     sessions: sessions.map(withoutOwner),
+    kgSessions: kgSessions.map(withoutOwner),
     sessionComments: sessionComments.map(({ ownerId: _ownerId, ...entry }) => entry),
     albums: albums.map(withoutOwner),
     media: media.map(withoutOwner),
@@ -227,6 +231,20 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
       }
     });
     sessionMap.set(String(entry.id || ""), created.id);
+  }
+
+  for (const entry of records(data.kgSessions)) {
+    const startTime = toDate(entry.startTime);
+    if (!startTime) continue;
+    await prisma.kgSession.create({
+      data: {
+        ownerId: user.id,
+        startTime,
+        endTime: toDate(entry.endTime),
+        durationMinutes: typeof entry.durationMinutes === "number" ? entry.durationMinutes : null,
+        notes: typeof entry.notes === "string" ? entry.notes : null
+      }
+    });
   }
 
   for (const entry of records(data.sessionComments)) {

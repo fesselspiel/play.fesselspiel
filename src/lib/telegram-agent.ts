@@ -154,6 +154,34 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
         additionalProperties: false
       }
     }
+  },
+  {
+    type: "function",
+    function: {
+      name: "start_kg_tracker",
+      description: "Startet den KG Time Tracker. Wenn bereits einer offen ist, wird er beendet und ein neuer gestartet.",
+      parameters: {
+        type: "object",
+        properties: {
+          note: { type: "string" }
+        },
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "stop_kg_tracker",
+      description: "Beendet den aktuell laufenden KG Time Tracker.",
+      parameters: {
+        type: "object",
+        properties: {
+          note: { type: "string" }
+        },
+        additionalProperties: false
+      }
+    }
   }
 ];
 
@@ -508,6 +536,45 @@ async function stopSession(userId: string, args: Record<string, unknown>): Promi
   return { ok: true, message: `Session beendet: ${formatMinutes(updated.durationMinutes)}` };
 }
 
+async function startKgTracker(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
+  const open = await prisma.kgSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
+  const startTime = new Date();
+  if (open) {
+    await prisma.kgSession.update({
+      where: { id: open.id },
+      data: {
+        endTime: startTime,
+        durationMinutes: minutesBetween(open.startTime, startTime),
+        notes: [open.notes, "Automatisch beendet, weil ein neuer KG-Tracker gestartet wurde."].filter(Boolean).join("\n")
+      }
+    });
+  }
+  const session = await prisma.kgSession.create({
+    data: {
+      ownerId: userId,
+      startTime,
+      notes: clean(args.note) || "Per Telegram-Agent gestartet"
+    }
+  });
+  return { ok: true, message: `KG-Tracker gestartet: ${formatDateTime(session.startTime)}`, data: { url: link("/sessions?tracker=kg") } };
+}
+
+async function stopKgTracker(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
+  const session = await prisma.kgSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
+  if (!session) return { ok: false, message: "Kein laufender KG-Tracker gefunden." };
+  const endTime = new Date();
+  const durationMinutes = minutesBetween(session.startTime, endTime);
+  const updated = await prisma.kgSession.update({
+    where: { id: session.id },
+    data: {
+      endTime,
+      durationMinutes,
+      notes: [session.notes, clean(args.note)].filter(Boolean).join("\n")
+    }
+  });
+  return { ok: true, message: `KG-Tracker beendet: ${formatMinutes(updated.durationMinutes)}`, data: { url: link("/sessions?tracker=kg") } };
+}
+
 async function runTool(userId: string, name: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   if (name === "get_portal_status") return getPortalStatus(userId);
   if (name === "search_portal") return searchPortal(userId, args);
@@ -517,6 +584,8 @@ async function runTool(userId: string, name: string, args: Record<string, unknow
   if (name === "set_activity_status") return setActivityStatus(userId, args);
   if (name === "start_session") return startSession(userId, args);
   if (name === "stop_session") return stopSession(userId, args);
+  if (name === "start_kg_tracker") return startKgTracker(userId, args);
+  if (name === "stop_kg_tracker") return stopKgTracker(userId, args);
   return { ok: false, message: `Unbekanntes Tool: ${name}` };
 }
 

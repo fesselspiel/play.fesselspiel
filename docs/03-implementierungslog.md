@@ -402,6 +402,28 @@ Details:
 - Laufende Sessions ohne Endzeit werden auf Dashboard und Sessions-Seite sichtbar hervorgehoben.
 - Externer API-Start einer Session beendet eine bereits offene Session automatisch und startet danach eine neue.
 
+## KG Time Tracker und Demo-Seed
+
+- Der Seed legt Demo-Spielzeuge, Demo-Stellung und den Demo-Spielplan `Entspannungsabend` nur noch an, wenn `SEED_DEMO_DATA=true` gesetzt ist.
+- Dadurch taucht der Demo-Spielplan nach Loeschen und Neustart nicht mehr automatisch wieder auf.
+- Der auf dem VPS vorhandene Demo-Spielplan `entspannungsabend` wurde einmalig geloescht.
+- Neues Prisma-Modell `KgSession` fuer KG-Tragezeiten.
+- Unter `Sessions` gibt es zwei Reiter:
+  - `Segufix Time Tracker`
+  - `KG Time Tracker`
+- Der KG Time Tracker erfasst Startzeit, Endzeit, Dauer und Notiz minutengenau.
+- KG-Jahresuebersicht nutzt Blau statt Rot, damit sie vom Segufix-Kalender unterscheidbar bleibt.
+- Neue externe API-Endpunkte:
+  - `/api/external/kg/start`
+  - `/api/external/kg/stop`
+- Der externe Status-Endpunkt gibt zusaetzlich `openKgSession` zurueck.
+- Telegram-Kommandos erweitert:
+  - `/kg` zeigt KG-Auswertung fuer das aktuelle Jahr.
+  - `/kg_start Notiz` startet den KG Tracker und schliesst einen offenen KG-Eintrag automatisch.
+  - `/kg_stop Notiz` beendet den laufenden KG Tracker.
+- Der Telegram-Agent kann den KG Tracker ebenfalls per freier Sprache starten und stoppen.
+- Datenexport/-import enthaelt jetzt auch KG-Eintraege.
+
 ## Zeitdarstellung
 
 - Zentrale Datums- und Uhrzeitformatierung nutzt jetzt fest `Europe/Berlin`.

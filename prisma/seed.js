@@ -45,6 +45,8 @@ async function main() {
     create: { userId: admin.id }
   });
 
+  if (process.env.SEED_DEMO_DATA !== "true") return;
+
   const toyData = [
     ["Leder Manschetten", "Weiche Manschetten fuer ruhige Sessions.", "/toy-cuffs.svg"],
     ["Segufix System", "Dokumentierte Ausruestung fuer geplante Entspannungs-Sessions.", "/toy-system.svg"]

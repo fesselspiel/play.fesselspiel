@@ -47,15 +47,138 @@ async function createSession(formData: FormData) {
   redirect("/sessions");
 }
 
+async function createKgSession(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const startTime = new Date(String(formData.get("startTime")));
+  const endRaw = String(formData.get("endTime") || "");
+  const endTime = endRaw ? new Date(endRaw) : null;
+  const session = await prisma.kgSession.create({
+    data: {
+      ownerId: user.id,
+      startTime,
+      endTime,
+      durationMinutes: minutesBetween(startTime, endTime),
+      notes: String(formData.get("notes") || "").trim()
+    }
+  });
+  await logAction({
+    actorId: user.id,
+    action: "kg_created",
+    entityType: "kgSession",
+    entityId: session.id,
+    title: "KG-Tracker-Eintrag angelegt",
+    href: "/sessions?tracker=kg"
+  });
+  redirect("/sessions?tracker=kg");
+}
+
 const months = ["Januar", "Februar", "Maerz", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
-export default async function SessionsPage({ searchParams }: { searchParams: { year?: string } }) {
+export default async function SessionsPage({ searchParams }: { searchParams: { year?: string; tracker?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const year = Number(searchParams.year || new Date().getFullYear());
   const yearStart = new Date(year, 0, 1);
   const yearEnd = new Date(year + 1, 0, 1);
-  const sessions = await prisma.segufixSession.findMany({ where: { ...(await ownerScope(user)), startTime: { gte: yearStart, lt: yearEnd } }, orderBy: { startTime: "desc" } });
+  const scope = await ownerScope(user);
+  const tracker = searchParams.tracker === "kg" ? "kg" : "segufix";
+  if (tracker === "kg") {
+    const kgSessions = await prisma.kgSession.findMany({ where: { ...scope, startTime: { gte: yearStart, lt: yearEnd } }, orderBy: { startTime: "desc" } });
+    const totalMinutes = kgSessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
+    const avgDuration = kgSessions.length ? Math.round(totalMinutes / kgSessions.length) : 0;
+    const openSessions = kgSessions.filter((session) => !session.endTime);
+    const byDay = new Map<string, typeof kgSessions>();
+    for (const session of kgSessions) {
+      const key = `${session.startTime.getMonth()}-${session.startTime.getDate()}`;
+      byDay.set(key, [...(byDay.get(key) || []), session]);
+    }
+    return (
+      <AppShell>
+        <PageHeader title="KG Time Tracker" />
+        <div className="mb-5 flex flex-wrap gap-2">
+          <Link href={`/sessions?year=${year}`} className="rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-paper">Segufix Time Tracker</Link>
+          <Link href={`/sessions?tracker=kg&year=${year}`} className="rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white">KG Time Tracker</Link>
+        </div>
+        <PageGuide title="KG-Tragezeiten minutengenau dokumentieren">
+          Der KG Time Tracker erfasst Tragezeiten mit Startminute, Endminute, Dauer und Notiz. Die Jahresuebersicht nutzt Blau, damit sie klar vom roten Segufix-Kalender unterscheidbar ist.
+        </PageGuide>
+        <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
+          <Panel>
+            <h2 className="mb-4 text-lg font-semibold">KG-Zeit erfassen</h2>
+            <form action={createKgSession} className="space-y-4">
+              <Field label="Startzeit"><input className={inputClass} name="startTime" type="datetime-local" step={60} required /></Field>
+              <Field label="Endzeit"><input className={inputClass} name="endTime" type="datetime-local" step={60} /></Field>
+              <Field label="Notizen"><textarea className={inputClass} name="notes" rows={4} /></Field>
+              <Button><Save className="h-4 w-4" /> KG-Zeit speichern</Button>
+            </form>
+          </Panel>
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <SoftPanel><div className="text-sm text-graphite">Eintraege</div><div className="mt-2 text-2xl font-semibold">{kgSessions.length}</div></SoftPanel>
+              <SoftPanel><div className="text-sm text-graphite">Gesamtzeit</div><div className="mt-2 text-2xl font-semibold">{formatMinutes(totalMinutes)}</div></SoftPanel>
+              <SoftPanel><div className="text-sm text-graphite">Durchschnitt</div><div className="mt-2 text-2xl font-semibold">{formatMinutes(avgDuration)}</div></SoftPanel>
+            </div>
+            {openSessions.length ? (
+              <Panel>
+                <h2 className="mb-3 text-lg font-semibold">Laufender KG-Tracker</h2>
+                <div className="space-y-2">
+                  {openSessions.map((session) => (
+                    <div key={session.id} className="rounded-md border border-sky-600 bg-sky-600/10 p-3 text-sm">
+                      <strong>{formatDateTime(session.startTime)}</strong>
+                      <span className="ml-2 text-graphite">ohne Endzeit</span>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+            ) : null}
+            <Panel className="overflow-x-auto">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <a href={`/sessions?tracker=kg&year=${year - 1}`} className="rounded-md border border-line px-3 py-2 text-sm">Zurueck</a>
+                <h2 className="text-lg font-semibold">{year}</h2>
+                <a href={`/sessions?tracker=kg&year=${year + 1}`} className="rounded-md border border-line px-3 py-2 text-sm">Weiter</a>
+              </div>
+              <div className="grid calendar-grid gap-1 text-xs">
+                <div />
+                {Array.from({ length: 31 }, (_, i) => <div key={i} className="text-center text-graphite">{i + 1}</div>)}
+                {months.map((month, monthIndex) => (
+                  <div key={month} className="contents">
+                    <div key={`${month}-label`} className="py-1 font-medium text-graphite">{month}</div>
+                    {Array.from({ length: 31 }, (_, dayIndex) => {
+                      const day = dayIndex + 1;
+                      const date = new Date(year, monthIndex, day);
+                      const valid = date.getMonth() === monthIndex;
+                      const daySessions = byDay.get(`${monthIndex}-${day}`) || [];
+                      const minutes = daySessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
+                      const className = `h-5 rounded-sm ${!valid ? "bg-transparent" : daySessions.length ? "bg-sky-600" : "bg-paper"}`;
+                      return <span key={`${month}-${day}`} title={daySessions.length ? `${daySessions.length} KG-Eintraege, ${formatMinutes(minutes)}` : ""} className={className} />;
+                    })}
+                  </div>
+                ))}
+              </div>
+            </Panel>
+            <Panel>
+              <h2 className="mb-4 text-lg font-semibold">Historie</h2>
+              <div className="space-y-3">
+                {kgSessions.map((session) => (
+                  <article key={session.id} className="rounded-md border border-line p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <strong>{formatDateTime(session.startTime)}</strong>
+                      <span className="text-sm text-graphite">{formatMinutes(session.durationMinutes)}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-graphite">Ende: {formatDateTime(session.endTime)}</p>
+                    {session.notes ? <p className="mt-2 text-sm text-graphite">{session.notes}</p> : null}
+                  </article>
+                ))}
+              </div>
+            </Panel>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+  const sessions = await prisma.segufixSession.findMany({ where: { ...scope, startTime: { gte: yearStart, lt: yearEnd } }, orderBy: { startTime: "desc" } });
   const sessionSlugs = new Map(await Promise.all(sessions.map(async (session) => [session.id, await ensureSessionSlug(session)] as const)));
   const totalMinutes = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
   const avgDuration = sessions.length ? Math.round(totalMinutes / sessions.length) : 0;
@@ -71,6 +194,10 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
   return (
     <AppShell>
       <PageHeader title="Segufix-Timetracker" />
+      <div className="mb-5 flex flex-wrap gap-2">
+        <Link href={`/sessions?year=${year}`} className="rounded-md bg-redbrand px-3 py-2 text-sm font-semibold text-white">Segufix Time Tracker</Link>
+        <Link href={`/sessions?tracker=kg&year=${year}`} className="rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-paper">KG Time Tracker</Link>
+      </div>
       <PageGuide title="Session-Erfassung, Jahresuebersicht und Auswertung">
         Der Timetracker dokumentiert Sessions mit Start, Ende, Dauer, Stimmung und Notizen. Erfasse links neue Eintraege, nutze den Jahreskalender zur Orientierung und bearbeite bestehende Sessions in der Historie.
       </PageGuide>

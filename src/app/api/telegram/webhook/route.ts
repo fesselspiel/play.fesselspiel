@@ -26,6 +26,9 @@ const HELP_TEXT = `<b>Befehle</b>
 /sessions - Session-Auswertung aktuelles Jahr
 /session_start Notiz - Segufix-Session starten
 /session_stop Notiz - laufende Session beenden
+/kg - KG-Auswertung aktuelles Jahr
+/kg_start Notiz - KG-Tracker starten
+/kg_stop Notiz - KG-Tracker beenden
 
 <b>Du kannst auch normal schreiben</b>
 Plane morgen um 20 Uhr einen Entspannungsabend mit Leder-Manschetten.
@@ -59,13 +62,14 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   if (parsed.command === "/id") return ["<b>Telegram-Verbindung</b>", htmlLine("Chat-ID", chatId), htmlLine("Thread-ID", threadId || "-"), htmlLine("Status", "aktiv")].join("\n");
 
   if (parsed.command === "/status") {
-    const [toys, positions, activities, sessions] = await Promise.all([
+    const [toys, positions, activities, sessions, kgSessions] = await Promise.all([
       prisma.toy.count({ where: { ownerId: userId } }),
       prisma.position.count({ where: { ownerId: userId } }),
       prisma.activityPlan.count({ where: { ownerId: userId, status: { in: ["REQUESTED", "PLANNED"] } } }),
-      prisma.segufixSession.count({ where: { ownerId: userId } })
+      prisma.segufixSession.count({ where: { ownerId: userId } }),
+      prisma.kgSession.count({ where: { ownerId: userId } })
     ]);
-    return ["<b>Portalstatus</b>", htmlLine("Spielzeuge", toys), htmlLine("Stellungen", positions), htmlLine("Geplante Aktivitaeten", activities), htmlLine("Sessions", sessions)].join("\n");
+    return ["<b>Portalstatus</b>", htmlLine("Spielzeuge", toys), htmlLine("Stellungen", positions), htmlLine("Geplante Aktivitaeten", activities), htmlLine("Segufix-Sessions", sessions), htmlLine("KG-Eintraege", kgSessions)].join("\n");
   }
 
   if (parsed.command === "/toys") {
@@ -168,6 +172,15 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     return [`<b>Sessions ${now.getFullYear()}</b>`, htmlLine("Anzahl", sessions.length), htmlLine("Gesamtdauer", formatMinutes(total)), htmlLine("Offen", open)].join("\n");
   }
 
+  if (parsed.command === "/kg") {
+    const now = new Date();
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+    const sessions = await prisma.kgSession.findMany({ where: { ownerId: userId, startTime: { gte: yearStart } } });
+    const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
+    const open = sessions.filter((session) => !session.endTime).length;
+    return [`<b>KG Time Tracker ${now.getFullYear()}</b>`, htmlLine("Eintraege", sessions.length), htmlLine("Gesamtzeit", formatMinutes(total)), htmlLine("Offen", open), telegramLink(`${env.appUrl}/sessions?tracker=kg`, "KG Tracker oeffnen")].join("\n");
+  }
+
   if (parsed.command === "/session_start") {
     const open = await prisma.segufixSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
     if (open) return `Es laeuft bereits eine Session seit ${formatDateTime(open.startTime)}. Beende sie mit /session_stop.`;
@@ -197,6 +210,61 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
       }
     });
     return `Session beendet: ${formatMinutes(durationMinutes)}`;
+  }
+
+  if (parsed.command === "/kg_start") {
+    const open = await prisma.kgSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
+    const startTime = new Date();
+    if (open) {
+      await prisma.kgSession.update({
+        where: { id: open.id },
+        data: {
+          endTime: startTime,
+          durationMinutes: minutesBetween(open.startTime, startTime),
+          notes: [open.notes, "Automatisch beendet, weil ein neuer KG-Tracker gestartet wurde."].filter(Boolean).join("\n")
+        }
+      });
+    }
+    const session = await prisma.kgSession.create({
+      data: {
+        ownerId: userId,
+        startTime,
+        notes: parsed.args || "Per Telegram gestartet"
+      }
+    });
+    await logAction({
+      actorId: userId,
+      action: "kg_started_telegram",
+      entityType: "kgSession",
+      entityId: session.id,
+      title: "KG-Tracker per Telegram gestartet",
+      href: "/sessions?tracker=kg"
+    });
+    return [`<b>KG-Tracker gestartet</b>`, htmlLine("Start", formatDateTime(session.startTime)), telegramLink(`${env.appUrl}/sessions?tracker=kg`, "KG Tracker oeffnen")].join("\n");
+  }
+
+  if (parsed.command === "/kg_stop") {
+    const session = await prisma.kgSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
+    if (!session) return "Kein laufender KG-Tracker gefunden.";
+    const endTime = new Date();
+    const durationMinutes = minutesBetween(session.startTime, endTime);
+    const updated = await prisma.kgSession.update({
+      where: { id: session.id },
+      data: {
+        endTime,
+        durationMinutes,
+        notes: [session.notes, parsed.args].filter(Boolean).join("\n")
+      }
+    });
+    await logAction({
+      actorId: userId,
+      action: "kg_stopped_telegram",
+      entityType: "kgSession",
+      entityId: updated.id,
+      title: "KG-Tracker per Telegram beendet",
+      href: "/sessions?tracker=kg"
+    });
+    return [`<b>KG-Tracker beendet</b>`, htmlLine("Dauer", formatMinutes(durationMinutes)), telegramLink(`${env.appUrl}/sessions?tracker=kg`, "KG Tracker oeffnen")].join("\n");
   }
 
   return `Unbekannter Befehl: ${parsed.command}\n\n${HELP_TEXT}`;

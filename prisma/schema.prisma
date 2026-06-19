@@ -71,6 +71,7 @@ model User {
   positions         Position[]
   activities        ActivityPlan[]
   sessions          SegufixSession[]
+  kgSessions        KgSession[]
   media             Media[]
   mediaComments     MediaComment[]
   sessionComments   SessionComment[]
@@ -241,6 +242,20 @@ model SegufixSession {
 
   @@index([ownerId, startTime])
   @@index([slug])
+}
+
+model KgSession {
+  id              String   @id @default(cuid())
+  ownerId         String
+  startTime       DateTime
+  endTime         DateTime?
+  durationMinutes Int?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  owner           User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, startTime])
 }
 
 model Album {
