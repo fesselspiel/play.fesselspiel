@@ -214,8 +214,8 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
 
   return (
     <AppShell>
-      <PageHeader title="Medien" subtitle="Bilder und Videos als geschuetzter, bildzentrierter Feed." />
-      <PageGuide>
+      <PageHeader title="Medien" />
+      <PageGuide title="Bilder und Videos als geschuetzter, bildzentrierter Feed">
         Die Medienseite zeigt Bilder und Videos zuerst als kompakten Feed. Upload, Alben und Filter liegen oben als aufklappbare Werkzeuge; Details, Dateiinfos und Aktionen erscheinen beim Oeffnen eines Mediums.
       </PageGuide>
 

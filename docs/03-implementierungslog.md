@@ -158,6 +158,7 @@ Details:
 - Die Hilfe ist damit ausserhalb des Hauptsichtfelds, aber bei Bedarf per Klick aufklappbar.
 - PageGuide wurde danach aus dem schwebenden `fixed` Overlay entfernt.
 - Die Hilfe ist jetzt ein normales, dezentes Element am Seitenende rechts und liegt nicht mehr ueber dem Inhalt.
+- Auf der Medienseite wurde der erklaerende Header-Subtitle entfernt; die Formulierung steht jetzt als Titel in der unteren Info-Box.
 
 ## Detailseiten-Aktionen
 
