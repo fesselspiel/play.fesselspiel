@@ -22,6 +22,7 @@
 - `src/lib/files.ts`: Upload speichern, FileAsset-URL, Datei-ID aus URL, Datei loeschen.
 - `src/lib/slug.ts`: Slugify, normalizeSlug, uniqueSlug, uniqueSlugForUpdate.
 - `src/lib/dates.ts`: Datumsformatierung, `datetime-local`, Dauerberechnung.
+- `src/lib/audit.ts`: Fehlertolerantes Schreiben von Audit-/Protokolleintraegen.
 - `src/lib/moods.ts`: Labels und Scores fuer Session-Stimmungen.
 - `src/lib/themes.ts`: Theme-Definitionen.
 - `src/lib/telegram.ts`: Telegram API, Webhook, Updates, Datei-Download.
@@ -91,10 +92,10 @@ Telegram-Formatierung:
 - `src/app/sessions/page.tsx`
 - `src/app/sessions/[id]/edit/page.tsx`
 
-### Medien und Nachrichten
+### Medien und Protokoll
 
 - `src/app/media/page.tsx`
-- `src/app/messages/page.tsx`
+- `src/app/messages/page.tsx`: Protokollseite unter Einstellungen, gruppiert App-Aktionen und alte Telegram-/Nachrichten-Eintraege.
 - `src/app/api/files/[id]/route.ts`
 - `src/app/api/uploads/route.ts`
 
@@ -135,7 +136,8 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `MediaComment`: Kommentar oder Notiz zu einem Medium.
 - `Event`: Termin.
 - `CheckIn`: Teilnahme/Check-in.
-- `Message`: Direktnachricht.
+- `Message`: Altbestand fuer Telegram-/Nachrichtenverlauf.
+- `AuditLog`: Protokollierte App-Aktion mit Akteur, Aktion, Zieltyp, Ziel-ID, Titel, optionalen Details und Link.
 - `TelegramChat`: erkannte Telegram Chats/Threads.
 
 ## Upload-Architektur

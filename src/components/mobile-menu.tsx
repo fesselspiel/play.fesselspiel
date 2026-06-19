@@ -25,8 +25,7 @@ const mobileNav = [
   ["Stellungen", "/positions", ShieldCheck],
   ["Spielsachen", "/toys", ToyBrick],
   ["Sessions", "/sessions", Timer],
-  ["Medien", "/media", Images],
-  ["Nachrichten", "/messages", MessageCircle]
+  ["Medien", "/media", Images]
 ] as const;
 
 const mobileSettingsNav = [
@@ -34,7 +33,8 @@ const mobileSettingsNav = [
   ["Benutzer", "/settings/users", UsersRound],
   ["Telegram", "/settings/telegram", Settings],
   ["Daten", "/settings/data", DatabaseBackup],
-  ["API Tokens", "/settings/api", KeyRound]
+  ["API Tokens", "/settings/api", KeyRound],
+  ["Protokoll", "/messages", MessageCircle]
 ] as const;
 
 export function MobileMenu() {

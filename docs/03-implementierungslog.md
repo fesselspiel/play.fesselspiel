@@ -259,6 +259,29 @@ Details:
 - Dadurch sind lange Kataloge auf Mobile und Desktop schneller scannbar.
 - Nachbesserung: Der aufgeklappte Bereich enthaelt wieder ein grosses Bild, Beschreibung, Slug, Zaehler fuer Verknuepfungen und bei Stellungen verknuepfte Spielsachen als Chips.
 
+## Protokoll statt Nachrichten
+
+- Der bisherige Hauptmenuepunkt `Nachrichten` wurde aus der Hauptnavigation entfernt.
+- Unter `Einstellungen` gibt es jetzt den Punkt `Protokoll`, weiterhin unter der Route `/messages`.
+- Die alte Nachricht-senden-Oberflaeche wurde entfernt, damit der Bereich nicht mehr wie ein unfertiger Messenger wirkt.
+- Neues Prisma-Modell `AuditLog` fuer App-Aktionen eingefuehrt.
+- Neuer Helper `src/lib/audit.ts` schreibt Protokolleintraege fehlertolerant.
+- Erste protokollierte Aktionen:
+  - Login erfolgreich.
+  - Login fehlgeschlagen.
+  - Logout.
+  - Session per Web angelegt.
+  - Session aufgerufen.
+  - Session bearbeitet.
+  - Session geloescht.
+  - Session per API gestartet, automatisch geschlossen oder beendet.
+  - Session-Bilder und Kommentare.
+  - Telegram-Texte, Telegram-Bilder, gespeicherte Telegram-Medien und Bot-Antworten.
+- Die Protokollseite gruppiert Eintraege nach Tag und Stunde mit aufklappbaren Bereichen.
+- Es werden seitenweise nur 120 Audit-Eintraege geladen; alte Telegram-/Nachrichten-Eintraege werden nur auf der ersten Seite als Altprotokoll eingeblendet.
+- Links fuehren, wo moeglich, direkt zum betroffenen Datensatz oder zur Datei.
+- Alte Telegram-HTML-Nachrichten werden im Protokoll mit erlaubten Tags wie `<b>`, `<i>`, `<code>` und Telegram-Links formatiert dargestellt statt als roher Klartext.
+
 ## Dashboard-Reihenfolge
 
 - Die Wochen-/Kalenderansicht `Gemeinsame Woche` wurde im Dashboard direkt unter den Header verschoben.

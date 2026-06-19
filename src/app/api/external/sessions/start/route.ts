@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logAction } from "@/lib/audit";
 import { minutesBetween } from "@/lib/dates";
 import { dateFromValue, oneOf, requestValues, requireApiUser } from "@/lib/external-api";
 import { prisma } from "@/lib/prisma";
@@ -22,6 +23,17 @@ async function startSession(request: NextRequest) {
         }
       })
     : null;
+  if (closedSession) {
+    await logAction({
+      actorId: auth.user.id,
+      action: "session_auto_closed",
+      entityType: "session",
+      entityId: closedSession.id,
+      title: "Offene Session automatisch beendet",
+      href: closedSession.slug ? `/sessions/${closedSession.slug}` : null,
+      details: { reason: "Neue Session per API gestartet" }
+    });
+  }
   const startTime = dateFromValue(values.get("startTime")) || new Date();
   const moodBefore = oneOf(values.get("moodBefore"), ["NEEDS_WORK", "OKAY", "NEUTRAL", "PLEASANT", "VERY_PLEASANT"] as const);
   const session = await prisma.segufixSession.create({
@@ -33,6 +45,14 @@ async function startSession(request: NextRequest) {
       moodBefore,
       moodBeforeText: values.get("moodBeforeText") || null
     }
+  });
+  await logAction({
+    actorId: auth.user.id,
+    action: "session_started_api",
+    entityType: "session",
+    entityId: session.id,
+    title: "Session per API gestartet",
+    href: session.slug ? `/sessions/${session.slug}` : null
   });
   return NextResponse.json({ ok: true, action: closedSession ? "closed_and_started" : "started", closedSession, session });
 }

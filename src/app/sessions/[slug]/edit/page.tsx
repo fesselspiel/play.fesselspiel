@@ -4,6 +4,7 @@ import { Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
+import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { formatDateTimeLocal, minutesBetween } from "@/lib/dates";
 import { moodAfter, moodBefore } from "@/lib/moods";
@@ -23,7 +24,7 @@ async function updateSession(formData: FormData) {
   const startTime = new Date(String(formData.get("startTime")));
   const endRaw = String(formData.get("endTime") || "");
   const endTime = endRaw ? new Date(endRaw) : null;
-  await prisma.segufixSession.update({
+  const updated = await prisma.segufixSession.update({
     where: { id: session.id },
     data: {
       slug: session.slug || await uniqueSessionSlug(startTime, session.id),
@@ -37,7 +38,15 @@ async function updateSession(formData: FormData) {
       moodAfterText: String(formData.get("moodAfterText") || "").trim()
     }
   });
-  redirect(`/sessions?year=${startTime.getFullYear()}#session-${session.id}`);
+  await logAction({
+    actorId: user.id,
+    action: "session_updated",
+    entityType: "session",
+    entityId: updated.id,
+    title: "Session bearbeitet",
+    href: `/sessions/${updated.slug || updated.id}`
+  });
+  redirect(`/sessions/${updated.slug || updated.id}`);
 }
 
 async function deleteSession(formData: FormData) {
@@ -49,6 +58,14 @@ async function deleteSession(formData: FormData) {
   if (!session) notFound();
   const year = session.startTime.getFullYear();
   await prisma.segufixSession.delete({ where: { id: session.id } });
+  await logAction({
+    actorId: user.id,
+    action: "session_deleted",
+    entityType: "session",
+    entityId: session.id,
+    title: `Session vom ${session.startTime.toLocaleDateString("de-DE")} geloescht`,
+    details: { startTime: session.startTime.toISOString(), slug: session.slug }
+  });
   redirect(`/sessions?year=${year}`);
 }
 

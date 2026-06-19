@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { login, setSessionCookie } from "@/lib/auth";
+import { logAction, userDisplayName } from "@/lib/audit";
 
 const LoginSchema = z.object({
   identifier: z.string().min(1),
@@ -12,7 +13,22 @@ export async function POST(request: Request) {
   const parsed = LoginSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: "Ungueltige Eingabe" }, { status: 400 });
   const result = await login(parsed.data.identifier, parsed.data.password, Boolean(parsed.data.remember));
-  if (!result) return NextResponse.json({ error: "Login fehlgeschlagen" }, { status: 401 });
+  if (!result) {
+    await logAction({
+      action: "login_failed",
+      title: `Login fehlgeschlagen: ${parsed.data.identifier}`,
+      details: { identifier: parsed.data.identifier }
+    });
+    return NextResponse.json({ error: "Login fehlgeschlagen" }, { status: 401 });
+  }
+  await logAction({
+    actorId: result.user.id,
+    action: "login",
+    entityType: "user",
+    entityId: result.user.id,
+    title: `${userDisplayName(result.user)} hat sich angemeldet`,
+    href: "/profile"
+  });
   const response = NextResponse.json({ ok: true });
   setSessionCookie(response, result.token, Boolean(parsed.data.remember));
   return response;

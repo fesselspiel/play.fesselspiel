@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ImagePlus, MessageCircle, Pencil, Save } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button, Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
+import { logAction } from "@/lib/audit";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
@@ -30,6 +31,14 @@ async function addSessionMedia(formData: FormData) {
       visibility: "PRIVATE"
     }
   });
+  await logAction({
+    actorId: user.id,
+    action: "session_media_uploaded",
+    entityType: "session",
+    entityId: session.id,
+    title: "Bild zur Session hochgeladen",
+    href: `/sessions/${await ensureSessionSlug(session)}`
+  });
   redirect(`/sessions/${await ensureSessionSlug(session)}`);
 }
 
@@ -41,7 +50,17 @@ async function addSessionComment(formData: FormData) {
   const body = String(formData.get("body") || "").trim();
   const session = await prisma.segufixSession.findFirst({ where: { id: sessionId, ...(await ownerScope(user)) } });
   if (!session) notFound();
-  if (body) await prisma.sessionComment.create({ data: { sessionId: session.id, ownerId: user.id, body } });
+  if (body) {
+    await prisma.sessionComment.create({ data: { sessionId: session.id, ownerId: user.id, body } });
+    await logAction({
+      actorId: user.id,
+      action: "session_commented",
+      entityType: "session",
+      entityId: session.id,
+      title: "Session kommentiert",
+      href: `/sessions/${await ensureSessionSlug(session)}#comments`
+    });
+  }
   redirect(`/sessions/${await ensureSessionSlug(session)}#comments`);
 }
 
@@ -55,7 +74,17 @@ async function addMediaComment(formData: FormData) {
   const session = await prisma.segufixSession.findFirst({ where: { id: sessionId, ...(await ownerScope(user)) } });
   if (!session) notFound();
   const media = await prisma.media.findFirst({ where: { id: mediaId, sessionId: session.id, ...(await ownerScope(user)) } });
-  if (media && body) await prisma.mediaComment.create({ data: { mediaId: media.id, ownerId: user.id, body } });
+  if (media && body) {
+    await prisma.mediaComment.create({ data: { mediaId: media.id, ownerId: user.id, body } });
+    await logAction({
+      actorId: user.id,
+      action: "session_media_commented",
+      entityType: "session",
+      entityId: session.id,
+      title: "Session-Bild kommentiert",
+      href: `/sessions/${await ensureSessionSlug(session)}#media-${mediaId}`
+    });
+  }
   redirect(`/sessions/${await ensureSessionSlug(session)}#media-${mediaId}`);
 }
 
@@ -86,6 +115,14 @@ export default async function SessionDetailPage({ params }: { params: { slug: st
   if (!session) notFound();
   const slug = await ensureSessionSlug(session);
   if (params.slug !== slug) redirect(`/sessions/${slug}`);
+  await logAction({
+    actorId: user.id,
+    action: "session_viewed",
+    entityType: "session",
+    entityId: session.id,
+    title: "Session aufgerufen",
+    href: `/sessions/${slug}`
+  });
 
   return (
     <AppShell>

@@ -81,6 +81,7 @@ model User {
   telegramChatTargets TelegramChat[] @relation("TelegramChatTargetUser")
   apiTokens         ApiToken[]
   telegramMappings  TelegramUserMapping[] @relation("TelegramMappedAppUser")
+  auditLogs         AuditLog[]
 
   @@index([circleId])
 }
@@ -148,6 +149,23 @@ model ApiToken {
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, active])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  entityType String?
+  entityId   String?
+  title      String
+  details    Json?
+  href       String?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+  @@index([entityType, entityId])
 }
 
 model Toy {

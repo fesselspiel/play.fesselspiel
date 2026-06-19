@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { answerWithPortalAgent } from "@/lib/telegram-agent";
 import { handleItemCreationDialogue, handleItemCreationImage } from "@/lib/telegram-item-dialogue";
 import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
+import { logAction } from "@/lib/audit";
 import { fileAssetUrl, saveFileBuffer } from "@/lib/files";
 import { downloadTelegramFile, largestTelegramPhoto, sendTelegramMessage, telegramHtml, telegramLink, transcribeTelegramVoice } from "@/lib/telegram";
 import type { TelegramUpdate } from "@/lib/telegram";
@@ -224,6 +225,14 @@ export async function POST(request: Request) {
     const imageUrl = fileAssetUrl(asset.id);
     const caption = message.caption?.trim();
     await prisma.message.create({ data: { senderId: actorUserId, body: `Telegram: [Bild]${caption ? ` ${caption}` : ""}`, mediaUrl: imageUrl } });
+    await logAction({
+      actorId: actorUserId,
+      action: "telegram_image_received",
+      entityType: "telegram",
+      title: "Telegram-Bild empfangen",
+      details: { caption: caption || null, chatTitle: chat.title || null },
+      href: imageUrl
+    });
 
     const itemDialogueAnswer = await handleItemCreationImage(actorUserId, imageUrl);
     const answer: string =
@@ -238,10 +247,27 @@ export async function POST(request: Request) {
             visibility: "PRIVATE"
           }
         })
-        .then((media) => `Bild in Medien gespeichert: ${media.title}`));
+        .then(async (media) => {
+          await logAction({
+            actorId: actorUserId,
+            action: "media_created_telegram",
+            entityType: "media",
+            entityId: media.id,
+            title: `Bild aus Telegram gespeichert: ${media.title}`,
+            href: "/media"
+          });
+          return `Bild in Medien gespeichert: ${media.title}`;
+        }));
 
     await sendTelegramMessage(chat.settings.telegramBotTokenEnc, chatId, threadId, answer, { parseMode: "HTML", disableWebPagePreview: true });
     await prisma.message.create({ data: { senderId: actorUserId, body: `Telegram-Agent: ${answer}` } });
+    await logAction({
+      actorId: actorUserId,
+      action: "telegram_answer_sent",
+      entityType: "telegram",
+      title: "Telegram-Antwort gesendet",
+      details: { answer: answer.slice(0, 500) }
+    });
     await prisma.telegramChat.update({ where: { id: chat.id }, data: { lastMessageAt: new Date() } });
     return NextResponse.json({ ok: true });
   }
@@ -252,6 +278,13 @@ export async function POST(request: Request) {
   }
   if (body) {
     await prisma.message.create({ data: { senderId: actorUserId, body: `Telegram: ${body}` } });
+    await logAction({
+      actorId: actorUserId,
+      action: "telegram_message_received",
+      entityType: "telegram",
+      title: "Telegram-Nachricht empfangen",
+      details: { text: body.slice(0, 500), chatTitle: chat.title || null }
+    });
     const itemDialogueAnswer = commandOf(body) ? null : await handleItemCreationDialogue(actorUserId, body);
     const answer = commandOf(body)
       ? await handleCommand(actorUserId, body, chatId, threadId)
@@ -265,6 +298,13 @@ export async function POST(request: Request) {
         }));
     await sendTelegramMessage(chat.settings.telegramBotTokenEnc, chatId, threadId, answer, { parseMode: "HTML", disableWebPagePreview: true });
     await prisma.message.create({ data: { senderId: actorUserId, body: `Telegram-Agent: ${answer}` } });
+    await logAction({
+      actorId: actorUserId,
+      action: "telegram_answer_sent",
+      entityType: "telegram",
+      title: "Telegram-Antwort gesendet",
+      details: { answer: answer.slice(0, 500) }
+    });
   }
   await prisma.telegramChat.update({ where: { id: chat.id }, data: { lastMessageAt: new Date() } });
   return NextResponse.json({ ok: true });

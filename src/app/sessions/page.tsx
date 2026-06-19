@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Pencil, Save } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass, SoftPanel } from "@/components/ui";
+import { logAction } from "@/lib/audit";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -21,7 +22,7 @@ async function createSession(formData: FormData) {
   const endRaw = String(formData.get("endTime") || "");
   const endTime = endRaw ? new Date(endRaw) : null;
   const slug = await uniqueSessionSlug(startTime);
-  await prisma.segufixSession.create({
+  const session = await prisma.segufixSession.create({
     data: {
       ownerId: user.id,
       slug,
@@ -34,6 +35,14 @@ async function createSession(formData: FormData) {
       moodAfter: String(formData.get("moodAfter") || "RELAXED") as MoodAfterValue,
       moodAfterText: String(formData.get("moodAfterText") || "").trim()
     }
+  });
+  await logAction({
+    actorId: user.id,
+    action: "session_created",
+    entityType: "session",
+    entityId: session.id,
+    title: "Session angelegt",
+    href: `/sessions/${session.slug}`
   });
   redirect("/sessions");
 }

@@ -23,8 +23,7 @@ const nav = [
   ["Stellungen", "/positions", ShieldCheck],
   ["Spielsachen", "/toys", ToyBrick],
   ["Sessions", "/sessions", Timer],
-  ["Medien", "/media", Images],
-  ["Nachrichten", "/messages", MessageCircle]
+  ["Medien", "/media", Images]
 ] as const;
 
 const settingsNav = [
@@ -32,7 +31,8 @@ const settingsNav = [
   ["Benutzer", "/settings/users", UsersRound],
   ["Telegram", "/settings/telegram", Settings],
   ["Daten", "/settings/data", DatabaseBackup],
-  ["API Tokens", "/settings/api", KeyRound]
+  ["API Tokens", "/settings/api", KeyRound],
+  ["Protokoll", "/messages", MessageCircle]
 ] as const;
 
 export async function AppShell({ children }: { children: ReactNode }) {

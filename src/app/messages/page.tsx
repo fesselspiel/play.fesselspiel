@@ -1,100 +1,227 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Send, Trash2 } from "lucide-react";
+import { ChevronRight, Clock3, ExternalLink, History } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { FileUploadField } from "@/components/file-upload-field";
-import { Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
+import { Badge, EmptyState, PageGuide, PageHeader, Panel } from "@/components/ui";
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
-import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
+import { appTimeZone, formatDate } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
-import { formatDateTime } from "@/lib/dates";
 
-async function sendMessage(formData: FormData) {
-  "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
-  const file = await saveUploadedFile(user.id, formData.get("file") as File | null);
-  const recipientId = String(formData.get("recipientId") || "") || null;
-  const accessIds = await accessibleOwnerIds(user);
-  await prisma.message.create({
-    data: {
-      senderId: user.id,
-      recipientId: recipientId && accessIds.includes(recipientId) ? recipientId : null,
-      body: String(formData.get("body") || "").trim(),
-      mediaUrl: file ? fileAssetUrl(file.id) : ""
+const pageSize = 120;
+const legacyMessageLimit = 60;
+
+type ProtocolEntry = {
+  id: string;
+  createdAt: Date;
+  actor: string;
+  title: string;
+  body?: string;
+  href?: string | null;
+  source: "audit" | "telegram" | "message";
+};
+
+function hourLabel(value: Date) {
+  return new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: appTimeZone }).format(value);
+}
+
+function hourGroupLabel(value: Date) {
+  return `${new Intl.DateTimeFormat("de-DE", { hour: "2-digit", timeZone: appTimeZone }).format(value)} Uhr`;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function sanitizeTelegramHtml(value: string) {
+  const withoutPrefix = value.replace(/^Telegram-Agent:\s*/, "").replace(/^Telegram:\s*/, "");
+  let html = escapeHtml(withoutPrefix);
+  const simpleTags = ["b", "strong", "i", "em", "u", "s", "code", "pre"];
+  for (const tag of simpleTags) {
+    html = html.replace(new RegExp(`&lt;${tag}&gt;`, "gi"), `<${tag}>`);
+    html = html.replace(new RegExp(`&lt;/${tag}&gt;`, "gi"), `</${tag}>`);
+  }
+  html = html.replace(
+    /&lt;a href=&quot;(https?:\/\/[^"&<>\s]+|\/[^"&<>\s]*)&quot;&gt;([\s\S]*?)&lt;\/a&gt;/gi,
+    (_match, href: string, label: string) =>
+      `<a href="${href}" class="font-semibold text-redbrand underline decoration-redbrand/30 underline-offset-2">${label}</a>`
+  );
+  return html.replace(/\n/g, "<br />");
+}
+
+function actorName(user?: { profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null } | null) {
+  return user?.profile?.displayName || user?.name || user?.username || user?.email || "System";
+}
+
+function dayKey(value: Date) {
+  return new Intl.DateTimeFormat("sv-SE", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: appTimeZone }).format(value);
+}
+
+function groupEntries(entries: ProtocolEntry[]) {
+  const days = new Map<string, { label: string; entries: ProtocolEntry[] }>();
+  for (const entry of entries) {
+    const key = dayKey(entry.createdAt);
+    const day = days.get(key) || { label: formatDate(entry.createdAt), entries: [] };
+    day.entries.push(entry);
+    days.set(key, day);
+  }
+  return Array.from(days.entries()).map(([key, day]) => {
+    const hours = new Map<string, ProtocolEntry[]>();
+    for (const entry of day.entries) {
+      const hour = hourGroupLabel(entry.createdAt);
+      hours.set(hour, [...(hours.get(hour) || []), entry]);
     }
+    return { key, label: day.label, count: day.entries.length, hours: Array.from(hours.entries()) };
   });
-  redirect("/messages");
 }
 
-async function deleteMessage(formData: FormData) {
-  "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
-  const id = String(formData.get("id") || "");
-  const message = await prisma.message.findFirst({ where: { id, senderId: user.id } });
-  if (!message) redirect("/messages");
-  await prisma.message.delete({ where: { id: message.id } });
-  const fileId = fileIdFromUrl(message.mediaUrl);
-  if (fileId) await deleteOwnedFile(user.id, fileId);
-  redirect("/messages");
-}
-
-export default async function MessagesPage() {
+export default async function MessagesPage({ searchParams }: { searchParams?: { page?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const accessIds = await accessibleOwnerIds(user);
-  const [users, messages] = await Promise.all([
-    prisma.user.findMany({ where: { active: true, id: { in: accessIds } }, orderBy: { email: "asc" } }),
-    prisma.message.findMany({
-      where: { OR: [{ senderId: { in: accessIds } }, { recipientId: user.id }, { recipientId: null, senderId: { in: accessIds } }] },
-      include: { sender: true, recipient: true },
+  const page = Math.max(1, Number(searchParams?.page || 1) || 1);
+  const skip = (page - 1) * pageSize;
+
+  const [auditLogs, legacyMessages, totalAuditLogs] = await Promise.all([
+    prisma.auditLog.findMany({
+      where: { OR: [{ actorId: { in: accessIds } }, { actorId: null }] },
+      include: { actor: { include: { profile: true } } },
       orderBy: { createdAt: "desc" },
-      take: 50
-    })
+      skip,
+      take: pageSize
+    }),
+    page === 1
+      ? prisma.message.findMany({
+          where: { OR: [{ senderId: { in: accessIds } }, { recipientId: user.id }, { recipientId: null, senderId: { in: accessIds } }] },
+          include: { sender: { include: { profile: true } }, recipient: true },
+          orderBy: { createdAt: "desc" },
+          take: legacyMessageLimit
+        })
+      : Promise.resolve([]),
+    prisma.auditLog.count({ where: { OR: [{ actorId: { in: accessIds } }, { actorId: null }] } })
   ]);
+
+  const entries: ProtocolEntry[] = [
+    ...auditLogs.map((entry) => ({
+      id: entry.id,
+      createdAt: entry.createdAt,
+      actor: actorName(entry.actor),
+      title: entry.title,
+      href: entry.href,
+      source: "audit" as const
+    })),
+    ...legacyMessages.map((message) => {
+      const isTelegram = message.body.startsWith("Telegram");
+      return {
+        id: message.id,
+        createdAt: message.createdAt,
+        actor: actorName(message.sender),
+        title: isTelegram ? (message.body.startsWith("Telegram-Agent") ? "Telegram-Agent" : "Telegram-Nachricht") : "Alte Nachricht",
+        body: message.body,
+        href: message.mediaUrl || null,
+        source: isTelegram ? ("telegram" as const) : ("message" as const)
+      };
+    })
+  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  const groups = groupEntries(entries);
+  const hasNext = skip + pageSize < totalAuditLogs;
+
   return (
     <AppShell>
-      <PageHeader title="Nachrichten" />
-      <PageGuide title="Direktnachrichten mit geschuetztem Datei-Anhang">
-        Nachrichten dienen der privaten Kommunikation im Portal. Waehle einen Empfaenger oder Alle, schreibe deine Nachricht, haenge optional eine Datei an und loesche eigene Nachrichten bei Bedarf wieder.
-      </PageGuide>
-      <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
-        <Panel>
-          <h2 className="mb-4 text-lg font-semibold">Nachricht senden</h2>
-          <form action={sendMessage} className="space-y-4">
-            <Field label="Empfaenger"><select className={selectClass} name="recipientId"><option value="">Alle / Paar</option>{users.map((entry) => <option key={entry.id} value={entry.id}>{entry.name || entry.email}</option>)}</select></Field>
-            <Field label="Nachricht"><textarea className={inputClass} name="body" rows={5} required /></Field>
-            <FileUploadField name="file" label="Anhang" help="Optional eine Datei oder ein Bild anhaengen." />
-            <Button><Send className="h-4 w-4" /> Senden</Button>
-          </form>
+      <PageHeader title="Protokoll" />
+      <div className="space-y-4">
+        <Panel className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-paper text-redbrand">
+              <History className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="font-semibold text-ink">Aktivitaeten und Telegram-Verlauf</h2>
+              <p className="text-sm text-graphite">Geladen werden jeweils {pageSize} Protokolleintraege, alte Telegram-Nachrichten nur auf der ersten Seite.</p>
+            </div>
+          </div>
+          <Badge>{totalAuditLogs} App-Eintraege</Badge>
         </Panel>
-        <Panel>
-          <div className="space-y-3">
-            {messages.map((message) => (
-              <article key={message.id} className="rounded-md border border-line p-3">
-                <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                  <strong>{message.sender.name || message.sender.email}</strong>
-                  <span className="text-graphite">{formatDateTime(message.createdAt)}</span>
+
+        {groups.length ? (
+          <div className="space-y-4">
+            {groups.map((day, dayIndex) => (
+              <details key={day.key} open={dayIndex === 0} className="overflow-hidden rounded-lg border border-line bg-surface shadow-soft">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 bg-paper px-4 py-3 font-semibold text-ink [&::-webkit-details-marker]:hidden">
+                  <span>{day.label}</span>
+                  <span className="text-sm font-medium text-graphite">{day.count} Eintraege</span>
+                </summary>
+                <div className="divide-y divide-line">
+                  {day.hours.map(([hour, hourEntries], hourIndex) => (
+                    <details key={hour} open={dayIndex === 0 && hourIndex === 0} className="group">
+                      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-graphite hover:bg-paper [&::-webkit-details-marker]:hidden">
+                        <Clock3 className="h-4 w-4 text-redbrand" />
+                        {hour}
+                        <span className="ml-auto text-xs font-medium">{hourEntries.length}</span>
+                      </summary>
+                      <div className="space-y-2 bg-canvas/40 px-3 pb-3">
+                        {hourEntries.map((entry) => (
+                          <article key={entry.id} className="rounded-md border border-line bg-surface p-3">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <strong className="text-sm text-ink">{entry.title}</strong>
+                                  {entry.source === "telegram" ? <Badge tone="red">Telegram</Badge> : null}
+                                  {entry.source === "message" ? <Badge>Nachricht</Badge> : null}
+                                </div>
+                                <p className="mt-1 text-xs text-graphite">
+                                  {entry.actor} · {hourLabel(entry.createdAt)}
+                                </p>
+                              </div>
+                              {entry.href ? (
+                                <Link href={entry.href} className="focus-ring inline-flex min-h-9 items-center gap-1 rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-paper hover:text-redbrand">
+                                  Oeffnen <ExternalLink className="h-3.5 w-3.5" />
+                                </Link>
+                              ) : null}
+                            </div>
+                            {entry.body ? (
+                              <div
+                                className="mt-3 rounded-md bg-paper p-3 text-sm leading-6 text-graphite [&_code]:rounded [&_code]:bg-surface [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_strong]:text-ink"
+                                dangerouslySetInnerHTML={{ __html: sanitizeTelegramHtml(entry.body) }}
+                              />
+                            ) : null}
+                          </article>
+                        ))}
+                      </div>
+                    </details>
+                  ))}
                 </div>
-                <p className="mt-2 leading-6 text-graphite">{message.body}</p>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                  {message.mediaUrl ? <a href={message.mediaUrl} className="block text-sm font-semibold text-redbrand">Anhang oeffnen</a> : <span />}
-                  {message.senderId === user.id ? (
-                    <form action={deleteMessage}>
-                      <input type="hidden" name="id" value={message.id} />
-                      <Button variant="danger" className="min-h-9 px-3 py-1.5">
-                        <Trash2 className="h-4 w-4" />
-                        Loeschen
-                      </Button>
-                    </form>
-                  ) : null}
-                </div>
-              </article>
+              </details>
             ))}
           </div>
-        </Panel>
+        ) : (
+          <EmptyState title="Noch keine Protokolleintraege">
+            Sobald Aktionen in der App oder im Telegram-Bot passieren, erscheinen sie hier.
+          </EmptyState>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {page > 1 ? (
+            <Link href={`/messages?page=${page - 1}`} className="focus-ring inline-flex min-h-10 items-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
+              Zurueck
+            </Link>
+          ) : <span />}
+          {hasNext ? (
+            <Link href={`/messages?page=${page + 1}`} className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
+              Weitere laden <ChevronRight className="h-4 w-4" />
+            </Link>
+          ) : null}
+        </div>
       </div>
+      <PageGuide title="Protokoll und Aktivitaetsverlauf">
+        Das Protokoll sammelt wichtige Aktionen aus der App und die bisherigen Telegram-Nachrichten. Tage und Stunden lassen sich aufklappen; direkte Links fuehren zur passenden Detailseite, sofern der Datensatz noch vorhanden ist.
+      </PageGuide>
     </AppShell>
   );
 }

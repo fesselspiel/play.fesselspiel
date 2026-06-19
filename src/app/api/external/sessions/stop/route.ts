@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logAction } from "@/lib/audit";
 import { minutesBetween } from "@/lib/dates";
 import { dateFromValue, oneOf, requestValues, requireApiUser } from "@/lib/external-api";
 import { prisma } from "@/lib/prisma";
@@ -23,6 +24,14 @@ async function stopSession(request: NextRequest) {
       moodAfter,
       moodAfterText: values.get("moodAfterText") || null
     }
+  });
+  await logAction({
+    actorId: auth.user.id,
+    action: "session_stopped_api",
+    entityType: "session",
+    entityId: updated.id,
+    title: "Session per API beendet",
+    href: updated.slug ? `/sessions/${updated.slug}` : null
   });
   return NextResponse.json({ ok: true, action: "stopped", session: updated });
 }
