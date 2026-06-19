@@ -179,13 +179,6 @@ export async function POST(request: Request) {
           }
         });
       }
-      await sendTelegramMessage(
-        tokenEnc,
-        chatId,
-        threadId,
-        ["<b>Chat erkannt</b>", htmlLine("Chat-ID", chatId), htmlLine("Thread-ID", threadId || "-"), "Bitte in der App unter Telegram uebernehmen."].join("\n"),
-        { parseMode: "HTML", disableWebPagePreview: true }
-      );
     }
     return NextResponse.json({ ok: true, pending: true });
   }

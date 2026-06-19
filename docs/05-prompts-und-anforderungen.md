@@ -106,6 +106,18 @@ Umsetzung:
 - Telegram-Bildverarbeitung eingebaut.
 - Telegram-Bilder koennen als Item-Bild oder als Medium gespeichert werden.
 
+Nachbesserung:
+
+- Beim Erkennen eines Telegram-Channels oder Threads soll der Bot keine Nachricht mehr schreiben.
+- Der Bot kann auch in anderen Installationen oder Chats vorhanden sein.
+- Es soll gewartet werden, bis der Chat in der App freigeschaltet wird.
+- Erkannte Chats sollen nur in der App sichtbar sein.
+
+Umsetzung:
+
+- Unbekannte Chats werden weiterhin als `PENDING` gespeichert.
+- Die automatische Antwort `Chat erkannt` wurde aus dem Webhook entfernt.
+
 ## Theme-Prompts
 
 Anforderungen:
