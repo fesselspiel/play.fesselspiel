@@ -7,6 +7,7 @@ import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
+import { sendTelegramMessage, telegramHtml } from "@/lib/telegram";
 
 const dayFormatter = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "Europe/Berlin" });
 const timeFormatter = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
@@ -14,6 +15,71 @@ const keyFormatter = new Intl.DateTimeFormat("sv-SE", { dateStyle: "short", time
 
 function dayKey(value: Date) {
   return keyFormatter.format(value);
+}
+
+function playReadyLabel(value: boolean) {
+  return value ? "voll Lust" : "gerade nicht";
+}
+
+function playReadyEmoji(value: boolean) {
+  return value ? "🟢" : "🔴";
+}
+
+async function togglePlayReady() {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id }, select: { playReady: true } });
+  const previous = Boolean(settings?.playReady);
+  const next = !previous;
+  await prisma.userSettings.upsert({
+    where: { userId: user.id },
+    update: {
+      playReady: next,
+      playReadyUpdatedAt: new Date()
+    },
+    create: {
+      userId: user.id,
+      playReady: true,
+      playReadyUpdatedAt: new Date()
+    }
+  });
+  const actor = await prisma.user.findUnique({
+    where: { id: user.id },
+    include: { profile: true }
+  });
+  const actorName = actor?.profile?.displayName || actor?.name || actor?.username || actor?.email || "Unbekannt";
+  const telegramSettings = await prisma.userSettings.findMany({
+    where: user.circleId
+      ? { telegramBotTokenEnc: { not: null }, user: { circleId: user.circleId, active: true } }
+      : { telegramBotTokenEnc: { not: null }, userId: user.id },
+    include: { telegramChats: { where: { status: "ACTIVE" } } }
+  });
+  const seenTargets = new Set<string>();
+  const message = [
+    "🚦 <b>Spielampel geändert</b>",
+    "",
+    `👤 <b>${telegramHtml(actorName)}</b>`,
+    `${playReadyEmoji(previous)} <b>Vorher:</b> ${telegramHtml(playReadyLabel(previous))}`,
+    `${playReadyEmoji(next)} <b>Jetzt:</b> ${telegramHtml(playReadyLabel(next))}`,
+    "",
+    next ? "💚 <i>Da ist gerade richtig Lust im Spiel.</i>" : "❤️ <i>Gerade lieber ruhig angehen lassen.</i>"
+  ].join("\n");
+  await Promise.allSettled(
+    telegramSettings.flatMap((setting) =>
+      setting.telegramBotTokenEnc
+        ? setting.telegramChats
+            .filter((chat) => {
+              const key = `${setting.telegramBotTokenEnc}:${chat.chatId}:${chat.threadId || ""}`;
+              if (seenTargets.has(key)) return false;
+              seenTargets.add(key);
+              return true;
+            })
+            .map((chat) => sendTelegramMessage(setting.telegramBotTokenEnc!, chat.chatId, chat.threadId, message, { parseMode: "HTML", disableWebPagePreview: true }))
+        : []
+    )
+  );
+  redirect("/");
 }
 
 export default async function DashboardPage() {
@@ -27,7 +93,7 @@ export default async function DashboardPage() {
   const weekEnd = new Date(todayStart);
   weekEnd.setDate(todayStart.getDate() + 7);
   const scope = await ownerScope(user);
-  const [toyCount, plannedCount, sessionCount, mediaCount, messageCount, sessions, weekActivities, weekEvents] = await Promise.all([
+  const [toyCount, plannedCount, sessionCount, mediaCount, messageCount, sessions, weekActivities, weekEvents, circleUsers] = await Promise.all([
     prisma.toy.count({ where: scope }),
     prisma.activityPlan.count({ where: { ...scope, status: "PLANNED" } }),
     prisma.segufixSession.count({ where: { ...scope, startTime: { gte: yearStart } } }),
@@ -42,6 +108,11 @@ export default async function DashboardPage() {
     prisma.event.findMany({
       where: { ...scope, startsAt: { gte: todayStart, lt: weekEnd } },
       orderBy: { startsAt: "asc" }
+    }),
+    prisma.user.findMany({
+      where: user.circleId ? { circleId: user.circleId, active: true } : { id: user.id },
+      include: { settings: true, profile: true },
+      orderBy: [{ name: "asc" }, { email: "asc" }]
     })
   ]);
 
@@ -99,6 +170,40 @@ export default async function DashboardPage() {
       </PageGuide>
 
       <div className="space-y-6">
+        <Panel>
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold">Spielampel</h2>
+            <p className="mt-1 text-sm text-graphite">Gruen heisst volle Lust, Rot heisst gerade nicht.</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {circleUsers.map((member) => {
+              const ready = Boolean(member.settings?.playReady);
+              const isSelf = member.id === user.id;
+              const displayName = member.profile?.displayName || member.name || member.username || member.email;
+              const stateLabel = ready ? "Voll Lust" : "Gerade nicht";
+              const content = (
+                <span className={`flex min-h-28 w-full items-center gap-4 rounded-lg border p-4 text-left transition ${
+                  ready ? "border-emerald-500 bg-emerald-500/10" : "border-redbrand bg-redbrand/10"
+                } ${isSelf ? "hover:scale-[1.01]" : ""}`}>
+                  <span className={`h-12 w-12 shrink-0 rounded-full shadow-soft ${ready ? "bg-emerald-500" : "bg-redbrand"}`} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-base font-semibold text-ink">{displayName}</span>
+                    <span className={`mt-1 block text-sm font-semibold ${ready ? "text-emerald-700" : "text-redbrand"}`}>{stateLabel}</span>
+                    {isSelf ? <span className="mt-1 block text-xs text-graphite">Antippen zum Umschalten</span> : null}
+                  </span>
+                </span>
+              );
+              return isSelf ? (
+                <form key={member.id} action={togglePlayReady}>
+                  <button type="submit" className="focus-ring block w-full rounded-lg">{content}</button>
+                </form>
+              ) : (
+                <div key={member.id}>{content}</div>
+              );
+            })}
+          </div>
+        </Panel>
+
         <Panel>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>

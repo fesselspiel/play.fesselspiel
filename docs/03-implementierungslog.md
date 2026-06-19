@@ -252,6 +252,18 @@ Details:
 - Kennzahlen-Kacheln und letzte Sessions stehen darunter.
 - Dadurch ist sofort sichtbar, was in den naechsten Tagen ansteht.
 
+## Dashboard-Spielampel
+
+- Auf dem Dashboard steht vor der Wochenansicht eine Spielampel fuer alle aktiven Mitglieder des eigenen Kreises.
+- Jeder Benutzer sieht die Ampel der anderen, kann aber nur die eigene Ampel umschalten.
+- Es gibt nur Rot und Gruen:
+  - Rot: gerade nicht.
+  - Gruen: voll Lust.
+- Der Status wird in `UserSettings.playReady` gespeichert.
+- `UserSettings.playReadyUpdatedAt` merkt den letzten Umschaltzeitpunkt.
+- Jeder Ampelwechsel verschickt eine Telegram-Nachricht an aktive gespeicherte Chats im selben Kreis, sofern ein Bot-Token vorhanden ist.
+- Die Telegram-Nachricht nutzt HTML-Markup, nennt Benutzer, alten Zustand und neuen Zustand und verwendet Rot-/Gruen-Emojis.
+
 ## Medienseite als Bild-Feed
 
 - Die Medienseite wurde von einer informationslastigen Verwaltungsansicht auf einen bildzentrierten Feed umgestellt.

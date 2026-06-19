@@ -432,6 +432,39 @@ Umsetzung:
 - `Gemeinsame Woche` direkt unter den Dashboard-Header verschoben.
 - Kennzahlen-Kacheln und letzte Sessions folgen darunter.
 
+## Dashboard-Spielampel-Prompt
+
+Anforderung:
+
+- Auf dem Dashboard soll oberhalb der Termine eine Ampel eingebaut werden.
+- Keine gelbe Stufe, nur Rot und Gruen.
+- Pro Benutzer im Zirkel eine Ampel, zum Beispiel Admin und Anna nebeneinander.
+- Jeder darf nur die eigene Ampel anklicken und zwischen Rot und Gruen wechseln.
+- Rot bedeutet: gerade keine Lust zu spielen.
+- Gruen bedeutet: voll Lust.
+
+Umsetzung:
+
+- `UserSettings.playReady` speichert den Status.
+- `UserSettings.playReadyUpdatedAt` speichert den letzten Wechsel.
+- Dashboard laedt alle aktiven Benutzer des eigenen Kreises.
+- Eigene Ampel wird als Button gerendert; fremde Ampeln sind nur Anzeige.
+- Die Ampel steht vor der Wochen-/Terminansicht.
+
+Nachbesserung:
+
+- Wenn sich der Ampelstatus aendert, soll eine Telegram-Nachricht gesendet werden.
+- Die Nachricht soll sagen, wer den Status geaendert hat.
+- Die Nachricht soll alten und neuen Zustand enthalten.
+- Die Nachricht soll schoene passende Emojis fuer Ampel, Rot und Gruen enthalten.
+- Die Nachricht soll als Telegram-HTML gut formatiert sein.
+
+Umsetzung:
+
+- Beim Umschalten wird eine HTML-Nachricht per `sendTelegramMessage(..., { parseMode: "HTML" })` verschickt.
+- Ziel sind aktive Telegram-Chats aller Benutzer im selben Kreis, die einen Bot-Token gespeichert haben.
+- Doppelte Chat-/Thread-Ziele werden dedupliziert.
+
 ## Medien-Feed-Prompt
 
 Anforderung:

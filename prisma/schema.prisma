@@ -118,6 +118,8 @@ model UserSettings {
   userId              String         @unique
   theme               String         @default("red")
   darkMode            Boolean        @default(false)
+  playReady           Boolean        @default(false)
+  playReadyUpdatedAt  DateTime?
   telegramBotTokenEnc String?
   openAiApiKeyEnc     String?
   telegramChats       TelegramChat[]
