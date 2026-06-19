@@ -276,6 +276,7 @@ Details:
 - `UserSettings.playReadyUpdatedAt` merkt den letzten Umschaltzeitpunkt.
 - Jeder Ampelwechsel verschickt eine Telegram-Nachricht an aktive gespeicherte Chats im selben Kreis, sofern ein Bot-Token vorhanden ist.
 - Die Telegram-Nachricht nutzt HTML-Markup, nennt Benutzer und den neuen Zustand mit passendem Rot-/Gruen-Emoji.
+- Wenn fuer denselben Telegram-Chat ein konkreter Thread aktiv ist, werden Push-Nachrichten an diesen Thread gesendet und nicht an den threadlosen Hauptgruppen-Eintrag.
 
 ## Medienseite als Bild-Feed
 

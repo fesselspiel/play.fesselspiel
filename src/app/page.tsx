@@ -65,18 +65,19 @@ async function togglePlayReady() {
     next ? "💚 <i>Da ist gerade richtig Lust im Spiel.</i>" : "❤️ <i>Gerade lieber ruhig angehen lassen.</i>"
   ].join("\n");
   await Promise.allSettled(
-    telegramSettings.flatMap((setting) =>
-      setting.telegramBotTokenEnc
-        ? setting.telegramChats
-            .filter((chat) => {
-              const key = `${setting.telegramBotTokenEnc}:${chat.chatId}:${chat.threadId || ""}`;
-              if (seenTargets.has(key)) return false;
-              seenTargets.add(key);
-              return true;
-            })
-            .map((chat) => sendTelegramMessage(setting.telegramBotTokenEnc!, chat.chatId, chat.threadId, message, { parseMode: "HTML", disableWebPagePreview: true }))
-        : []
-    )
+    telegramSettings.flatMap((setting) => {
+      if (!setting.telegramBotTokenEnc) return [];
+      const threadSpecificChatIds = new Set(setting.telegramChats.filter((chat) => chat.threadId).map((chat) => chat.chatId));
+      return setting.telegramChats
+        .filter((chat) => chat.threadId || !threadSpecificChatIds.has(chat.chatId))
+        .filter((chat) => {
+          const key = `${setting.telegramBotTokenEnc}:${chat.chatId}:${chat.threadId || ""}`;
+          if (seenTargets.has(key)) return false;
+          seenTargets.add(key);
+          return true;
+        })
+        .map((chat) => sendTelegramMessage(setting.telegramBotTokenEnc!, chat.chatId, chat.threadId, message, { parseMode: "HTML", disableWebPagePreview: true }));
+    })
   );
   redirect("/");
 }
