@@ -368,7 +368,7 @@ function notificationUsers(users: TelegramTargetUser[]) {
   return users.map((entry) => ({ id: entry.id, label: userLabel(entry) }));
 }
 
-export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string } }) {
+export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string; action?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const [settings, targetUsers, targetCircles, auditActions] = await Promise.all([
@@ -413,7 +413,8 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
   const mappings = settings?.telegramUserMappings || [];
   const knownUsers = settings?.telegramKnownUsers || [];
   const notificationRules = settings?.telegramNotificationRules || [];
-  const actionOptions = Array.from(new Set([...knownAuditActions.map(([action]) => action), ...auditActions.map((entry) => entry.action)])).sort((a, b) => actionLabel(a).localeCompare(actionLabel(b)));
+  const requestedAction = String(searchParams?.action || "").trim();
+  const actionOptions = Array.from(new Set([...knownAuditActions.map(([action]) => action), ...auditActions.map((entry) => entry.action), requestedAction].filter(Boolean))).sort((a, b) => actionLabel(a).localeCompare(actionLabel(b)));
   const telegramTokenSuffix = secretSuffix(settings?.telegramBotTokenEnc);
   const openAiKeySuffix = secretSuffix(settings?.openAiApiKeyEnc);
   const telegramBotName = await readTelegramBotName(settings?.telegramBotTokenEnc);
@@ -619,7 +620,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
               <form action={createNotificationRule} className="space-y-4 rounded-lg border border-line bg-paper p-4">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Aktion">
-                    <select className={selectClass} name="action" required>
+                    <select className={selectClass} name="action" defaultValue={requestedAction || actionOptions[0] || ""} required>
                       {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
                     </select>
                   </Field>

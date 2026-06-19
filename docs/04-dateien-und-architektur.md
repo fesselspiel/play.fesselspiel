@@ -180,6 +180,8 @@ UI-Hinweis:
 - `src/lib/telegram-notifications.ts`: rendert Templates und sendet passende Telegram-Regeln.
 - `src/lib/audit.ts`: ruft nach jedem gespeicherten `AuditLog` den Dispatcher auf.
 - `/settings/telegram#notifications`: Admin-Oberfläche zum Erstellen, Bearbeiten und Löschen der Regeln.
+- `/settings/telegram?action=<action>#notifications`: öffnet die Aktionsbenachrichtigungen mit vorausgewählter Aktion.
+- `/messages`: Protokoll mit Direktlink aus Audit-Einträgen zur passenden Telegram-Aktionsbenachrichtigung.
 
 ## Wiederverwendbare UI-Helfer
 

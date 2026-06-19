@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight, Clock3, ExternalLink, History } from "lucide-react";
+import { BellRing, ChevronRight, Clock3, ExternalLink, History } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ProtocolSearch } from "@/components/protocol-search";
 import { Badge, EmptyState, PageGuide, PageHeader, Panel } from "@/components/ui";
@@ -17,6 +17,7 @@ type ProtocolEntry = {
   createdAt: Date;
   actor: string;
   title: string;
+  action?: string;
   body?: string;
   href?: string | null;
   source: "audit" | "telegram" | "message";
@@ -118,6 +119,7 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
       createdAt: entry.createdAt,
       actor: actorName(entry.actor),
       title: entry.title,
+      action: entry.action,
       body: detailBody(entry.details),
       href: entry.href,
       source: "audit" as const
@@ -198,6 +200,14 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
                                   Öffnen <ExternalLink className="h-3.5 w-3.5" />
                                 </Link>
                               ) : null}
+                              {entry.action ? (
+                                <Link
+                                  href={`/settings/telegram?action=${encodeURIComponent(entry.action)}#notifications`}
+                                  className="focus-ring inline-flex min-h-9 items-center gap-1 rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-paper hover:text-redbrand"
+                                >
+                                  Benachrichtigung <BellRing className="h-3.5 w-3.5" />
+                                </Link>
+                              ) : null}
                             </div>
                             {entry.body ? (
                               <div
@@ -234,7 +244,7 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
         </div>
       </div>
       <PageGuide title="Protokoll und Aktivitätsverlauf">
-        Das Protokoll sammelt wichtige Aktionen aus der App und die bisherigen Telegram-Nachrichten. Tage und Stunden lassen sich aufklappen; direkte Links fuehren zur passenden Detailseite, sofern der Datensatz noch vorhanden ist.
+        Das Protokoll sammelt wichtige Aktionen aus der App und die bisherigen Telegram-Nachrichten. Tage und Stunden lassen sich aufklappen; direkte Links führen zur passenden Detailseite, sofern der Datensatz noch vorhanden ist.
       </PageGuide>
     </AppShell>
   );

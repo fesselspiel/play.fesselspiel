@@ -538,3 +538,11 @@ Details:
 - Logout wird in der UI nicht mehr als reines HTML-Formular ausgelöst.
 - Neuer Client-Button `LogoutButton` sendet `POST /api/auth/logout` per `fetch` mit Session-Credentials und navigiert danach aktiv nach `/login`.
 - Das verhindert, dass der mobile Menüzustand den Formular-Submit vorzeitig unmountet.
+
+## Protokoll und Aktionsbenachrichtigungen
+
+- Audit-Protokolleinträge enthalten in der Protokollansicht jetzt zusätzlich den internen `action`-Key.
+- Jeder protokollierte Audit-Eintrag zeigt einen Link `Benachrichtigung`.
+- Der Link führt zu `/settings/telegram?action=<action>#notifications`.
+- Die Telegram-Einstellungsseite übernimmt diesen Query-Parameter und wählt die Aktion im Formular zum Anlegen einer Aktionsbenachrichtigung vor.
+- Falls die Aktion noch nicht in den bekannten Aktionen enthalten ist, wird sie dynamisch in die Auswahlliste aufgenommen.
