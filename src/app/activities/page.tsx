@@ -3,13 +3,11 @@ import { redirect } from "next/navigation";
 import { Plus, ShieldCheck, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, EmptyState, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
-import { activityStatusLabel, activityStatusTone } from "@/lib/activity-status";
+import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
-
-const statusLabel = activityStatusLabel;
 
 export default async function ActivitiesPage() {
   const user = await currentUser();
@@ -72,21 +70,24 @@ export default async function ActivitiesPage() {
       </div>
       {activities.length ? (
         <div className="grid gap-4 lg:grid-cols-2">
-          {activities.map((activity) => (
+          {activities.map((activity) => {
+            const isSelfBondageOrder = activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage";
+            return (
             <Link key={activity.id} href={`/activities/${activity.slug}`}>
               <SoftPanel className="h-full transition hover:bg-[#eeeeee]">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold">{activity.title}</h2>
-                    <p className="mt-1 text-sm text-graphite">{activity.category || "Aktivität"} · {formatDateTime(activity.plannedAt)}</p>
+                    <p className="mt-1 text-sm text-graphite">{isSelfBondageOrder ? "Auftrag" : activity.category || "Aktivität"} · {isSelfBondageOrder && !activity.plannedAt ? "gilt sofort beim Lesen" : formatDateTime(activity.plannedAt)}</p>
                   </div>
-                  <Badge tone={activityStatusTone(activity.status)}>{statusLabel[activity.status]}</Badge>
+                  <Badge tone={activityStatusTone(activity.status)}>{activityStatusDisplay(activity.status, isSelfBondageOrder)}</Badge>
                 </div>
                 <p className="mt-4 text-sm text-graphite">{activity.note || "Keine Notiz."}</p>
                 <p className="mt-4 text-xs text-graphite">{activity.tools.length} Spielzeuge · {activity.positions.length} Stellungen</p>
               </SoftPanel>
             </Link>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <EmptyState title="Noch nichts geplant" />

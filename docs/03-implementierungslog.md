@@ -579,6 +579,8 @@ Details:
 - Darunter gibt es einen Self-Bondage-Auftrag mit Button `Self-Bondage-Auftrag geben`.
 - Die Self-Bondage-Variante nutzt Auftrag-Wording, blendet URL-Slug und Kategorie aus und bietet keine Spielsachen an.
 - Für Self-Bondage-Aufträge werden nur Stellungen angeboten, die als `Self-Bondage-fähig` markiert sind.
+- Self-Bondage-Aufträge können `Ohne Datum/Uhrzeit` gespeichert werden; dann gilt der Auftrag sofort beim Lesen und die Termin-Felder werden im Formular ausgeblendet.
+- Self-Bondage-Aufträge nutzen eigene Statuswörter: `beauftragt`, `angenommen`, `umgesetzt`, `verworfen`.
 
 ## Bildzuschnitt beim Upload
 
@@ -587,5 +589,6 @@ Details:
 - Profilbilder nutzen standardmäßig Quadrat-Zuschnitt.
 - Spielzeug- und Stellungsbilder nutzen standardmäßig ein Querformat.
 - Medienuploads bleiben unverändert, damit die Galerie Originalbilder und Videos behalten kann.
+- Der Zuschnitt speichert PNG/WebP-Quellen als PNG, damit transparente Hintergründe nicht durch JPEG-Konvertierung verloren gehen.
 - Die Telegram-Einstellungsseite übernimmt diesen Query-Parameter und wählt die Aktion im Formular zum Anlegen einer Aktionsbenachrichtigung vor.
 - Falls die Aktion noch nicht in den bekannten Aktionen enthalten ist, wird sie dynamisch in die Auswahlliste aufgenommen.

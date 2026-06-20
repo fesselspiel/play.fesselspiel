@@ -7,6 +7,24 @@ export const activityStatusLabel = {
 
 export type ActivityStatusValue = keyof typeof activityStatusLabel;
 
+export const selfBondageStatusLabel: Record<ActivityStatusValue, string> = {
+  REQUESTED: "beauftragt",
+  PLANNED: "angenommen",
+  DONE: "umgesetzt",
+  DISCARDED: "verworfen"
+};
+
+export function activityStatusDisplay(status: ActivityStatusValue, selfBondageOrder = false) {
+  return selfBondageOrder ? selfBondageStatusLabel[status] : activityStatusLabel[status];
+}
+
+export function activityStatusOptions(selfBondageOrder = false) {
+  return Object.keys(activityStatusLabel).map((value) => ({
+    value,
+    label: activityStatusDisplay(value as ActivityStatusValue, selfBondageOrder)
+  }));
+}
+
 export function activityStatusTone(status: ActivityStatusValue) {
   if (status === "REQUESTED") return "green" as const;
   if (status === "PLANNED") return "red" as const;

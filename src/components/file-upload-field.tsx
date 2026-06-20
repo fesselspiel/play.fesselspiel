@@ -56,6 +56,10 @@ function loadImage(url: string) {
   });
 }
 
+function keepsTransparency(file: File) {
+  return ["image/png", "image/webp"].includes(file.type);
+}
+
 async function cropImageFile(file: File, sourceUrl: string, aspect: CropAspect, x: number, y: number, zoom: number) {
   const image = await loadImage(sourceUrl);
   const sourceWidth = image.naturalWidth;
@@ -75,11 +79,13 @@ async function cropImageFile(file: File, sourceUrl: string, aspect: CropAspect, 
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Bildbearbeitung wird in diesem Browser nicht unterstützt.");
   context.drawImage(image, sourceX, sourceY, cropWidth, cropHeight, 0, 0, size.width, size.height);
+  const mimeType = keepsTransparency(file) ? "image/png" : "image/jpeg";
+  const extension = mimeType === "image/png" ? "png" : "jpg";
   const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((value) => (value ? resolve(value) : reject(new Error("Ausschnitt konnte nicht erzeugt werden."))), "image/jpeg", 0.9);
+    canvas.toBlob((value) => (value ? resolve(value) : reject(new Error("Ausschnitt konnte nicht erzeugt werden."))), mimeType, 0.9);
   });
   const baseName = file.name.replace(/\.[^.]+$/, "") || "bild";
-  return new File([blob], `${baseName}-ausschnitt.jpg`, { type: "image/jpeg", lastModified: Date.now() });
+  return new File([blob], `${baseName}-ausschnitt.${extension}`, { type: mimeType, lastModified: Date.now() });
 }
 
 export function FileUploadField({

@@ -5,14 +5,12 @@ import { AppShell } from "@/components/app-shell";
 import { CopySubtitle } from "@/components/copy-subtitle";
 import { Badge, Button, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { confirmRequestedActivity } from "@/lib/activity-actions";
-import { activityStatusLabel, activityStatusTone } from "@/lib/activity-status";
+import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status";
 import { isAccessibleOwner } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
-
-const statusLabel = activityStatusLabel;
 
 export default async function ActivityDetailPage({ params }: { params: { slug: string } }) {
   const user = await currentUser();
@@ -28,7 +26,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
         title={activity.title}
         subtitle={<CopySubtitle value={url} label={path} />}
         action={
-          <Badge tone={activityStatusTone(activity.status)}>{statusLabel[activity.status]}</Badge>
+          <Badge tone={activityStatusTone(activity.status)}>{activityStatusDisplay(activity.status, isSelfBondageOrder)}</Badge>
         }
       />
       <PageGuide title={isSelfBondageOrder ? "Self-Bondage-Auftrag" : "Spielplan im Detail"}>
@@ -38,11 +36,11 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
       </PageGuide>
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <Panel>
-        <p className="text-sm text-graphite">{isSelfBondageOrder ? "Auftrag" : activity.category || "Spielidee"} · {formatDateTime(activity.plannedAt)}</p>
+        <p className="text-sm text-graphite">{isSelfBondageOrder ? "Auftrag" : activity.category || "Spielidee"} · {isSelfBondageOrder && !activity.plannedAt ? "gilt sofort beim Lesen" : formatDateTime(activity.plannedAt)}</p>
           {activity.status === "REQUESTED" && activity.ownerId !== user.id ? (
             <form action={confirmRequestedActivity} className="mt-4">
               <input type="hidden" name="id" value={activity.id} />
-              <Button>{isSelfBondageOrder ? "Auftrag bestätigen" : "Spielplan bestätigen"}</Button>
+              <Button>{isSelfBondageOrder ? "Auftrag annehmen" : "Spielplan bestätigen"}</Button>
             </form>
           ) : null}
           <p className="mt-5 leading-7 text-graphite">{activity.note || "Keine Notiz hinterlegt."}</p>

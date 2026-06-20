@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { SelfBondageScheduleFields } from "@/components/self-bondage-schedule-fields";
 import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
-import { activityStatusLabel, type ActivityStatusValue } from "@/lib/activity-status";
+import { activityStatusLabel, activityStatusOptions, type ActivityStatusValue } from "@/lib/activity-status";
 import { isAccessibleOwner, ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { formatDateTimeLocal } from "@/lib/dates";
@@ -23,6 +24,7 @@ async function updateActivity(formData: FormData) {
   const title = String(formData.get("title") || "").trim();
   const slug = selfBondageOrder ? activity.slug : await uniqueSlugForUpdate("activityPlan", normalizeSlug(String(formData.get("slug") || ""), title), activity.id);
   const plannedAtRaw = String(formData.get("plannedAt") || "");
+  const withoutSchedule = selfBondageOrder && formData.get("noSchedule") === "on";
   const toolIds = selfBondageOrder ? [] : formData.getAll("tools").map(String);
   const positionIds = formData.getAll("positions").map(String);
   const [ownedTools, ownedPositions] = await Promise.all([
@@ -37,7 +39,7 @@ async function updateActivity(formData: FormData) {
       slug,
       category: selfBondageOrder ? "SELF_BONDAGE_ORDER" : String(formData.get("category") || "").trim(),
       note: String(formData.get("note") || "").trim(),
-      plannedAt: plannedAtRaw ? new Date(plannedAtRaw) : null,
+      plannedAt: !withoutSchedule && plannedAtRaw ? new Date(plannedAtRaw) : null,
       status: String(formData.get("status") || "PLANNED") as ActivityStatusValue,
       tools: { set: ownedTools.map((tool) => ({ id: tool.id })) },
       positions: { set: ownedPositions.map((position) => ({ id: position.id })) }
@@ -72,6 +74,7 @@ export default async function EditActivityPage({ params }: { params: { slug: str
   const isSelfBondageOrder = activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage";
   const selectedTools = new Set(activity.tools.map((tool) => tool.id));
   const selectedPositions = new Set(activity.positions.map((position) => position.id));
+  const statusOptions = activityStatusOptions(isSelfBondageOrder);
 
   return (
     <AppShell>
@@ -92,14 +95,24 @@ export default async function EditActivityPage({ params }: { params: { slug: str
                 <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" defaultValue={activity.slug} /></Field>
               </>
             )}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Datum und Uhrzeit"><input className={inputClass} name="plannedAt" type="datetime-local" step={900} defaultValue={formatDateTimeLocal(activity.plannedAt)} /></Field>
-              <Field label="Status">
-                <select className={selectClass} name="status" defaultValue={activity.status}>
-                  {Object.entries(statusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
-              </Field>
-            </div>
+            {isSelfBondageOrder ? (
+              <SelfBondageScheduleFields
+                mode="edit"
+                defaultPlannedAt={formatDateTimeLocal(activity.plannedAt)}
+                defaultWithoutSchedule={!activity.plannedAt}
+                statusDefault={activity.status}
+                statusOptions={statusOptions}
+              />
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Datum und Uhrzeit"><input className={inputClass} name="plannedAt" type="datetime-local" step={900} defaultValue={formatDateTimeLocal(activity.plannedAt)} /></Field>
+                <Field label="Status">
+                  <select className={selectClass} name="status" defaultValue={activity.status}>
+                    {Object.entries(statusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </Field>
+              </div>
+            )}
             <Field label={isSelfBondageOrder ? "Anweisung" : "Notiz"}><textarea className={inputClass} name="note" rows={6} defaultValue={activity.note || ""} /></Field>
             <div className="flex flex-wrap gap-2">
               <Button><Save className="h-4 w-4" /> {isSelfBondageOrder ? "Auftrag speichern" : "Änderungen speichern"}</Button>

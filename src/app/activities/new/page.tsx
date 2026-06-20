@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { Save } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { SelfBondageScheduleFields } from "@/components/self-bondage-schedule-fields";
 import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
-import { activityStatusLabel, type ActivityStatusValue, quarterHourOptions } from "@/lib/activity-status";
+import { activityStatusOptions, type ActivityStatusValue, quarterHourOptions } from "@/lib/activity-status";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -18,7 +19,8 @@ async function createActivity(formData: FormData) {
   const slug = await uniqueSlug("activityPlan", normalizeSlug(String(formData.get("slug") || ""), title));
   const date = String(formData.get("date") || "");
   const time = String(formData.get("time") || "");
-  const plannedAt = date ? new Date(`${date}T${time || "20:00"}:00`) : null;
+  const withoutSchedule = selfBondageTemplate && formData.get("noSchedule") === "on";
+  const plannedAt = !withoutSchedule && date ? new Date(`${date}T${time || "20:00"}:00`) : null;
   const toolIds = selfBondageTemplate ? [] : formData.getAll("tools").map(String);
   const positionIds = formData.getAll("positions").map(String);
   const scope = await ownerScope(user);
@@ -65,6 +67,8 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
   const defaultNote = selfBondageTemplate
     ? "Auftrag: Bring dich in die ausgewählte Lage und richte dich so ein, dass du ruhig warten kannst. Dokumentiere danach kurz, wie die Vorbereitung funktioniert hat."
     : "";
+  const statusOptions = activityStatusOptions(selfBondageTemplate);
+  const timeOptions = quarterHourOptions();
   return (
     <AppShell>
       <PageHeader title={selfBondageTemplate ? "Self-Bondage-Auftrag" : "Lass uns spielen"} />
@@ -83,19 +87,30 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
               <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" placeholder="entspannungsabend" /></Field>
             </>
           )}
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Datum"><input className={inputClass} name="date" type="date" defaultValue={defaultDate} /></Field>
-            <Field label="Uhrzeit">
-              <select className={selectClass} name="time" defaultValue="20:00">
-                {quarterHourOptions().map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-            </Field>
-            <Field label="Status">
-              <select className={selectClass} name="status" defaultValue={selfBondageTemplate ? "REQUESTED" : "PLANNED"}>
-                {Object.entries(activityStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
-            </Field>
-          </div>
+          {selfBondageTemplate ? (
+            <SelfBondageScheduleFields
+              mode="new"
+              defaultDate={defaultDate}
+              defaultWithoutSchedule={!defaultDate}
+              statusDefault="REQUESTED"
+              statusOptions={statusOptions}
+              timeOptions={timeOptions}
+            />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="Datum"><input className={inputClass} name="date" type="date" defaultValue={defaultDate} /></Field>
+              <Field label="Uhrzeit">
+                <select className={selectClass} name="time" defaultValue="20:00">
+                  {timeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Status">
+                <select className={selectClass} name="status" defaultValue="PLANNED">
+                  {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </Field>
+            </div>
+          )}
           <Field label={selfBondageTemplate ? "Anweisung" : "Notiz"}><textarea className={inputClass} name="note" rows={6} defaultValue={defaultNote} /></Field>
           <Button><Save className="h-4 w-4" /> {selfBondageTemplate ? "Auftrag speichern" : "Plan speichern"}</Button>
         </div>

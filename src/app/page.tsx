@@ -5,7 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { Badge, PageGuide, Panel, PageHeader, SoftPanel } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { confirmRequestedActivity } from "@/lib/activity-actions";
-import { activityStatusLabel, activityStatusTone } from "@/lib/activity-status";
+import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -164,6 +164,7 @@ export default async function DashboardPage() {
           time: activity.plannedAt ? timeFormatter.format(activity.plannedAt) : "",
           type: "Plan",
           status: activity.status,
+          selfBondageOrder: activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage",
           confirmId: activity.status === "REQUESTED" && activity.ownerId !== user.id ? activity.id : "",
           meta: `${activity.tools.length} Spielsachen · ${activity.positions.length} Stellungen`
         })),
@@ -176,6 +177,7 @@ export default async function DashboardPage() {
           time: timeFormatter.format(event.startsAt),
           type: "Termin",
           status: "PLANNED",
+          selfBondageOrder: false,
           confirmId: "",
           meta: event.location || "Termin"
         }))
@@ -295,7 +297,7 @@ export default async function DashboardPage() {
                           <div className="flex items-center justify-between gap-2">
                             <strong className="line-clamp-1">{entry.title}</strong>
                             <Badge tone={entry.type === "Plan" ? activityStatusTone(entry.status as never) : "neutral"}>
-                              {entry.type === "Plan" ? activityStatusLabel[entry.status as keyof typeof activityStatusLabel] : entry.type}
+                              {entry.type === "Plan" ? activityStatusDisplay(entry.status as never, Boolean(entry.selfBondageOrder)) : entry.type}
                             </Badge>
                           </div>
                           <div className="mt-1 text-xs text-graphite">{entry.time} · {entry.meta}</div>
