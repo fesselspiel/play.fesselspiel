@@ -345,14 +345,16 @@ Details:
 ## Medienseite als Bild-Feed
 
 - Die Medienseite wurde von einer informationslastigen Verwaltungsansicht auf einen bildzentrierten Feed umgestellt.
-- Upload, Albumanlage und Filter sind jetzt kompakte, aufklappbare Werkzeuge oberhalb des Feeds.
+- Upload, Albumanlage und Filter sind kompakte, aufklappbare Werkzeuge unterhalb des Feeds.
 - Medien erscheinen als quadratische Kacheln im Instagram-ähnlichen Raster.
 - Metadaten werden erst beim Hover/Fokus als Overlay angezeigt.
 - Ein Klick auf ein Medium öffnet eine große Detailansicht mit Bild/Video, Metadaten, Dateiinfos, Öffnen- und Löschaktion.
 - Neues Modell `MediaComment` ermöglicht Kommentare/Notizen direkt am Medium.
 - Medien können in der Detailansicht einem Album zugeordnet werden.
+- Medien können in der Detailansicht als Albumansichtbild festgelegt werden.
 - Im Album-Werkzeug können mehrere Medien per Thumbnail-Auswahl gleichzeitig einem Album hinzugefügt werden.
-- Layout-Reihenfolge angepasst: Album-Auswahlchips stehen direkt über dem Bildraster, Upload/Albumverwaltung/Filter stehen darunter.
+- Layout-Reihenfolge angepasst: Album-Cover stehen direkt über dem Bildraster, Upload/Albumverwaltung/Filter stehen darunter.
+- Jedes Album zeigt ein Coverbild; falls kein Cover festgelegt ist, wird automatisch das erste Medium des Albums genutzt.
 
 ## Datenexport und Datenimport
 
@@ -363,6 +365,7 @@ Details:
 - Nicht exportiert werden Passwörter, Login-Tokens, Telegram-Token und OpenAI-Keys.
 - Import nimmt ein Fesselspiel-ZIP entgegen und fügt die Inhalte dem aktuell angemeldeten Benutzer hinzu.
 - Beim Import werden neue Datei-IDs erzeugt, Datei-URLs neu verknüpft und Slugs automatisch eindeutig gemacht.
+- Album-Cover werden beim Import auf die neu importierten Medien gemappt.
 - Bestehende Inhalte werden beim Import nicht gelöscht oder überschrieben.
 
 ## Externe API und Bearer Tokens
@@ -572,7 +575,9 @@ Details:
 - In der Benutzerverwaltung ist die Systemzeit als einklappbarer Bereich umgesetzt.
 - Admins können beim Bearbeiten eines Benutzers dessen Profilbild hochladen oder entfernen.
 - `Lass uns spielen` zeigt oben einen großen zentralen Button `Neuen Spieltermin anlegen`.
-- Darunter gibt es eine Self-Bondage-Vorbereitung mit Button `Vorbereitungsaufgabe planen`; Stellungen mit `Self-Bondage-fähig` werden dort prominent angeboten und im neuen Spieltermin vorausgewählt.
+- Darunter gibt es einen Self-Bondage-Auftrag mit Button `Self-Bondage-Auftrag geben`.
+- Die Self-Bondage-Variante nutzt Auftrag-Wording, blendet URL-Slug und Kategorie aus und bietet keine Spielsachen an.
+- Für Self-Bondage-Aufträge werden nur Stellungen angeboten, die als `Self-Bondage-fähig` markiert sind.
 
 ## Bildzuschnitt beim Upload
 

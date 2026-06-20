@@ -50,9 +50,9 @@ export default async function ActivitiesPage() {
               <ShieldCheck className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-lg font-semibold text-ink">Self-Bondage-Vorbereitung</h2>
+              <h2 className="text-lg font-semibold text-ink">Self-Bondage-Auftrag</h2>
               <p className="mt-2 text-sm leading-6 text-graphite">
-                Erstelle eine Aufgabe, bei der eine passende Self-Bondage-fähige Stellung vorbereitet und als Spielanfrage geplant wird.
+                Erstelle einen Auftrag: Eine Person bringt sich selbst in eine ausgewählte Lage und wartet dort auf die weitere Ansage.
               </p>
             </div>
           </div>
@@ -66,7 +66,7 @@ export default async function ActivitiesPage() {
             <p className="mt-4 rounded-md bg-surface p-3 text-sm text-graphite">Markiere bei Stellungen das Feld „Self-Bondage-fähig“, damit sie hier als Vorbereitung auftauchen.</p>
           )}
           <Link href="/activities/new?template=self-bondage" className="focus-ring mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-sky-600 bg-sky-600 px-5 py-3 text-sm font-semibold text-white hover:bg-sky-700">
-            Vorbereitungsaufgabe planen
+            Self-Bondage-Auftrag geben
           </Link>
         </Panel>
       </div>

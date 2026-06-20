@@ -74,6 +74,7 @@ async function deleteMedia(formData: FormData) {
   const id = String(formData.get("id") || "");
   const media = await prisma.media.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!media) redirect("/media");
+  await prisma.album.updateMany({ where: { coverMediaId: media.id }, data: { coverMediaId: null } });
   await prisma.media.delete({ where: { id: media.id } });
   const fileId = fileIdFromUrl(media.url);
   if (fileId) await deleteOwnedFile(media.ownerId, fileId);
@@ -167,6 +168,12 @@ async function updateMediaSettings(formData: FormData) {
       visibility: parsedVisibility(formData.get("visibility"))
     }
   });
+  const setAsCover = formData.get("albumCover") === "on";
+  if (setAsCover) {
+    await prisma.album.update({ where: { id: album.id }, data: { coverMediaId: media.id } });
+  } else if (album.coverMediaId === media.id) {
+    await prisma.album.update({ where: { id: album.id }, data: { coverMediaId: null } });
+  }
   redirect(next);
 }
 
@@ -259,6 +266,9 @@ type AlbumForUi = {
   id: string;
   ownerId: string;
   title: string;
+  description?: string | null;
+  visibility: "PRIVATE" | "PARTNER" | "SHARED";
+  coverMediaId?: string | null;
   owner?: {
     email: string;
     username: string | null;
@@ -333,6 +343,20 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
   const closeUrl = mediaUrl({ ...baseFilters, view: undefined });
   const selectedUrl = selected ? mediaUrl({ ...baseFilters, view: selected.id }) : "/media";
   const selectedAlbumForUi = selected?.albumId ? albums.find((album) => album.id === selected.albumId) : null;
+  const explicitCoverIds = albums.map((album) => album.coverMediaId).filter((id): id is string => Boolean(id));
+  const explicitCoverMedia = explicitCoverIds.length
+    ? await prisma.media.findMany({ where: { ...mediaScope, id: { in: explicitCoverIds } } })
+    : [];
+  const coverSource = [...explicitCoverMedia, ...albumMedia, ...media];
+  const coverById = new Map(coverSource.map((entry) => [entry.id, entry]));
+  const albumCover = (album: AlbumForUi) => {
+    if (album.coverMediaId) {
+      const explicit = coverById.get(album.coverMediaId);
+      if (explicit) return explicit;
+    }
+    return coverSource.find((entry) => entry.albumId === album.id) || null;
+  };
+  const allCover = media[0] || coverSource[0] || null;
   const selectedComments = selected
     ? await prisma.mediaComment.findMany({
         where: { mediaId: selected.id },
@@ -350,15 +374,52 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
       </PageGuide>
 
       <div className="space-y-4">
-        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-          <Link href={mediaUrl({ ...baseFilters, album: undefined, view: undefined })} className={`focus-ring shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${!albumFilter ? "border-redbrand bg-redbrand text-white" : "border-line bg-surface text-ink hover:bg-paper"}`}>
-            Alle
+        <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+          <Link
+            href={mediaUrl({ ...baseFilters, album: undefined, view: undefined })}
+            className={`focus-ring group relative block h-28 w-28 shrink-0 overflow-hidden rounded-lg border bg-paper shadow-soft sm:h-32 sm:w-32 ${!albumFilter ? "border-redbrand ring-2 ring-redbrand/25" : "border-line hover:border-redbrand/50"}`}
+          >
+            {allCover ? (
+              allCover.kind === "IMAGE" ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={allCover.url} alt="" className="h-full w-full object-cover transition group-hover:scale-[1.04]" />
+              ) : (
+                <video src={allCover.url} className="h-full w-full object-cover transition group-hover:scale-[1.04]" muted playsInline />
+              )
+            ) : (
+              <span className="flex h-full w-full items-center justify-center bg-surface text-redbrand"><Folder className="h-7 w-7" /></span>
+            )}
+            <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent p-2">
+              <span className="block truncate text-sm font-semibold text-white">Alle</span>
+              <span className="block text-xs text-white/75">{media.length} Medien</span>
+            </span>
           </Link>
-          {albums.map((album) => (
-            <Link key={album.id} href={mediaUrl({ ...baseFilters, album: album.id, view: undefined })} className={`focus-ring shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${albumFilter === album.id ? "border-redbrand bg-redbrand text-white" : "border-line bg-surface text-ink hover:bg-paper"}`}>
-              {albumLabel(album, user.id, albums)}
-            </Link>
-          ))}
+          {albums.map((album) => {
+            const cover = albumCover(album);
+            const count = albumMedia.filter((entry) => entry.albumId === album.id).length;
+            return (
+              <Link
+                key={album.id}
+                href={mediaUrl({ ...baseFilters, album: album.id, view: undefined })}
+                className={`focus-ring group relative block h-28 w-28 shrink-0 overflow-hidden rounded-lg border bg-paper shadow-soft sm:h-32 sm:w-32 ${albumFilter === album.id ? "border-redbrand ring-2 ring-redbrand/25" : "border-line hover:border-redbrand/50"}`}
+              >
+                {cover ? (
+                  cover.kind === "IMAGE" ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={cover.url} alt="" className="h-full w-full object-cover transition group-hover:scale-[1.04]" />
+                  ) : (
+                    <video src={cover.url} className="h-full w-full object-cover transition group-hover:scale-[1.04]" muted playsInline />
+                  )
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center bg-surface text-redbrand"><Folder className="h-7 w-7" /></span>
+                )}
+                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2">
+                  <span className="block truncate text-sm font-semibold text-white">{albumLabel(album, user.id, albums)}</span>
+                  <span className="block text-xs text-white/75">{count} Medien</span>
+                </span>
+              </Link>
+            );
+          })}
         </div>
 
         {media.length ? (
@@ -610,6 +671,18 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                     <option value="SHARED">Alle</option>
                   </select>
                 </Field>
+                <label className="flex items-start gap-3 rounded-md border border-line bg-paper p-3 text-sm text-graphite">
+                  <input
+                    name="albumCover"
+                    type="checkbox"
+                    defaultChecked={Boolean(selectedAlbumForUi?.coverMediaId === selected.id)}
+                    className="mt-1 h-4 w-4 accent-redbrand"
+                  />
+                  <span>
+                    <strong className="block text-ink">Als Albumansichtbild verwenden</strong>
+                    <span>Wenn kein Bild festgelegt ist, nutzt das Album automatisch das erste Bild.</span>
+                  </span>
+                </label>
                 <SubmitButton pendingLabel="Medium wird gespeichert..." className="w-full">Album und Sichtbarkeit speichern</SubmitButton>
               </form>
               <QuickAlbumForm action={createAlbumForMedia} mediaId={selected.id} />

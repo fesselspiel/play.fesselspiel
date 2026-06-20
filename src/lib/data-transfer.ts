@@ -287,6 +287,13 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     mediaMap.set(String(entry.id || ""), created.id);
   }
 
+  for (const entry of records(data.albums)) {
+    const albumId = albumMap.get(String(entry.id || ""));
+    const coverMediaId = mediaMap.get(String(entry.coverMediaId || ""));
+    if (!albumId || !coverMediaId) continue;
+    await prisma.album.update({ where: { id: albumId }, data: { coverMediaId } });
+  }
+
   for (const entry of records(data.mediaComments)) {
     const mediaId = mediaMap.get(String(entry.mediaId || ""));
     const body = String(entry.body || "").trim();

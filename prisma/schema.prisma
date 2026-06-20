@@ -270,11 +270,14 @@ model Album {
   ownerId     String
   title       String
   description String?
+  coverMediaId String?
   visibility  Visibility @default(PRIVATE)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   media       Media[]
+
+  @@index([coverMediaId])
 }
 
 model Media {
