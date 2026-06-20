@@ -572,6 +572,7 @@ Details:
 - KG-Einträge können dort aktualisiert oder gelöscht werden.
 - Laufende KG-Einträge können aus Übersicht und Detailseite beendet werden.
 - Telegram-Befehl `/album_new` startet einen Dialog zum Album-Anlegen; `/album_new Name` legt direkt ein privates Album an.
+- Telegram-Befehl `/toy_new` startet einen Dialog zum Spielzeug-Anlegen; `/toy_new Name` übernimmt den Namen direkt und fragt Beschreibung sowie Bild im Chat ab.
 - In der Benutzerverwaltung ist die Systemzeit als einklappbarer Bereich umgesetzt.
 - Admins können beim Bearbeiten eines Benutzers dessen Profilbild hochladen oder entfernen.
 - `Lass uns spielen` zeigt oben einen großen zentralen Button `Neuen Spieltermin anlegen`.

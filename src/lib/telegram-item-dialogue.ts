@@ -103,13 +103,13 @@ function nextQuestion(draft: ItemDraft) {
   }
 
   if (draft.kind === "toy") {
-    if (!draft.fields.title) return "Wie soll das Spielzeug heissen?";
+    if (!draft.fields.title) return "Wie soll das Spielzeug heißen?";
     if (!draft.fields.description) return "Welche Beschreibung soll auf die Detailseite?";
     if (draft.fields.imageUrl === undefined) return "Sende jetzt ein Bild hier in den Chat oder schreibe 'ohne'.";
     return null;
   }
 
-  if (!draft.fields.name) return "Wie soll die Stellung heissen?";
+  if (!draft.fields.name) return "Wie soll die Stellung heißen?";
   if (!draft.fields.description) return "Welche Beschreibung soll auf die Detailseite?";
   if (draft.fields.imageUrl === undefined) return "Sende jetzt ein Bild hier in den Chat oder schreibe 'ohne'.";
   if (!draft.fields.toyTitles) return "Welche Spielzeuge sollen verknüpft werden? Schreibe Titel kommagetrennt oder 'keine'.";
@@ -205,7 +205,7 @@ async function createFromDraft(userId: string, draft: ItemDraft) {
     },
     include: { tools: true }
   });
-  const linked = position.tools.length ? `\n<b>Verknuepft:</b> ${telegramHtml(position.tools.map((toy) => toy.title).join(", "))}` : "";
+  const linked = position.tools.length ? `\n<b>Verknüpft:</b> ${telegramHtml(position.tools.map((toy) => toy.title).join(", "))}` : "";
   return `<b>Stellung angelegt</b>\n${telegramHtml(position.name)}${linked}\n${telegramLink(link(`/positions/${position.slug}`), "öffnen")}`;
 }
 
@@ -257,6 +257,19 @@ export async function startAlbumCreationDialogue(userId: string, title?: string)
   if (question) {
     await saveDraft(userId, draft);
     return `Ich erfasse ein neues Album.\n${question}`;
+  }
+  const result = await createFromDraft(userId, draft);
+  await saveDraft(userId, { ...draft, status: "DONE" });
+  return result;
+}
+
+export async function startToyCreationDialogue(userId: string, title?: string) {
+  const draft: ItemDraft = { kind: "toy", status: "ACTIVE", fields: {} };
+  if (title) draft.fields.title = clean(title);
+  const question = nextQuestion(draft);
+  if (question) {
+    await saveDraft(userId, draft);
+    return `Ich erfasse ein neues Spielzeug.\n${question}`;
   }
   const result = await createFromDraft(userId, draft);
   await saveDraft(userId, { ...draft, status: "DONE" });

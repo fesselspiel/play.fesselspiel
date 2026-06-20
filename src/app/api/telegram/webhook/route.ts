@@ -3,7 +3,7 @@ import { ensureDefaultAlbum } from "@/lib/albums";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { answerWithPortalAgent } from "@/lib/telegram-agent";
-import { handleItemCreationDialogue, handleItemCreationImage, startAlbumCreationDialogue } from "@/lib/telegram-item-dialogue";
+import { handleItemCreationDialogue, handleItemCreationImage, startAlbumCreationDialogue, startToyCreationDialogue } from "@/lib/telegram-item-dialogue";
 import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
 import { logAction } from "@/lib/audit";
 import { fileAssetUrl, saveFileBuffer } from "@/lib/files";
@@ -20,6 +20,7 @@ const HELP_TEXT = `<b>Befehle</b>
 /id - Chat-ID und Thread-ID anzeigen
 /status - kurze Übersicht
 /toys - Spielzeuge anzeigen
+/toy_new Name - neues Spielzeug mit Dialog anlegen
 /positions - Stellungen anzeigen
 /activities - geplante Aktivitäten anzeigen
 /activity_request Titel - Spielplan anfragen
@@ -107,6 +108,10 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
           .join("\n")
       )
     );
+  }
+
+  if (parsed.command === "/toy_new" || parsed.command === "/toy") {
+    return startToyCreationDialogue(userId, parsed.args);
   }
 
   if (parsed.command === "/positions") {
