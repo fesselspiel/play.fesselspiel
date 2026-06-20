@@ -53,7 +53,7 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Dialog fragt benötigte Felder ab und legt erst danach den Datensatz an.
 - Dialoge für Spielzeug und Stellung.
 - Telegram-Bilder können in laufenden Dialogen als Bild für das Item verwendet werden.
-- Freie Telegram-Bilder werden automatisch als Medium gespeichert.
+- Freie Telegram-Bilder werden automatisch als Bild gespeichert.
 - Unbekannte Telegram-Chats oder Threads werden nur als `PENDING` in der App gespeichert.
 - Der Bot schreibt beim reinen Erkennen eines Chats keine automatische Nachricht mehr in Telegram.
 - Telegram-Webhook akzeptiert eine chatweite Freigabe: Wenn ein `ACTIVE`-Eintrag ohne Thread-ID existiert, werden Nachrichten und Bilder aus allen Threads dieses Chats verarbeitet.
@@ -82,21 +82,21 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Keine direkte statische Auslieferung aus dem Dateisystem.
 - Zugriff über `/api/files/[id]` mit Login- und Owner-Prüfung.
 - Bilder und Dateien können hochgeladen werden.
-- Beim Löschen von Medien wird die Datei physisch entfernt.
+- Beim Löschen von Bilder wird die Datei physisch entfernt.
 
-## Medienseite
+## Bilderseite
 
-- Medienseite optisch ausgebaut.
+- Bilderseite optisch ausgebaut.
 - Galerie-Ansicht mit Bild-/Video-Karten.
-- Spotlight für neueste Medien.
+- Spotlight für neueste Bilder.
 - Album-Gruppierung.
 - Metadaten wie Dateiname, MIME-Type, Größe und Erstellungsdatum.
 - Upload-Formular.
 - Album-Formular.
-- Löschaktion je Medium.
-- Medien können die Sichtbarkeit ihres Albums übernehmen oder einzeln auf `Nur ich`, `Zirkel` oder `Alle` überschrieben werden.
+- Löschaktion je Bild.
+- Bilder können die Sichtbarkeit ihres Albums übernehmen oder einzeln auf `Nur ich`, `Zirkel` oder `Alle` überschrieben werden.
 - Album-Verwaltung erlaubt jetzt auch das Bearbeiten von Name, Beschreibung und Sichtbarkeit.
-- Der geschützte Dateiabruf berücksichtigt sichtbare Medien, damit freigegebene Bilder korrekt ausgeliefert werden und private Dateien geschützt bleiben.
+- Der geschützte Dateiabruf berücksichtigt sichtbare Bilder, damit freigegebene Bilder korrekt ausgeliefert werden und private Dateien geschützt bleiben.
 
 ## Stellungen: Self-Bondage
 
@@ -170,7 +170,7 @@ Details:
 - Die Hilfe ist damit außerhalb des Hauptsichtfelds, aber bei Bedarf per Klick aufklappbar.
 - PageGuide wurde danach aus dem schwebenden `fixed` Overlay entfernt.
 - Die Hilfe ist jetzt ein normales, dezentes Element am Seitenende rechts und liegt nicht mehr über dem Inhalt.
-- Auf der Medienseite wurde der erklärende Header-Subtitle entfernt; die Formulierung steht jetzt als Titel in der unteren Info-Box.
+- Auf der Bilderseite wurde der erklärende Header-Subtitle entfernt; die Formulierung steht jetzt als Titel in der unteren Info-Box.
 - Rein erklärende Header-Untertitel wurden auf allen Übersichts-, Neu-, Bearbeiten- und Einstellungsseiten entfernt. Die Erklärungen stehen jetzt als Titel/Inhalt in der unteren `PageGuide`-Info-Box.
 - Funktionale Detailseiten-Anzeigen wie Slug, Pfad oder kopierbare URL bleiben im Header sichtbar.
 
@@ -188,7 +188,7 @@ Details:
 - Datei-Auswahl zeigt jetzt sichtbaren Auswahlbereich, Dateiname, Größe und bei Bildern eine Vorschau.
 - Beim Bearbeiten von Spielzeugen und Stellungen wird das aktuelle Bild angezeigt; ein neu ausgewähltes Bild ersetzt es automatisch.
 - Die Checkbox zum Entfernen erscheint nur, wenn kein neues Bild gewählt wurde. Sie setzt den Eintrag wieder auf das System-Standardbild.
-- Datei-Uploads in Spielzeugen, Stellungen und Medien verwenden die neue Komponente.
+- Datei-Uploads in Spielzeugen, Stellungen und Bilder verwenden die neue Komponente.
 - Für Spielzeug- und Stellungsbilder wurde ein direkter Upload-Endpunkt `/api/uploads` ergänzt.
 - Bei Bildauswahl wird die Datei sofort hochgeladen; der Speichern-Button speichert danach nur noch die fertige `/api/files/...` Referenz.
 - Solange der direkte Upload noch läuft oder fehlgeschlagen ist, verhindert die Komponente das Absenden und zeigt einen Hinweis.
@@ -206,7 +206,7 @@ Details:
 ## Seitentitel als Dashboard-Link
 
 - Die wiederverwendbare Komponente `PageHeader` verlinkt den sichtbaren Seitentitel jetzt auf `/`.
-- Dadurch führt ein Klick auf Seitentitel wie `Spielzeuge`, `Medien`, `Events` oder Detailtitel direkt zurück zum Dashboard.
+- Dadurch führt ein Klick auf Seitentitel wie `Spielzeuge`, `Bilder`, `Events` oder Detailtitel direkt zurück zum Dashboard.
 - Der Link hat einen dezenten roten Hover-Zustand und einen sichtbaren Fokusrahmen für Tastaturbedienung.
 
 ## Navigation: Lass uns spielen
@@ -254,7 +254,7 @@ Details:
   - Lass uns spielen
   - Events/Termine
   - Sessions
-  - Medien
+  - Bilder
   - Dateiauslieferung
 - Telegram-Ziele und Protokollkontext innerhalb des Kreises
 - Neue Datensätze behalten weiterhin den Ersteller als `ownerId`, sind aber für Kreis-Mitglieder sichtbar und bearbeitbar.
@@ -288,7 +288,7 @@ Details:
   - Session gelöscht.
   - Session per API gestartet, automatisch geschlossen oder beendet.
   - Session-Bilder und Kommentare.
-  - Telegram-Texte, Telegram-Bilder, gespeicherte Telegram-Medien und Bot-Antworten.
+  - Telegram-Texte, Telegram-Bilder, gespeicherte Telegram-Bilder und Bot-Antworten.
 - Die Protokollseite gruppiert Einträge nach Tag und Stunde mit aufklappbaren Bereichen.
 - Es werden seitenweise nur 120 Audit-Einträge geladen; alte Telegram-/Nachrichten-Einträge werden nur auf der ersten Seite als Altprotokoll eingeblendet.
 - Links führen, wo möglich, direkt zum betroffenen Datensatz oder zur Datei.
@@ -342,30 +342,30 @@ Details:
 - Beim Telegram-Token wird zusätzlich der aktive Bot-Name über Telegram `getMe` angezeigt, wenn der gespeicherte Token gültig ist.
 - Der Speichern-Button für Zugangsdaten zeigt während der Server-Action `Speichert...` und danach eine sichtbare Erfolgsmeldung.
 
-## Medienseite als Bild-Feed
+## Bilderseite als Bild-Feed
 
-- Die Medienseite wurde von einer informationslastigen Verwaltungsansicht auf einen bildzentrierten Feed umgestellt.
+- Die Bilderseite wurde von einer informationslastigen Verwaltungsansicht auf einen bildzentrierten Feed umgestellt.
 - Upload, Albumanlage und Filter sind kompakte, aufklappbare Werkzeuge unterhalb des Feeds.
-- Medien erscheinen als quadratische Kacheln im Instagram-ähnlichen Raster.
+- Bilder erscheinen als quadratische Kacheln im Instagram-ähnlichen Raster.
 - Metadaten werden erst beim Hover/Fokus als Overlay angezeigt.
-- Ein Klick auf ein Medium öffnet eine große Detailansicht mit Bild/Video, Metadaten, Dateiinfos, Öffnen- und Löschaktion.
-- Neues Modell `MediaComment` ermöglicht Kommentare/Notizen direkt am Medium.
-- Medien können in der Detailansicht einem Album zugeordnet werden.
-- Medien können in der Detailansicht als Albumansichtbild festgelegt werden.
-- Im Album-Werkzeug können mehrere Medien per Thumbnail-Auswahl gleichzeitig einem Album hinzugefügt werden.
+- Ein Klick auf ein Bild öffnet eine große Detailansicht mit Bild/Video, Metadaten, Dateiinfos, Öffnen- und Löschaktion.
+- Neues Modell `MediaComment` ermöglicht Kommentare/Notizen direkt am Bild.
+- Bilder können in der Detailansicht einem Album zugeordnet werden.
+- Bilder können in der Detailansicht als Albumansichtbild festgelegt werden.
+- Im Album-Werkzeug können mehrere Bilder per Thumbnail-Auswahl gleichzeitig einem Album hinzugefügt werden.
 - Layout-Reihenfolge angepasst: Album-Cover stehen direkt über dem Bildraster, Upload/Albumverwaltung/Filter stehen darunter.
-- Jedes Album zeigt ein Coverbild; falls kein Cover festgelegt ist, wird automatisch das erste Medium des Albums genutzt.
+- Jedes Album zeigt ein Coverbild; falls kein Cover festgelegt ist, wird automatisch das erste Bild des Albums genutzt.
 
 ## Datenexport und Datenimport
 
 - Neue Einstellungsseite `Daten` unter `/settings/data`.
 - Export erzeugt ein ZIP-Archiv über `/api/settings/data-transfer`.
 - Das Archiv enthält `data.json` mit Portal-Inhalten und einen `files/`-Ordner mit geschützten Upload-Dateien.
-- Exportiert werden Spielsachen, Stellungen, Aktivitäten, Sessions, Medien, Alben, Medienkommentare, Termine, Check-ins und zugehörige Dateien, soweit sie für den angemeldeten Benutzer sichtbar sind.
+- Exportiert werden Spielsachen, Stellungen, Aktivitäten, Sessions, Bilder, Alben, Bildkommentare, Termine, Check-ins und zugehörige Dateien, soweit sie für den angemeldeten Benutzer sichtbar sind.
 - Nicht exportiert werden Passwörter, Login-Tokens, Telegram-Token und OpenAI-Keys.
 - Import nimmt ein Fesselspiel-ZIP entgegen und fügt die Inhalte dem aktuell angemeldeten Benutzer hinzu.
 - Beim Import werden neue Datei-IDs erzeugt, Datei-URLs neu verknüpft und Slugs automatisch eindeutig gemacht.
-- Album-Cover werden beim Import auf die neu importierten Medien gemappt.
+- Album-Cover werden beim Import auf die neu importierten Bilder gemappt.
 - Bestehende Inhalte werden beim Import nicht gelöscht oder überschrieben.
 
 ## Externe API und Bearer Tokens
@@ -386,7 +386,7 @@ Details:
   - `moodBefore`
   - `moodAfter`
   - Notizfelder
-- Externe Medienuploads werden als geschützte Dateien gespeichert und direkt als Medium angelegt.
+- Externe Bilduploads werden als geschützte Dateien gespeichert und direkt als Bild angelegt.
 
 ## Telegram-Benutzer-Mapping
 
@@ -409,11 +409,11 @@ Details:
 - Neue Detailroute `/sessions/[slug]` zeigt Start, Ende, Dauer, Stimmungen, Notizen, Bilder und Kommentare.
 - Die alte Bearbeitungsroute wurde auf `/sessions/[slug]/edit` vereinheitlicht und findet Sessions per Slug oder ID.
 - Session-Stimmungslabels enthalten Emojis; fehlende Werte zeigen `😐 neutral`.
-- Session-Bilder werden als geschützte Medien mit `sessionId` gespeichert.
+- Session-Bilder werden als geschützte Bilder mit `sessionId` gespeichert.
 - Einzelne Session-Bilder können kommentiert werden.
 - Sessions selbst können kommentiert werden.
 - Dashboard und Session-Historie verlinken direkt auf die neue Detailseite.
-- Export/Import sichert und rekonstruiert Session-Kommentare sowie die Zuordnung von Medien zu Sessions.
+- Export/Import sichert und rekonstruiert Session-Kommentare sowie die Zuordnung von Bilder zu Sessions.
 - Laufende Sessions ohne Endzeit werden auf Dashboard und Sessions-Seite sichtbar hervorgehoben.
 - Externer API-Start einer Session beendet eine bereits offene Session automatisch und startet danach eine neue.
 
@@ -463,13 +463,13 @@ Details:
 ## Feature-Video
 
 - Ein kurzes peppiges Feature-Video wurde als MP4 erzeugt.
-- Das Video erklärt Dashboard, Spielampel, Lass uns spielen, Spielsachen, Stellungen, Medien, Sessions und Telegram-Agent.
+- Das Video erklärt Dashboard, Spielampel, Lass uns spielen, Spielsachen, Stellungen, Bilder, Sessions und Telegram-Agent.
 - Die Techno-Musik ist synthetisch erzeugt und nicht aus externen Musikquellen kopiert.
 - Das Rendering erfolgte ausschliesslich in Docker/FFmpeg; auf dem Server wurde nichts installiert.
 - Datei: `entfernt`
 - Plattform-Link: `entfernt`
 
-## Einstellungen, Protokoll und Medienalben
+## Einstellungen, Protokoll und Bilderalben
 
 - Profil- und Benutzerformulare nutzen `SubmitButton`, damit Buttons beim Absenden sichtbar auf "wird gespeichert" wechseln.
 - Dashboard-Wochentage verlinken leere Tage und Kalender-Icons direkt auf `/activities/new?date=YYYY-MM-DD`.
@@ -483,7 +483,7 @@ Details:
 - Die Systemzeit steht in der Admin-Benutzerverwaltung weiter unten und hat eine einfache Zeitkorrektur in Minuten (`UserSettings.timeOffsetMinutes`).
 - Das Protokoll hat ein Suchfeld mit Live-Vorschlägen; Treffer springen direkt zum passenden Eintrag.
 - Telegram-Protokolleinträge werden so zusammengeführt, dass empfangene Nachricht und Antwort nicht mehr wie getrennte Fremdeinträge wirken.
-- Medien ohne Album werden nicht mehr als eigenes Ziel angeboten.
+- Bilder ohne Album werden nicht mehr als eigenes Ziel angeboten.
 - Für jeden Benutzer wird ein persönliches Hauptalbum angelegt.
 - Der Albumname kommt aus dem Profil-Anzeigenamen, danach Name, Benutzername oder E-Mail.
 - Alte Standardalben mit den Namen `Standard` oder `Eingang` werden automatisch in dieses persönliche Hauptalbum überführt.
@@ -501,18 +501,18 @@ Details:
 - `logAction` prüft nach dem Speichern eines Protokolleintrags passende Regeln und sendet Telegram-HTML an aktive Kanäle, die diesem Benutzer oder Kreis zugeordnet sind.
 - Dadurch können z.B. Ampelwechsel, Spielanfragen, Telegram-Nachrichten, API-Sessions oder Logins gezielt an Benutzer oder Kreise gepusht werden.
 
-## Medien-Alben nachgeschärft
+## Bilder-Alben nachgeschärft
 
 - In der Bild-Detailansicht kann direkt ein neues Album für das geöffnete Bild angelegt werden.
 - Nach dem Anlegen bleibt die Detailansicht offen und das Bild wird sofort dem neuen Album zugeordnet.
-- Der Album-Bereich ist in `Neues Album`, `Medien verschieben` und `Alben verwalten` getrennt.
+- Der Album-Bereich ist in `Neues Album`, `Bilder verschieben` und `Alben verwalten` getrennt.
 - Diese drei Album-Werkzeuge sind innerhalb des Album-Bereichs nochmals einzeln einklappbar, damit der Bereich übersichtlich bleibt.
 - Album-Speichern nutzt den wiederverwendbaren `SubmitButton` mit Ladefeedback.
 - Sichtbarkeit heißt jetzt in der UI `Nur ich`, `Zirkel`, `Alle`.
-- Die Medienseite respektiert diese Sichtbarkeit: eigene Medien immer, Zirkel-Medien nur mit `Zirkel`/`Alle`, globale Medien mit `Alle`.
+- Die Bilderseite respektiert diese Sichtbarkeit: eigene Bilder immer, Zirkel-Bilder nur mit `Zirkel`/`Alle`, globale Bilder mit `Alle`.
 - Alben können gelöscht werden.
-- Beim Löschen werden Medien standardmäßig in das persönliche Hauptalbum verschoben.
-- Optional können Medien und Dateien bewusst mitgelöscht werden.
+- Beim Löschen werden Bilder standardmäßig in das persönliche Hauptalbum verschoben.
+- Optional können Bilder und Dateien bewusst mitgelöscht werden.
 - Das persönliche Hauptalbum selbst kann nicht gelöscht werden.
 
 ## Navigation, Admin-Dateien und Demo-Seed
@@ -591,19 +591,19 @@ Details:
 - Spielzeug- und Stellungsbilder nutzen standardmäßig ein Querformat.
 - Der gewählte Ausschnitt wird beim Speichern automatisch übernommen; ein separater Bestätigen-Button ist nicht mehr nötig.
 - Der automatische Zuschnitt nutzt synchrone Status-Refs, damit der direkt anschließende Formular-Submit nicht durch veralteten React-State als `Upload läuft noch` blockiert wird.
-- Medienuploads bleiben unverändert, damit die Galerie Originalbilder und Videos behalten kann.
+- Bilduploads bleiben unverändert, damit die Galerie Originalbilder und Videos behalten kann.
 - Der Zuschnitt speichert PNG/WebP-Quellen als PNG, damit transparente Hintergründe nicht durch JPEG-Konvertierung verloren gehen.
 - Bereits gespeicherte Bilder können im Bearbeiten-Dialog über `Aktuelles Bild neu zuschneiden` erneut geladen, zugeschnitten und ersetzt werden.
 - Die Telegram-Einstellungsseite übernimmt diesen Query-Parameter und wählt die Aktion im Formular zum Anlegen einer Aktionsbenachrichtigung vor.
 - Falls die Aktion noch nicht in den bekannten Aktionen enthalten ist, wird sie dynamisch in die Auswahlliste aufgenommen.
 
-## Medien-Vollbildansicht und Albenraster
+## Bilder-Vollbildansicht und Albenraster
 
-- Die Album-Auswahl auf der Medienseite ist kein horizontaler Scrollstreifen mehr.
-- Alben werden als eigenes Raster angezeigt, mobil mit vier Spalten, damit sie sich vom dreispaltigen Medienfeed unterscheiden.
-- Ein Klick auf das Bild in der Mediendetailansicht öffnet eine Vollbildansicht.
-- Die Vollbildansicht nutzt URL-State (`viewer=1`), zeigt oben ein `X` zurück zur Detailansicht und links/rechts Pfeile zum vorherigen oder nächsten Medium.
-- Die mobile Mediendetailansicht gewichtet das Bild stärker: Der Bildbereich belegt etwa zwei Drittel der Viewport-Höhe, die Detail- und Aktionsbereiche scrollen darunter.
+- Die Album-Auswahl auf der Bilderseite ist kein horizontaler Scrollstreifen mehr.
+- Alben werden als eigenes Raster angezeigt, mobil mit vier Spalten, damit sie sich vom dreispaltigen Bilderfeed unterscheiden.
+- Ein Klick auf das Bild in der Bilddetailansicht öffnet eine Vollbildansicht.
+- Die Vollbildansicht nutzt URL-State (`viewer=1`), zeigt oben ein `X` zurück zur Detailansicht und links/rechts Pfeile zum vorherigen oder nächsten Bild.
+- Die mobile Bilddetailansicht gewichtet das Bild stärker: Der Bildbereich belegt etwa zwei Drittel der Viewport-Höhe, die Detail- und Aktionsbereiche scrollen darunter.
 
 ## Telegram-Threads für Aktionsbenachrichtigungen
 
@@ -620,6 +620,13 @@ Details:
 - `Lass uns spielen` hat eine dritte große Rubrik `Ideensammlung` mit Button `Idee festhalten`.
 - Ideen werden als `ActivityPlan` mit Kategorie `IDEA_COLLECTION` gespeichert und ohne Datum/Uhrzeit geführt.
 - Für Ideen gibt es eigenes Status-Wording: `vorgeschlagen`, `auf der Liste`, `ausprobiert`, `verworfen`.
-- Die Ideendetailseite erlaubt mehrere geschützte Bild-Uploads, die über `Media.activityId` nur dieser Idee zugeordnet sind.
-- Reine Ideenbilder werden aus der allgemeinen Mediengalerie ausgeblendet und bleiben auf der Ideendetailseite sichtbar.
+- Die Ideendetailseite erlaubt mehrere geschützte Bild-Uploads, die als eigene `ActivityImage`-Anhänge direkt an der Idee hängen.
+- Neue Ideenbilder werden nicht mehr als normale `Media`-Einträge angelegt und haben keine Albumlogik.
+- Alte Zwischenlösungs-Einträge über `Media.activityId` bleiben als Legacy-Fallback sichtbar und löschbar.
 - Das Dashboard zeigt eine kompakte Ideensammlungs-Box mit den neuesten offenen Ideen.
+
+## Umbenennung Bilder
+
+- Die sichtbare Navigation und Seitentexte nennen die Galerie jetzt `Bilder`.
+- Telegram-Rückmeldungen, Dashboard-Kacheln, Datenexport-Hinweise und Dokumentation verwenden ebenfalls die Bezeichnung `Bilder`.
+- Technische Pfade und interne Modellnamen wie `/media` und `Media` bleiben stabil, damit vorhandene Links, API-Endpunkte und Datenbanktabellen kompatibel bleiben.

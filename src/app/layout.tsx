@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Fesselspiel",
-  description: "Private Social Platform für Paare, Planung, Medien und Session-Dokumentation."
+  description: "Private Social Platform für Paare, Planung, Bilder und Session-Dokumentation."
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

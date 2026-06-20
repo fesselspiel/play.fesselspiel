@@ -150,7 +150,7 @@ export default async function DashboardPage() {
     ["Stellungen", "ansehen", ShieldCheck, "/positions"],
     ["Spielsachen", toyCount, ToyBrick, "/toys"],
     ["Sessions/Jahr", sessionCount, Timer, "/sessions"],
-    ["Medien", mediaCount, Images, "/media"],
+    ["Bilder", mediaCount, Images, "/media"],
     ["Nachrichten", messageCount, MessageCircle, "/messages"]
   ] as const;
   const sessionSlugs = new Map(await Promise.all(sessions.map(async (session) => [session.id, await ensureSessionSlug(session)] as const)));
@@ -202,7 +202,7 @@ export default async function DashboardPage() {
         }
       />
       <PageGuide title="Private Übersicht">
-        Das Dashboard ist die Startübersicht für dein Portal. Nutze die Kennzahlen als schnelle Navigation zu Lass uns spielen, Stellungen, Spielsachen, Medien, Nachrichten und Sessions; darunter siehst du die nächsten Spielideen, Termine und die letzten Session-Einträge.
+        Das Dashboard ist die Startübersicht für dein Portal. Nutze die Kennzahlen als schnelle Navigation zu Lass uns spielen, Stellungen, Spielsachen, Bilder, Nachrichten und Sessions; darunter siehst du die nächsten Spielideen, Termine und die letzten Session-Einträge.
       </PageGuide>
 
       <div className="space-y-6">

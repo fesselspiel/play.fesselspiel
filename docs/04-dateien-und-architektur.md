@@ -95,7 +95,7 @@ Telegram-Formatierung:
 - `src/app/sessions/kg/[id]/page.tsx`
 - `src/app/sessions/kg/[id]/edit/page.tsx`
 
-### Medien und Protokoll
+### Bilder und Protokoll
 
 - `src/app/media/page.tsx`
 - `src/app/messages/page.tsx`: Protokollseite unter Einstellungen, gruppiert App-Aktionen und alte Telegram-/Nachrichten-Einträge.
@@ -146,11 +146,12 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `Toy`: Spielzeug mit Slug, Bild, Beschreibung und `sortOrder`.
 - `Position`: Stellung mit Slug, Bild, Beschreibung, `sortOrder` und `selfBondageCapable`.
 - `ActivityPlan`: Aktivität mit Status, Termin, Spielzeugen und Stellungen. Statuswerte: `REQUESTED`, `PLANNED`, `DONE`, `DISCARDED`.
+- `ActivityImage`: geschützter Bildanhang für Ideen aus der Ideensammlung; gehört direkt zu `ActivityPlan` und `FileAsset`, nicht zu Alben.
 - `SegufixSession`: Session-Tracking.
 - `KgSession`: KG-Tragezeit-Tracking mit Start, Ende, Dauer und Notiz.
-- `Album`: Medienalbum mit Standardsichtbarkeit.
-- `Media`: Bild oder Video; neue Medien werden immer einem Album zugeordnet, standardmäßig dem persönlichen Hauptalbum des Benutzers. `Media.visibility` ist optional: `null` bedeutet, dass die Sichtbarkeit des Albums gilt; ein gesetzter Wert überschreibt das Album nur für dieses Medium.
-- `MediaComment`: Kommentar oder Notiz zu einem Medium.
+- `Album`: Bilderalbum mit Standardsichtbarkeit.
+- `Media`: Bild oder Video; neue Bilder werden immer einem Album zugeordnet, standardmäßig dem persönlichen Hauptalbum des Benutzers. `Media.visibility` ist optional: `null` bedeutet, dass die Sichtbarkeit des Albums gilt; ein gesetzter Wert überschreibt das Album nur für dieses Bild.
+- `MediaComment`: Kommentar oder Notiz zu einem Bild.
 - `Event`: Termin.
 - `CheckIn`: Teilnahme/Check-in.
 - `Message`: Altbestand für Telegram-Dialoggedächtnis und ältere Protokolleinträge; kein aktives Direktnachrichten-Modul.
@@ -163,7 +164,7 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 1. Formular oder Telegram speichert Datei über `saveUploadedFile` oder `saveFileBuffer`.
 2. Datei landet unter `UPLOAD_PATH/<ownerId>/<YYYY-MM-DD>/<uuid>.<ext>`.
 3. Datenbankeintrag `FileAsset` enthält Metadaten und relativen Storage-Pfad.
-4. App speichert nur `/api/files/<id>` in `imageUrl`, `media.url` oder `message.mediaUrl`.
+4. App speichert nur `/api/files/<id>` in `imageUrl`, `media.url` oder `message.mediaUrl`; Ideenbilder referenzieren direkt `FileAsset`.
 5. `/api/files/[id]` prüft aktuellen User und liefert eigene Dateien sowie Dateien von Kreis-Mitgliedern aus.
 6. `deleteOwnedFile` entfernt DB-Eintrag und Datei vom Dateisystem.
 
@@ -175,7 +176,8 @@ UI-Hinweis:
 - Spielzeug- und Stellungsbilder werden beim Auswählen direkt an `/api/uploads` gesendet. Die anschließende Server Action speichert nur die zurückgegebene geschützte Datei-URL.
 - `ensureDefaultAlbum(ownerId)` in `src/lib/albums.ts` legt bei Bedarf das persönliche Hauptalbum des Benutzers an. Der Albumname kommt aus dem Profil-Anzeigenamen, danach Name, Benutzername oder E-Mail.
 - Alte `Standard`- und `Eingang`-Alben werden in dieses persönliche Hauptalbum überführt.
-- Medienuploads über Web, Telegram, externe API, Session-Detailseite und Import verwenden dieses Hauptalbum als Fallback.
+- Bilduploads über Web, Telegram, externe API, Session-Detailseite und Import verwenden dieses Hauptalbum als Fallback.
+- Ideenbilder verwenden kein Album und erscheinen nicht in der normalen Bildergalerie.
 
 ## Telegram-Aktionsregeln
 
@@ -195,7 +197,7 @@ UI-Hinweis:
 - `src/components/submit-button.tsx`: Button mit `useFormStatus`, Pending-Text und deaktiviertem Zustand beim Speichern.
 - `src/components/username-field.tsx`: Benutzername-Feld mit Blur-Prüfung gegen `/api/users/check-username`.
 - `src/components/protocol-search.tsx`: Client-Suche für das Protokoll mit Vorschlägen und Sprunglinks.
-- `src/components/quick-album-form.tsx`: Inline-Albumanlage aus der Medien-Detailansicht heraus.
+- `src/components/quick-album-form.tsx`: Inline-Albumanlage aus der Bilder-Detailansicht heraus.
 - `src/components/file-upload-field.tsx`: Gemeinsames Upload-Feld mit Vorschau, optionalem clientseitigem Bildzuschnitt und Ajax-Upload für Katalog-/Profilbilder.
 - `src/components/dark-mode-toggle.tsx`: kompakter Dark-Mode-Schalter für Desktop- und Mobile-Einstellungen.
 - `src/components/logout-button.tsx`: Client-Logout mit `fetch` und anschließender Navigation zu `/login`.
@@ -209,7 +211,8 @@ UI-Hinweis:
 - `PARTNER` wird in der UI als `Zirkel` angezeigt.
 - `SHARED` wird in der UI als `Alle` angezeigt.
 - `visibilityScope(user)` in `src/lib/access.ts` kapselt die allgemeine Datensatz- und Album-Sichtbarkeit.
-- `mediaVisibilityScope(user)` berücksichtigt bei Medien die effektive Sichtbarkeit aus Medien-Override oder Album-Sichtbarkeit.
+- `mediaVisibilityScope(user)` berücksichtigt bei Bildern die effektive Sichtbarkeit aus Bild-Override oder Album-Sichtbarkeit.
+- Ideenbilder werden über die Zugriffsrechte der zugehörigen Idee und den geschützten Dateiabruf ausgeliefert.
 - `ownerScope(user)` bleibt für Bearbeiten, Löschen und Datei-Metadaten massgeblich.
 - Admins erhalten über `accessibleOwnerIds` Zugriff auf aktive Benutzer, damit Admin-Ansichten und geschützte Profilbilder konsistent funktionieren.
 

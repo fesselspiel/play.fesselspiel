@@ -94,8 +94,14 @@ async function deleteActivity(formData: FormData) {
   const id = String(formData.get("id"));
   const activity = await prisma.activityPlan.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!activity) notFound();
-  const media = await prisma.media.findMany({ where: { activityId: activity.id } });
+  const [images, media] = await Promise.all([
+    prisma.activityImage.findMany({ where: { activityId: activity.id }, include: { file: true } }),
+    prisma.media.findMany({ where: { activityId: activity.id } })
+  ]);
   await prisma.activityPlan.delete({ where: { id: activity.id } });
+  for (const image of images) {
+    await deleteOwnedFile(image.file.ownerId, image.file.id);
+  }
   for (const entry of media) {
     const fileId = fileIdFromUrl(entry.url);
     if (fileId) await deleteOwnedFile(entry.ownerId, fileId);

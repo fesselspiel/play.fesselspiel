@@ -22,7 +22,7 @@ Die Anwendung laeuft lokal auf `http://localhost:8097`.
 
 - Login und Benutzerverwaltung mit Admin/User-Rollen
 - Protokoll für App-Aktionen, Telegram-Ereignisse und ältere Nachrichten-Einträge
-- Medien, Alben und Sichtbarkeiten
+- Bilder, Alben und Sichtbarkeiten
 - Segufix-Session-Tracking mit Jahreskalender und Auswertungen
 - KG-Time-Tracking
 - Spielzeugkatalog mit Slugs und QR-Codes

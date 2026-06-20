@@ -85,7 +85,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
       prisma.album.findMany({ where: { ownerId: userId }, orderBy: { title: "asc" } })
     ]);
     const album = albums[albumIndex - 1];
-    if (!media || !album) return "Medium oder Album wurde nicht gefunden.";
+    if (!media || !album) return "Bild oder Album wurde nicht gefunden.";
     await prisma.media.update({ where: { id: media.id }, data: { albumId: album.id } });
     await logAction({
       actorId: userId,
@@ -95,7 +95,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
       title: `Bild per Telegram in Album verschoben: ${album.title}`,
       href: "/media"
     });
-    return [`<b>Bild einsortiert</b>`, htmlLine("Bild", media.title), htmlLine("Album", album.title), telegramLink(`${env.appUrl}/media?view=${media.id}`, "in Medien öffnen")].join("\n");
+    return [`<b>Bild einsortiert</b>`, htmlLine("Bild", media.title), htmlLine("Album", album.title), telegramLink(`${env.appUrl}/media?view=${media.id}`, "Bilder öffnen")].join("\n");
   }
 
   if (parsed.command === "/toys") {
@@ -415,7 +415,7 @@ export async function POST(request: Request) {
           });
           const albumLines = albums.map((album, index) => `/media_album_${index + 1}_${media.id} - ${telegramHtml(album.title)}`);
           return [
-            "<b>Bild in Medien gespeichert</b>",
+            "<b>Bild gespeichert</b>",
             telegramHtml(media.title),
             htmlLine("Album", albums.find((album) => album.id === media.albumId)?.title || defaultAlbum.title),
             "",

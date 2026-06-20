@@ -108,6 +108,7 @@ model FileAsset {
   storagePath  String
   createdAt    DateTime @default(now())
   owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  activityImages ActivityImage[]
 
   @@index([ownerId, createdAt])
 }
@@ -226,8 +227,22 @@ model ActivityPlan {
   tools       Toy[]          @relation("ActivityTools")
   positions   Position[]     @relation("ActivityPositions")
   media       Media[]
+  images      ActivityImage[]
 
   @@index([ownerId, status, plannedAt])
+}
+
+model ActivityImage {
+  id         String       @id @default(cuid())
+  activityId String
+  fileId     String
+  title      String
+  createdAt  DateTime     @default(now())
+  activity   ActivityPlan @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  file       FileAsset    @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([activityId, createdAt])
+  @@index([fileId])
 }
 
 model SegufixSession {

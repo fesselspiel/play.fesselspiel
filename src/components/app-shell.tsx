@@ -25,7 +25,7 @@ const nav = [
   ["Stellungen", "/positions", ShieldCheck],
   ["Spielsachen", "/toys", ToyBrick],
   ["Sessions", "/sessions", Timer],
-  ["Medien", "/media", Images]
+  ["Bilder", "/media", Images]
 ] as const;
 
 const settingsNav = [

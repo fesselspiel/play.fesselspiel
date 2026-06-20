@@ -376,9 +376,9 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
 
   return (
     <AppShell>
-      <PageHeader title="Medien" />
+      <PageHeader title="Bilder" />
       <PageGuide title="Bilder und Videos als geschuetzter, bildzentrierter Feed">
-        Die Medienseite zeigt Bilder und Videos zuerst als kompakten Feed. Upload, Alben und Filter liegen oben als aufklappbare Werkzeuge; Details, Dateiinfos und Aktionen erscheinen beim Öffnen eines Mediums.
+        Die Bilderseite zeigt Bilder und Videos zuerst als kompakten Feed. Upload, Alben und Filter liegen oben als aufklappbare Werkzeuge; Details, Dateiinfos und Aktionen erscheinen beim Öffnen eines Bildes.
       </PageGuide>
 
       <div className="space-y-4">
@@ -399,7 +399,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
             )}
             <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent p-2">
               <span className="block truncate text-sm font-semibold text-white">Alle</span>
-              <span className="block text-xs text-white/75">{media.length} Medien</span>
+              <span className="block text-xs text-white/75">{media.length} Bilder</span>
             </span>
           </Link>
           {albums.map((album) => {
@@ -423,7 +423,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                 )}
                 <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2">
                   <span className="block truncate text-sm font-semibold text-white">{albumLabel(album, user.id, albums)}</span>
-                  <span className="block text-xs text-white/75">{count} Medien</span>
+                  <span className="block text-xs text-white/75">{count} Bilder</span>
                 </span>
               </Link>
             );
@@ -462,7 +462,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
             })}
           </div>
         ) : (
-          <EmptyState title="Noch keine Medien gefunden">
+          <EmptyState title="Noch keine Bilder gefunden">
             Lade ein Bild oder Video hoch, oder sende ein Bild über Telegram, um die Galerie zu füllen.
           </EmptyState>
         )}
@@ -521,7 +521,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
             {albums.length && albumMedia.length ? (
               <details className="border-b border-line">
                 <summary className="focus-ring flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-ink hover:bg-paper [&::-webkit-details-marker]:hidden">
-                  Medien verschieben
+                  Bilder verschieben
                   <Plus className="h-4 w-4 text-graphite" />
                 </summary>
                 <form action={addMediaToAlbum} className="space-y-3 border-t border-line p-4">
@@ -566,7 +566,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
                         <span className="min-w-0">
                           <strong className="block truncate">{albumLabel(album, user.id, albums)}</strong>
-                          <span className="text-xs text-graphite">{count} Medien · {visibilityLabel(album.visibility)}</span>
+                          <span className="text-xs text-graphite">{count} Bilder · {visibilityLabel(album.visibility)}</span>
                         </span>
                         <Badge tone={isDefault ? "red" : "neutral"}>{isDefault ? "Hauptalbum" : "Album"}</Badge>
                       </summary>
@@ -588,10 +588,10 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                       ) : (
                         <form action={deleteAlbum} className="mt-3 space-y-3 border-t border-line pt-3">
                           <input type="hidden" name="albumId" value={album.id} />
-                          <p className="text-sm text-graphite">Beim Löschen werden die Medien standardmäßig nach <strong>{defaultAlbum.title}</strong> verschoben.</p>
+                          <p className="text-sm text-graphite">Beim Löschen werden die Bilder standardmäßig nach <strong>{defaultAlbum.title}</strong> verschoben.</p>
                           <label className="flex items-start gap-2 rounded-md border border-redbrand/30 bg-redbrand/5 p-3 text-sm text-redbrand">
                             <input name="deleteMedia" type="checkbox" className="mt-1 h-4 w-4 accent-redbrand" />
-                            Medien und Dateien endgültig mitlöschen
+                            Bilder und Dateien endgültig mitlöschen
                           </label>
                           <Button variant="danger" className="w-full"><Trash2 className="h-4 w-4" /> Album löschen</Button>
                         </form>
@@ -693,7 +693,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                     <span>Wenn kein Bild festgelegt ist, nutzt das Album automatisch das erste Bild.</span>
                   </span>
                 </label>
-                <SubmitButton pendingLabel="Medium wird gespeichert..." className="w-full">Album und Sichtbarkeit speichern</SubmitButton>
+                <SubmitButton pendingLabel="Bild wird gespeichert..." className="w-full">Album und Sichtbarkeit speichern</SubmitButton>
               </form>
               <QuickAlbumForm action={createAlbumForMedia} mediaId={selected.id} />
               <div className="border-t border-line p-4">
@@ -754,7 +754,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
               href={mediaUrl({ ...baseFilters, view: previousMedia.id, viewer: "1" })}
               scroll={false}
               className="focus-ring absolute left-2 top-1/2 z-20 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/12 text-white backdrop-blur hover:bg-white/20 sm:left-5"
-              aria-label="Vorheriges Medium"
+              aria-label="Vorheriges Bild"
             >
               <ChevronLeft className="h-7 w-7" />
             </Link>
@@ -764,7 +764,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
               href={mediaUrl({ ...baseFilters, view: nextMedia.id, viewer: "1" })}
               scroll={false}
               className="focus-ring absolute right-2 top-1/2 z-20 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/12 text-white backdrop-blur hover:bg-white/20 sm:right-5"
-              aria-label="Nächstes Medium"
+              aria-label="Nächstes Bild"
             >
               <ChevronRight className="h-7 w-7" />
             </Link>

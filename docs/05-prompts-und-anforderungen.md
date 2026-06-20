@@ -34,9 +34,9 @@ Ursprünglich gewünschte Module:
 - Benutzer und Profile.
 - Registrierung und Login.
 - Individuelle Profilinformationen.
-- Direktnachrichten und Bilder/Videos in Nachrichten. Diese Anforderung wurde später in der aktiven Oberfläche durch Protokoll, Telegram-Agent und Medienverwaltung ersetzt.
+- Direktnachrichten und Bilder/Videos in Nachrichten. Diese Anforderung wurde später in der aktiven Oberfläche durch Protokoll, Telegram-Agent und Bilderverwaltung ersetzt.
 - Events mit Check-in.
-- Medienverwaltung mit Bildern, Videos, Alben und Sichtbarkeiten.
+- Bilderverwaltung mit Bildern, Videos, Alben und Sichtbarkeiten.
 - Segufix-Timetracker mit Start, Ende, Dauer, Notizen.
 - Stimmung vorher und nachher mit fünfstufigen Labels und Freitext.
 - Jahresübersicht als Session-Kalender mit 12 Zeilen und 31 Spalten.
@@ -93,7 +93,7 @@ Anforderungen:
 - Agent soll Gedächtnis haben, etwa letzte 5 bis 10 Nachrichten.
 - Beim Anlegen neuer Items soll der Bot einen Dialog starten und alle benötigten Felder abfragen.
 - Wenn ein Bild benötigt wird, soll es direkt in den Telegram-Chat gesendet und verarbeitet werden können.
-- Freier Bildupload im Telegram-Chat soll automatisch in Medien gespeichert werden.
+- Freier Bildupload im Telegram-Chat soll automatisch in Bilder gespeichert werden.
 
 Umsetzung:
 
@@ -103,7 +103,7 @@ Umsetzung:
 - Kurzzeitgedächtnis implementiert.
 - Dialoge für Spielzeug/Stellung eingebaut.
 - Telegram-Bildverarbeitung eingebaut.
-- Telegram-Bilder können als Item-Bild oder als Medium gespeichert werden.
+- Telegram-Bilder können als Item-Bild oder als Bild gespeichert werden.
 
 Nachbesserung:
 
@@ -157,11 +157,11 @@ Umsetzung:
 - Uploads benutzerbezogen im Docker-Volume.
 - Löschen entfernt Datenbankeintrag und physische Datei.
 
-## Medienseiten-Prompt
+## Bilderseiten-Prompt
 
 Anforderung:
 
-- Medienseite aufhübschen.
+- Bilderseite aufhübschen.
 - Galerien schön machen.
 - Bildern Metadaten, Ordnung und etwas Cooles zum Anschauen geben.
 - Seite soll für die Plattform Sinn machen.
@@ -232,22 +232,22 @@ Umsetzung:
 - Checkbox in `/positions/new`.
 - Checkbox in `/positions/[slug]/edit`.
 
-## Medien-Sichtbarkeit Prompt
+## Bilder-Sichtbarkeit Prompt
 
 Anforderung:
 
 - Einzelne Bilder in Alben sollen eine eigene Sichtbarkeit bekommen.
 - Album-Bearbeitung soll Sichtbarkeit enthalten, nicht nur Löschen.
-- Einzelne Medien sollen standardmäßig die Album-Sichtbarkeit übernehmen, aber überschrieben werden können.
+- Einzelne Bilder sollen standardmäßig die Album-Sichtbarkeit übernehmen, aber überschrieben werden können.
 - Der Abruf muss so umgesetzt werden, dass Benutzer nur sehen, was sie sehen dürfen.
 
 Umsetzung:
 
 - `Media.visibility` ist optional; `null` bedeutet `Wie Album`.
-- Medien-Detailansicht erlaubt Albumwechsel und Sichtbarkeits-Override.
+- Bilder-Detailansicht erlaubt Albumwechsel und Sichtbarkeits-Override.
 - Album-Verwaltung erlaubt Name, Beschreibung und Sichtbarkeit zu ändern.
-- Medienlisten filtern nach effektiver Sichtbarkeit.
-- Geschützter Dateiabruf prüft sichtbare Medien zusätzlich zum Eigentümer-/Zirkelzugriff.
+- Bilderlisten filtern nach effektiver Sichtbarkeit.
+- Geschützter Dateiabruf prüft sichtbare Bilder zusätzlich zum Eigentümer-/Zirkelzugriff.
 
 Umsetzung:
 
@@ -388,7 +388,7 @@ Umsetzung:
 - Desktop- und Mobile-Menü neu sortiert und umbenannt.
 - `Events` aus der Hauptnavigation entfernt, ohne bestehende Event-Daten zu löschen.
 - Event-Termine werden in der Dashboard-Wochenansicht weiterhin angezeigt, dort aber als `Termin` im Kontext von `Lass uns spielen`.
-- Dashboard-Kacheln auf `Lass uns spielen`, `Stellungen`, `Spielsachen`, Sessions, Medien und Protokoll reduziert.
+- Dashboard-Kacheln auf `Lass uns spielen`, `Stellungen`, `Spielsachen`, Sessions, Bilder und Protokoll reduziert.
 - Aktivitätsseiten in der sichtbaren Sprache auf `Spielidee`, `Spielplan` und `Spielsachen` angepasst.
 
 ## Info-und-Einstellungen-Prompt
@@ -437,7 +437,7 @@ Umsetzung:
 - Neues Prisma-Modell `Circle` und Feld `User.circleId`.
 - Admins können in der Benutzerverwaltung Kreise anlegen und Benutzer zuordnen.
 - Gemeinsame Webbereiche nutzen `ownerScope(user)` statt nur `ownerId: user.id`.
-- Kreis-Mitglieder sehen automatisch gemeinsame Spielsachen, Stellungen, Spielpläne, Termine, Sessions, Medien und Dateien.
+- Kreis-Mitglieder sehen automatisch gemeinsame Spielsachen, Stellungen, Spielpläne, Termine, Sessions, Bilder und Dateien.
 - Neue Inhalte behalten ihren Ersteller als Besitzer, werden aber allen aktiven Kreis-Mitgliedern angezeigt.
 
 Nachbesserung:
@@ -531,11 +531,11 @@ Umsetzung:
 - Ziel sind aktive Telegram-Chats aller Benutzer im selben Kreis, die einen Bot-Token gespeichert haben.
 - Doppelte Chat-/Thread-Ziele werden dedupliziert.
 
-## Medien-Feed-Prompt
+## Bilder-Feed-Prompt
 
 Anforderung:
 
-- Die Medienseite soll komplett überarbeitet werden.
+- Die Bilderseite soll komplett überarbeitet werden.
 - Zu viele Informationen und zu viel Scrollen sollen verschwinden.
 - Orientierung am Instagram-Feed: zuerst Bilder, Metadaten erst beim Draufgehen beziehungsweise Öffnen.
 - Kommentarfunktionen und weitere Aktionen dürfen in der Detailansicht erscheinen.
@@ -545,19 +545,19 @@ Umsetzung:
 - Bildzentriertes quadratisches Feed-Raster.
 - Upload, Album und Filter als kompakte Klappbereiche.
 - Hover-/Fokus-Overlay mit Titel, Typ, Sichtbarkeit und Datei-/Albumhinweis.
-- Detailansicht per Klick mit großer Medienanzeige, Metadaten, Dateiinfos, Löschen und Öffnen.
+- Detailansicht per Klick mit großer Bilderanzeige, Metadaten, Dateiinfos, Löschen und Öffnen.
 - Kommentare werden über `MediaComment` gespeichert und in der Detailansicht angezeigt.
 
 Nachbesserung:
 
 - Ein nachträglich hochgeladenes Bild muss in der Detailansicht einem Album zugeordnet werden können.
-- Bei den Alben muss es eine Funktion geben, um Bilder beziehungsweise Medien hinzuzufügen.
+- Bei den Alben muss es eine Funktion geben, um Bilder beziehungsweise Bilder hinzuzufügen.
 
 Umsetzung:
 
 - Detailansicht enthält ein Album-Auswahlfeld mit Speichern-Button.
-- Album-Werkzeug enthält eine Zielalbum-Auswahl und eine Thumbnail-Mehrfachauswahl für Medien.
-- Server-Actions prüfen Album und Medien gegen den Benutzer-/Paar-Scope, bevor `albumId` gesetzt wird.
+- Album-Werkzeug enthält eine Zielalbum-Auswahl und eine Thumbnail-Mehrfachauswahl für Bilder.
+- Server-Actions prüfen Album und Bilder gegen den Benutzer-/Paar-Scope, bevor `albumId` gesetzt wird.
 
 Weitere Nachbesserung:
 
@@ -575,14 +575,14 @@ Weitere Nachbesserung:
 
 - `Ohne Album` soll verschwinden.
 - Jedes Bild soll in einem Album liegen.
-- Es soll ein persönliches Hauptalbum geben, in das neue Medien automatisch gespeichert werden.
+- Es soll ein persönliches Hauptalbum geben, in das neue Bilder automatisch gespeichert werden.
 - Telegram-Bilduploads sollen im persönlichen Hauptalbum landen und danach eine Nachricht mit Album-Kommandos senden.
 
 Umsetzung:
 
 - Das Hauptalbum heißt wie der jeweilige Benutzer, bevorzugt nach Profil-Anzeigename.
 - `ensureDefaultAlbum(ownerId)` legt es bei Bedarf an und übernimmt alte `Standard`-/`Eingang`-Alben.
-- Medienseite, Session-Bilder, externe Medien-API, Import und Telegram nutzen dieses Hauptalbum als Fallback.
+- Bilderseite, Session-Bilder, externe Bilder-API, Import und Telegram nutzen dieses Hauptalbum als Fallback.
 - Die Telegram-Antwort nach einem Bild-Upload listet alle Alben mit anklickbaren `/media_album_<nummer>_<mediaId>`-Kommandos auf.
 
 Weitere Nachbesserung:
@@ -613,7 +613,7 @@ Umsetzung:
 - Nachrichten werden als Telegram-HTML gesendet.
 - Templates können `{title}`, `{actor}`, `{event}`, `{action}`, `{url}` und `{details}` einsetzen.
 
-## Medien-Album-Nachbesserung-Prompt
+## Bilder-Album-Nachbesserung-Prompt
 
 Anforderung:
 
@@ -626,11 +626,11 @@ Anforderung:
 
 Umsetzung:
 
-- Neues `QuickAlbumForm` in der Medien-Detailansicht.
-- Album-Werkzeug in drei Bereiche getrennt: `Neues Album`, `Medien verschieben`, `Alben verwalten`.
+- Neues `QuickAlbumForm` in der Bilder-Detailansicht.
+- Album-Werkzeug in drei Bereiche getrennt: `Neues Album`, `Bilder verschieben`, `Alben verwalten`.
 - Sichtbarkeit heißt `Nur ich`, `Zirkel`, `Alle`.
-- `visibilityScope` filtert Medien und Alben entsprechend.
-- Album-Löschen verschiebt Medien standardmäßig nach `Standard`; Dateilöschung ist nur per ausdrücklicher Checkbox möglich.
+- `visibilityScope` filtert Bilder und Alben entsprechend.
+- Album-Löschen verschiebt Bilder standardmäßig nach `Standard`; Dateilöschung ist nur per ausdrücklicher Checkbox möglich.
 
 ## Navigation- und Seed-Nachbesserung
 

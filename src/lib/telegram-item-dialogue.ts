@@ -176,7 +176,7 @@ async function createFromDraft(userId: string, draft: ItemDraft) {
         visibility: "PRIVATE"
       }
     });
-    return `<b>Album angelegt</b>\n${telegramHtml(album.title)}\n${telegramLink(link(`/media?album=${album.id}`), "in Medien öffnen")}`;
+    return `<b>Album angelegt</b>\n${telegramHtml(album.title)}\n${telegramLink(link(`/media?album=${album.id}`), "Bilder öffnen")}`;
   }
 
   if (draft.kind === "toy") {

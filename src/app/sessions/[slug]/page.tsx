@@ -146,7 +146,7 @@ export default async function SessionDetailPage({ params }: { params: { slug: st
         }
       />
       <PageGuide title="Session-Details, Bilder und Kommentare">
-        Diese Detailseite sammelt Zeiten, Stimmungen, Sessionkommentar, Bilder und Kommentare zu einer Session. Lade Bilder hoch, kommentiere einzelne Medien oder füge einen Kommentar zur Session insgesamt hinzu.
+        Diese Detailseite sammelt Zeiten, Stimmungen, Sessionkommentar, Bilder und Kommentare zu einer Session. Lade Bilder hoch, kommentiere einzelne Bilder oder füge einen Kommentar zur Session insgesamt hinzu.
       </PageGuide>
 
       <div className="space-y-6">

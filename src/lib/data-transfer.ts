@@ -18,6 +18,7 @@ type TransferData = {
   toys: ExportRecord[];
   positions: ExportRecord[];
   activities: ExportRecord[];
+  activityImages: ExportRecord[];
   sessions: ExportRecord[];
   kgSessions: ExportRecord[];
   sessionComments: ExportRecord[];
@@ -62,6 +63,7 @@ export async function buildDataExport(user: AccessUser) {
     toys,
     positions,
     activities,
+    activityImages,
     sessions,
     kgSessions,
     sessionComments,
@@ -75,6 +77,7 @@ export async function buildDataExport(user: AccessUser) {
     prisma.toy.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
     prisma.position.findMany({ where: ownerScope, include: { tools: { select: { id: true } } }, orderBy: { createdAt: "asc" } }),
     prisma.activityPlan.findMany({ where: ownerScope, include: { tools: { select: { id: true } }, positions: { select: { id: true } } }, orderBy: { createdAt: "asc" } }),
+    prisma.activityImage.findMany({ where: { activity: { ownerId: { in: ownerIds } } }, orderBy: { createdAt: "asc" } }),
     prisma.segufixSession.findMany({ where: ownerScope, orderBy: { startTime: "asc" } }),
     prisma.kgSession.findMany({ where: ownerScope, orderBy: { startTime: "asc" } }),
     prisma.sessionComment.findMany({ where: { ownerId: { in: ownerIds } }, orderBy: { createdAt: "asc" } }),
@@ -108,6 +111,13 @@ export async function buildDataExport(user: AccessUser) {
       positionIds: entry.positions.map((position) => position.id),
       tools: undefined,
       positions: undefined
+    })),
+    activityImages: activityImages.map((entry) => ({
+      id: entry.id,
+      activityId: entry.activityId,
+      fileId: entry.fileId,
+      title: entry.title,
+      createdAt: entry.createdAt
     })),
     sessions: sessions.map(withoutOwner),
     kgSessions: kgSessions.map(withoutOwner),
@@ -214,6 +224,22 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
   }
 
   const sessionMap = new Map<string, string>();
+  const activityImageMap = new Map<string, string>();
+  for (const entry of records(data.activityImages)) {
+    const activityId = activityMap.get(String(entry.activityId || ""));
+    const fileId = fileMap.get(String(entry.fileId || ""));
+    if (!activityId || !fileId) continue;
+    const created = await prisma.activityImage.create({
+      data: {
+        activityId,
+        fileId,
+        title: String(entry.title || "Importiertes Ideenbild")
+      }
+    });
+    activityImageMap.set(String(entry.id || ""), created.id);
+  }
+
+  const legacyActivityImageIds = new Set<string>();
   for (const entry of records(data.sessions)) {
     const startTime = toDate(entry.startTime);
     if (!startTime) continue;
@@ -271,17 +297,30 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
 
   const mediaMap = new Map<string, string>();
   for (const entry of records(data.media)) {
+    const sourceFileId = fileIdFromUrl(typeof entry.url === "string" ? entry.url : "");
+    const importedFileId = sourceFileId ? fileMap.get(sourceFileId) : null;
+    const importedActivityId = activityMap.get(String(entry.activityId || "")) || null;
+    if (importedActivityId && importedFileId) {
+      const created = await prisma.activityImage.create({
+        data: {
+          activityId: importedActivityId,
+          fileId: importedFileId,
+          title: String(entry.title || "Importiertes Ideenbild")
+        }
+      });
+      legacyActivityImageIds.add(String(entry.id || ""));
+      activityImageMap.set(String(entry.id || ""), created.id);
+      continue;
+    }
     const url = rewriteFileUrl(entry.url, fileMap);
     if (!url) continue;
-    const importedActivityId = activityMap.get(String(entry.activityId || "")) || null;
-    const importedAlbumId = albumMap.get(String(entry.albumId || "")) || (importedActivityId ? null : fallbackAlbum.id);
+    const importedAlbumId = albumMap.get(String(entry.albumId || "")) || fallbackAlbum.id;
     const created = await prisma.media.create({
       data: {
         ownerId: user.id,
         albumId: importedAlbumId,
         sessionId: sessionMap.get(String(entry.sessionId || "")) || null,
-        activityId: importedActivityId,
-        title: String(entry.title || "Importiertes Medium"),
+        title: String(entry.title || "Importiertes Bild"),
         kind: String(entry.kind || "IMAGE") as "IMAGE" | "VIDEO",
         url,
         visibility: entry.visibility ? (String(entry.visibility) as "PRIVATE" | "PARTNER" | "SHARED") : null
@@ -298,6 +337,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
   }
 
   for (const entry of records(data.mediaComments)) {
+    if (legacyActivityImageIds.has(String(entry.mediaId || ""))) continue;
     const mediaId = mediaMap.get(String(entry.mediaId || ""));
     const body = String(entry.body || "").trim();
     if (!mediaId || !body) continue;
@@ -335,6 +375,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     toys: toyMap.size,
     positions: positionMap.size,
     activities: activityMap.size,
+    activityImages: activityImageMap.size,
     albums: albumMap.size,
     media: mediaMap.size,
     events: eventMap.size

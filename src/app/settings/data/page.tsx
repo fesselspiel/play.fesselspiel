@@ -33,7 +33,7 @@ export default async function DataSettingsPage({ searchParams }: { searchParams:
             <div>
               <h2 className="text-lg font-semibold text-ink">Export</h2>
               <p className="mt-1 text-sm leading-6 text-graphite">
-                Erstellt ein ZIP-Archiv mit Spielsachen, Stellungen, Aktivitäten, Sessions, Medien, Alben, Terminen und den zugehörigen geschuetzten Dateien.
+                Erstellt ein ZIP-Archiv mit Spielsachen, Stellungen, Aktivitäten, Sessions, Bildern, Alben, Terminen und den zugehörigen geschuetzten Dateien.
               </p>
             </div>
           </div>
@@ -64,7 +64,7 @@ export default async function DataSettingsPage({ searchParams }: { searchParams:
 
           {searchParams.imported ? (
             <div className="mb-4 rounded-md bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">
-              Import abgeschlossen: {searchParams.files || "0"} Dateien, {searchParams.media || "0"} Medien, {searchParams.toys || "0"} Spielsachen und {searchParams.positions || "0"} Stellungen.
+              Import abgeschlossen: {searchParams.files || "0"} Dateien, {searchParams.media || "0"} Bilder, {searchParams.toys || "0"} Spielsachen und {searchParams.positions || "0"} Stellungen.
             </div>
           ) : null}
           {searchParams.error ? (

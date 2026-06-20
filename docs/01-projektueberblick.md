@@ -2,7 +2,7 @@
 
 ## Ziel
 
-`play.fesselspiel.com` ist eine private Webanwendung für Einzelpersonen und Paare. Die Plattform dient der persönlichen Dokumentation, Organisation und Automatisierung von Profilen, Medien, Sessions, Spielzeugen, Stellungen, Aktivitäten und Telegram-Interaktion.
+`play.fesselspiel.com` ist eine private Webanwendung für Einzelpersonen und Paare. Die Plattform dient der persönlichen Dokumentation, Organisation und Automatisierung von Profilen, Bildern, Sessions, Spielzeugen, Stellungen, Aktivitäten und Telegram-Interaktion.
 
 ## Technische Basis
 
@@ -56,14 +56,14 @@ Aktuelle Design-Eigenschaften:
 - Events löschen
 - Check-ins mit Notiz
 
-### Medien
+### Bilder
 
 - Upload von Bildern und Videos
 - Alben
 - Sichtbarkeiten
 - geschützte Dateiauslieferung über `/api/files/[id]`
-- Medienseite als Galerie mit Spotlight, Metadaten, Album-Gruppierung und Upload-Bereich
-- Medien löschen inklusive Entfernen der Datei vom Server
+- Bilderseite als Galerie mit Spotlight, Metadaten, Album-Gruppierung und Upload-Bereich
+- Bilder löschen inklusive Entfernen der Datei vom Server
 
 ### Session-Tracking
 
@@ -119,7 +119,7 @@ Aktuelle Design-Eigenschaften:
 - Kurzzeitgedächtnis über die letzten Nachrichten
 - Dialoge zum Anlegen von Spielzeugen und Stellungen
 - Bildupload im Telegram-Chat für laufende Dialoge
-- freier Telegram-Bildupload wird automatisch als Medium gespeichert
+- freier Telegram-Bildupload wird automatisch als Bild gespeichert
 - Zuordnung von Telegram-Benutzern zu App-Benutzern
 - Aktionsbenachrichtigungen per Telegram-Regeln
 - erkannte Chats/Threads bleiben zunächst in der App auf `PENDING`

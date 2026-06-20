@@ -114,7 +114,8 @@ export async function fileAssetForUser(ownerId: string, id: string) {
 }
 
 export async function fileAssetForAccess(user: AccessUser, id: string) {
-  const asset = await prisma.fileAsset.findFirst({ where: { id, ownerId: { in: await accessibleOwnerIds(user) } } });
+  const ownerIds = await accessibleOwnerIds(user);
+  const asset = await prisma.fileAsset.findFirst({ where: { id, ownerId: { in: ownerIds } } });
   if (asset) return asset;
 
   const sharedAsset = await prisma.fileAsset.findUnique({ where: { id } });
@@ -126,7 +127,16 @@ export async function fileAssetForAccess(user: AccessUser, id: string) {
     },
     select: { id: true }
   });
-  return visibleMedia ? sharedAsset : null;
+  if (visibleMedia) return sharedAsset;
+
+  const visibleActivityImage = await prisma.activityImage.findFirst({
+    where: {
+      fileId: id,
+      activity: { ownerId: { in: ownerIds } }
+    },
+    select: { id: true }
+  });
+  return visibleActivityImage ? sharedAsset : null;
 }
 
 export function absolutePathForAsset(storagePath: string) {

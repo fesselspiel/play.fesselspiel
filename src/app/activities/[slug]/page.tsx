@@ -14,7 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
 import { logAction } from "@/lib/audit";
 
-async function addActivityMedia(formData: FormData) {
+async function addActivityImage(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
@@ -25,14 +25,11 @@ async function addActivityMedia(formData: FormData) {
   for (const file of files) {
     const asset = await saveUploadedFile(user.id, file);
     if (!asset) continue;
-    await prisma.media.create({
+    await prisma.activityImage.create({
       data: {
-        ownerId: user.id,
         activityId: activity.id,
-        title: asset.originalName || "Ideenbild",
-        kind: asset.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE",
-        url: fileAssetUrl(asset.id),
-        visibility: null
+        fileId: asset.id,
+        title: asset.originalName || "Ideenbild"
       }
     });
   }
@@ -49,19 +46,29 @@ async function addActivityMedia(formData: FormData) {
   redirect(`/activities/${activity.slug}`);
 }
 
-async function deleteActivityMedia(formData: FormData) {
+async function deleteActivityImage(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
   const activityId = String(formData.get("activityId") || "");
-  const mediaId = String(formData.get("mediaId") || "");
+  const imageKey = String(formData.get("imageKey") || "");
   const activity = await prisma.activityPlan.findFirst({ where: { id: activityId, ...(await ownerScope(user)) } });
   if (!activity) notFound();
-  const media = await prisma.media.findFirst({ where: { id: mediaId, activityId: activity.id, ...(await ownerScope(user)) } });
-  if (media) {
-    await prisma.media.delete({ where: { id: media.id } });
-    const fileId = fileIdFromUrl(media.url);
-    if (fileId) await deleteOwnedFile(media.ownerId, fileId);
+  if (imageKey.startsWith("image:")) {
+    const imageId = imageKey.replace("image:", "");
+    const image = await prisma.activityImage.findFirst({ where: { id: imageId, activityId: activity.id }, include: { file: true } });
+    if (image) {
+      await prisma.activityImage.delete({ where: { id: image.id } });
+      await deleteOwnedFile(image.file.ownerId, image.file.id);
+    }
+  } else if (imageKey.startsWith("media:")) {
+    const mediaId = imageKey.replace("media:", "");
+    const media = await prisma.media.findFirst({ where: { id: mediaId, activityId: activity.id, ...(await ownerScope(user)) } });
+    if (media) {
+      await prisma.media.delete({ where: { id: media.id } });
+      const fileId = fileIdFromUrl(media.url);
+      if (fileId) await deleteOwnedFile(media.ownerId, fileId);
+    }
   }
   redirect(`/activities/${activity.slug}`);
 }
@@ -69,10 +76,32 @@ async function deleteActivityMedia(formData: FormData) {
 export default async function ActivityDetailPage({ params }: { params: { slug: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
-  const activity = await prisma.activityPlan.findUnique({ where: { slug: params.slug }, include: { tools: true, positions: true, media: { orderBy: { createdAt: "desc" } } } });
+  const activity = await prisma.activityPlan.findUnique({
+    where: { slug: params.slug },
+    include: {
+      tools: true,
+      positions: true,
+      images: { include: { file: true }, orderBy: { createdAt: "desc" } },
+      media: { orderBy: { createdAt: "desc" } }
+    }
+  });
   if (!activity || !(await isAccessibleOwner(user, activity.ownerId))) notFound();
   const isSelfBondageOrder = activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage";
   const isIdea = activity.category === "IDEA_COLLECTION";
+  const ideaImages = [
+    ...activity.images.map((image) => ({
+      key: `image:${image.id}`,
+      title: image.title,
+      url: fileAssetUrl(image.fileId),
+      kind: image.file.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE"
+    })),
+    ...activity.media.map((media) => ({
+      key: `media:${media.id}`,
+      title: media.title,
+      url: media.url,
+      kind: media.kind
+    }))
+  ];
   const path = `/activities/${activity.slug}`;
   const url = `${env.appUrl}${path}`;
   return (
@@ -123,28 +152,28 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
         <Panel className="mt-6">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><ImagePlus className="h-5 w-5 text-redbrand" /> Bilder zur Idee</h2>
           {activity.ownerId === user.id ? (
-            <form action={addActivityMedia} className="mb-5 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end" encType="multipart/form-data">
+            <form action={addActivityImage} className="mb-5 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end" encType="multipart/form-data">
               <input type="hidden" name="activityId" value={activity.id} />
               <Field label="Bilder"><input className={inputClass} name="files" type="file" accept="image/*" multiple required /></Field>
               <Button><Save className="h-4 w-4" /> Hochladen</Button>
             </form>
           ) : null}
-          {activity.media.length ? (
+          {ideaImages.length ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {activity.media.map((media) => (
-                <article key={media.id} className="overflow-hidden rounded-lg border border-line bg-paper">
-                  {media.kind === "IMAGE" ? (
+              {ideaImages.map((image) => (
+                <article key={image.key} className="overflow-hidden rounded-lg border border-line bg-paper">
+                  {image.kind === "IMAGE" ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={media.url} alt={media.title} className="aspect-square w-full object-cover" />
+                    <img src={image.url} alt={image.title} className="aspect-square w-full object-cover" />
                   ) : (
-                    <video src={media.url} className="aspect-square w-full object-cover" controls />
+                    <video src={image.url} className="aspect-square w-full object-cover" controls />
                   )}
                   <div className="flex items-center justify-between gap-3 p-3">
-                    <h3 className="min-w-0 truncate text-sm font-semibold text-ink">{media.title}</h3>
+                    <h3 className="min-w-0 truncate text-sm font-semibold text-ink">{image.title}</h3>
                     {activity.ownerId === user.id ? (
-                      <form action={deleteActivityMedia}>
+                      <form action={deleteActivityImage}>
                         <input type="hidden" name="activityId" value={activity.id} />
-                        <input type="hidden" name="mediaId" value={media.id} />
+                        <input type="hidden" name="imageKey" value={image.key} />
                         <button className="focus-ring inline-flex min-h-9 items-center gap-1 rounded-md border border-redbrand/30 px-2 py-1 text-xs font-semibold text-redbrand hover:bg-redbrand/10">
                           <Trash2 className="h-3.5 w-3.5" />
                           Entfernen
