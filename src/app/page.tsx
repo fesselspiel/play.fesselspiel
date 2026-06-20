@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Activity, CalendarDays, Images, Lightbulb, MessageCircle, Plus, ShieldCheck, Timer, ToyBrick } from "lucide-react";
+import { Activity, CalendarDays, Images, Lightbulb, MessageCircle, Plus, ShieldCheck, Sparkles, Timer, ToyBrick } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, PageGuide, Panel, PageHeader, SoftPanel } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
@@ -117,7 +117,7 @@ export default async function DashboardPage() {
   const weekEnd = new Date(todayStart);
   weekEnd.setDate(todayStart.getDate() + 7);
   const scope = await ownerScope(user);
-  const [toyCount, plannedCount, sessionCount, mediaCount, messageCount, sessions, weekActivities, weekEvents, circleUsers, ideas] = await Promise.all([
+  const [toyCount, plannedCount, sessionCount, mediaCount, messageCount, sessions, weekActivities, weekEvents, circleUsers, selfBondagePositions, ideas] = await Promise.all([
     prisma.toy.count({ where: scope }),
     prisma.activityPlan.count({ where: { ...scope, category: { not: "IDEA_COLLECTION" }, status: { in: ["REQUESTED", "PLANNED"] } } }),
     prisma.segufixSession.count({ where: { ...scope, startTime: { gte: yearStart } } }),
@@ -138,6 +138,11 @@ export default async function DashboardPage() {
       include: { settings: true, profile: true },
       orderBy: [{ name: "asc" }, { email: "asc" }]
     }),
+    prisma.position.findMany({
+      where: { ...scope, selfBondageCapable: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      take: 6
+    }),
     prisma.activityPlan.findMany({
       where: { ...scope, category: "IDEA_COLLECTION", status: { in: ["REQUESTED", "PLANNED"] } },
       orderBy: { updatedAt: "desc" },
@@ -145,14 +150,16 @@ export default async function DashboardPage() {
     })
   ]);
 
-  const cards = [
-    ["Lass uns spielen", plannedCount, Activity, "/activities"],
-    ["Stellungen", "ansehen", ShieldCheck, "/positions"],
-    ["Spielsachen", toyCount, ToyBrick, "/toys"],
-    ["Sessions/Jahr", sessionCount, Timer, "/sessions"],
-    ["Bilder", mediaCount, Images, "/media"],
-    ["Nachrichten", messageCount, MessageCircle, "/messages"]
-  ] as const;
+  const primaryCards = [
+    { label: "Spiel", value: plannedCount, Icon: Activity, href: "/activities" },
+    { label: "Stellungen", value: "ansehen", Icon: ShieldCheck, href: "/positions" },
+    { label: "Spielsachen", value: toyCount, Icon: ToyBrick, href: "/toys" }
+  ];
+  const secondaryCards = [
+    { label: "Sessions/Jahr", value: sessionCount, Icon: Timer, href: "/sessions" },
+    { label: "Bilder", value: mediaCount, Icon: Images, href: "/media" },
+    ...(user.role === "ADMIN" ? [{ label: "Protokoll", value: messageCount, Icon: MessageCircle, href: "/messages" }] : [])
+  ];
   const sessionSlugs = new Map(await Promise.all(sessions.map(async (session) => [session.id, await ensureSessionSlug(session)] as const)));
   const openSessions = sessions.filter((session) => !session.endTime);
   const weekDays = Array.from({ length: 7 }, (_, index) => {
@@ -193,7 +200,7 @@ export default async function DashboardPage() {
   return (
     <AppShell>
       <PageHeader
-        title="Dashboard"
+        title="Start"
         action={
           <Link href="/activities/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-[#bc0711]">
             <Plus className="h-4 w-4" />
@@ -202,7 +209,7 @@ export default async function DashboardPage() {
         }
       />
       <PageGuide title="Private Übersicht">
-        Das Dashboard ist die Startübersicht für dein Portal. Nutze die Kennzahlen als schnelle Navigation zu Lass uns spielen, Stellungen, Spielsachen, Bilder, Nachrichten und Sessions; darunter siehst du die nächsten Spielideen, Termine und die letzten Session-Einträge.
+        Start ist die Übersicht für dein Portal. Oben siehst du die Spielampel, direkt darunter die wichtigsten Spiel-Aktionen, danach Kalender, Schnellzugriffe und letzte Session-Einträge.
       </PageGuide>
 
       <div className="space-y-6">
@@ -246,6 +253,57 @@ export default async function DashboardPage() {
             })}
           </div>
         </Panel>
+
+        <div className="grid gap-4 xl:grid-cols-3">
+          <Panel className="text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-redbrand text-white">
+              <Sparkles className="h-6 w-6" />
+            </div>
+            <h2 className="text-2xl font-semibold text-ink">Spieltermin planen</h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-graphite">
+              Lege einen konkreten Termin an, wähle Spielsachen und Stellungen aus und entscheide, ob es direkt geplant oder erst angefragt ist.
+            </p>
+            <Link href="/activities/new" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md bg-redbrand px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-redbrandHover">
+              <Plus className="h-5 w-5" />
+              Neuen Spieltermin anlegen
+            </Link>
+          </Panel>
+          <Panel className="bg-paper text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-sky-600 text-white">
+              <ShieldCheck className="h-6 w-6" />
+            </div>
+            <h2 className="text-2xl font-semibold text-ink">Self-Bondage-Auftrag</h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-graphite">
+              Erteile einen Auftrag mit einer Self-Bondage-fähigen Stellung oder einer freien Anweisung.
+            </p>
+            {selfBondagePositions.length ? (
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {selfBondagePositions.map((position) => (
+                  <span key={position.id} className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-graphite">{position.name}</span>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-md bg-surface p-3 text-sm text-graphite">Markiere bei Stellungen das Feld „Self-Bondage-fähig“, damit sie hier auftauchen.</p>
+            )}
+            <Link href="/activities/new?template=self-bondage" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-sky-600 bg-sky-600 px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-sky-700">
+              <ShieldCheck className="h-5 w-5" />
+              Self-Bondage-Auftrag erteilen
+            </Link>
+          </Panel>
+          <Panel className="bg-paper text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500 text-white">
+              <Lightbulb className="h-6 w-6" />
+            </div>
+            <h2 className="text-2xl font-semibold text-ink">Ideensammlung</h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-graphite">
+              Sammle Dinge, die ihr irgendwann ausprobieren wollt. Bilder und Bausteine bleiben direkt an der Idee hängen.
+            </p>
+            <Link href="/activities/new?template=idea" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-amber-500 bg-amber-500 px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-amber-600">
+              <Lightbulb className="h-5 w-5" />
+              Idee festhalten
+            </Link>
+          </Panel>
+        </div>
 
         <Panel>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -354,8 +412,22 @@ export default async function DashboardPage() {
           </div>
         </Panel>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {cards.map(([label, value, Icon, href]) => (
+        <div className="pt-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {primaryCards.map(({ label, value, Icon, href }) => (
+              <Link key={label} href={href}>
+                <SoftPanel className="transition hover:bg-[#eeeeee]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-graphite">{label}</span>
+                    <Icon className="h-5 w-5 text-redbrand" />
+                  </div>
+                  <div className="mt-3 text-3xl font-semibold text-ink">{value}</div>
+                </SoftPanel>
+              </Link>
+            ))}
+          </div>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {secondaryCards.map(({ label, value, Icon, href }) => (
             <Link key={label} href={href}>
               <SoftPanel className="transition hover:bg-[#eeeeee]">
                 <div className="flex items-center justify-between">
@@ -366,6 +438,7 @@ export default async function DashboardPage() {
               </SoftPanel>
             </Link>
           ))}
+          </div>
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">

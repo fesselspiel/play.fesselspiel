@@ -16,6 +16,7 @@ type DataSearchParams = {
 export default async function DataSettingsPage({ searchParams }: { searchParams: DataSearchParams }) {
   const user = await currentUser();
   if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/");
 
   return (
     <AppShell>

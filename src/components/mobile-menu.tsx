@@ -10,7 +10,6 @@ import {
   MessageCircle,
   Settings,
   ShieldCheck,
-  Sparkles,
   Timer,
   ToyBrick,
   UserRound,
@@ -22,16 +21,16 @@ import { DarkModeToggle } from "@/components/dark-mode-toggle";
 import { LogoutButton } from "@/components/logout-button";
 
 const mobileNav = [
-  ["Dashboard", "/", LayoutDashboard],
-  ["Lass uns spielen", "/activities", Sparkles],
+  ["Start", "/", LayoutDashboard],
   ["Stellungen", "/positions", ShieldCheck],
   ["Spielsachen", "/toys", ToyBrick],
   ["Sessions", "/sessions", Timer],
   ["Bilder", "/media", Images]
 ] as const;
 
-const mobileSettingsNav = [
-  ["Profil", "/profile", UserRound],
+const mobileSettingsNav = [["Profil", "/profile", UserRound]] as const;
+
+const adminOnlyMobileSettingsNav = [
   ["Benutzer", "/settings/users", UsersRound],
   ["Telegram", "/settings/telegram", Settings],
   ["Daten", "/settings/data", DatabaseBackup],
@@ -41,7 +40,7 @@ const mobileSettingsNav = [
 
 const adminMobileSettingsNav = [["Ansicht wechseln", "/settings/view-as", UsersRound]] as const;
 
-export function MobileMenu({ activeDarkMode = false, showAdminViewSwitch = false }: { activeDarkMode?: boolean; showAdminViewSwitch?: boolean }) {
+export function MobileMenu({ activeDarkMode = false, showAdminViewSwitch = false, showAdminSettings = false }: { activeDarkMode?: boolean; showAdminViewSwitch?: boolean; showAdminSettings?: boolean }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -51,16 +50,19 @@ export function MobileMenu({ activeDarkMode = false, showAdminViewSwitch = false
           <div className="truncate font-semibold text-ink">Fesselspiel</div>
           <div className="truncate text-xs text-graphite">play.fesselspiel.com</div>
         </Link>
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls="mobile-navigation"
-          onClick={() => setOpen((value) => !value)}
-          className="focus-ring inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-ink shadow-soft"
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          <span className="sr-only">Menü</span>
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <DarkModeToggle active={activeDarkMode} compact />
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls="mobile-navigation"
+            onClick={() => setOpen((value) => !value)}
+            className="focus-ring inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-ink shadow-soft"
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            <span className="sr-only">Menü</span>
+          </button>
+        </div>
       </div>
       {open ? (
         <div
@@ -107,6 +109,17 @@ export function MobileMenu({ activeDarkMode = false, showAdminViewSwitch = false
                     {label}
                   </Link>
                 ))}
+                {showAdminSettings ? adminOnlyMobileSettingsNav.map(([label, href, Icon]) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setOpen(false)}
+                    className="flex min-h-10 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-surface hover:text-redbrand"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </Link>
+                )) : null}
                 <DarkModeToggle active={activeDarkMode} />
                 <LogoutButton className="flex min-h-10 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium text-redbrand hover:bg-surface disabled:opacity-60" />
               </div>

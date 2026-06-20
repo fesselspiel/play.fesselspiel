@@ -11,6 +11,7 @@ function stamp() {
 export async function GET() {
   const user = await currentUser();
   if (!user) return new NextResponse("Nicht angemeldet", { status: 401 });
+  if (user.role !== "ADMIN") return new NextResponse("Nicht berechtigt", { status: 403 });
   const zip = await buildDataExport(user);
   return new NextResponse(zip, {
     headers: {
@@ -24,6 +25,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.redirect(new URL("/login", request.url));
+  if (user.role !== "ADMIN") return NextResponse.redirect(new URL("/", request.url));
   const formData = await request.formData();
   const file = formData.get("archive") as File | null;
   if (!file || file.size === 0) {

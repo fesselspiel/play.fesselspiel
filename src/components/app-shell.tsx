@@ -8,7 +8,6 @@ import {
   MessageCircle,
   Settings,
   ShieldCheck,
-  Sparkles,
   Timer,
   ToyBrick,
   UserRound,
@@ -20,16 +19,16 @@ import { LogoutButton } from "@/components/logout-button";
 import { MobileMenu } from "@/components/mobile-menu";
 
 const nav = [
-  ["Dashboard", "/", LayoutDashboard],
-  ["Lass uns spielen", "/activities", Sparkles],
+  ["Start", "/", LayoutDashboard],
   ["Stellungen", "/positions", ShieldCheck],
   ["Spielsachen", "/toys", ToyBrick],
   ["Sessions", "/sessions", Timer],
   ["Bilder", "/media", Images]
 ] as const;
 
-const settingsNav = [
-  ["Profil", "/profile", UserRound],
+const settingsNav = [["Profil", "/profile", UserRound]] as const;
+
+const adminOnlySettingsNav = [
   ["Benutzer", "/settings/users", UsersRound],
   ["Telegram", "/settings/telegram", Settings],
   ["Daten", "/settings/data", DatabaseBackup],
@@ -43,6 +42,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
   const { actor, user } = await currentSessionContext();
   const isAdminActor = actor?.role === "ADMIN";
   const isViewingAs = Boolean(actor && user && actor.id !== user.id);
+  const showAdminSettings = user?.role === "ADMIN";
   return (
     <div className="min-h-screen bg-canvas">
       <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-line bg-surface px-5 py-6 lg:block">
@@ -75,6 +75,12 @@ export async function AppShell({ children }: { children: ReactNode }) {
                   {label}
                 </Link>
               ))}
+              {showAdminSettings ? adminOnlySettingsNav.map(([label, href, Icon]) => (
+                <Link key={href} href={href} className="flex min-h-9 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </Link>
+              )) : null}
               {user ? <DarkModeToggle active={Boolean(user.settings?.darkMode)} /> : null}
             </div>
           </details>
@@ -100,7 +106,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         ) : null}
       </aside>
       <main className="min-h-screen lg:pl-72">
-        <MobileMenu activeDarkMode={Boolean(user?.settings?.darkMode)} showAdminViewSwitch={isAdminActor} />
+        <MobileMenu activeDarkMode={Boolean(user?.settings?.darkMode)} showAdminViewSwitch={isAdminActor} showAdminSettings={showAdminSettings} />
         <div className="mx-auto flex min-h-[calc(100vh-4.5rem)] max-w-7xl flex-col px-4 py-6 sm:px-6 lg:min-h-screen lg:px-8">{children}</div>
       </main>
     </div>

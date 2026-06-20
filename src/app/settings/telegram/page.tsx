@@ -101,6 +101,13 @@ function readSecret(value?: string | null) {
   }
 }
 
+async function currentAdminUser() {
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/");
+  return user;
+}
+
 async function readTelegramBotName(value?: string | null) {
   const token = readSecret(value);
   if (!token) return null;
@@ -122,8 +129,7 @@ async function readTelegramBotName(value?: string | null) {
 
 async function saveSettings(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await currentAdminUser();
   await prisma.userSettings.upsert({
     where: { userId: user.id },
     update: {
@@ -141,8 +147,7 @@ async function saveSettings(formData: FormData) {
 
 async function updateChat(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await currentAdminUser();
   const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
   if (!settings) redirect("/settings/telegram");
   const chat = await prisma.telegramChat.findFirst({
@@ -165,8 +170,7 @@ async function updateChat(formData: FormData) {
 
 async function deleteChat(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await currentAdminUser();
   const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
   if (!settings) redirect("/settings/telegram");
   const chat = await prisma.telegramChat.findFirst({
@@ -178,8 +182,7 @@ async function deleteChat(formData: FormData) {
 
 async function createTelegramUserMapping(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await currentAdminUser();
   const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
   if (!settings) redirect("/settings/telegram");
   const telegramUserId = String(formData.get("telegramUserId") || "").trim() || null;
@@ -206,8 +209,7 @@ async function createTelegramUserMapping(formData: FormData) {
 
 async function deleteTelegramUserMapping(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await currentAdminUser();
   const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
   if (!settings) redirect("/settings/telegram");
   await prisma.telegramUserMapping.deleteMany({
@@ -218,8 +220,7 @@ async function deleteTelegramUserMapping(formData: FormData) {
 
 async function createNotificationRule(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await currentAdminUser();
   if (user.role !== "ADMIN") redirect("/settings/telegram");
   const settings = await prisma.userSettings.upsert({
     where: { userId: user.id },
@@ -245,8 +246,7 @@ async function createNotificationRule(formData: FormData) {
 
 async function updateNotificationRule(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await currentAdminUser();
   if (user.role !== "ADMIN") redirect("/settings/telegram");
   const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
   if (!settings) redirect("/settings/telegram#notifications");
@@ -271,8 +271,7 @@ async function updateNotificationRule(formData: FormData) {
 
 async function deleteNotificationRule(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await currentAdminUser();
   if (user.role !== "ADMIN") redirect("/settings/telegram");
   const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
   if (!settings) redirect("/settings/telegram#notifications");
@@ -284,8 +283,7 @@ async function deleteNotificationRule(formData: FormData) {
 
 async function testNotificationRule(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await currentAdminUser();
   if (user.role !== "ADMIN") redirect("/settings/telegram");
   const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
   if (!settings) redirect("/settings/telegram#notifications");
@@ -295,8 +293,7 @@ async function testNotificationRule(formData: FormData) {
 
 async function activateDetectedChat(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await currentAdminUser();
   const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
   if (!settings) redirect("/settings/telegram");
   const chat = await prisma.telegramChat.findFirst({
@@ -405,8 +402,7 @@ function threadNameLabel(chat: { title: string | null; chatId: string; threadId:
 }
 
 export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string; action?: string } }) {
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await currentAdminUser();
   const [settings, targetUsers, targetCircles, auditActions] = await Promise.all([
     prisma.userSettings.findUnique({
       where: { userId: user.id },

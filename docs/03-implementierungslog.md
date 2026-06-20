@@ -636,3 +636,12 @@ Details:
 - Beim Anlegen und Bearbeiten von Spielsachen können vorhandene Stellungen per Checkbox verknüpft werden.
 - Die Auswahl nutzt denselben Benutzer-/Zirkel-Scope wie die restlichen Spielzeug- und Stellungsansichten.
 - Die Spielzeug-Detailseite zeigt die Verknüpfungen weiterhin direkt im Bereich `Verknüpfungen`.
+
+## Startseite und Benutzeransicht
+
+- Der Hauptmenüpunkt `Dashboard` heißt sichtbar jetzt `Start`.
+- Der Hauptmenüpunkt `Lass uns spielen` wurde aus der Navigation entfernt; die drei zentralen Aktionen `Spieltermin planen`, `Self-Bondage-Auftrag` und `Ideensammlung` stehen direkt auf `Start` unter der Spielampel.
+- Die Schnellzugriffe auf `Spiel`, `Stellungen` und `Spielsachen` sind auf der Startseite optisch von den weiteren Kacheln getrennt.
+- Im mobilen Kopfbereich steht neben dem Hamburger-Menü ein kompakter Dark-Mode-Schalter.
+- Normale Benutzer sehen in den Einstellungen nur `Profil`; `Benutzer`, `Telegram`, `Daten`, `API Tokens` und `Protokoll` sind nur in der Admin-Ansicht sichtbar.
+- Die direkten Seiten und Server-Actions für diese Admin-Bereiche prüfen die Rolle ebenfalls und leiten Nicht-Admins zurück zur Startseite.

@@ -91,6 +91,7 @@ function groupEntries(entries: ProtocolEntry[]) {
 export default async function MessagesPage({ searchParams }: { searchParams?: { page?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/");
   const accessIds = await accessibleOwnerIds(user);
   const page = Math.max(1, Number(searchParams?.page || 1) || 1);
   const skip = (page - 1) * pageSize;

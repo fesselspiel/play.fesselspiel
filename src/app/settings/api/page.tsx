@@ -16,6 +16,7 @@ async function addToken(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/");
   const { token, record } = await createApiToken(user.id, String(formData.get("name") || ""));
   const params = new URLSearchParams({ created: record.tokenLastSix, token });
   redirect(`/settings/api?${params.toString()}`);
@@ -25,6 +26,7 @@ async function revokeToken(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/");
   const id = String(formData.get("id") || "");
   await prisma.apiToken.updateMany({ where: { id, userId: user.id }, data: { active: false } });
   redirect("/settings/api");
@@ -33,6 +35,7 @@ async function revokeToken(formData: FormData) {
 export default async function ApiSettingsPage({ searchParams }: { searchParams: ApiSearchParams }) {
   const user = await currentUser();
   if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/");
   const tokens = await prisma.apiToken.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } });
 
   return (
