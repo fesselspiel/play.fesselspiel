@@ -42,20 +42,16 @@ export default async function ActivitiesPage() {
             Neuen Spieltermin anlegen
           </Link>
         </Panel>
-        <Panel className="bg-paper">
-          <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-sky-600 text-white">
-              <ShieldCheck className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-lg font-semibold text-ink">Self-Bondage-Auftrag</h2>
-              <p className="mt-2 text-sm leading-6 text-graphite">
-                Erstelle einen Auftrag: Eine Person bringt sich selbst in eine ausgewählte Lage und wartet dort auf die weitere Ansage.
-              </p>
-            </div>
+        <Panel className="bg-paper text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-sky-600 text-white">
+            <ShieldCheck className="h-6 w-6" />
           </div>
+          <h2 className="text-2xl font-semibold text-ink">Self-Bondage-Auftrag</h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-graphite">
+            Erstelle einen Auftrag: Eine Person bringt sich selbst in eine ausgewählte Lage und wartet dort auf die weitere Ansage.
+          </p>
           {selfBondagePositions.length ? (
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
               {selfBondagePositions.map((position) => (
                 <span key={position.id} className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-graphite">{position.name}</span>
               ))}
@@ -63,7 +59,8 @@ export default async function ActivitiesPage() {
           ) : (
             <p className="mt-4 rounded-md bg-surface p-3 text-sm text-graphite">Markiere bei Stellungen das Feld „Self-Bondage-fähig“, damit sie hier als Vorbereitung auftauchen.</p>
           )}
-          <Link href="/activities/new?template=self-bondage" className="focus-ring mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-sky-600 bg-sky-600 px-5 py-3 text-sm font-semibold text-white hover:bg-sky-700">
+          <Link href="/activities/new?template=self-bondage" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-sky-600 bg-sky-600 px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-sky-700">
+            <ShieldCheck className="h-5 w-5" />
             Self-Bondage-Auftrag geben
           </Link>
         </Panel>

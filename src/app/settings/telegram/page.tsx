@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
 import { TelegramChatDiscovery } from "@/components/telegram/chat-discovery";
+import { NotificationMessageField } from "@/components/telegram/notification-message-field";
 import { NotificationTargetFields } from "@/components/telegram/notification-target-fields";
 import { currentUser } from "@/lib/auth";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
@@ -397,6 +398,12 @@ function chatLabel(chat: TelegramChatOption) {
   return `${threadName} · Chat ${chat.chatId} · Thread ${chat.threadId || "-"} · ${target}`;
 }
 
+function threadNameLabel(chat: { title: string | null; chatId: string; threadId: string | null }) {
+  const title = chat.title?.trim();
+  if (title && title !== chat.chatId) return title;
+  return chat.threadId ? "Thread-Name fehlt" : "Hauptchat";
+}
+
 export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string; action?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
@@ -528,14 +535,14 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
             </div>
           </Panel>
           <Panel>
-            <h2 className="mb-4 text-lg font-semibold">Aktive Kanaele</h2>
+            <h2 className="mb-4 text-lg font-semibold">Aktive Kanäle</h2>
             <div className="space-y-3">
               {activeChats.map((chat) => (
                 <details key={chat.id} className="rounded-md border border-line bg-paper p-3 text-sm">
                   <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
                     <span className="min-w-0">
-                      <strong className="block truncate">{chat.title || chat.chatId}</strong>
-                      <span className="mt-1 block text-graphite">Thread-Name: {chat.title || "Unbenannter Thread"}</span>
+                      <strong className="block truncate">{threadNameLabel(chat)}</strong>
+                      <span className="mt-1 block text-graphite">Thread-Name: {threadNameLabel(chat)}</span>
                       <span className="mt-1 block text-graphite">Chat-ID: {chat.chatId} · Thread-ID: {chat.threadId || "-"}</span>
                       <span className="mt-1 block text-graphite">
                         Ziel: {chat.targetCircle ? `Kreis ${chat.targetCircle.name}` : chat.targetUser ? userLabel(chat.targetUser) : "kein spezielles Ziel"}
@@ -551,7 +558,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                     </div>
                     <form action={updateChat} className="grid gap-3 sm:grid-cols-2">
                       <input type="hidden" name="chatIdInternal" value={chat.id} />
-                      <Field label="Titel"><input className={inputClass} name="title" defaultValue={chat.title || ""} /></Field>
+                      <Field label="Thread-Name"><input className={inputClass} name="title" defaultValue={chat.title || ""} placeholder={chat.threadId ? "z.B. DATSW" : "z.B. Hauptgruppe"} /></Field>
                       <Field label="Status">
                         <select className={selectClass} name="status" defaultValue={chat.status}>
                           <option value="ACTIVE">aktiv</option>
@@ -662,10 +669,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                     </select>
                   </Field>
                 </div>
-                <Field label="Telegram-Nachricht als HTML">
-                  <textarea className={inputClass} name="message" rows={5} defaultValue={defaultNotificationTemplate()} required />
-                </Field>
-                <p className="text-xs text-graphite">Variablen: {"{title}"}, {"{actor}"}, {"{event}"}, {"{action}"}, {"{url}"}, {"{details}"}</p>
+                <NotificationMessageField defaultValue={defaultNotificationTemplate()} />
                 <SubmitButton pendingLabel="Regel wird gespeichert..."><Save className="h-4 w-4" /> Regel anlegen</SubmitButton>
               </form>
               <div className="mt-5 space-y-3">
@@ -699,9 +703,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                           </select>
                         </Field>
                       </div>
-                      <Field label="Telegram-Nachricht als HTML">
-                        <textarea className={inputClass} name="message" rows={5} defaultValue={rule.message} required />
-                      </Field>
+                      <NotificationMessageField defaultValue={rule.message} />
                       <label className="flex items-center gap-2 text-sm text-graphite">
                         <input name="active" type="checkbox" defaultChecked={rule.active} className="h-4 w-4 accent-redbrand" />
                         aktiv

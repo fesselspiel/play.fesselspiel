@@ -610,3 +610,6 @@ Details:
 - Aktionsbenachrichtigungen können optional auf einen konkreten aktiven Ausgabe-Thread gelegt werden.
 - Ist ein Ausgabe-Thread gesetzt, wird die Nachricht genau in diesen Chat/Thread gesendet.
 - Ohne Ausgabe-Thread bleibt die bisherige automatische Zustellung über Benutzer- oder Kreis-Zuordnung aktiv.
+- Die Variablen der Telegram-Nachricht sind als klickbare Chips umgesetzt und werden an der aktuellen Cursorposition in die Nachricht eingefügt.
+- Die aktiven Telegram-Kanäle verwenden die Überschrift `Aktive Kanäle` und zeigen fehlende Thread-Namen klar als `Thread-Name fehlt` statt nur als ID an.
+- Der Self-Bondage-Auftrag auf `Lass uns spielen` nutzt denselben zentrierten Aufbau wie `Spieltermin planen`.
