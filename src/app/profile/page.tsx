@@ -101,6 +101,7 @@ export default async function ProfilePage() {
             removeName="removeProfileImage"
             removeLabel="Profilbild entfernen"
             help="Quadratisches Bild oder Foto auswählen."
+            imageCropAspect="square"
           />
           <ThemePicker activeTheme={activeTheme} activeMode={activeMode} />
           <SubmitButton pendingLabel="Profil wird gespeichert..."><Save className="h-4 w-4" /> Profil speichern</SubmitButton>

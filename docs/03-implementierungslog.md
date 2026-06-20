@@ -573,5 +573,13 @@ Details:
 - Admins können beim Bearbeiten eines Benutzers dessen Profilbild hochladen oder entfernen.
 - `Lass uns spielen` zeigt oben einen großen zentralen Button `Neuen Spieltermin anlegen`.
 - Darunter gibt es eine Self-Bondage-Vorbereitung mit Button `Vorbereitungsaufgabe planen`; Stellungen mit `Self-Bondage-fähig` werden dort prominent angeboten und im neuen Spieltermin vorausgewählt.
+
+## Bildzuschnitt beim Upload
+
+- `FileUploadField` unterstützt für Bilduploads einen clientseitigen Zuschnitt per Canvas.
+- Benutzer können Format, horizontalen Ausschnitt, vertikalen Ausschnitt und Zoom wählen.
+- Profilbilder nutzen standardmäßig Quadrat-Zuschnitt.
+- Spielzeug- und Stellungsbilder nutzen standardmäßig ein Querformat.
+- Medienuploads bleiben unverändert, damit die Galerie Originalbilder und Videos behalten kann.
 - Die Telegram-Einstellungsseite übernimmt diesen Query-Parameter und wählt die Aktion im Formular zum Anlegen einer Aktionsbenachrichtigung vor.
 - Falls die Aktion noch nicht in den bekannten Aktionen enthalten ist, wird sie dynamisch in die Auswahlliste aufgenommen.

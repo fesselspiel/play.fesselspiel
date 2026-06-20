@@ -219,7 +219,7 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
                 <Field label="E-Mail"><input className={inputClass} name="email" type="email" placeholder="Optional, wenn Benutzername gesetzt ist" /></Field>
                 <Field label="Benutzername"><UsernameField /></Field>
                 <Field label="Passwort"><input className={inputClass} name="password" type="password" required /></Field>
-                <FileUploadField name="profileImage" label="Profilbild" accept="image/*" help="Optionales Profilbild auswählen." />
+                <FileUploadField name="profileImage" label="Profilbild" accept="image/*" help="Optionales Profilbild auswählen." imageCropAspect="square" />
                 <Field label="Rolle"><select className={selectClass} name="role"><option value="USER">Benutzer</option><option value="ADMIN">Admin</option></select></Field>
                 <Field label="Kreis">
                   <select className={selectClass} name="circleId" defaultValue="">
@@ -320,6 +320,7 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
                   removeName="removeProfileImage"
                   removeLabel="Profilbild entfernen"
                   help="Optional neues Profilbild auswählen."
+                  imageCropAspect="square"
                 />
               </form>
               </details>

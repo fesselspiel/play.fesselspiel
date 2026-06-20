@@ -196,6 +196,7 @@ UI-Hinweis:
 - `src/components/username-field.tsx`: Benutzername-Feld mit Blur-Prüfung gegen `/api/users/check-username`.
 - `src/components/protocol-search.tsx`: Client-Suche für das Protokoll mit Vorschlägen und Sprunglinks.
 - `src/components/quick-album-form.tsx`: Inline-Albumanlage aus der Medien-Detailansicht heraus.
+- `src/components/file-upload-field.tsx`: Gemeinsames Upload-Feld mit Vorschau, optionalem clientseitigem Bildzuschnitt und Ajax-Upload für Katalog-/Profilbilder.
 - `src/components/dark-mode-toggle.tsx`: kompakter Dark-Mode-Schalter für Desktop- und Mobile-Einstellungen.
 - `src/components/logout-button.tsx`: Client-Logout mit `fetch` und anschließender Navigation zu `/login`.
 - `src/app/api/settings/dark-mode/route.ts`: speichert Dark Mode direkt am aktuellen Benutzer.

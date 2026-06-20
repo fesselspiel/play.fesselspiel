@@ -406,7 +406,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
             </summary>
             <form action={createMedia} className="space-y-3 border-t border-line p-4">
               <Field label="Titel"><input className={inputClass} name="title" required /></Field>
-              <FileUploadField name="file" label="Datei" accept="image/*,video/*" required help="Bild oder Video auswählen." />
+              <FileUploadField name="file" label="Datei" accept="image/*,video/*" required help="Bild oder Video auswählen." enableImageCrop={false} />
               <Field label="Album">
                 <select className={selectClass} name="albumId" defaultValue={defaultAlbum.id}>
                   {albums.map((album) => <option key={album.id} value={album.id}>{albumLabel(album, user.id, albums)}</option>)}
