@@ -538,6 +538,7 @@ Details:
 - Logout wird in der UI nicht mehr als reines HTML-Formular ausgelöst.
 - Neuer Client-Button `LogoutButton` sendet `POST /api/auth/logout` per `fetch` mit Session-Credentials und navigiert danach aktiv nach `/login`.
 - Das verhindert, dass der mobile Menüzustand den Formular-Submit vorzeitig unmountet.
+- Das mobile Hamburger-Dropdown ist jetzt eine eigene Scrollfläche mit Viewport-Maximalhöhe, Touch-Scrolling und unterem Abstand, damit der Punkt `Abmelden` auch auf kleinen Displays erreichbar bleibt.
 
 ## Protokoll und Aktionsbenachrichtigungen
 

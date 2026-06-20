@@ -61,7 +61,10 @@ export function MobileMenu({ activeDarkMode = false }: { activeDarkMode?: boolea
         </button>
       </div>
       {open ? (
-        <div id="mobile-navigation" className="absolute left-0 right-0 top-full z-40 border-b border-line bg-surface px-4 py-3 shadow-soft">
+        <div
+          id="mobile-navigation"
+          className="absolute left-0 right-0 top-full z-40 max-h-[calc(100dvh-4.25rem)] overflow-y-auto overscroll-contain border-b border-line bg-surface px-4 pb-6 pt-3 shadow-soft [-webkit-overflow-scrolling:touch]"
+        >
           <nav className="overflow-hidden rounded-md border border-line bg-surface">
             {mobileNav.map(([label, href, Icon]) => (
               <Link
