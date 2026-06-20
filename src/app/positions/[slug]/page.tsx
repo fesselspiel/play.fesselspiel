@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
+import { Badge, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { isAccessibleOwner } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -26,6 +26,11 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
           <div className="aspect-[16/10] overflow-hidden rounded-md bg-paper">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={position.imageUrl || "/position-placeholder.svg"} alt="" className="h-full w-full object-cover" />
+          </div>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Badge tone={position.selfBondageCapable ? "red" : "neutral"}>
+              {position.selfBondageCapable ? "Self-Bondage-fähig" : "Nicht als Self-Bondage-fähig markiert"}
+            </Badge>
           </div>
           <p className="mt-5 leading-7 text-graphite">{position.description || "Keine Beschreibung hinterlegt."}</p>
         </Panel>

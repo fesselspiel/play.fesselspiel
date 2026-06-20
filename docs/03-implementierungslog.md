@@ -101,6 +101,8 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 
 - Stellungen haben im Datenmodell das Boolean-Feld `selfBondageCapable`.
 - Beim Anlegen und Bearbeiten einer Stellung gibt es die Checkbox `Self-Bondage-fähig`.
+- Stellungs-Detailseiten zeigen den Status als Badge an.
+- Die aufklappbare Stellungsübersicht zeigt den Status in der Listenzeile und im geöffneten Detailbereich.
 - Das Feld ist bewusst noch nicht in Filter oder Auswertungen eingebunden und steht für spätere Nutzung bereit.
 
 ## Mobile Navigation

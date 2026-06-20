@@ -20,6 +20,7 @@ type PositionItem = {
   slug: string;
   description: string | null;
   imageUrl: string | null;
+  selfBondageCapable: boolean;
   toolCount: number;
   activityCount: number;
   tools: { id: string; title: string; slug: string }[];
@@ -154,7 +155,10 @@ export function SortablePositionList({ items, canSort = false }: { items: Positi
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="truncate text-base font-semibold text-ink">{position.name}</h2>
-                <p className="mt-1 truncate text-xs text-graphite">{position.toolCount} Spielzeuge · {position.activityCount} Spielpläne</p>
+                <p className="mt-1 truncate text-xs text-graphite">
+                  {position.toolCount} Spielzeuge · {position.activityCount} Spielpläne
+                  {position.selfBondageCapable ? " · Self-Bondage" : ""}
+                </p>
               </div>
               <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open:rotate-180" />
             </summary>
@@ -169,6 +173,9 @@ export function SortablePositionList({ items, canSort = false }: { items: Positi
                     <span className="rounded-md bg-surface px-2 py-1">/positions/{position.slug}</span>
                     <span className="rounded-md bg-surface px-2 py-1">{position.toolCount} Spielzeuge</span>
                     <span className="rounded-md bg-surface px-2 py-1">{position.activityCount} Spielpläne</span>
+                    <span className={`rounded-md px-2 py-1 ${position.selfBondageCapable ? "bg-redbrand text-white" : "bg-surface text-graphite"}`}>
+                      {position.selfBondageCapable ? "Self-Bondage-fähig" : "Nicht als Self-Bondage-fähig markiert"}
+                    </span>
                   </div>
                   <p className="mt-4 text-sm leading-6 text-graphite">{position.description || "Keine Beschreibung hinterlegt."}</p>
                   {position.tools.length ? (

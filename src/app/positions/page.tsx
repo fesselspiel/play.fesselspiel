@@ -57,6 +57,7 @@ export default async function PositionsPage({ searchParams }: { searchParams: { 
             slug: position.slug,
             description: position.description,
             imageUrl: position.imageUrl,
+            selfBondageCapable: position.selfBondageCapable,
             toolCount: position.tools.length,
             activityCount: position.activities.length,
             tools: position.tools.map((tool) => ({ id: tool.id, title: tool.title, slug: tool.slug }))
