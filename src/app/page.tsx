@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Activity, CalendarDays, Images, Lightbulb, MessageCircle, Plus, ShieldCheck, Sparkles, Timer, ToyBrick } from "lucide-react";
+import { CalendarDays, Lightbulb, Plus, ShieldCheck, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { Badge, PageGuide, Panel, PageHeader, SoftPanel } from "@/components/ui";
+import { Badge, PageGuide, Panel, PageHeader } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { confirmRequestedActivity } from "@/lib/activity-actions";
 import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status";
@@ -111,18 +111,12 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   const now = new Date();
-  const yearStart = new Date(now.getFullYear(), 0, 1);
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
   const weekEnd = new Date(todayStart);
   weekEnd.setDate(todayStart.getDate() + 7);
   const scope = await ownerScope(user);
-  const [toyCount, plannedCount, sessionCount, mediaCount, messageCount, sessions, weekActivities, weekEvents, circleUsers, selfBondagePositions, ideas] = await Promise.all([
-    prisma.toy.count({ where: scope }),
-    prisma.activityPlan.count({ where: { ...scope, category: { not: "IDEA_COLLECTION" }, status: { in: ["REQUESTED", "PLANNED"] } } }),
-    prisma.segufixSession.count({ where: { ...scope, startTime: { gte: yearStart } } }),
-    prisma.media.count({ where: scope }),
-    prisma.message.count({ where: { OR: [{ senderId: user.id }, { recipientId: user.id }] } }),
+  const [sessions, weekActivities, weekEvents, circleUsers, selfBondagePositions, ideas] = await Promise.all([
     prisma.segufixSession.findMany({ where: scope, orderBy: { startTime: "desc" }, take: 4 }),
     prisma.activityPlan.findMany({
       where: { ...scope, status: { in: ["REQUESTED", "PLANNED"] }, plannedAt: { gte: todayStart, lt: weekEnd } },
@@ -150,16 +144,6 @@ export default async function DashboardPage() {
     })
   ]);
 
-  const primaryCards = [
-    { label: "Spiel", value: plannedCount, Icon: Activity, href: "/activities" },
-    { label: "Szenen", value: "ansehen", Icon: ShieldCheck, href: "/positions" },
-    { label: "Spielsachen", value: toyCount, Icon: ToyBrick, href: "/toys" }
-  ];
-  const secondaryCards = [
-    { label: "Sessions/Jahr", value: sessionCount, Icon: Timer, href: "/sessions" },
-    { label: "Bilder", value: mediaCount, Icon: Images, href: "/media" },
-    ...(user.role === "ADMIN" ? [{ label: "Protokoll", value: messageCount, Icon: MessageCircle, href: "/messages" }] : [])
-  ];
   const sessionSlugs = new Map(await Promise.all(sessions.map(async (session) => [session.id, await ensureSessionSlug(session)] as const)));
   const openSessions = sessions.filter((session) => !session.endTime);
   const weekDays = Array.from({ length: 7 }, (_, index) => {
@@ -209,7 +193,7 @@ export default async function DashboardPage() {
         }
       />
       <PageGuide title="Private Übersicht">
-        Start ist die Übersicht für dein Portal. Oben siehst du die Spielampel, direkt darunter die wichtigsten Spiel-Aktionen, danach Kalender, Schnellzugriffe und letzte Session-Einträge.
+        Start ist die Übersicht für dein Portal. Oben siehst du die Spielampel, direkt darunter die wichtigsten Spiel-Aktionen, danach Kalender und letzte Session-Einträge.
       </PageGuide>
 
       <div className="space-y-6">
@@ -411,35 +395,6 @@ export default async function DashboardPage() {
             ))}
           </div>
         </Panel>
-
-        <div className="pt-4">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {primaryCards.map(({ label, value, Icon, href }) => (
-              <Link key={label} href={href}>
-                <SoftPanel className="transition hover:bg-[#eeeeee]">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-graphite">{label}</span>
-                    <Icon className="h-5 w-5 text-redbrand" />
-                  </div>
-                  <div className="mt-3 text-3xl font-semibold text-ink">{value}</div>
-                </SoftPanel>
-              </Link>
-            ))}
-          </div>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {secondaryCards.map(({ label, value, Icon, href }) => (
-            <Link key={label} href={href}>
-              <SoftPanel className="transition hover:bg-[#eeeeee]">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-graphite">{label}</span>
-                  <Icon className="h-5 w-5 text-redbrand" />
-                </div>
-                <div className="mt-3 text-3xl font-semibold text-ink">{value}</div>
-              </SoftPanel>
-            </Link>
-          ))}
-          </div>
-        </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
           <Panel>

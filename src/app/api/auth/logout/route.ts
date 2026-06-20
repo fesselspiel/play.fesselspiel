@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { logAction, userDisplayName } from "@/lib/audit";
 import { clearSessionCookie, currentUser } from "@/lib/auth";
 
-export async function POST() {
+export async function POST(request: Request) {
   const user = await currentUser();
   if (user) {
     await logAction({
@@ -13,7 +13,7 @@ export async function POST() {
       title: `${userDisplayName(user)} hat sich abgemeldet`
     });
   }
-  const response = NextResponse.redirect(new URL("/login", process.env.APP_URL || "http://localhost:8097"), { status: 303 });
+  const response = NextResponse.redirect(new URL("/login", request.url), { status: 303 });
   clearSessionCookie(response);
   return response;
 }

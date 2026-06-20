@@ -13,7 +13,8 @@ Die Anwendung laeuft lokal auf `http://localhost:8097`.
 
 ## Deployment
 
-- Domain: `play.fesselspiel.com`
+- Hauptdomain: `playplaner.com`
+- Zweitdomain ohne Weiterleitung: `play.fesselspiel.com`
 - Reverse Proxy: Traefik-Labels sind in `docker-compose.yml` vorbereitet.
 - Persistenz: PostgreSQL-Volume und Upload-Volume.
 - Initialer Admin kommt aus `.env`: `ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`.

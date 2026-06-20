@@ -52,7 +52,7 @@ export function MobileMenu({ activeDarkMode = false, showAdminViewSwitch = false
       <div className="flex min-h-10 items-center justify-between gap-3">
         <Link href="/" onClick={() => setOpen(false)} className="min-w-0">
           <div className="truncate font-semibold text-ink">Fesselspiel</div>
-          <div className="truncate text-xs text-graphite">play.fesselspiel.com</div>
+          <div className="truncate text-xs text-graphite">playplaner.com</div>
         </Link>
         <div className="flex shrink-0 items-center gap-2">
           <DarkModeToggle active={activeDarkMode} compact />

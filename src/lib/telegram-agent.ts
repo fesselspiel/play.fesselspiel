@@ -641,7 +641,7 @@ export async function answerWithPortalAgent(input: PortalAgentInput) {
     {
       role: "system",
       content:
-        "Du bist der Telegram-Agent für das Portal play.fesselspiel.com. Antworte auf Deutsch, knapp und konkret. " +
+        "Du bist der Telegram-Agent für das Portal playplaner.com. Antworte auf Deutsch, knapp und konkret. " +
         "Du darfst Fragen zum Portal beantworten und über die bereitgestellten Tools Portal-Aktionen ausführen. " +
         "Fuehre Schreibaktionen nur aus, wenn die Absicht des Nutzers klar ist. Frage bei fehlenden Pflichtangaben nach. " +
         "Wenn der Nutzer nur sagt, dass du dir etwas merken, notieren oder als Kontext behalten sollst, führe keine Portal-Schreibaktion aus. " +

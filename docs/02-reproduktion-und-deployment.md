@@ -36,7 +36,7 @@ docker compose exec app node prisma/seed.js
 Wichtige Variablen:
 
 ```text
-APP_URL=https://play.fesselspiel.com
+APP_URL=https://playplaner.com
 APP_HOST=0.0.0.0
 APP_PORT=8097
 DATABASE_URL=postgresql://...
@@ -59,7 +59,8 @@ Beispiel-Zielserver:
 ```text
 IP: x.x.x.x
 App-Pfad: /opt/<app-name>
-Domain: play.fesselspiel.com
+Hauptdomain: playplaner.com
+Zweitdomain: play.fesselspiel.com
 Container App: kink_social_app
 Container DB: kink_social_postgres
 Interner Port: 127.0.0.1:8097
@@ -152,9 +153,15 @@ Die App speichert Dateien benutzerbezogen in Unterordnern und gibt sie nicht als
 
 Der Endpunkt prüft Login und Eigentum der Datei.
 
-Wichtig auf dem VPS: Vor der App läuft Nginx. Für iPhone-Fotos und andere Uploads muss in der Nginx-Site `play.fesselspiel.com` ebenfalls ein ausreichend großes Limit gesetzt sein:
+Wichtig auf dem VPS: Vor der App läuft Nginx. Für iPhone-Fotos und andere Uploads muss in beiden Nginx-Sites (`playplaner.com` und `play.fesselspiel.com`) ein ausreichend großes Limit gesetzt sein:
 
 ```nginx
+server {
+    server_name playplaner.com;
+    client_max_body_size 50m;
+    ...
+}
+
 server {
     server_name play.fesselspiel.com;
     client_max_body_size 50m;

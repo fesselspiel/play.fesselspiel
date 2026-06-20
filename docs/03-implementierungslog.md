@@ -658,3 +658,15 @@ Details:
 - Die Spielzeugliste zeigt in der eingeklappten Zeile nicht mehr den URL-Slug, sondern wie die Szenenliste graue Verknüpfungszahlen.
 - Der URL-Slug wurde auch aus den Detail-Badges der Spielzeugliste entfernt; Detailseite und permanente URL bleiben auf der Spielzeugdetailseite.
 - Desktop- und Mobile-Menü sind optisch getrennt: `Start`, dann `Szenen`/`Spielsachen`/`Sessions`, dann `Bilder`, dann `Einstellungen`.
+
+## Domainwechsel auf playplaner.com
+
+- `playplaner.com` ist die neue primäre Systemdomain für sichtbare Domaintexte, `APP_URL`, Telegram-Links und neu erzeugte permanente URLs.
+- `play.fesselspiel.com` bleibt als zweite echte Nginx-Domain ohne Weiterleitung auf dieselbe Docker-App aktiv.
+- Bestehende Slugs und Pfade bleiben unverändert; nur die bevorzugte Basisdomain für neue Links wechselt.
+- Logout nutzt den aktuellen Request-Host, damit beide Domains unabhängig sauber funktionieren.
+
+## Startseite ohne Erreichbar-Kacheln
+
+- Der Schnellzugriffsbereich mit den Kacheln `Spiel`, `Szenen`, `Spielsachen`, `Sessions/Jahr`, `Bilder` und `Protokoll` wurde von der Startseite entfernt.
+- Die Startseite fokussiert damit auf Spielampel, zentrale Spiel-Aktionen, Ideensammlung, Wochenkalender und letzte Sessions.

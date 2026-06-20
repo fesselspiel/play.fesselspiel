@@ -52,7 +52,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
       <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-line bg-surface px-5 py-6 lg:block">
         <Link href="/" className="mb-8 block">
           <div className="text-xl font-semibold text-ink">Fesselspiel</div>
-          <div className="text-sm text-graphite">play.fesselspiel.com</div>
+          <div className="text-sm text-graphite">playplaner.com</div>
         </Link>
         <nav className="space-y-1">
           {primaryNav.map(([label, href, Icon]) => (

@@ -2,7 +2,7 @@
 
 ## Ziel
 
-`play.fesselspiel.com` ist eine private Webanwendung für Einzelpersonen und Paare. Die Plattform dient der persönlichen Dokumentation, Organisation und Automatisierung von Profilen, Bildern, Sessions, Spielzeugen, Szenen, Aktivitäten und Telegram-Interaktion.
+`playplaner.com` ist eine private Webanwendung für Einzelpersonen und Paare. Die Plattform dient der persönlichen Dokumentation, Organisation und Automatisierung von Profilen, Bildern, Sessions, Spielzeugen, Szenen, Aktivitäten und Telegram-Interaktion. `play.fesselspiel.com` bleibt als zweite echte Domain ohne Weiterleitung aktiv.
 
 ## Technische Basis
 
@@ -14,7 +14,8 @@
 - Auth: eigene Cookie/JWT-basierte Anmeldung
 - Deployment: Docker Compose auf VPS
 - Reverse Proxy: Docker-kompatibel, aktuell per externem HTTPS-Proxy vor dem App-Container
-- Hauptdomain: `https://play.fesselspiel.com`
+- Hauptdomain: `https://playplaner.com`
+- Zweitdomain ohne Weiterleitung: `https://play.fesselspiel.com`
 - Interner App-Port: `8097`
 
 ## Design

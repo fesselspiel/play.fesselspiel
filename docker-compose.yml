@@ -9,7 +9,7 @@ services:
     ports:
       - "127.0.0.1:${APP_PORT:-8097}:8097"
     environment:
-      APP_URL: ${APP_URL:-https://play.fesselspiel.com}
+      APP_URL: ${APP_URL:-https://playplaner.com}
       APP_HOST: ${APP_HOST:-0.0.0.0}
       APP_PORT: ${APP_PORT:-8097}
       DATABASE_URL: ${DATABASE_URL:-postgresql://fesselspiel:bitte_aendern@postgres:5432/fesselspiel}
@@ -27,7 +27,7 @@ services:
       - ./runtime-logs:/app/logs
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.playfesselspiel.rule=Host(`play.fesselspiel.com`)"
+      - "traefik.http.routers.playfesselspiel.rule=Host(`playplaner.com`) || Host(`play.fesselspiel.com`)"
       - "traefik.http.routers.playfesselspiel.entrypoints=websecure"
       - "traefik.http.routers.playfesselspiel.tls.certresolver=letsencrypt"
       - "traefik.http.services.playfesselspiel.loadbalancer.server.port=8097"
