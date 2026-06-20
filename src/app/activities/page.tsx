@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, ShieldCheck, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { Badge, EmptyState, PageGuide, PageHeader, SoftPanel } from "@/components/ui";
+import { Badge, EmptyState, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { activityStatusLabel, activityStatusTone } from "@/lib/activity-status";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
@@ -19,15 +19,57 @@ export default async function ActivitiesPage() {
     include: { tools: true, positions: true },
     orderBy: [{ status: "asc" }, { plannedAt: "asc" }]
   });
+  const selfBondagePositions = await prisma.position.findMany({
+    where: { ...(await ownerScope(user)), selfBondageCapable: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    take: 6
+  });
   return (
     <AppShell>
-      <PageHeader
-        title="Lass uns spielen"
-        action={<Link href="/activities/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" /> Spielidee</Link>}
-      />
+      <PageHeader title="Lass uns spielen" />
       <PageGuide title="Spielideen planen">
         Hier planst du gemeinsame Spielideen aus Bausteinen. Öffne einen Plan für Details oder erstelle eine neue Idee mit Datum, Status, Notiz, Spielsachen und Stellungen.
       </PageGuide>
+      <div className="mb-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <Panel className="text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-redbrand text-white">
+            <Sparkles className="h-6 w-6" />
+          </div>
+          <h2 className="text-2xl font-semibold text-ink">Spieltermin planen</h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-graphite">
+            Lege einen konkreten Termin an, wähle Spielsachen und Stellungen aus und entscheide, ob es direkt geplant oder erst angefragt ist.
+          </p>
+          <Link href="/activities/new" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md bg-redbrand px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-redbrandHover">
+            <Plus className="h-5 w-5" />
+            Neuen Spieltermin anlegen
+          </Link>
+        </Panel>
+        <Panel className="bg-paper">
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-sky-600 text-white">
+              <ShieldCheck className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-lg font-semibold text-ink">Self-Bondage-Vorbereitung</h2>
+              <p className="mt-2 text-sm leading-6 text-graphite">
+                Erstelle eine Aufgabe, bei der eine passende Self-Bondage-fähige Stellung vorbereitet und als Spielanfrage geplant wird.
+              </p>
+            </div>
+          </div>
+          {selfBondagePositions.length ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {selfBondagePositions.map((position) => (
+                <span key={position.id} className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-graphite">{position.name}</span>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-md bg-surface p-3 text-sm text-graphite">Markiere bei Stellungen das Feld „Self-Bondage-fähig“, damit sie hier als Vorbereitung auftauchen.</p>
+          )}
+          <Link href="/activities/new?template=self-bondage" className="focus-ring mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-sky-600 bg-sky-600 px-5 py-3 text-sm font-semibold text-white hover:bg-sky-700">
+            Vorbereitungsaufgabe planen
+          </Link>
+        </Panel>
+      </div>
       {activities.length ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {activities.map((activity) => (

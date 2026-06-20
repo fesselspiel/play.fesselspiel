@@ -3,7 +3,7 @@ import { ensureDefaultAlbum } from "@/lib/albums";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { answerWithPortalAgent } from "@/lib/telegram-agent";
-import { handleItemCreationDialogue, handleItemCreationImage } from "@/lib/telegram-item-dialogue";
+import { handleItemCreationDialogue, handleItemCreationImage, startAlbumCreationDialogue } from "@/lib/telegram-item-dialogue";
 import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
 import { logAction } from "@/lib/audit";
 import { fileAssetUrl, saveFileBuffer } from "@/lib/files";
@@ -30,6 +30,7 @@ const HELP_TEXT = `<b>Befehle</b>
 /kg - KG-Auswertung aktuelles Jahr
 /kg_start Notiz - KG-Tracker starten
 /kg_stop Notiz - KG-Tracker beenden
+/album_new Name - neues Album anlegen
 
 <b>Du kannst auch normal schreiben</b>
 Plane morgen um 20 Uhr einen Entspannungsabend mit Leder-Manschetten.
@@ -203,6 +204,10 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
     const open = sessions.filter((session) => !session.endTime).length;
     return [`<b>KG Time Tracker ${now.getFullYear()}</b>`, htmlLine("Einträge", sessions.length), htmlLine("Gesamtzeit", formatMinutes(total)), htmlLine("Offen", open), telegramLink(`${env.appUrl}/sessions?tracker=kg`, "KG Tracker öffnen")].join("\n");
+  }
+
+  if (parsed.command === "/album_new" || parsed.command === "/album") {
+    return startAlbumCreationDialogue(userId, parsed.args);
   }
 
   if (parsed.command === "/session_start") {

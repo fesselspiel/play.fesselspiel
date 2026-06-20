@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Pencil, Save } from "lucide-react";
+import { Eye, Pencil, Save, Square } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass, SoftPanel } from "@/components/ui";
 import { logAction } from "@/lib/audit";
@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
 import { moodAfter, moodBefore, moodScore, neutralMood } from "@/lib/moods";
 import { ensureSessionSlug, uniqueSessionSlug } from "@/lib/session-slug";
-import { stopSegufixSession } from "@/lib/session-actions";
+import { stopKgSession, stopSegufixSession } from "@/lib/session-actions";
 
 type MoodBeforeValue = keyof typeof moodBefore;
 type MoodAfterValue = keyof typeof moodAfter;
@@ -126,10 +126,18 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                 <h2 className="mb-3 text-lg font-semibold">Laufender KG-Tracker</h2>
                 <div className="space-y-2">
                   {openSessions.map((session) => (
-                    <Link key={session.id} href={`/sessions/kg/${session.id}`} className="block rounded-md border border-sky-600 bg-sky-600/10 p-3 text-sm hover:bg-sky-600/15">
-                      <strong>{formatDateTime(session.startTime)}</strong>
-                      <span className="ml-2 text-graphite">ohne Endzeit</span>
-                    </Link>
+                    <div key={session.id} className="rounded-md border border-sky-600 bg-sky-600/10 p-3 text-sm">
+                      <Link href={`/sessions/kg/${session.id}`} className="block hover:text-sky-700">
+                        <strong>{session.notes?.split("\n")[0] || "KG-Tracker"}</strong>
+                        <span className="ml-2 text-graphite">seit {formatDateTime(session.startTime)}</span>
+                      </Link>
+                      {session.ownerId === user.id ? (
+                        <form action={stopKgSession} className="mt-3">
+                          <input type="hidden" name="id" value={session.id} />
+                          <Button><Square className="h-4 w-4" /> KG-Tracker beenden</Button>
+                        </form>
+                      ) : null}
+                    </div>
                   ))}
                 </div>
               </Panel>
@@ -164,14 +172,30 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
               <h2 className="mb-4 text-lg font-semibold">Historie</h2>
               <div className="space-y-3">
                 {kgSessions.map((session) => (
-                  <Link key={session.id} href={`/sessions/kg/${session.id}`} className="block rounded-md border border-line p-3 hover:bg-paper">
+                  <div key={session.id} className="rounded-md border border-line p-3 hover:bg-paper">
+                    <Link href={`/sessions/kg/${session.id}`} className="block">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <strong>{formatDateTime(session.startTime)}</strong>
                       <span className="text-sm text-graphite">{formatMinutes(session.durationMinutes)}</span>
                     </div>
                     <p className="mt-1 text-sm text-graphite">Ende: {formatDateTime(session.endTime)}</p>
                     {session.notes ? <p className="mt-2 text-sm text-graphite">{session.notes}</p> : null}
-                  </Link>
+                    </Link>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Link href={`/sessions/kg/${session.id}`} className="focus-ring inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-paper">
+                        <Eye className="h-4 w-4" /> Details
+                      </Link>
+                      <Link href={`/sessions/kg/${session.id}/edit`} className="focus-ring inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-paper">
+                        <Pencil className="h-4 w-4" /> Bearbeiten
+                      </Link>
+                      {!session.endTime && session.ownerId === user.id ? (
+                        <form action={stopKgSession}>
+                          <input type="hidden" name="id" value={session.id} />
+                          <Button className="min-h-9 px-3 py-2"><Square className="h-4 w-4" /> Beenden</Button>
+                        </form>
+                      ) : null}
+                    </div>
+                  </div>
                 ))}
               </div>
             </Panel>

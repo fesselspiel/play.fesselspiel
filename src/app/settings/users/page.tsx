@@ -8,7 +8,7 @@ import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectC
 import { UsernameField } from "@/components/username-field";
 import { currentUser, requireAdmin } from "@/lib/auth";
 import { appTimeZone, formatDateTime } from "@/lib/dates";
-import { fileAssetUrl, saveUploadedFile } from "@/lib/files";
+import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 
 async function createUser(formData: FormData) {
@@ -69,14 +69,35 @@ async function updateCircle(formData: FormData) {
 async function updateUser(formData: FormData) {
   "use server";
   await requireAdmin();
+  const id = String(formData.get("id"));
+  const existing = await prisma.user.findUnique({ where: { id }, include: { profile: true } });
+  if (!existing) redirect("/settings/users");
   await prisma.user.update({
-    where: { id: String(formData.get("id")) },
+    where: { id },
     data: {
       role: String(formData.get("role") || "USER") as "ADMIN" | "USER",
       circleId: String(formData.get("circleId") || "") || null,
       active: formData.get("active") === "on"
     }
   });
+  const image = await saveUploadedFile(id, formData.get("profileImage") as File | null);
+  if (image) {
+    const previousFileId = fileIdFromUrl(existing.profile?.imageUrl);
+    await prisma.profile.upsert({
+      where: { userId: id },
+      update: { imageUrl: fileAssetUrl(image.id) },
+      create: { userId: id, displayName: existing.name, imageUrl: fileAssetUrl(image.id) }
+    });
+    if (previousFileId) await deleteOwnedFile(id, previousFileId);
+  } else if (formData.get("removeProfileImage") === "on") {
+    const previousFileId = fileIdFromUrl(existing.profile?.imageUrl);
+    await prisma.profile.upsert({
+      where: { userId: id },
+      update: { imageUrl: null },
+      create: { userId: id, displayName: existing.name, imageUrl: null }
+    });
+    if (previousFileId) await deleteOwnedFile(id, previousFileId);
+  }
   redirect("/settings/users");
 }
 
@@ -211,19 +232,25 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
             </details>
           </Panel>
           <Panel className="order-last" id="systemzeit">
-            <h2 className="mb-3 text-lg font-semibold">Systemzeit</h2>
-            <div className="space-y-1 text-sm text-graphite">
-              <div>App-Zeitzone: <strong className="text-ink">{appTimeZone}</strong></div>
-              <div>Anzeigezeit: <strong className="text-ink">{formatDateTime(adjustedNow)}</strong></div>
-              <div>Server UTC: <strong className="text-ink">{serverNow.toISOString()}</strong></div>
-            </div>
-            <form action={updateTimeSettings} className="mt-4 space-y-3">
-              <Field label="Zeitkorrektur in Minuten">
-                <input className={inputClass} name="timeOffsetMinutes" type="number" step="1" defaultValue={timeOffsetMinutes} />
-              </Field>
-              <p className="text-xs text-graphite">Beispiel: 60 addiert eine Stunde, -60 zieht eine Stunde ab.</p>
-              <SubmitButton pendingLabel="Zeit wird gespeichert...">Zeit speichern</SubmitButton>
-            </form>
+            <details className="group">
+              <summary className="focus-ring flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 text-lg font-semibold text-ink hover:text-redbrand [&::-webkit-details-marker]:hidden">
+                Systemzeit
+                <span className="text-sm font-medium text-graphite group-open:hidden">aufklappen</span>
+                <span className="hidden text-sm font-medium text-graphite group-open:inline">einklappen</span>
+              </summary>
+              <div className="mt-4 space-y-1 text-sm text-graphite">
+                <div>App-Zeitzone: <strong className="text-ink">{appTimeZone}</strong></div>
+                <div>Anzeigezeit: <strong className="text-ink">{formatDateTime(adjustedNow)}</strong></div>
+                <div>Server UTC: <strong className="text-ink">{serverNow.toISOString()}</strong></div>
+              </div>
+              <form action={updateTimeSettings} className="mt-4 space-y-3">
+                <Field label="Zeitkorrektur in Minuten">
+                  <input className={inputClass} name="timeOffsetMinutes" type="number" step="1" defaultValue={timeOffsetMinutes} />
+                </Field>
+                <p className="text-xs text-graphite">Beispiel: 60 addiert eine Stunde, -60 zieht eine Stunde ab.</p>
+                <SubmitButton pendingLabel="Zeit wird gespeichert...">Zeit speichern</SubmitButton>
+              </form>
+            </details>
           </Panel>
         </div>
         <Panel>
@@ -251,37 +278,49 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
                   </span>
                   <Badge tone={entry.active ? "green" : "neutral"}>{entry.active ? "aktiv" : "inaktiv"}</Badge>
                 </summary>
-              <form action={updateUser} className="grid gap-3 border-t border-line bg-surface p-3 xl:grid-cols-[1fr_140px_180px_110px_auto] xl:items-center">
+              <form action={updateUser} className="space-y-4 border-t border-line bg-surface p-3">
                 <input name="id" value={entry.id} type="hidden" />
-                <div className="flex min-w-0 items-center gap-3">
-                  {entry.profile?.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={entry.profile.imageUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
-                  ) : (
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-redbrand text-sm font-semibold text-white">{(entry.profile?.displayName || entry.name || entry.email).slice(0, 1).toUpperCase()}</span>
-                  )}
-                  <div className="min-w-0">
-                    <strong className="block truncate">{entry.profile?.displayName || entry.name || entry.email}</strong>
-                    <p className="truncate text-sm text-graphite">{entry.email}</p>
-                    <p className="truncate text-xs text-graphite">{entry.circle?.name || "Kein Kreis"}</p>
+                <div className="grid gap-3 xl:grid-cols-[1fr_140px_180px_110px_auto] xl:items-center">
+                  <div className="flex min-w-0 items-center gap-3">
+                    {entry.profile?.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={entry.profile.imageUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
+                    ) : (
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-redbrand text-sm font-semibold text-white">{(entry.profile?.displayName || entry.name || entry.email).slice(0, 1).toUpperCase()}</span>
+                    )}
+                    <div className="min-w-0">
+                      <strong className="block truncate">{entry.profile?.displayName || entry.name || entry.email}</strong>
+                      <p className="truncate text-sm text-graphite">{entry.email}</p>
+                      <p className="truncate text-xs text-graphite">{entry.circle?.name || "Kein Kreis"}</p>
+                    </div>
+                  </div>
+                  <select className={selectClass} name="role" defaultValue={entry.role}>
+                    <option value="USER">Benutzer</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                  <select className={selectClass} name="circleId" defaultValue={entry.circleId || ""}>
+                    <option value="">Kein Kreis</option>
+                    {circles.map((circle) => <option key={circle.id} value={circle.id}>{circle.name}</option>)}
+                  </select>
+                  <label className="flex items-center gap-2 text-sm text-graphite">
+                    <input name="active" type="checkbox" defaultChecked={entry.active} className="h-4 w-4 accent-redbrand" />
+                    aktiv
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Badge tone={entry.active ? "green" : "neutral"}>{entry.active ? "aktiv" : "inaktiv"}</Badge>
+                    <Button>Speichern</Button>
                   </div>
                 </div>
-                <select className={selectClass} name="role" defaultValue={entry.role}>
-                  <option value="USER">Benutzer</option>
-                  <option value="ADMIN">Admin</option>
-                </select>
-                <select className={selectClass} name="circleId" defaultValue={entry.circleId || ""}>
-                  <option value="">Kein Kreis</option>
-                  {circles.map((circle) => <option key={circle.id} value={circle.id}>{circle.name}</option>)}
-                </select>
-                <label className="flex items-center gap-2 text-sm text-graphite">
-                  <input name="active" type="checkbox" defaultChecked={entry.active} className="h-4 w-4 accent-redbrand" />
-                  aktiv
-                </label>
-                <div className="flex items-center gap-2">
-                  <Badge tone={entry.active ? "green" : "neutral"}>{entry.active ? "aktiv" : "inaktiv"}</Badge>
-                  <Button>Speichern</Button>
-                </div>
+                <FileUploadField
+                  name="profileImage"
+                  label="Profilbild"
+                  accept="image/*"
+                  currentUrl={entry.profile?.imageUrl}
+                  currentAlt={entry.profile?.displayName || entry.name || ""}
+                  removeName="removeProfileImage"
+                  removeLabel="Profilbild entfernen"
+                  help="Optional neues Profilbild auswählen."
+                />
               </form>
               </details>
             ))}

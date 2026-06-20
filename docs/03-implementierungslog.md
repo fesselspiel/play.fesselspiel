@@ -486,6 +486,7 @@ Details:
 - Alte Standardalben mit den Namen `Standard` oder `Eingang` werden automatisch in dieses persönliche Hauptalbum überführt.
 - Neue Uploads aus Webformularen, Session-Detailseiten, Import, externer API und Telegram landen automatisch im persönlichen Hauptalbum, wenn kein Album gesetzt ist.
 - Telegram-Bilduploads senden nach dem Speichern eine HTML-formatierte Albumauswahl mit anklickbaren `/media_album_...`-Kommandos.
+- Telegram-Befehl `/album_new` startet einen Dialog zum Album-Anlegen, wenn kein Name angegeben ist; `/album_new Name` legt direkt ein privates Album an.
 
 ## Telegram-Aktionsregeln
 
@@ -502,6 +503,7 @@ Details:
 - In der Bild-Detailansicht kann direkt ein neues Album für das geöffnete Bild angelegt werden.
 - Nach dem Anlegen bleibt die Detailansicht offen und das Bild wird sofort dem neuen Album zugeordnet.
 - Der Album-Bereich ist in `Neues Album`, `Medien verschieben` und `Alben verwalten` getrennt.
+- Diese drei Album-Werkzeuge sind innerhalb des Album-Bereichs nochmals einzeln einklappbar, damit der Bereich übersichtlich bleibt.
 - Album-Speichern nutzt den wiederverwendbaren `SubmitButton` mit Ladefeedback.
 - Sichtbarkeit heißt jetzt in der UI `Nur ich`, `Zirkel`, `Alle`.
 - Die Medienseite respektiert diese Sichtbarkeit: eigene Medien immer, Zirkel-Medien nur mit `Zirkel`/`Alle`, globale Medien mit `Alle`.
@@ -524,6 +526,8 @@ Details:
 - Alte Inhalte aus den beiden Stimmungstext-Feldern werden in Detail- und Bearbeitungsansicht in den gemeinsamen Kommentar übernommen.
 - Der KG Time Tracker nutzt statt `Notizen` das Feld `Sessionbeschreibung`.
 - KG-Historieneinträge und markierte KG-Kalendertage verlinken auf die neue Detailroute `/sessions/kg/[id]`.
+- KG-Einträge können über `/sessions/kg/[id]/edit` bearbeitet und gelöscht werden.
+- Laufende KG-Einträge können aus Übersicht und Detailseite beendet werden.
 - Segufix-Historienkarten verlinken zusätzlich über den Textbereich direkt auf die jeweilige Detailseite.
 - Die Sortierung der Stellungen ist nicht mehr prominent per Drag-and-drop sichtbar, sondern für Admins unten als eingeklappter Bereich mit Hoch-/Runter-Schaltern erreichbar.
 - Unter Einstellungen wurde ein Dark-Mode-Toggle eingefügt, auch im mobilen Hamburger-Menü zwischen Protokoll und Abmelden.
@@ -558,5 +562,16 @@ Details:
 - Audit-Protokolleinträge enthalten in der Protokollansicht jetzt zusätzlich den internen `action`-Key.
 - Jeder protokollierte Audit-Eintrag zeigt einen Link `Benachrichtigung`.
 - Der Link führt zu `/settings/telegram?action=<action>#notifications`.
+
+## KG-Bearbeitung, Telegram-Alben und Spielplanung
+
+- KG-Tracker-Einträge haben eine Bearbeitungsroute `/sessions/kg/[id]/edit`.
+- KG-Einträge können dort aktualisiert oder gelöscht werden.
+- Laufende KG-Einträge können aus Übersicht und Detailseite beendet werden.
+- Telegram-Befehl `/album_new` startet einen Dialog zum Album-Anlegen; `/album_new Name` legt direkt ein privates Album an.
+- In der Benutzerverwaltung ist die Systemzeit als einklappbarer Bereich umgesetzt.
+- Admins können beim Bearbeiten eines Benutzers dessen Profilbild hochladen oder entfernen.
+- `Lass uns spielen` zeigt oben einen großen zentralen Button `Neuen Spieltermin anlegen`.
+- Darunter gibt es eine Self-Bondage-Vorbereitung mit Button `Vorbereitungsaufgabe planen`; Stellungen mit `Self-Bondage-fähig` werden dort prominent angeboten und im neuen Spieltermin vorausgewählt.
 - Die Telegram-Einstellungsseite übernimmt diesen Query-Parameter und wählt die Aktion im Formular zum Anlegen einer Aktionsbenachrichtigung vor.
 - Falls die Aktion noch nicht in den bekannten Aktionen enthalten ist, wird sie dynamisch in die Auswahlliste aufgenommen.

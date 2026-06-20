@@ -50,7 +50,7 @@ async function createActivity(formData: FormData) {
   redirect(`/activities/${slug}`);
 }
 
-export default async function NewActivityPage({ searchParams }: { searchParams?: { date?: string } }) {
+export default async function NewActivityPage({ searchParams }: { searchParams?: { date?: string; template?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const scope = await ownerScope(user);
@@ -59,6 +59,12 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
     prisma.position.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] })
   ]);
   const defaultDate = String(searchParams?.date || "").match(/^\d{4}-\d{2}-\d{2}$/) ? String(searchParams?.date) : "";
+  const selfBondageTemplate = searchParams?.template === "self-bondage";
+  const defaultTitle = selfBondageTemplate ? "Self-Bondage-Vorbereitung" : "";
+  const defaultCategory = selfBondageTemplate ? "Self-Bondage" : "";
+  const defaultNote = selfBondageTemplate
+    ? "Vorbereitungsaufgabe: Richte eine passende Position ein, lege benötigte Spielsachen bereit und dokumentiere, was vorbereitet wurde."
+    : "";
   return (
     <AppShell>
       <PageHeader title="Lass uns spielen" />
@@ -67,8 +73,8 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
       </PageGuide>
       <form action={createActivity} className="grid gap-6 xl:grid-cols-[1fr_420px]">
         <div className="space-y-4">
-          <Field label="Spielidee"><input className={inputClass} name="title" required placeholder="Entspannungsabend" /></Field>
-          <Field label="Kategorie"><input className={inputClass} name="category" placeholder="Entspannung, Bondage, Foto-Session" /></Field>
+          <Field label="Spieltermin"><input className={inputClass} name="title" required placeholder="Entspannungsabend" defaultValue={defaultTitle} /></Field>
+          <Field label="Kategorie"><input className={inputClass} name="category" placeholder="Entspannung, Bondage, Foto-Session" defaultValue={defaultCategory} /></Field>
           <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" placeholder="entspannungsabend" /></Field>
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Datum"><input className={inputClass} name="date" type="date" defaultValue={defaultDate} /></Field>
@@ -78,12 +84,12 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
               </select>
             </Field>
             <Field label="Status">
-              <select className={selectClass} name="status" defaultValue="PLANNED">
+              <select className={selectClass} name="status" defaultValue={selfBondageTemplate ? "REQUESTED" : "PLANNED"}>
                 {Object.entries(activityStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </Field>
           </div>
-          <Field label="Notiz"><textarea className={inputClass} name="note" rows={6} /></Field>
+          <Field label="Notiz"><textarea className={inputClass} name="note" rows={6} defaultValue={defaultNote} /></Field>
           <Button><Save className="h-4 w-4" /> Plan speichern</Button>
         </div>
         <div className="space-y-5">
@@ -105,8 +111,11 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
             <div className="space-y-2">
               {positions.map((position) => (
                 <label key={position.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">
-                  <input name="positions" value={position.id} type="checkbox" className="h-4 w-4 accent-redbrand" />
-                  <span>{position.name}</span>
+                  <input name="positions" value={position.id} type="checkbox" defaultChecked={selfBondageTemplate && position.selfBondageCapable} className="h-4 w-4 accent-redbrand" />
+                  <span className="min-w-0">
+                    <span className="block font-medium">{position.name}</span>
+                    {position.selfBondageCapable ? <span className="block text-xs text-sky-700">Self-Bondage-fähig</span> : null}
+                  </span>
                 </label>
               ))}
             </div>

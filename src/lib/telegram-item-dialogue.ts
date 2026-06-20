@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
 import { telegramHtml, telegramLink } from "@/lib/telegram";
 
-type DraftKind = "toy" | "position";
+type DraftKind = "toy" | "position" | "album";
 type DraftStatus = "ACTIVE" | "DONE" | "CANCELLED";
 
 type ItemDraft = {
@@ -37,7 +37,7 @@ function parseDraft(body: string): ItemDraft | null {
   if (!body.startsWith(DRAFT_PREFIX)) return null;
   try {
     const parsed = JSON.parse(body.slice(DRAFT_PREFIX.length).trim()) as ItemDraft;
-    if ((parsed.kind === "toy" || parsed.kind === "position") && ["ACTIVE", "DONE", "CANCELLED"].includes(parsed.status)) return parsed;
+    if ((parsed.kind === "toy" || parsed.kind === "position" || parsed.kind === "album") && ["ACTIVE", "DONE", "CANCELLED"].includes(parsed.status)) return parsed;
   } catch {
     return null;
   }
@@ -72,6 +72,7 @@ function initialKind(text: string): DraftKind | null {
   if (!createIntent) return null;
   if (/(spielzeug|toy|equipment|ausruestung|ausrüstung)/i.test(normalized)) return "toy";
   if (/(stellung|position)/i.test(normalized)) return "position";
+  if (/(album|galerie)/i.test(normalized)) return "album";
   return null;
 }
 
@@ -86,7 +87,9 @@ function initialTitle(text: string, kind: DraftKind) {
   const pattern =
     kind === "toy"
       ? /(?:spielzeug|toy|equipment|ausruestung|ausrüstung)\s+(.+?)(?:\s+(?:anlegen|erstellen|speichern|hinzufügen|hinzufügen))?$/i
-      : /(?:stellung|position)\s+(.+?)(?:\s+(?:anlegen|erstellen|speichern|hinzufügen|hinzufügen))?$/i;
+      : kind === "position"
+        ? /(?:stellung|position)\s+(.+?)(?:\s+(?:anlegen|erstellen|speichern|hinzufügen|hinzufügen))?$/i
+        : /(?:album|galerie)\s+(.+?)(?:\s+(?:anlegen|erstellen|speichern|hinzufügen|hinzufügen))?$/i;
   const match = text.match(pattern);
   const candidate = match ? clean(match[1]) : "";
   if (!candidate || /^(anlegen|erstellen|neu|hinzufügen|hinzufügen)$/i.test(candidate)) return "";
@@ -94,6 +97,11 @@ function initialTitle(text: string, kind: DraftKind) {
 }
 
 function nextQuestion(draft: ItemDraft) {
+  if (draft.kind === "album") {
+    if (!draft.fields.title) return "Wie soll das Album heißen?";
+    return null;
+  }
+
   if (draft.kind === "toy") {
     if (!draft.fields.title) return "Wie soll das Spielzeug heissen?";
     if (!draft.fields.description) return "Welche Beschreibung soll auf die Detailseite?";
@@ -117,6 +125,11 @@ function needsImage(draft: ItemDraft) {
 
 function applyAnswer(draft: ItemDraft, text: string) {
   const answer = clean(text);
+  if (draft.kind === "album") {
+    if (!draft.fields.title) draft.fields.title = answer;
+    return draft;
+  }
+
   if (draft.kind === "toy") {
     if (!draft.fields.title) draft.fields.title = answer;
     else if (!draft.fields.description) draft.fields.description = answer;
@@ -153,6 +166,19 @@ async function matchingToys(userId: string, titles: string[]) {
 }
 
 async function createFromDraft(userId: string, draft: ItemDraft) {
+  if (draft.kind === "album") {
+    const title = draft.fields.title || "";
+    const album = await prisma.album.create({
+      data: {
+        ownerId: userId,
+        title,
+        description: "Per Telegram angelegt.",
+        visibility: "PRIVATE"
+      }
+    });
+    return `<b>Album angelegt</b>\n${telegramHtml(album.title)}\n${telegramLink(link(`/media?album=${album.id}`), "in Medien öffnen")}`;
+  }
+
   if (draft.kind === "toy") {
     const title = draft.fields.title || "";
     const description = draft.fields.description || "";
@@ -210,13 +236,27 @@ export async function handleItemCreationDialogue(userId: string, text: string) {
   const draft: ItemDraft = { kind, status: "ACTIVE", fields: {} };
   const title = initialTitle(trimmed, kind);
   if (title) {
-    if (kind === "toy") draft.fields.title = title;
+    if (kind === "toy" || kind === "album") draft.fields.title = title;
     else draft.fields.name = title;
   }
   const question = nextQuestion(draft);
   if (question) {
     await saveDraft(userId, draft);
-    return `${kind === "toy" ? "Ich erfasse ein neues Spielzeug." : "Ich erfasse eine neue Stellung."}\n${question}`;
+    const label = kind === "toy" ? "ein neues Spielzeug" : kind === "position" ? "eine neue Stellung" : "ein neues Album";
+    return `Ich erfasse ${label}.\n${question}`;
+  }
+  const result = await createFromDraft(userId, draft);
+  await saveDraft(userId, { ...draft, status: "DONE" });
+  return result;
+}
+
+export async function startAlbumCreationDialogue(userId: string, title?: string) {
+  const draft: ItemDraft = { kind: "album", status: "ACTIVE", fields: {} };
+  if (title) draft.fields.title = clean(title);
+  const question = nextQuestion(draft);
+  if (question) {
+    await saveDraft(userId, draft);
+    return `Ich erfasse ein neues Album.\n${question}`;
   }
   const result = await createFromDraft(userId, draft);
   await saveDraft(userId, { ...draft, status: "DONE" });

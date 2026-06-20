@@ -31,3 +31,29 @@ export async function stopSegufixSession(formData: FormData) {
   });
   redirect(`/sessions/${slug}`);
 }
+
+export async function stopKgSession(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const id = String(formData.get("id") || "");
+  const session = await prisma.kgSession.findFirst({ where: { id, ownerId: user.id, endTime: null } });
+  if (!session) notFound();
+  const endTime = new Date();
+  const updated = await prisma.kgSession.update({
+    where: { id: session.id },
+    data: {
+      endTime,
+      durationMinutes: minutesBetween(session.startTime, endTime)
+    }
+  });
+  await logAction({
+    actorId: user.id,
+    action: "kg_stopped",
+    entityType: "kgSession",
+    entityId: updated.id,
+    title: "KG-Tracker beendet",
+    href: `/sessions/kg/${updated.id}`
+  });
+  redirect(`/sessions/kg/${updated.id}`);
+}

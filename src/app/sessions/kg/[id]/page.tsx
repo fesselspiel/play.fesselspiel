@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { Pencil, Square } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
+import { Button, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
+import { stopKgSession } from "@/lib/session-actions";
 
 export default async function KgSessionDetailPage({ params }: { params: { id: string } }) {
   const user = await currentUser();
@@ -20,10 +21,15 @@ export default async function KgSessionDetailPage({ params }: { params: { id: st
         title="KG Time Tracker"
         subtitle={formatDateTime(session.startTime)}
         action={
-          <Link href="/sessions?tracker=kg" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
-            <Pencil className="h-4 w-4" />
-            Zur Historie
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/sessions/kg/${session.id}/edit`} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
+              <Pencil className="h-4 w-4" />
+              Bearbeiten
+            </Link>
+            <Link href="/sessions?tracker=kg" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
+              Zur Historie
+            </Link>
+          </div>
         }
       />
       <PageGuide title="KG-Eintrag im Detail">
@@ -48,6 +54,16 @@ export default async function KgSessionDetailPage({ params }: { params: { id: st
           <h2 className="mb-3 text-lg font-semibold">Sessionbeschreibung</h2>
           <p className="whitespace-pre-wrap text-sm leading-6 text-graphite">{session.notes || "Keine Beschreibung hinterlegt."}</p>
         </Panel>
+        {!session.endTime && session.ownerId === user.id ? (
+          <Panel>
+            <h2 className="mb-3 text-lg font-semibold">Laufender Eintrag</h2>
+            <p className="mb-4 text-sm text-graphite">Dieser KG-Tracker hat noch keine Endzeit. Mit dem Button wird die Endzeit auf jetzt gesetzt.</p>
+            <form action={stopKgSession}>
+              <input type="hidden" name="id" value={session.id} />
+              <Button><Square className="h-4 w-4" /> KG-Tracker beenden</Button>
+            </form>
+          </Panel>
+        ) : null}
       </div>
     </AppShell>
   );

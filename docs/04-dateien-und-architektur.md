@@ -92,6 +92,8 @@ Telegram-Formatierung:
 
 - `src/app/sessions/page.tsx`
 - `src/app/sessions/[id]/edit/page.tsx`
+- `src/app/sessions/kg/[id]/page.tsx`
+- `src/app/sessions/kg/[id]/edit/page.tsx`
 
 ### Medien und Protokoll
 
@@ -147,7 +149,7 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `SegufixSession`: Session-Tracking.
 - `KgSession`: KG-Tragezeit-Tracking mit Start, Ende, Dauer und Notiz.
 - `Album`: Medienalbum mit Standardsichtbarkeit.
-- `Media`: Bild oder Video; neue Medien werden immer einem Album zugeordnet, standardmäßig `Standard`. `Media.visibility` ist optional: `null` bedeutet, dass die Sichtbarkeit des Albums gilt; ein gesetzter Wert überschreibt das Album nur für dieses Medium.
+- `Media`: Bild oder Video; neue Medien werden immer einem Album zugeordnet, standardmäßig dem persönlichen Hauptalbum des Benutzers. `Media.visibility` ist optional: `null` bedeutet, dass die Sichtbarkeit des Albums gilt; ein gesetzter Wert überschreibt das Album nur für dieses Medium.
 - `MediaComment`: Kommentar oder Notiz zu einem Medium.
 - `Event`: Termin.
 - `CheckIn`: Teilnahme/Check-in.
@@ -183,6 +185,10 @@ UI-Hinweis:
 - `/settings/telegram#notifications`: Admin-Oberfläche zum Erstellen, Bearbeiten und Löschen der Regeln.
 - `/settings/telegram?action=<action>#notifications`: öffnet die Aktionsbenachrichtigungen mit vorausgewählter Aktion.
 - `/messages`: Protokoll mit Direktlink aus Audit-Einträgen zur passenden Telegram-Aktionsbenachrichtigung.
+- Telegram-Befehl `/album_new` startet einen Dialog zum Anlegen eines Albums; `/album_new Name` legt es direkt an.
+- `src/app/settings/users/page.tsx`: Admin-Benutzerverwaltung inklusive Kreisen, einklappbarer Systemzeit und Profilbildänderung für Benutzer.
+- `src/app/activities/page.tsx`: prominente Spieltermin-Planung und Self-Bondage-Vorbereitungsbereich.
+- `src/app/activities/new/page.tsx?template=self-bondage`: vorbelegter Spieltermin mit Self-Bondage-fähigen Stellungen.
 
 ## Wiederverwendbare UI-Helfer
 
