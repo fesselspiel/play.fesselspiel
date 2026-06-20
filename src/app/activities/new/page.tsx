@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Save } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { SelfBondagePositionChoice } from "@/components/self-bondage-position-choice";
 import { SelfBondageScheduleFields } from "@/components/self-bondage-schedule-fields";
 import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
@@ -9,6 +10,17 @@ import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
+
+function selfBondagePositionNote(choice: string, customText: string) {
+  if (choice === "custom") return `Stellung: ${customText}`;
+  if (choice === "surprise") return "Stellung: Denk dir was aus.";
+  return "";
+}
+
+function appendSelfBondagePositionNote(note: string, choice: string, customText: string) {
+  const positionNote = selfBondagePositionNote(choice, customText);
+  return [note, positionNote].filter(Boolean).join("\n\n");
+}
 
 async function createActivity(formData: FormData) {
   "use server";
@@ -22,20 +34,30 @@ async function createActivity(formData: FormData) {
   const withoutSchedule = selfBondageTemplate && formData.get("noSchedule") === "on";
   const plannedAt = !withoutSchedule && date ? new Date(`${date}T${time || "20:00"}:00`) : null;
   const toolIds = selfBondageTemplate ? [] : formData.getAll("tools").map(String);
-  const positionIds = formData.getAll("positions").map(String);
+  const selfBondageChoice = String(formData.get("selfBondageChoice") || "");
+  const selfBondageCustomText = String(formData.get("selfBondageCustomText") || "").trim();
+  if (selfBondageTemplate && !selfBondageChoice) redirect("/activities/new?template=self-bondage&error=position");
+  if (selfBondageTemplate && selfBondageChoice === "custom" && !selfBondageCustomText) redirect("/activities/new?template=self-bondage&error=position-text");
+  const positionIds = selfBondageTemplate
+    ? selfBondageChoice.startsWith("position:") ? [selfBondageChoice.replace("position:", "")].filter(Boolean) : []
+    : formData.getAll("positions").map(String);
   const scope = await ownerScope(user);
   const [accessibleTools, accessiblePositions] = await Promise.all([
     toolIds.length ? prisma.toy.findMany({ where: { ...scope, id: { in: toolIds } }, select: { id: true } }) : [],
     positionIds.length ? prisma.position.findMany({ where: { ...scope, id: { in: positionIds }, ...(selfBondageTemplate ? { selfBondageCapable: true } : {}) }, select: { id: true } }) : []
   ]);
+  if (selfBondageTemplate && selfBondageChoice.startsWith("position:") && accessiblePositions.length !== 1) redirect("/activities/new?template=self-bondage&error=position");
   const status = String(formData.get("status") || "PLANNED") as ActivityStatusValue;
+  const note = selfBondageTemplate
+    ? appendSelfBondagePositionNote(String(formData.get("note") || "").trim(), selfBondageChoice, selfBondageCustomText)
+    : String(formData.get("note") || "").trim();
   const activity = await prisma.activityPlan.create({
     data: {
       ownerId: user.id,
       title,
       slug,
       category: selfBondageTemplate ? "SELF_BONDAGE_ORDER" : String(formData.get("category") || "").trim(),
-      note: String(formData.get("note") || "").trim(),
+      note,
       plannedAt,
       status,
       tools: { connect: accessibleTools.map(({ id }) => ({ id })) },
@@ -53,7 +75,7 @@ async function createActivity(formData: FormData) {
   redirect(`/activities/${slug}`);
 }
 
-export default async function NewActivityPage({ searchParams }: { searchParams?: { date?: string; template?: string } }) {
+export default async function NewActivityPage({ searchParams }: { searchParams?: { date?: string; template?: string; error?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const scope = await ownerScope(user);
@@ -69,6 +91,11 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
     : "";
   const statusOptions = activityStatusOptions(selfBondageTemplate);
   const timeOptions = quarterHourOptions();
+  const positionError = searchParams?.error === "position-text"
+    ? "Bitte gib einen Freitext ein oder wähle eine Stellung."
+    : searchParams?.error === "position"
+      ? "Bitte wähle genau eine Stellung, Freitext oder „Denk dir was aus“."
+      : "";
   return (
     <AppShell>
       <PageHeader title={selfBondageTemplate ? "Self-Bondage-Auftrag" : "Lass uns spielen"} />
@@ -128,23 +155,27 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
               ))}
             </div>
           </section> : null}
+          {selfBondageTemplate ? (
+            <SelfBondagePositionChoice
+              positions={positions.map((position) => ({ id: position.id, name: position.name }))}
+              error={positionError}
+            />
+          ) : (
           <section>
-            <h2 className="mb-2 text-sm font-semibold text-graphite">{selfBondageTemplate ? "Self-Bondage-fähige Stellungen" : "Stellungen"}</h2>
+            <h2 className="mb-2 text-sm font-semibold text-graphite">Stellungen</h2>
             <div className="space-y-2">
               {positions.map((position) => (
                 <label key={position.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">
-                  <input name="positions" value={position.id} type="checkbox" defaultChecked={selfBondageTemplate} className="h-4 w-4 accent-redbrand" />
+                  <input name="positions" value={position.id} type="checkbox" className="h-4 w-4 accent-redbrand" />
                   <span className="min-w-0">
                     <span className="block font-medium">{position.name}</span>
                     {position.selfBondageCapable ? <span className="block text-xs text-sky-700">Self-Bondage-fähig</span> : null}
                   </span>
                 </label>
               ))}
-              {selfBondageTemplate && !positions.length ? (
-                <p className="rounded-md bg-paper p-3 text-sm text-graphite">Es gibt noch keine Stellung mit dem Feld „Self-Bondage-fähig“.</p>
-              ) : null}
             </div>
           </section>
+          )}
         </div>
       </form>
     </AppShell>

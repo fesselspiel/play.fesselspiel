@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   Download,
   Eye,
   FileLock2,
@@ -35,6 +37,7 @@ type MediaSearchParams = {
   visibility?: string;
   q?: string;
   view?: string;
+  viewer?: string;
 };
 
 function parsedVisibility(value: FormDataEntryValue | null) {
@@ -342,6 +345,10 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
   const baseFilters = { album: albumFilter, kind: kindFilter, visibility: visibilityFilter, q };
   const closeUrl = mediaUrl({ ...baseFilters, view: undefined });
   const selectedUrl = selected ? mediaUrl({ ...baseFilters, view: selected.id }) : "/media";
+  const selectedIndex = selected ? media.findIndex((entry) => entry.id === selected.id) : -1;
+  const previousMedia = selectedIndex >= 0 && media.length > 1 ? media[(selectedIndex - 1 + media.length) % media.length] : null;
+  const nextMedia = selectedIndex >= 0 && media.length > 1 ? media[(selectedIndex + 1) % media.length] : null;
+  const fullscreenUrl = selected ? mediaUrl({ ...baseFilters, view: selected.id, viewer: "1" }) : "/media";
   const selectedAlbumForUi = selected?.albumId ? albums.find((album) => album.id === selected.albumId) : null;
   const explicitCoverIds = albums.map((album) => album.coverMediaId).filter((id): id is string => Boolean(id));
   const explicitCoverMedia = explicitCoverIds.length
@@ -374,10 +381,10 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
       </PageGuide>
 
       <div className="space-y-4">
-        <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8">
           <Link
             href={mediaUrl({ ...baseFilters, album: undefined, view: undefined })}
-            className={`focus-ring group relative block h-28 w-28 shrink-0 overflow-hidden rounded-lg border bg-paper shadow-soft sm:h-32 sm:w-32 ${!albumFilter ? "border-redbrand ring-2 ring-redbrand/25" : "border-line hover:border-redbrand/50"}`}
+            className={`focus-ring group relative block aspect-square overflow-hidden rounded-lg border bg-paper shadow-soft ${!albumFilter ? "border-redbrand ring-2 ring-redbrand/25" : "border-line hover:border-redbrand/50"}`}
           >
             {allCover ? (
               allCover.kind === "IMAGE" ? (
@@ -401,7 +408,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
               <Link
                 key={album.id}
                 href={mediaUrl({ ...baseFilters, album: album.id, view: undefined })}
-                className={`focus-ring group relative block h-28 w-28 shrink-0 overflow-hidden rounded-lg border bg-paper shadow-soft sm:h-32 sm:w-32 ${albumFilter === album.id ? "border-redbrand ring-2 ring-redbrand/25" : "border-line hover:border-redbrand/50"}`}
+                className={`focus-ring group relative block aspect-square overflow-hidden rounded-lg border bg-paper shadow-soft ${albumFilter === album.id ? "border-redbrand ring-2 ring-redbrand/25" : "border-line hover:border-redbrand/50"}`}
               >
                 {cover ? (
                   cover.kind === "IMAGE" ? (
@@ -634,8 +641,10 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                 <X className="h-5 w-5" />
               </Link>
               {selected.kind === "IMAGE" ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={selected.url} alt={selected.title} className="h-full max-h-[70vh] w-full object-contain lg:max-h-none" />
+                <Link href={fullscreenUrl} scroll={false} className="focus-ring block h-full">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={selected.url} alt={selected.title} className="h-full max-h-[70vh] w-full object-contain lg:max-h-none" />
+                </Link>
               ) : (
                 <video src={selected.url} className="h-full max-h-[70vh] w-full object-contain lg:max-h-none" controls autoPlay />
               )}
@@ -725,6 +734,50 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                 </form>
               </div>
             </aside>
+          </div>
+        </div>
+      ) : null}
+
+      {selected && searchParams.viewer === "1" ? (
+        <div className="fixed inset-0 z-[60] bg-black">
+          <Link
+            href={selectedUrl}
+            scroll={false}
+            className="focus-ring absolute right-3 top-3 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/12 text-white backdrop-blur hover:bg-white/20 sm:right-5 sm:top-5"
+            aria-label="Vollbild schließen"
+          >
+            <X className="h-6 w-6" />
+          </Link>
+          {previousMedia ? (
+            <Link
+              href={mediaUrl({ ...baseFilters, view: previousMedia.id, viewer: "1" })}
+              scroll={false}
+              className="focus-ring absolute left-2 top-1/2 z-20 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/12 text-white backdrop-blur hover:bg-white/20 sm:left-5"
+              aria-label="Vorheriges Medium"
+            >
+              <ChevronLeft className="h-7 w-7" />
+            </Link>
+          ) : null}
+          {nextMedia ? (
+            <Link
+              href={mediaUrl({ ...baseFilters, view: nextMedia.id, viewer: "1" })}
+              scroll={false}
+              className="focus-ring absolute right-2 top-1/2 z-20 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/12 text-white backdrop-blur hover:bg-white/20 sm:right-5"
+              aria-label="Nächstes Medium"
+            >
+              <ChevronRight className="h-7 w-7" />
+            </Link>
+          ) : null}
+          <div className="flex h-full w-full items-center justify-center p-3 sm:p-6">
+            {selected.kind === "IMAGE" ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={selected.url} alt={selected.title} className="max-h-full max-w-full object-contain" />
+            ) : (
+              <video src={selected.url} className="max-h-full max-w-full object-contain" controls autoPlay />
+            )}
+          </div>
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 text-white sm:p-6">
+            <p className="max-w-[calc(100%-6rem)] truncate text-sm font-semibold sm:text-base">{selected.title}</p>
           </div>
         </div>
       ) : null}

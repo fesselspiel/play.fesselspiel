@@ -581,6 +581,7 @@ Details:
 - Für Self-Bondage-Aufträge werden nur Stellungen angeboten, die als `Self-Bondage-fähig` markiert sind.
 - Self-Bondage-Aufträge können `Ohne Datum/Uhrzeit` gespeichert werden; dann gilt der Auftrag sofort beim Lesen und die Termin-Felder werden im Formular ausgeblendet.
 - Self-Bondage-Aufträge nutzen eigene Statuswörter: `beauftragt`, `angenommen`, `umgesetzt`, `verworfen`.
+- Self-Bondage-Aufträge verlangen genau eine Auftragsstellung: eine `Self-Bondage-fähige` Stellung, Freitext oder `Denk dir was aus`; ohne Auswahl wird nicht gespeichert.
 
 ## Bildzuschnitt beim Upload
 
@@ -590,5 +591,13 @@ Details:
 - Spielzeug- und Stellungsbilder nutzen standardmäßig ein Querformat.
 - Medienuploads bleiben unverändert, damit die Galerie Originalbilder und Videos behalten kann.
 - Der Zuschnitt speichert PNG/WebP-Quellen als PNG, damit transparente Hintergründe nicht durch JPEG-Konvertierung verloren gehen.
+- Bereits gespeicherte Bilder können im Bearbeiten-Dialog über `Aktuelles Bild neu zuschneiden` erneut geladen, zugeschnitten und ersetzt werden.
 - Die Telegram-Einstellungsseite übernimmt diesen Query-Parameter und wählt die Aktion im Formular zum Anlegen einer Aktionsbenachrichtigung vor.
 - Falls die Aktion noch nicht in den bekannten Aktionen enthalten ist, wird sie dynamisch in die Auswahlliste aufgenommen.
+
+## Medien-Vollbildansicht und Albenraster
+
+- Die Album-Auswahl auf der Medienseite ist kein horizontaler Scrollstreifen mehr.
+- Alben werden als eigenes Raster angezeigt, mobil mit vier Spalten, damit sie sich vom dreispaltigen Medienfeed unterscheiden.
+- Ein Klick auf das Bild in der Mediendetailansicht öffnet eine Vollbildansicht.
+- Die Vollbildansicht nutzt URL-State (`viewer=1`), zeigt oben ein `X` zurück zur Detailansicht und links/rechts Pfeile zum vorherigen oder nächsten Medium.

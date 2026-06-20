@@ -41,7 +41,7 @@ async function updatePosition(formData: FormData) {
     }
   });
 
-  if ((image || removeImage) && oldFileId) await deleteOwnedFile(user.id, oldFileId);
+  if ((uploadedImageUrl || image || removeImage) && oldFileId) await deleteOwnedFile(user.id, oldFileId);
   redirect(`/positions/${slug}`);
 }
 

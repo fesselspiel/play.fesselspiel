@@ -4,6 +4,7 @@ import { Check, Crop, ImagePlus, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type CropAspect = "landscape" | "square" | "portrait" | "free";
+type UploadState = "idle" | "cropping" | "loading-current" | "uploading" | "ready" | "error";
 
 type FileUploadFieldProps = {
   name: string;
@@ -60,6 +61,17 @@ function keepsTransparency(file: File) {
   return ["image/png", "image/webp"].includes(file.type);
 }
 
+function extensionForMime(mimeType: string) {
+  if (mimeType === "image/png") return "png";
+  if (mimeType === "image/webp") return "webp";
+  if (mimeType === "image/gif") return "gif";
+  return "jpg";
+}
+
+function safeBaseName(value: string) {
+  return value.trim().toLowerCase().replace(/\.[^.]+$/, "").replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "bild";
+}
+
 async function cropImageFile(file: File, sourceUrl: string, aspect: CropAspect, x: number, y: number, zoom: number) {
   const image = await loadImage(sourceUrl);
   const sourceWidth = image.naturalWidth;
@@ -105,7 +117,7 @@ export function FileUploadField({
   const [file, setFile] = useState<File | null>(null);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState("");
-  const [uploadState, setUploadState] = useState<"idle" | "cropping" | "uploading" | "ready" | "error">("idle");
+  const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [uploadMessage, setUploadMessage] = useState("");
   const [removeCurrent, setRemoveCurrent] = useState(false);
   const [cropAspect, setCropAspect] = useState<CropAspect>(imageCropAspect);
@@ -189,6 +201,34 @@ export function FileUploadField({
     setUploadMessage("Ausschnitt geändert. Bitte erneut übernehmen.");
   }
 
+  async function loadCurrentForCrop() {
+    if (!currentUrl) return;
+    setUploadState("loading-current");
+    setUploadMessage("Aktuelles Bild wird geladen...");
+    try {
+      const response = await fetch(currentUrl, { credentials: "include" });
+      if (!response.ok) throw new Error("Aktuelles Bild konnte nicht geladen werden.");
+      const blob = await response.blob();
+      if (!blob.type.startsWith("image/")) throw new Error("Die aktuelle Datei ist kein Bild.");
+      const currentFile = new File([blob], `${safeBaseName(currentAlt || label)}.${extensionForMime(blob.type)}`, {
+        type: blob.type,
+        lastModified: Date.now()
+      });
+      setSourceFile(currentFile);
+      setFile(currentFile);
+      setUploadedUrl("");
+      setRemoveCurrent(false);
+      setCropX(50);
+      setCropY(50);
+      setCropZoom(1);
+      setUploadState("cropping");
+      setUploadMessage("Wähle den neuen Bildausschnitt und übernimm ihn danach.");
+    } catch (error) {
+      setUploadMessage(error instanceof Error ? error.message : "Aktuelles Bild konnte nicht geladen werden.");
+      setUploadState("error");
+    }
+  }
+
   async function applyCrop() {
     if (!sourceFile || !sourceUrl) return;
     setUploadState("uploading");
@@ -238,6 +278,13 @@ export function FileUploadField({
         </div>
       ) : null}
 
+      {currentUrl && !sourceFile && enableImageCrop && accept?.includes("image") ? (
+        <button type="button" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-line bg-surface px-3 py-1.5 text-sm font-semibold hover:bg-paper" onClick={loadCurrentForCrop}>
+          <Crop className="h-4 w-4 text-redbrand" />
+          Aktuelles Bild neu zuschneiden
+        </button>
+      ) : null}
+
       <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-line bg-surface px-4 py-5 text-center text-sm text-graphite transition hover:bg-paper focus-within:outline-none focus-within:ring-2 focus-within:ring-redbrand/30 focus-within:ring-offset-2">
         <input
           ref={inputRef}
@@ -273,7 +320,7 @@ export function FileUploadField({
         <span className="font-semibold text-ink">{sourceFile ? sourceFile.name : "Datei auswählen"}</span>
         <span>
           {sourceFile
-            ? uploadState === "uploading"
+            ? uploadState === "uploading" || uploadState === "loading-current"
               ? `${Math.round(sourceFile.size / 1024)} KB ausgewählt, Verarbeitung läuft...`
               : `${Math.round(sourceFile.size / 1024)} KB ausgewählt`
             : help || "Tippen, um eine Datei auszuwählen."}

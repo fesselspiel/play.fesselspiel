@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { SelfBondagePositionChoice } from "@/components/self-bondage-position-choice";
 import { SelfBondageScheduleFields } from "@/components/self-bondage-schedule-fields";
 import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
 import { activityStatusLabel, activityStatusOptions, type ActivityStatusValue } from "@/lib/activity-status";
@@ -10,6 +11,32 @@ import { currentUser } from "@/lib/auth";
 import { formatDateTimeLocal } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlugForUpdate } from "@/lib/slug";
+
+function positionNoteValue(note?: string | null) {
+  const match = String(note || "").match(/^Stellung:\s*(.+)$/m);
+  return match?.[1]?.trim() || "";
+}
+
+function stripPositionNote(note: string) {
+  return note
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("Stellung:"))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function selfBondagePositionNote(choice: string, customText: string) {
+  if (choice === "custom") return `Stellung: ${customText}`;
+  if (choice === "surprise") return "Stellung: Denk dir was aus.";
+  return "";
+}
+
+function appendSelfBondagePositionNote(note: string, choice: string, customText: string) {
+  const cleanNote = stripPositionNote(note);
+  const positionNote = selfBondagePositionNote(choice, customText);
+  return [cleanNote, positionNote].filter(Boolean).join("\n\n");
+}
 
 async function updateActivity(formData: FormData) {
   "use server";
@@ -26,11 +53,21 @@ async function updateActivity(formData: FormData) {
   const plannedAtRaw = String(formData.get("plannedAt") || "");
   const withoutSchedule = selfBondageOrder && formData.get("noSchedule") === "on";
   const toolIds = selfBondageOrder ? [] : formData.getAll("tools").map(String);
-  const positionIds = formData.getAll("positions").map(String);
+  const selfBondageChoice = String(formData.get("selfBondageChoice") || "");
+  const selfBondageCustomText = String(formData.get("selfBondageCustomText") || "").trim();
+  if (selfBondageOrder && !selfBondageChoice) redirect(`/activities/${activity.slug}/edit?error=position`);
+  if (selfBondageOrder && selfBondageChoice === "custom" && !selfBondageCustomText) redirect(`/activities/${activity.slug}/edit?error=position-text`);
+  const positionIds = selfBondageOrder
+    ? selfBondageChoice.startsWith("position:") ? [selfBondageChoice.replace("position:", "")].filter(Boolean) : []
+    : formData.getAll("positions").map(String);
   const [ownedTools, ownedPositions] = await Promise.all([
     prisma.toy.findMany({ where: { ...scope, id: { in: toolIds } }, select: { id: true } }),
     prisma.position.findMany({ where: { ...scope, id: { in: positionIds }, ...(selfBondageOrder ? { selfBondageCapable: true } : {}) }, select: { id: true } })
   ]);
+  if (selfBondageOrder && selfBondageChoice.startsWith("position:") && ownedPositions.length !== 1) redirect(`/activities/${activity.slug}/edit?error=position`);
+  const note = selfBondageOrder
+    ? appendSelfBondagePositionNote(String(formData.get("note") || "").trim(), selfBondageChoice, selfBondageCustomText)
+    : String(formData.get("note") || "").trim();
 
   await prisma.activityPlan.update({
     where: { id: activity.id },
@@ -38,7 +75,7 @@ async function updateActivity(formData: FormData) {
       title,
       slug,
       category: selfBondageOrder ? "SELF_BONDAGE_ORDER" : String(formData.get("category") || "").trim(),
-      note: String(formData.get("note") || "").trim(),
+      note,
       plannedAt: !withoutSchedule && plannedAtRaw ? new Date(plannedAtRaw) : null,
       status: String(formData.get("status") || "PLANNED") as ActivityStatusValue,
       tools: { set: ownedTools.map((tool) => ({ id: tool.id })) },
@@ -61,7 +98,7 @@ async function deleteActivity(formData: FormData) {
 
 const statusLabel = activityStatusLabel;
 
-export default async function EditActivityPage({ params }: { params: { slug: string } }) {
+export default async function EditActivityPage({ params, searchParams }: { params: { slug: string }; searchParams?: { error?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const activity = await prisma.activityPlan.findUnique({ where: { slug: params.slug }, include: { tools: true, positions: true } });
@@ -75,6 +112,14 @@ export default async function EditActivityPage({ params }: { params: { slug: str
   const selectedTools = new Set(activity.tools.map((tool) => tool.id));
   const selectedPositions = new Set(activity.positions.map((position) => position.id));
   const statusOptions = activityStatusOptions(isSelfBondageOrder);
+  const customPositionText = positionNoteValue(activity.note);
+  const selectedPosition = activity.positions.find((position) => position.selfBondageCapable);
+  const selfBondageDefaultChoice = selectedPosition ? `position:${selectedPosition.id}` : customPositionText === "Denk dir was aus." ? "surprise" : customPositionText ? "custom" : "";
+  const positionError = searchParams?.error === "position-text"
+    ? "Bitte gib einen Freitext ein oder wähle eine Stellung."
+    : searchParams?.error === "position"
+      ? "Bitte wähle genau eine Stellung, Freitext oder „Denk dir was aus“."
+      : "";
 
   return (
     <AppShell>
@@ -113,7 +158,7 @@ export default async function EditActivityPage({ params }: { params: { slug: str
                 </Field>
               </div>
             )}
-            <Field label={isSelfBondageOrder ? "Anweisung" : "Notiz"}><textarea className={inputClass} name="note" rows={6} defaultValue={activity.note || ""} /></Field>
+            <Field label={isSelfBondageOrder ? "Anweisung" : "Notiz"}><textarea className={inputClass} name="note" rows={6} defaultValue={isSelfBondageOrder ? stripPositionNote(activity.note || "") : activity.note || ""} /></Field>
             <div className="flex flex-wrap gap-2">
               <Button><Save className="h-4 w-4" /> {isSelfBondageOrder ? "Auftrag speichern" : "Änderungen speichern"}</Button>
               <Link href={`/activities/${activity.slug}`} className="focus-ring inline-flex min-h-10 items-center justify-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
@@ -135,8 +180,16 @@ export default async function EditActivityPage({ params }: { params: { slug: str
                 ))}
               </div>
             </section> : null}
+            {isSelfBondageOrder ? (
+              <SelfBondagePositionChoice
+                positions={positions.map((position) => ({ id: position.id, name: position.name }))}
+                defaultChoice={selfBondageDefaultChoice}
+                defaultCustomText={selfBondageDefaultChoice === "custom" ? customPositionText : ""}
+                error={positionError}
+              />
+            ) : (
             <section>
-              <h2 className="mb-2 text-sm font-semibold text-graphite">{isSelfBondageOrder ? "Self-Bondage-fähige Stellungen" : "Stellungen"}</h2>
+              <h2 className="mb-2 text-sm font-semibold text-graphite">Stellungen</h2>
               <div className="space-y-2">
                 {positions.map((position) => (
                   <label key={position.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">
@@ -147,9 +200,9 @@ export default async function EditActivityPage({ params }: { params: { slug: str
                     </span>
                   </label>
                 ))}
-                {isSelfBondageOrder && !positions.length ? <p className="rounded-md bg-paper p-3 text-sm text-graphite">Es gibt noch keine Self-Bondage-fähigen Stellungen.</p> : null}
               </div>
             </section>
+            )}
           </div>
         </form>
         <form action={deleteActivity} className="rounded-lg border border-line bg-paper p-5">

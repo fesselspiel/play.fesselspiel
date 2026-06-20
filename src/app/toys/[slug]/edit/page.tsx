@@ -36,7 +36,7 @@ async function updateToy(formData: FormData) {
     }
   });
 
-  if ((image || removeImage) && oldFileId) await deleteOwnedFile(user.id, oldFileId);
+  if ((uploadedImageUrl || image || removeImage) && oldFileId) await deleteOwnedFile(user.id, oldFileId);
   redirect(`/toys/${slug}`);
 }
 
