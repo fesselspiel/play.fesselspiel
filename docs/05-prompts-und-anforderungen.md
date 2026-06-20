@@ -29,13 +29,12 @@ Der initiale Auftrag war:
 - Weiße Oberflächen, hellgraue Karten, schwarze/dunkelgraue Texte.
 - Einheitliche Icons, große Touchflächen und konsistentes Designsystem.
 
-Gewünschte Module:
+Ursprünglich gewünschte Module:
 
 - Benutzer und Profile.
 - Registrierung und Login.
 - Individuelle Profilinformationen.
-- Direktnachrichten.
-- Bilder/Videos in Nachrichten.
+- Direktnachrichten und Bilder/Videos in Nachrichten. Diese Anforderung wurde später in der aktiven Oberfläche durch Protokoll, Telegram-Agent und Medienverwaltung ersetzt.
 - Events mit Check-in.
 - Medienverwaltung mit Bildern, Videos, Alben und Sichtbarkeiten.
 - Segufix-Timetracker mit Start, Ende, Dauer, Notizen.
@@ -60,13 +59,13 @@ Spätere Anforderungen:
 - Build erneut probieren, aber nur auf dem VPS.
 - Immer per SSH auf den Server.
 - Über die IP gehen.
-- IP von `example.invalid` verwenden.
+- IP aus einer bestehenden DNS-/Serverzuordnung verwenden.
 - Korrekte IP: `x.x.x.x`.
 - So lange probieren, bis die Webseite auf dem VPS läuft.
 
 Aktueller Stand:
 
-- App läuft auf dem VPS unter `/opt/<app-name>`.
+- App läuft in einem Docker-Compose-Projektverzeichnis auf dem VPS.
 - Container: `kink_social_app`, `kink_social_postgres`.
 - Port: `127.0.0.1:8097`.
 - Domain: `play.fesselspiel.com`.
@@ -389,7 +388,7 @@ Umsetzung:
 - Desktop- und Mobile-Menü neu sortiert und umbenannt.
 - `Events` aus der Hauptnavigation entfernt, ohne bestehende Event-Daten zu löschen.
 - Event-Termine werden in der Dashboard-Wochenansicht weiterhin angezeigt, dort aber als `Termin` im Kontext von `Lass uns spielen`.
-- Dashboard-Kacheln auf `Lass uns spielen`, `Stellungen`, `Spielsachen`, Sessions, Medien und Nachrichten reduziert.
+- Dashboard-Kacheln auf `Lass uns spielen`, `Stellungen`, `Spielsachen`, Sessions, Medien und Protokoll reduziert.
 - Aktivitätsseiten in der sichtbaren Sprache auf `Spielidee`, `Spielplan` und `Spielsachen` angepasst.
 
 ## Info-und-Einstellungen-Prompt
@@ -438,7 +437,7 @@ Umsetzung:
 - Neues Prisma-Modell `Circle` und Feld `User.circleId`.
 - Admins können in der Benutzerverwaltung Kreise anlegen und Benutzer zuordnen.
 - Gemeinsame Webbereiche nutzen `ownerScope(user)` statt nur `ownerId: user.id`.
-- Kreis-Mitglieder sehen automatisch gemeinsame Spielsachen, Stellungen, Spielpläne, Termine, Sessions, Medien, Dateien und passende Nachrichten.
+- Kreis-Mitglieder sehen automatisch gemeinsame Spielsachen, Stellungen, Spielpläne, Termine, Sessions, Medien und Dateien.
 - Neue Inhalte behalten ihren Ersteller als Besitzer, werden aber allen aktiven Kreis-Mitgliedern angezeigt.
 
 Nachbesserung:

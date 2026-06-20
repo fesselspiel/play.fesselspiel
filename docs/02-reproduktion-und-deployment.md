@@ -54,7 +54,7 @@ Secrets werden nicht in Markdown dokumentiert. Werte stehen in der jeweiligen `.
 
 ## VPS
 
-Aktueller Zielserver:
+Beispiel-Zielserver:
 
 ```text
 IP: x.x.x.x
@@ -68,7 +68,7 @@ Interner Port: 127.0.0.1:8097
 SSH:
 
 ```bash
-ssh -o BatchMode=yes -o ConnectTimeout=15 -o HostKeyAlias=vps.example.invalid -i ~/.ssh/id_ed25519 root@x.x.x.x
+ssh -o BatchMode=yes -o ConnectTimeout=15 -i ~/.ssh/id_ed25519 root@x.x.x.x
 ```
 
 Deployment auf dem VPS:
@@ -118,7 +118,7 @@ Erwartet wird `200` für die Hauptseiten.
 Einzeldatei:
 
 ```bash
-scp -o BatchMode=yes -o ConnectTimeout=15 -o HostKeyAlias=vps.example.invalid -i ~/.ssh/id_ed25519 \
+scp -o BatchMode=yes -o ConnectTimeout=15 -i ~/.ssh/id_ed25519 \
   src/components/mobile-menu.tsx \
   root@x.x.x.x:/opt/<app-name>/src/components/mobile-menu.tsx
 ```
@@ -126,7 +126,7 @@ scp -o BatchMode=yes -o ConnectTimeout=15 -o HostKeyAlias=vps.example.invalid -i
 Nach dem Kopieren immer builden und neu starten:
 
 ```bash
-ssh -o BatchMode=yes -o ConnectTimeout=15 -o HostKeyAlias=vps.example.invalid -i ~/.ssh/id_ed25519 root@x.x.x.x \
+ssh -o BatchMode=yes -o ConnectTimeout=15 -i ~/.ssh/id_ed25519 root@x.x.x.x \
   'cd /opt/<app-name> && docker compose build app && docker compose up -d app'
 ```
 

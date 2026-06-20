@@ -2,7 +2,7 @@
 
 ## Ziel
 
-`play.fesselspiel.com` ist eine private Webanwendung für Einzelpersonen und Paare. Die Plattform dient der persönlichen Dokumentation, Kommunikation und Organisation von Profilen, Medien, Sessions, Spielzeugen, Stellungen, Aktivitäten, Events und Telegram-Interaktion.
+`play.fesselspiel.com` ist eine private Webanwendung für Einzelpersonen und Paare. Die Plattform dient der persönlichen Dokumentation, Organisation und Automatisierung von Profilen, Medien, Sessions, Spielzeugen, Stellungen, Aktivitäten und Telegram-Interaktion.
 
 ## Technische Basis
 
@@ -13,7 +13,7 @@
 - ORM: Prisma
 - Auth: eigene Cookie/JWT-basierte Anmeldung
 - Deployment: Docker Compose auf VPS
-- Reverse Proxy: Traefik
+- Reverse Proxy: Docker-kompatibel, aktuell per externem HTTPS-Proxy vor dem App-Container
 - Hauptdomain: `https://play.fesselspiel.com`
 - Interner App-Port: `8097`
 
@@ -41,12 +41,13 @@ Aktuelle Design-Eigenschaften:
 - Profilseite mit frei erweiterbaren Profilinformationen
 - benutzerbezogene Einstellungen inklusive Theme
 
-### Messaging
+### Protokoll
 
-- Direktnachrichten
-- Medienanhang per Upload
-- Löschen von Nachrichten
-- zugehörige Upload-Datei wird beim Löschen entfernt
+- Protokoll für App-Aktionen und Telegram-Ereignisse
+- gruppierte Ansicht nach Tagen und Stunden
+- Suche mit Vorschlägen und Sprunglinks
+- alte Nachrichten-Einträge werden nur noch als Altprotokoll angezeigt
+- Direktnachrichten sind kein aktives Hauptmodul mehr
 
 ### Events
 
@@ -68,11 +69,12 @@ Aktuelle Design-Eigenschaften:
 
 - Segufix-Sessions erfassen
 - Startzeit, Endzeit, Dauerberechnung
-- Stimmung vorher/nachher plus Freitext
+- Stimmung vorher/nachher plus Sessionkommentar
 - Jahreskalender mit 12 Monaten und Tagesfeldern
 - Historie und Auswertungswerte
 - Sessions bearbeiten
 - Sessions löschen
+- KG-Time-Tracker als zweiter Tracker mit eigener Historie und Detailseiten
 
 ### Spielzeugkatalog
 
@@ -89,10 +91,11 @@ Aktuelle Design-Eigenschaften:
 ### Aktivitäten
 
 - Aktivitäten planen
-- Status: geplant, durchgeführt, verworfen
+- Status: angefragt, geplant, durchgeführt, verworfen
 - Verknuepfung mit Spielzeugen und Stellungen
 - Aktivitäten bearbeiten
 - Aktivitäten löschen
+- Anfragen können im Kreis bestätigt werden
 
 ### Stellungen
 
@@ -104,6 +107,7 @@ Aktuelle Design-Eigenschaften:
 - Stellungen löschen
 - Bild ersetzen oder entfernen
 - Upload-Datei wird beim Ersetzen/Löschen entfernt
+- Feld `Self-Bondage-fähig` für spätere Filter und Auswertungen
 
 ### Telegram
 
@@ -116,6 +120,8 @@ Aktuelle Design-Eigenschaften:
 - Dialoge zum Anlegen von Spielzeugen und Stellungen
 - Bildupload im Telegram-Chat für laufende Dialoge
 - freier Telegram-Bildupload wird automatisch als Medium gespeichert
+- Zuordnung von Telegram-Benutzern zu App-Benutzern
+- Aktionsbenachrichtigungen per Telegram-Regeln
 - erkannte Chats/Threads bleiben zunächst in der App auf `PENDING`
 - Freigabe ist threadgenau oder für den ganzen Telegram-Chat möglich
 

@@ -21,14 +21,14 @@ Die Anwendung laeuft lokal auf `http://localhost:8097`.
 ## Module
 
 - Login und Benutzerverwaltung mit Admin/User-Rollen
-- Direktnachrichten mit Medienreferenzen
-- Events mit Check-ins
+- Protokoll für App-Aktionen, Telegram-Ereignisse und ältere Nachrichten-Einträge
 - Medien, Alben und Sichtbarkeiten
 - Segufix-Session-Tracking mit Jahreskalender und Auswertungen
+- KG-Time-Tracking
 - Spielzeugkatalog mit Slugs und QR-Codes
 - Aktivitaetsplanung mit Spielzeug- und Stellungs-Verknuepfung
 - Positionen/Stellungen mit Suche und Spielzeugfilter
-- Telegram-Konfiguration mit Bot-Token, Chat-Erkennung und Voice-Transkriptionsvorbereitung
+- Telegram-Konfiguration mit Bot-Token, Chat-Erkennung, Agent, Bildverarbeitung und Aktionsbenachrichtigungen
 
 ## Ausfuehrliche Dokumentation
 

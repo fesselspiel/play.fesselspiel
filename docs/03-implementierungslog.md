@@ -27,12 +27,12 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 
 ## Deployment auf VPS
 
-- Deployment nach `/opt/<app-name>`.
+- Deployment in ein Docker-Compose-Projektverzeichnis auf dem VPS.
 - App-Container `kink_social_app`.
 - PostgreSQL-Container `kink_social_postgres`.
 - App gebunden auf `127.0.0.1:8097`.
 - Build/Restart per `docker compose build app && docker compose up -d app`.
-- Runtime-Logs nach `/opt/<app-name>/runtime-logs/startup.log`.
+- Runtime-Logs nach `runtime-logs/startup.log` im Projektverzeichnis.
 
 ## Login UX
 
@@ -82,7 +82,7 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Keine direkte statische Auslieferung aus dem Dateisystem.
 - Zugriff über `/api/files/[id]` mit Login- und Owner-Prüfung.
 - Bilder und Dateien können hochgeladen werden.
-- Beim Löschen von Medien oder Nachrichten wird die Datei physisch entfernt.
+- Beim Löschen von Medien wird die Datei physisch entfernt.
 
 ## Medienseite
 
@@ -188,7 +188,7 @@ Details:
 - Datei-Auswahl zeigt jetzt sichtbaren Auswahlbereich, Dateiname, Größe und bei Bildern eine Vorschau.
 - Beim Bearbeiten von Spielzeugen und Stellungen wird das aktuelle Bild angezeigt; ein neu ausgewähltes Bild ersetzt es automatisch.
 - Die Checkbox zum Entfernen erscheint nur, wenn kein neues Bild gewählt wurde. Sie setzt den Eintrag wieder auf das System-Standardbild.
-- Datei-Uploads in Spielzeugen, Stellungen, Medien und Nachrichten verwenden die neue Komponente.
+- Datei-Uploads in Spielzeugen, Stellungen und Medien verwenden die neue Komponente.
 - Für Spielzeug- und Stellungsbilder wurde ein direkter Upload-Endpunkt `/api/uploads` ergänzt.
 - Bei Bildauswahl wird die Datei sofort hochgeladen; der Speichern-Button speichert danach nur noch die fertige `/api/files/...` Referenz.
 - Solange der direkte Upload noch läuft oder fehlgeschlagen ist, verhindert die Komponente das Absenden und zeigt einen Hinweis.
@@ -256,7 +256,7 @@ Details:
   - Sessions
   - Medien
   - Dateiauslieferung
-- Nachrichtenempfänger innerhalb des Kreises
+- Telegram-Ziele und Protokollkontext innerhalb des Kreises
 - Neue Datensätze behalten weiterhin den Ersteller als `ownerId`, sind aber für Kreis-Mitglieder sichtbar und bearbeitbar.
 - Admins können Kreise in der Benutzerverwaltung nachträglich umbenennen und die Mitgliedschaft zentral pflegen.
 - Die Kreisverwaltung ist als aufklappbarer Bereich umgesetzt.

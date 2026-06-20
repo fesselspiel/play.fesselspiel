@@ -151,7 +151,7 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `MediaComment`: Kommentar oder Notiz zu einem Medium.
 - `Event`: Termin.
 - `CheckIn`: Teilnahme/Check-in.
-- `Message`: Altbestand für Telegram-/Nachrichtenverlauf.
+- `Message`: Altbestand für Telegram-Dialoggedächtnis und ältere Protokolleinträge; kein aktives Direktnachrichten-Modul.
 - `AuditLog`: Protokollierte App-Aktion mit Akteur, Aktion, Zieltyp, Ziel-ID, Titel, optionalen Details und Link.
 - `TelegramChat`: erkannte Telegram Chats/Threads.
 - `TelegramNotificationRule`: aktionsbasierte Telegram-Regel mit Aktion, Ziel-Benutzer/Ziel-Kreis, HTML-Nachricht und Aktiv-Status.
