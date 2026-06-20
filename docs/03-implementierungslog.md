@@ -576,7 +576,7 @@ Details:
 - In der Benutzerverwaltung ist die Systemzeit als einklappbarer Bereich umgesetzt.
 - Admins können beim Bearbeiten eines Benutzers dessen Profilbild hochladen oder entfernen.
 - `Lass uns spielen` zeigt oben einen großen zentralen Button `Neuen Spieltermin anlegen`.
-- Darunter gibt es einen Self-Bondage-Auftrag mit Button `Self-Bondage-Auftrag geben`.
+- Darunter gibt es einen Self-Bondage-Auftrag mit Button `Self-Bondage-Auftrag erteilen`.
 - Die Self-Bondage-Variante nutzt Auftrag-Wording, blendet URL-Slug und Kategorie aus und bietet keine Spielsachen an.
 - Für Self-Bondage-Aufträge werden nur Stellungen angeboten, die als `Self-Bondage-fähig` markiert sind.
 - Self-Bondage-Aufträge können `Ohne Datum/Uhrzeit` gespeichert werden; dann gilt der Auftrag sofort beim Lesen und die Termin-Felder werden im Formular ausgeblendet.

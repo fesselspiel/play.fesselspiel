@@ -61,7 +61,7 @@ export default async function ActivitiesPage() {
           )}
           <Link href="/activities/new?template=self-bondage" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-sky-600 bg-sky-600 px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-sky-700">
             <ShieldCheck className="h-5 w-5" />
-            Self-Bondage-Auftrag geben
+            Self-Bondage-Auftrag erteilen
           </Link>
         </Panel>
       </div>
