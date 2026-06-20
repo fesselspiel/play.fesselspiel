@@ -28,7 +28,7 @@ export default async function ActivitiesPage() {
     <AppShell>
       <PageHeader title="Lass uns spielen" />
       <PageGuide title="Spielideen planen">
-        Hier planst du gemeinsame Spielideen aus Bausteinen. Öffne einen Plan für Details oder erstelle eine neue Idee mit Datum, Status, Notiz, Spielsachen und Stellungen.
+        Hier planst du gemeinsame Spielideen aus Bausteinen. Öffne einen Plan für Details oder erstelle eine neue Idee mit Datum, Status, Notiz, Spielsachen und Szenen.
       </PageGuide>
       <div className="mb-6 grid gap-4 xl:grid-cols-3">
         <Panel className="text-center">
@@ -37,7 +37,7 @@ export default async function ActivitiesPage() {
           </div>
           <h2 className="text-2xl font-semibold text-ink">Spieltermin planen</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-graphite">
-            Lege einen konkreten Termin an, wähle Spielsachen und Stellungen aus und entscheide, ob es direkt geplant oder erst angefragt ist.
+            Lege einen konkreten Termin an, wähle Spielsachen und Szenen aus und entscheide, ob es direkt geplant oder erst angefragt ist.
           </p>
           <Link href="/activities/new" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md bg-redbrand px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-redbrandHover">
             <Plus className="h-5 w-5" />
@@ -59,7 +59,7 @@ export default async function ActivitiesPage() {
               ))}
             </div>
           ) : (
-            <p className="mt-4 rounded-md bg-surface p-3 text-sm text-graphite">Markiere bei Stellungen das Feld „Self-Bondage-fähig“, damit sie hier als Vorbereitung auftauchen.</p>
+            <p className="mt-4 rounded-md bg-surface p-3 text-sm text-graphite">Markiere bei Szenen das Feld „Self-Bondage-fähig“, damit sie hier als Vorbereitung auftauchen.</p>
           )}
           <Link href="/activities/new?template=self-bondage" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-sky-600 bg-sky-600 px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-sky-700">
             <ShieldCheck className="h-5 w-5" />
@@ -113,7 +113,7 @@ export default async function ActivitiesPage() {
                   <Badge tone={activityStatusTone(activity.status)}>{activityStatusDisplay(activity.status, isSelfBondageOrder)}</Badge>
                 </div>
                 <p className="mt-4 text-sm text-graphite">{activity.note || "Keine Notiz."}</p>
-                <p className="mt-4 text-xs text-graphite">{activity.tools.length} Spielzeuge · {activity.positions.length} Stellungen</p>
+                <p className="mt-4 text-xs text-graphite">{activity.tools.length} Spielzeuge · {activity.positions.length} Szenen</p>
               </SoftPanel>
             </Link>
             );

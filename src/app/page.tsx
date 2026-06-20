@@ -152,7 +152,7 @@ export default async function DashboardPage() {
 
   const primaryCards = [
     { label: "Spiel", value: plannedCount, Icon: Activity, href: "/activities" },
-    { label: "Stellungen", value: "ansehen", Icon: ShieldCheck, href: "/positions" },
+    { label: "Szenen", value: "ansehen", Icon: ShieldCheck, href: "/positions" },
     { label: "Spielsachen", value: toyCount, Icon: ToyBrick, href: "/toys" }
   ];
   const secondaryCards = [
@@ -178,7 +178,7 @@ export default async function DashboardPage() {
           status: activity.status,
           selfBondageOrder: activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage",
           confirmId: activity.status === "REQUESTED" && activity.ownerId !== user.id ? activity.id : "",
-          meta: `${activity.tools.length} Spielsachen · ${activity.positions.length} Stellungen`
+          meta: `${activity.tools.length} Spielsachen · ${activity.positions.length} Szenen`
         })),
       ...weekEvents
         .filter((event) => dayKey(event.startsAt) === key)
@@ -261,7 +261,7 @@ export default async function DashboardPage() {
             </div>
             <h2 className="text-2xl font-semibold text-ink">Spieltermin planen</h2>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-graphite">
-              Lege einen konkreten Termin an, wähle Spielsachen und Stellungen aus und entscheide, ob es direkt geplant oder erst angefragt ist.
+              Lege einen konkreten Termin an, wähle Spielsachen und Szenen aus und entscheide, ob es direkt geplant oder erst angefragt ist.
             </p>
             <Link href="/activities/new" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md bg-redbrand px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-redbrandHover">
               <Plus className="h-5 w-5" />
@@ -274,7 +274,7 @@ export default async function DashboardPage() {
             </div>
             <h2 className="text-2xl font-semibold text-ink">Self-Bondage-Auftrag</h2>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-graphite">
-              Erteile einen Auftrag mit einer Self-Bondage-fähigen Stellung oder einer freien Anweisung.
+              Erteile einen Auftrag mit einer Self-Bondage-fähigen Szene oder einer freien Anweisung.
             </p>
             {selfBondagePositions.length ? (
               <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -283,7 +283,7 @@ export default async function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <p className="mt-4 rounded-md bg-surface p-3 text-sm text-graphite">Markiere bei Stellungen das Feld „Self-Bondage-fähig“, damit sie hier auftauchen.</p>
+              <p className="mt-4 rounded-md bg-surface p-3 text-sm text-graphite">Markiere bei Szenen das Feld „Self-Bondage-fähig“, damit sie hier auftauchen.</p>
             )}
             <Link href="/activities/new?template=self-bondage" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-sky-600 bg-sky-600 px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-sky-700">
               <ShieldCheck className="h-5 w-5" />

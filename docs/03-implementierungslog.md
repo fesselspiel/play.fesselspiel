@@ -51,7 +51,7 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Kurzzeitgedächtnis über die letzten ca. 10 Nachrichten.
 - Dialogsystem für Item-Anlage.
 - Dialog fragt benötigte Felder ab und legt erst danach den Datensatz an.
-- Dialoge für Spielzeug und Stellung.
+- Dialoge für Spielzeug und Szene.
 - Telegram-Bilder können in laufenden Dialogen als Bild für das Item verwendet werden.
 - Freie Telegram-Bilder werden automatisch als Bild gespeichert.
 - Unbekannte Telegram-Chats oder Threads werden nur als `PENDING` in der App gespeichert.
@@ -71,7 +71,7 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Der Theme-Picker hat einen iPhone-artigen Toggle-Schalter für Dark Mode statt Checkbox.
 - Dark Mode wird sofort als Vorschau angewendet und pro Benutzer gespeichert.
 - Alle vorhandenen Farbschemas haben eine dunkle Variante mit schwarzem Hintergrund, dunklen Flächen und angepasster Akzentfarbe.
-- Feste weiße Link-Flächen auf Detailseiten wurden durch Theme-Flächen ersetzt, damit verknüpfte Spielzeuge, Stellungen und Aktivitäten im Dark Mode lesbar bleiben.
+- Feste weiße Link-Flächen auf Detailseiten wurden durch Theme-Flächen ersetzt, damit verknüpfte Spielzeuge, Szenen und Aktivitäten im Dark Mode lesbar bleiben.
 
 ## Geschützte Uploads
 
@@ -98,12 +98,12 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Album-Verwaltung erlaubt jetzt auch das Bearbeiten von Name, Beschreibung und Sichtbarkeit.
 - Der geschützte Dateiabruf berücksichtigt sichtbare Bilder, damit freigegebene Bilder korrekt ausgeliefert werden und private Dateien geschützt bleiben.
 
-## Stellungen: Self-Bondage
+## Szenen: Self-Bondage
 
-- Stellungen haben im Datenmodell das Boolean-Feld `selfBondageCapable`.
-- Beim Anlegen und Bearbeiten einer Stellung gibt es die Checkbox `Self-Bondage-fähig`.
-- Stellungs-Detailseiten zeigen den Status als Badge an.
-- Die aufklappbare Stellungsübersicht zeigt den Status in der Listenzeile und im geöffneten Detailbereich.
+- Szenen haben im Datenmodell das Boolean-Feld `selfBondageCapable`.
+- Beim Anlegen und Bearbeiten einer Szene gibt es die Checkbox `Self-Bondage-fähig`.
+- Szenen-Detailseiten zeigen den Status als Badge an.
+- Die aufklappbare Szenenübersicht zeigt den Status in der Listenzeile und im geöffneten Detailbereich.
 - Das Feld ist bewusst noch nicht in Filter oder Auswertungen eingebunden und steht für spätere Nutzung bereit.
 
 ## Mobile Navigation
@@ -119,7 +119,7 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 Ergaenzt für:
 
 - Spielzeuge
-- Stellungen
+- Szenen
 - Aktivitäten
 - Events
 - Sessions
@@ -128,8 +128,8 @@ Details:
 
 - Spielzeug bearbeiten unter `/toys/[slug]/edit`.
 - Spielzeug löschen inklusive Bilddatei.
-- Stellung bearbeiten unter `/positions/[slug]/edit`.
-- Stellung löschen inklusive Bilddatei.
+- Szene bearbeiten unter `/positions/[slug]/edit`.
+- Szene löschen inklusive Bilddatei.
 - Aktivität bearbeiten unter `/activities/[slug]/edit`.
 - Aktivität löschen inklusive Verknüpfungen.
 - Event bearbeiten unter `/events/[id]/edit`.
@@ -153,7 +153,7 @@ Details:
 - HTML-Escape-Helper für sichere Telegram-Ausgabe ergänzt.
 - Slash-Command-Listen `/toys`, `/positions`, `/activities`, `/sessions`, `/status`, `/id` mit fetten Überschriften, nummerierten Einträgen und klickbaren Links formatiert.
 - Agent-Tool-Ergebnisse für Portalstatus und Suche werden direkt als Telegram-HTML formatiert.
-- Dialog-Ergebnisse für neu angelegte Spielzeuge/Stellungen nutzen klickbare Links.
+- Dialog-Ergebnisse für neu angelegte Spielzeuge/Szenen nutzen klickbare Links.
 
 ## Spielzeug-Detailheader
 
@@ -176,7 +176,7 @@ Details:
 
 ## Detailseiten-Aktionen
 
-- Bearbeiten-Aktionen auf Detailseiten für Spielzeuge, Stellungen und Aktivitäten aus dem Header entfernt.
+- Bearbeiten-Aktionen auf Detailseiten für Spielzeuge, Szenen und Aktivitäten aus dem Header entfernt.
 - Bearbeiten liegt jetzt in einem Aktionsbereich am unteren Ende der Detailseite.
 - Der Header bleibt dadurch ruhiger und zeigt primaer Titel, URL/Status und Inhalt.
 - Auf Aktivitäts-Detailseiten kopiert ein Klick auf den sichtbaren Pfad im Header die komplette HTTPS-URL in die Zwischenablage, ohne die Anzeige zu verändern.
@@ -186,10 +186,10 @@ Details:
 - Next.js Server-Action Body-Limit auf `50mb` angehoben, damit iPhone-Fotos und größere Uploads nicht still an der Standardgrenze scheitern.
 - Wiederverwendbare Komponente `FileUploadField` eingeführt.
 - Datei-Auswahl zeigt jetzt sichtbaren Auswahlbereich, Dateiname, Größe und bei Bildern eine Vorschau.
-- Beim Bearbeiten von Spielzeugen und Stellungen wird das aktuelle Bild angezeigt; ein neu ausgewähltes Bild ersetzt es automatisch.
+- Beim Bearbeiten von Spielzeugen und Szenen wird das aktuelle Bild angezeigt; ein neu ausgewähltes Bild ersetzt es automatisch.
 - Die Checkbox zum Entfernen erscheint nur, wenn kein neues Bild gewählt wurde. Sie setzt den Eintrag wieder auf das System-Standardbild.
-- Datei-Uploads in Spielzeugen, Stellungen und Bilder verwenden die neue Komponente.
-- Für Spielzeug- und Stellungsbilder wurde ein direkter Upload-Endpunkt `/api/uploads` ergänzt.
+- Datei-Uploads in Spielzeugen, Szenen und Bilder verwenden die neue Komponente.
+- Für Spielzeug- und Szenenbilder wurde ein direkter Upload-Endpunkt `/api/uploads` ergänzt.
 - Bei Bildauswahl wird die Datei sofort hochgeladen; der Speichern-Button speichert danach nur noch die fertige `/api/files/...` Referenz.
 - Solange der direkte Upload noch läuft oder fehlgeschlagen ist, verhindert die Komponente das Absenden und zeigt einen Hinweis.
 - Der öffentliche Upload scheiterte zusätzlich an Nginx mit `413 Request Entity Too Large`, weil für `play.fesselspiel.com` kein `client_max_body_size` gesetzt war.
@@ -212,11 +212,11 @@ Details:
 ## Navigation: Lass uns spielen
 
 - Der Hauptmenüpunkt `Aktivitäten` heißt jetzt `Lass uns spielen`.
-- Die Menü-Reihenfolge wurde angepasst: Dashboard, Lass uns spielen, Stellungen, Spielsachen.
+- Die Menü-Reihenfolge wurde angepasst: Dashboard, Lass uns spielen, Szenen, Spielsachen.
 - Der separate Menüpunkt `Events` wurde aus Desktop- und Mobile-Navigation entfernt, damit Termine nicht als doppeltes Hauptmodul neben der Spielplanung wirken.
 - Bestehende Event-Daten werden nicht gelöscht; Termine aus Events erscheinen weiterhin in der Dashboard-Wochenansicht als `Termin`.
 - Die Aktivitätsübersicht, Neu-Anlage, Detailseite und Bearbeitung wurden in der sichtbaren Sprache auf `Lass uns spielen`, `Spielidee`, `Spielplan` und `Spielsachen` umgestellt.
-- Die Dashboard-Kachel `Events` wurde entfernt; stattdessen gibt es Kacheln für `Lass uns spielen`, `Stellungen` und `Spielsachen`.
+- Die Dashboard-Kachel `Events` wurde entfernt; stattdessen gibt es Kacheln für `Lass uns spielen`, `Szenen` und `Spielsachen`.
 
 ## Navigation: Einstellungen gebuendelt
 
@@ -250,7 +250,7 @@ Details:
 - Kreiszugriff für Weboberflaeche umgesetzt:
   - Dashboard
   - Spielsachen
-  - Stellungen
+  - Szenen
   - Lass uns spielen
   - Events/Termine
   - Sessions
@@ -262,14 +262,14 @@ Details:
 - Die Kreisverwaltung ist als aufklappbarer Bereich umgesetzt.
 - Einzelne Kreise werden ebenfalls als Accordion dargestellt; bei mehreren Kreisen bleiben sie zunächst eingeklappt.
 
-## Kompakte Listen für Spielsachen und Stellungen
+## Kompakte Listen für Spielsachen und Szenen
 
-- Die Übersichten für Spielsachen und Stellungen wurden von großen Kartenrastern auf kompakte Listen umgestellt.
+- Die Übersichten für Spielsachen und Szenen wurden von großen Kartenrastern auf kompakte Listen umgestellt.
 - Jede Zeile zeigt Thumbnail, Titel und kurze Metadaten.
 - Native `details/summary`-Elemente ermöglichen Ausklappen ohne zusätzliches JavaScript.
 - Im ausgeklappten Bereich stehen Beschreibung und ein klarer Button zur Detailseite.
 - Dadurch sind lange Kataloge auf Mobile und Desktop schneller scannbar.
-- Nachbesserung: Der aufgeklappte Bereich enthält wieder ein großes Bild, Beschreibung, Slug, Zähler für Verknüpfungen und bei Stellungen verknüpfte Spielsachen als Chips.
+- Nachbesserung: Der aufgeklappte Bereich enthält wieder ein großes Bild, Beschreibung, Slug, Zähler für Verknüpfungen und bei Szenen verknüpfte Spielsachen als Chips.
 
 ## Protokoll statt Nachrichten
 
@@ -307,9 +307,9 @@ Details:
   - Angefragte Einträge enthalten klickbare Befehle wie `/activity_confirm_1`.
   - `/activity_confirm_1` bestätigt den entsprechenden angefragten Spielplan aus der aktuellen Liste.
 - Der Telegram-Agent kann Aktivitäten jetzt auch als `REQUESTED` anlegen und den Status auf `REQUESTED`, `PLANNED`, `DONE` oder `DISCARDED` setzen.
-- Spielzeuge und Stellungen haben ein neues Feld `sortOrder`.
-- Die Übersichten für Spielzeuge und Stellungen können per Drag-and-drop sortiert werden.
-- Neue API `/api/reorder` speichert die Reihenfolge für berechtigte Spielzeuge und Stellungen.
+- Spielzeuge und Szenen haben ein neues Feld `sortOrder`.
+- Die Übersichten für Spielzeuge und Szenen können per Drag-and-drop sortiert werden.
+- Neue API `/api/reorder` speichert die Reihenfolge für berechtigte Spielzeuge und Szenen.
 
 ## Dashboard-Reihenfolge
 
@@ -361,7 +361,7 @@ Details:
 - Neue Einstellungsseite `Daten` unter `/settings/data`.
 - Export erzeugt ein ZIP-Archiv über `/api/settings/data-transfer`.
 - Das Archiv enthält `data.json` mit Portal-Inhalten und einen `files/`-Ordner mit geschützten Upload-Dateien.
-- Exportiert werden Spielsachen, Stellungen, Aktivitäten, Sessions, Bilder, Alben, Bildkommentare, Termine, Check-ins und zugehörige Dateien, soweit sie für den angemeldeten Benutzer sichtbar sind.
+- Exportiert werden Spielsachen, Szenen, Aktivitäten, Sessions, Bilder, Alben, Bildkommentare, Termine, Check-ins und zugehörige Dateien, soweit sie für den angemeldeten Benutzer sichtbar sind.
 - Nicht exportiert werden Passwörter, Login-Tokens, Telegram-Token und OpenAI-Keys.
 - Import nimmt ein Fesselspiel-ZIP entgegen und fügt die Inhalte dem aktuell angemeldeten Benutzer hinzu.
 - Beim Import werden neue Datei-IDs erzeugt, Datei-URLs neu verknüpft und Slugs automatisch eindeutig gemacht.
@@ -419,7 +419,7 @@ Details:
 
 ## KG Time Tracker und Demo-Seed
 
-- Der Seed legt Demo-Spielzeuge, Demo-Stellung und den Demo-Spielplan `Entspannungsabend` nur noch an, wenn `SEED_DEMO_DATA=true` gesetzt ist.
+- Der Seed legt Demo-Spielzeuge, Demo-Szene und den Demo-Spielplan `Entspannungsabend` nur noch an, wenn `SEED_DEMO_DATA=true` gesetzt ist.
 - Dadurch taucht der Demo-Spielplan nach Löschen und Neustart nicht mehr automatisch wieder auf.
 - Der auf dem VPS vorhandene Demo-Spielplan `entspannungsabend` wurde einmalig gelöscht.
 - Neues Prisma-Modell `KgSession` für KG-Tragezeiten.
@@ -463,7 +463,7 @@ Details:
 ## Feature-Video
 
 - Ein kurzes peppiges Feature-Video wurde als MP4 erzeugt.
-- Das Video erklärt Dashboard, Spielampel, Lass uns spielen, Spielsachen, Stellungen, Bilder, Sessions und Telegram-Agent.
+- Das Video erklärt Dashboard, Spielampel, Lass uns spielen, Spielsachen, Szenen, Bilder, Sessions und Telegram-Agent.
 - Die Techno-Musik ist synthetisch erzeugt und nicht aus externen Musikquellen kopiert.
 - Das Rendering erfolgte ausschliesslich in Docker/FFmpeg; auf dem Server wurde nichts installiert.
 - Datei: `entfernt`
@@ -532,7 +532,7 @@ Details:
 - KG-Einträge können über `/sessions/kg/[id]/edit` bearbeitet und gelöscht werden.
 - Laufende KG-Einträge können aus Übersicht und Detailseite beendet werden.
 - Segufix-Historienkarten verlinken zusätzlich über den Textbereich direkt auf die jeweilige Detailseite.
-- Die Sortierung der Stellungen ist nicht mehr prominent per Drag-and-drop sichtbar, sondern für Admins unten als eingeklappter Bereich mit Hoch-/Runter-Schaltern erreichbar.
+- Die Sortierung der Szenen ist nicht mehr prominent per Drag-and-drop sichtbar, sondern für Admins unten als eingeklappter Bereich mit Hoch-/Runter-Schaltern erreichbar.
 - Unter Einstellungen wurde ein Dark-Mode-Toggle eingefügt, auch im mobilen Hamburger-Menü zwischen Protokoll und Abmelden.
 - Telegram-Aktionsregeln senden jetzt auch dann, wenn eine Regel auf einen Kreis zielt, der aktive Telegram-Thread aber einem Mitglied dieses Kreises zugeordnet ist. Umgekehrt kann eine Benutzer-Regel auch den zugehörigen Kreis-Thread erreichen.
 - Telegram-Kommandos wie `/activity_confirm_1` und `/media_album_...` werden in HTML-Nachrichten als normaler Text ausgegeben, nicht in `<code>`, damit Telegram sie antippbar erkennt.
@@ -578,17 +578,17 @@ Details:
 - `Lass uns spielen` zeigt oben einen großen zentralen Button `Neuen Spieltermin anlegen`.
 - Darunter gibt es einen Self-Bondage-Auftrag mit Button `Self-Bondage-Auftrag erteilen`.
 - Die Self-Bondage-Variante nutzt Auftrag-Wording, blendet URL-Slug und Kategorie aus und bietet keine Spielsachen an.
-- Für Self-Bondage-Aufträge werden nur Stellungen angeboten, die als `Self-Bondage-fähig` markiert sind.
+- Für Self-Bondage-Aufträge werden nur Szenen angeboten, die als `Self-Bondage-fähig` markiert sind.
 - Self-Bondage-Aufträge können `Ohne Datum/Uhrzeit` gespeichert werden; dann gilt der Auftrag sofort beim Lesen und die Termin-Felder werden im Formular ausgeblendet.
 - Self-Bondage-Aufträge nutzen eigene Statuswörter: `beauftragt`, `angenommen`, `umgesetzt`, `verworfen`.
-- Self-Bondage-Aufträge verlangen genau eine Auftragsstellung: eine `Self-Bondage-fähige` Stellung, Freitext oder `Denk dir was aus`; ohne Auswahl wird nicht gespeichert.
+- Self-Bondage-Aufträge verlangen genau eine Auftragsszene: eine `Self-Bondage-fähige` Szene, Freitext oder `Denk dir was aus`; ohne Auswahl wird nicht gespeichert.
 
 ## Bildzuschnitt beim Upload
 
 - `FileUploadField` unterstützt für Bilduploads einen clientseitigen Zuschnitt per Canvas.
 - Benutzer können Format, horizontalen Ausschnitt, vertikalen Ausschnitt und Zoom wählen.
 - Profilbilder nutzen standardmäßig Quadrat-Zuschnitt.
-- Spielzeug- und Stellungsbilder nutzen standardmäßig ein Querformat.
+- Spielzeug- und Szenenbilder nutzen standardmäßig ein Querformat.
 - Der gewählte Ausschnitt wird beim Speichern automatisch übernommen; ein separater Bestätigen-Button ist nicht mehr nötig.
 - Der automatische Zuschnitt nutzt synchrone Status-Refs, damit der direkt anschließende Formular-Submit nicht durch veralteten React-State als `Upload läuft noch` blockiert wird.
 - Bilduploads bleiben unverändert, damit die Galerie Originalbilder und Videos behalten kann.
@@ -631,17 +631,24 @@ Details:
 - Telegram-Rückmeldungen, Dashboard-Kacheln, Datenexport-Hinweise und Dokumentation verwenden ebenfalls die Bezeichnung `Bilder`.
 - Technische Pfade und interne Modellnamen wie `/media` und `Media` bleiben stabil, damit vorhandene Links, API-Endpunkte und Datenbanktabellen kompatibel bleiben.
 
-## Spielzeug-Stellungs-Verknüpfung
+## Spielzeug-Szenen-Verknüpfung
 
-- Beim Anlegen und Bearbeiten von Spielsachen können vorhandene Stellungen per Checkbox verknüpft werden.
-- Die Auswahl nutzt denselben Benutzer-/Zirkel-Scope wie die restlichen Spielzeug- und Stellungsansichten.
+- Beim Anlegen und Bearbeiten von Spielsachen können vorhandene Szenen per Checkbox verknüpft werden.
+- Die Auswahl nutzt denselben Benutzer-/Zirkel-Scope wie die restlichen Spielzeug- und Szenenansichten.
 - Die Spielzeug-Detailseite zeigt die Verknüpfungen weiterhin direkt im Bereich `Verknüpfungen`.
 
 ## Startseite und Benutzeransicht
 
 - Der Hauptmenüpunkt `Dashboard` heißt sichtbar jetzt `Start`.
 - Der Hauptmenüpunkt `Lass uns spielen` wurde aus der Navigation entfernt; die drei zentralen Aktionen `Spieltermin planen`, `Self-Bondage-Auftrag` und `Ideensammlung` stehen direkt auf `Start` unter der Spielampel.
-- Die Schnellzugriffe auf `Spiel`, `Stellungen` und `Spielsachen` sind auf der Startseite optisch von den weiteren Kacheln getrennt.
+- Die Schnellzugriffe auf `Spiel`, `Szenen` und `Spielsachen` sind auf der Startseite optisch von den weiteren Kacheln getrennt.
 - Im mobilen Kopfbereich steht neben dem Hamburger-Menü ein kompakter Dark-Mode-Schalter.
 - Normale Benutzer sehen in den Einstellungen nur `Profil`; `Benutzer`, `Telegram`, `Daten`, `API Tokens` und `Protokoll` sind nur in der Admin-Ansicht sichtbar.
 - Die direkten Seiten und Server-Actions für diese Admin-Bereiche prüfen die Rolle ebenfalls und leiten Nicht-Admins zurück zur Startseite.
+
+## Umbenennung Szenen
+
+- Die sichtbare Bezeichnung `Stellung`/`Stellungen` wurde fachlich auf `Szene`/`Szenen` umgestellt.
+- Technische Routen und Datenmodelle wie `/positions` und `Position` bleiben stabil, damit bestehende Links und Daten nicht brechen.
+- Telegram-Dialoge verstehen weiterhin alte Begriffe wie `Stellung` und zusätzlich `Szene`.
+- Self-Bondage-Notizen lesen alte `Stellung:`-Einträge weiter, speichern neue Angaben aber als `Szene:`.

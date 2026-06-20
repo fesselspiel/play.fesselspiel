@@ -47,10 +47,10 @@ Ursprünglich gewünschte Module:
 - Spätere Sets/Zusammenstellungen.
 - "Lass uns was machen"-Feature.
 - Aktivitäten mit Spielzeugauswahl, Notiz, Datum, Uhrzeit und Status.
-- Stellungen mit Name, Bild, Beschreibung.
-- Stellungen mit Spielzeugen und Aktivitäten verknüpfen.
-- Suche und Filter für Stellungen.
-- Baukastensystem aus Aktivitäten, Stellungen und Spielzeugen.
+- Szenen mit Name, Bild, Beschreibung.
+- Szenen mit Spielzeugen und Aktivitäten verknüpfen.
+- Suche und Filter für Szenen.
+- Baukastensystem aus Aktivitäten, Szenen und Spielzeugen.
 
 ## Deployment-Prompts
 
@@ -101,7 +101,7 @@ Umsetzung:
 - Webhook- und Updates-APIs ergänzt.
 - OpenAI-Agent eingebaut.
 - Kurzzeitgedächtnis implementiert.
-- Dialoge für Spielzeug/Stellung eingebaut.
+- Dialoge für Spielzeug/Szene eingebaut.
 - Telegram-Bildverarbeitung eingebaut.
 - Telegram-Bilder können als Item-Bild oder als Bild gespeichert werden.
 
@@ -194,13 +194,13 @@ Umsetzung:
 
 Anforderung:
 
-- Spielzeuge, Stellungen, Events und so weiter können nach dem Anlegen nicht geändert werden.
+- Spielzeuge, Szenen, Events und so weiter können nach dem Anlegen nicht geändert werden.
 - Alles soll bearbeitbar und löschbar sein.
 
 Umsetzung:
 
-- Edit/Delete für Spielzeuge, Stellungen, Aktivitäten, Events und Sessions.
-- Bild ersetzen/entfernen für Spielzeuge und Stellungen.
+- Edit/Delete für Spielzeuge, Szenen, Aktivitäten, Events und Sessions.
+- Bild ersetzen/entfernen für Spielzeuge und Szenen.
 - Alte Upload-Datei wird bei Bildersatz oder Löschen entfernt.
 - Edit-Routen:
   - `/toys/[slug]/edit`
@@ -218,11 +218,11 @@ Anforderung:
 - Kuenftige Arbeiten sollen dort weiter dokumentiert werden.
 - Reproduzierbarkeit inklusive Files und Prompt.
 
-## Stellungen Self-Bondage Prompt
+## Szenen Self-Bondage Prompt
 
 Anforderung:
 
-- Bei Stellungen in der Konfiguration beim Anlegen und Ändern ein Checkboxfeld ergänzen.
+- Bei Szenen in der Konfiguration beim Anlegen und Ändern ein Checkboxfeld ergänzen.
 - Feldname: `Self-Bondage-fähig`.
 - Das Feld soll später weiterverwendet werden können.
 
@@ -335,7 +335,7 @@ Umsetzung:
 Nachbesserung:
 
 - Auf iPad funktionierte die Vorschau, aber der Speichern-Button reagierte beim Bildwechsel nicht verlässlich.
-- Deshalb wurde für Spielzeug- und Stellungsbilder ein direkter Upload beim Auswählen eingebaut.
+- Deshalb wurde für Spielzeug- und Szenenbilder ein direkter Upload beim Auswählen eingebaut.
 - Der Button `Änderungen speichern` muss dadurch keine große Bilddatei mehr mitsenden, sondern nur noch die fertige Datei-Referenz speichern.
 - Während des Uploads wird das Absenden blockiert und ein Status angezeigt.
 
@@ -380,7 +380,7 @@ Anforderung:
 
 - Der Menüpunkt `Aktivitäten` soll `Lass uns spielen` heissen.
 - Die Überschrift `Lass uns was machen` soll ebenfalls `Lass uns spielen` heissen.
-- In der Navigation soll `Lass uns spielen` an zweiter Position stehen, danach `Stellungen`, danach `Spielsachen`.
+- In der Navigation soll `Lass uns spielen` an zweiter Position stehen, danach `Szenen`, danach `Spielsachen`.
 - `Events` wirkt redundant zu Aktivitäten und soll aus der Hauptnavigation verschwinden oder mit `Lass uns spielen` zusammengeführt werden.
 
 Umsetzung:
@@ -388,7 +388,7 @@ Umsetzung:
 - Desktop- und Mobile-Menü neu sortiert und umbenannt.
 - `Events` aus der Hauptnavigation entfernt, ohne bestehende Event-Daten zu löschen.
 - Event-Termine werden in der Dashboard-Wochenansicht weiterhin angezeigt, dort aber als `Termin` im Kontext von `Lass uns spielen`.
-- Dashboard-Kacheln auf `Lass uns spielen`, `Stellungen`, `Spielsachen`, Sessions, Bilder und Protokoll reduziert.
+- Dashboard-Kacheln auf `Lass uns spielen`, `Szenen`, `Spielsachen`, Sessions, Bilder und Protokoll reduziert.
 - Aktivitätsseiten in der sichtbaren Sprache auf `Spielidee`, `Spielplan` und `Spielsachen` angepasst.
 
 ## Info-und-Einstellungen-Prompt
@@ -437,7 +437,7 @@ Umsetzung:
 - Neues Prisma-Modell `Circle` und Feld `User.circleId`.
 - Admins können in der Benutzerverwaltung Kreise anlegen und Benutzer zuordnen.
 - Gemeinsame Webbereiche nutzen `ownerScope(user)` statt nur `ownerId: user.id`.
-- Kreis-Mitglieder sehen automatisch gemeinsame Spielsachen, Stellungen, Spielpläne, Termine, Sessions, Bilder und Dateien.
+- Kreis-Mitglieder sehen automatisch gemeinsame Spielsachen, Szenen, Spielpläne, Termine, Sessions, Bilder und Dateien.
 - Neue Inhalte behalten ihren Ersteller als Besitzer, werden aber allen aktiven Kreis-Mitgliedern angezeigt.
 
 Nachbesserung:
@@ -467,9 +467,9 @@ Umsetzung:
 
 Anforderung:
 
-- Bei Stellungen und Spielsachen sollen Listen kompakter werden.
+- Bei Szenen und Spielsachen sollen Listen kompakter werden.
 - Sichtbar sein sollen Thumbnail und Überschrift.
-- Beim Klick soll das jeweilige Spielzeug oder die jeweilige Stellung ausklappen.
+- Beim Klick soll das jeweilige Spielzeug oder die jeweilige Szene ausklappen.
 
 Umsetzung:
 
@@ -482,7 +482,7 @@ Nachbesserung:
 
 - Der aufgeklappte Bereich soll wieder deutlich mehr vom alten Karteninhalt zeigen.
 - Deshalb enthalten ausgeklappte Einträge jetzt großes Bild, Beschreibung, Slug, Verknüpfungszähler und Detailbutton.
-- Bei Stellungen werden verknüpfte Spielsachen als klickbare Chips gezeigt.
+- Bei Szenen werden verknüpfte Spielsachen als klickbare Chips gezeigt.
 
 ## Dashboard-Reihenfolge-Prompt
 
@@ -699,7 +699,7 @@ Anforderung:
 - Segufix soll nur noch ein gemeinsames Textfeld für Begleitnotizen haben.
 - KG soll statt `Notizen` einen hochwertigeren Begriff verwenden.
 - KG-Historie und Segufix-Historienkarten sollen direkt auf Detailseiten verlinken.
-- Stellungs-Sortierung soll auf dem iPad funktionieren und nicht prominent sichtbar sein.
+- Szenen-Sortierung soll auf dem iPad funktionieren und nicht prominent sichtbar sein.
 - In Einstellungen soll ein schneller Dark-Mode-Toggle erreichbar sein.
 - Telegram-Aktionsregeln sollen zuverlässig auslösen.
 - Telegram-Slash-Kommandos in HTML-Nachrichten sollen antippbar bleiben.
@@ -710,7 +710,7 @@ Umsetzung:
 - Segufix nutzt `Sessionkommentar`, KG nutzt `Sessionbeschreibung`.
 - Neue KG-Detailseite `/sessions/kg/[id]`.
 - Historien- und Kalenderlinks führen zu den Detailseiten.
-- Stellungs-Sortierung ist für Admins als eingeklappter Bereich mit Hoch-/Runter-Schaltern umgesetzt.
+- Szenen-Sortierung ist für Admins als eingeklappter Bereich mit Hoch-/Runter-Schaltern umgesetzt.
 - Dark-Mode-Toggle wurde in Desktop- und Mobile-Einstellungen ergänzt.
 - Telegram-Regeln matchen Kreis- und Benutzerziele gegenseitig über die Kreiszugehörigkeit.
 - Slash-Kommandos werden in Telegram-HTML nicht mehr als `<code>` ausgegeben.

@@ -38,7 +38,7 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "search_portal",
-      description: "Sucht Spielzeuge, Stellungen, Aktivitäten und Sessions im Portal.",
+      description: "Sucht Spielzeuge, Szenen, Aktivitäten und Sessions im Portal.",
       parameters: {
         type: "object",
         properties: {
@@ -72,7 +72,7 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "create_position",
-      description: "Legt eine Stellung/Position an und kann vorhandene Spielzeuge per Titel verknüpfen.",
+      description: "Legt eine Szene/Position an und kann vorhandene Spielzeuge per Titel verknüpfen.",
       parameters: {
         type: "object",
         properties: {
@@ -90,7 +90,7 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "create_activity",
-      description: "Plant eine Aktivität mit optionalem Datum, Notiz, Spielzeugen und Stellungen.",
+      description: "Plant eine Aktivität mit optionalem Datum, Notiz, Spielzeugen und Szenen.",
       parameters: {
         type: "object",
         properties: {
@@ -246,7 +246,7 @@ function formatToolResultHtml(result: ToolCallResult) {
     return [
       "<b>Portalstatus</b>",
       htmlLine("Spielzeuge", data.toys),
-      htmlLine("Stellungen", data.positions),
+      htmlLine("Szenen", data.positions),
       htmlLine("Geplante Aktivitäten", data.plannedActivities),
       htmlLine("Sessions dieses Jahr", data.sessionsThisYear),
       htmlLine("Gesamtdauer", data.totalSessionDuration),
@@ -275,7 +275,7 @@ function formatToolResultHtml(result: ToolCallResult) {
   if (positions.length) {
     sections.push(
       htmlList(
-        "Stellungen",
+        "Szenen",
         positions.map((position, index) => {
           const name = String(position.name || "Ohne Name");
           const description = position.description ? `\n${telegramHtml(position.description)}` : "";
@@ -296,7 +296,7 @@ function formatToolResultHtml(result: ToolCallResult) {
             htmlLine("Status", activity.status),
             htmlLine("Termin", activity.plannedAt),
             tools ? htmlLine("Spielzeuge", tools) : "",
-            linkedPositions ? htmlLine("Stellungen", linkedPositions) : "",
+            linkedPositions ? htmlLine("Szenen", linkedPositions) : "",
             telegramLink(String(activity.url || ""), "öffnen")
           ]
             .filter(Boolean)
@@ -427,8 +427,8 @@ async function createToy(userId: string, args: Record<string, unknown>): Promise
 async function createPosition(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   const name = clean(args.name);
   if (!name) return { ok: false, message: "Name fehlt." };
-  if (!clean(args.description)) return { ok: false, message: "Beschreibung fehlt. Frage danach, bevor du die Stellung anlegst." };
-  if (args.imageUrl === undefined) return { ok: false, message: "Bild-URL fehlt. Frage danach, bevor du die Stellung anlegst." };
+  if (!clean(args.description)) return { ok: false, message: "Beschreibung fehlt. Frage danach, bevor du die Szene anlegst." };
+  if (args.imageUrl === undefined) return { ok: false, message: "Bild-URL fehlt. Frage danach, bevor du die Szene anlegst." };
   const slug = await uniqueSlug("position", name);
   const toys = await matchingToys(userId, args.toyTitles);
   const position = await prisma.position.create({
@@ -444,7 +444,7 @@ async function createPosition(userId: string, args: Record<string, unknown>): Pr
   });
   return {
     ok: true,
-    message: `Stellung angelegt: ${position.name}`,
+    message: `Szene angelegt: ${position.name}`,
     data: { name: position.name, url: link(`/positions/${position.slug}`), toys: position.tools.map((toy) => toy.title) }
   };
 }

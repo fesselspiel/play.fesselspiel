@@ -22,7 +22,7 @@ import { LogoutButton } from "@/components/logout-button";
 
 const mobileNav = [
   ["Start", "/", LayoutDashboard],
-  ["Stellungen", "/positions", ShieldCheck],
+  ["Szenen", "/positions", ShieldCheck],
   ["Spielsachen", "/toys", ToyBrick],
   ["Sessions", "/sessions", Timer],
   ["Bilder", "/media", Images]

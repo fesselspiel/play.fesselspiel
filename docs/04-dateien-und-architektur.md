@@ -44,7 +44,7 @@ Telegram-Formatierung:
 - `src/components/mobile-menu.tsx`: Hamburger-Menü für mobile Ansicht.
 - `src/components/login-form.tsx`: Loginformular mit Passwort-Auge.
 - `src/components/theme-picker.tsx`: Theme-Auswahl mit Sofortvorschau.
-- `src/components/sortable-catalog.tsx`: Drag-and-drop-Listen für Spielzeuge und Stellungen.
+- `src/components/sortable-catalog.tsx`: Drag-and-drop-Listen für Spielzeuge und Szenen.
 - `src/components/ui.tsx`: PageHeader, PageGuide, Panel, SoftPanel, Field, Button, Badge, EmptyState.
 - `src/components/telegram/chat-discovery.tsx`: Telegram Chat-/Thread-Erkennung und Webhook-Steuerung.
 
@@ -69,7 +69,7 @@ Telegram-Formatierung:
 - `src/app/toys/[slug]/page.tsx`
 - `src/app/toys/[slug]/edit/page.tsx`
 
-### Stellungen
+### Szenen
 
 - `src/app/positions/page.tsx`
 - `src/app/positions/new/page.tsx`
@@ -101,7 +101,7 @@ Telegram-Formatierung:
 - `src/app/messages/page.tsx`: Protokollseite unter Einstellungen, gruppiert App-Aktionen und alte Telegram-/Nachrichten-Einträge.
 - `src/app/api/files/[id]/route.ts`
 - `src/app/api/uploads/route.ts`
-- `src/app/api/reorder/route.ts`: Speichert Drag-and-drop-Reihenfolgen für Spielzeug- und Stellungslisten.
+- `src/app/api/reorder/route.ts`: Speichert Drag-and-drop-Reihenfolgen für Spielzeug- und Szenenlisten.
 
 ### Einstellungen
 
@@ -144,8 +144,8 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `Circle`: Paar-/Gruppenkreis; Mitglieder sehen gemeinsame Inhalte.
 - `FileAsset`: geschützte Upload-Datei.
 - `Toy`: Spielzeug mit Slug, Bild, Beschreibung und `sortOrder`.
-- `Position`: Stellung mit Slug, Bild, Beschreibung, `sortOrder` und `selfBondageCapable`.
-- `ActivityPlan`: Aktivität mit Status, Termin, Spielzeugen und Stellungen. Statuswerte: `REQUESTED`, `PLANNED`, `DONE`, `DISCARDED`.
+- `Position`: Szene mit Slug, Bild, Beschreibung, `sortOrder` und `selfBondageCapable`.
+- `ActivityPlan`: Aktivität mit Status, Termin, Spielzeugen und Szenen. Statuswerte: `REQUESTED`, `PLANNED`, `DONE`, `DISCARDED`.
 - `ActivityImage`: geschützter Bildanhang für Ideen aus der Ideensammlung; gehört direkt zu `ActivityPlan` und `FileAsset`, nicht zu Alben.
 - `SegufixSession`: Session-Tracking.
 - `KgSession`: KG-Tragezeit-Tracking mit Start, Ende, Dauer und Notiz.
@@ -173,7 +173,7 @@ UI-Hinweis:
 - Upload-Formulare nutzen `FileUploadField`, damit Benutzer auf mobilen Geräten sehen, welche Datei ausgewählt wurde.
 - Bei Bildersatz gewinnt eine neu ausgewählte Datei automatisch gegen die Entfernen-Option.
 - `next.config.mjs` setzt `experimental.serverActions.bodySizeLimit` auf `50mb`, passend zur Upload-Grenze der App.
-- Spielzeug- und Stellungsbilder werden beim Auswählen direkt an `/api/uploads` gesendet. Die anschließende Server Action speichert nur die zurückgegebene geschützte Datei-URL.
+- Spielzeug- und Szenenbilder werden beim Auswählen direkt an `/api/uploads` gesendet. Die anschließende Server Action speichert nur die zurückgegebene geschützte Datei-URL.
 - `ensureDefaultAlbum(ownerId)` in `src/lib/albums.ts` legt bei Bedarf das persönliche Hauptalbum des Benutzers an. Der Albumname kommt aus dem Profil-Anzeigenamen, danach Name, Benutzername oder E-Mail.
 - Alte `Standard`- und `Eingang`-Alben werden in dieses persönliche Hauptalbum überführt.
 - Bilduploads über Web, Telegram, externe API, Session-Detailseite und Import verwenden dieses Hauptalbum als Fallback.
@@ -190,7 +190,7 @@ UI-Hinweis:
 - Telegram-Befehl `/album_new` startet einen Dialog zum Anlegen eines Albums; `/album_new Name` legt es direkt an.
 - `src/app/settings/users/page.tsx`: Admin-Benutzerverwaltung inklusive Kreisen, einklappbarer Systemzeit und Profilbildänderung für Benutzer.
 - `src/app/activities/page.tsx`: prominente Spieltermin-Planung und Self-Bondage-Vorbereitungsbereich.
-- `src/app/activities/new/page.tsx?template=self-bondage`: vorbelegter Spieltermin mit Self-Bondage-fähigen Stellungen.
+- `src/app/activities/new/page.tsx?template=self-bondage`: vorbelegter Spieltermin mit Self-Bondage-fähigen Szenen.
 
 ## Wiederverwendbare UI-Helfer
 
@@ -242,4 +242,4 @@ Bearbeiten und Löschen sind als Server Actions in den jeweiligen `edit/page.tsx
 5. aktualisiert oder löscht den Datensatz.
 6. redirectet zur passenden Seite.
 
-Bei Spielzeug/Stellung wird beim Bildersatz oder Löschen die alte Upload-Datei über `deleteOwnedFile` entfernt.
+Bei Spielzeug/Szene wird beim Bildersatz oder Löschen die alte Upload-Datei über `deleteOwnedFile` entfernt.

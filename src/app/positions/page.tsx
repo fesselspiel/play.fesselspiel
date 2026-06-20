@@ -30,16 +30,16 @@ export default async function PositionsPage({ searchParams }: { searchParams: { 
   return (
     <AppShell>
       <PageHeader
-        title="Stellungen"
+        title="Szenen"
         action={
           <Link href="/positions/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white">
             <Plus className="h-4 w-4" />
-            Stellung
+            Szene
           </Link>
         }
       />
       <PageGuide title="Positionen mit Bildern und Verknüpfungen">
-        Stellungen sind wiederverwendbare Bausteine für Aktivitäten. Suche nach Namen, filtere nach Spielzeug und öffne einen Eintrag, um Bild, Beschreibung, Verknüpfungen und Bearbeitung zu sehen.
+        Szenen sind wiederverwendbare Bausteine für Aktivitäten. Suche nach Namen, filtere nach Spielzeug und öffne einen Eintrag, um Bild, Beschreibung, Verknüpfungen und Bearbeitung zu sehen.
       </PageGuide>
       <form className="mb-5 grid gap-3 rounded-lg bg-paper p-4 sm:grid-cols-[1fr_260px_auto]">
         <input className="focus-ring rounded-md border border-line px-3 py-2 text-sm" name="q" placeholder="Nach Name suchen" defaultValue={q} />
@@ -64,7 +64,7 @@ export default async function PositionsPage({ searchParams }: { searchParams: { 
           }))} />
         </div>
       ) : (
-        <EmptyState title="Keine Stellungen gefunden" />
+        <EmptyState title="Keine Szenen gefunden" />
       )}
     </AppShell>
   );

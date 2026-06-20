@@ -115,7 +115,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
       />
       <PageGuide title={isSelfBondageOrder ? "Self-Bondage-Auftrag" : isIdea ? "Idee mit Bildern" : "Spielplan im Detail"}>
         {isSelfBondageOrder
-          ? "Diese Detailseite zeigt den Auftrag, den Termin, den Status und die ausgewählten Self-Bondage-fähigen Stellungen. Nutze Bearbeiten, um die Anweisung oder die Stellungen zu ändern."
+          ? "Diese Detailseite zeigt den Auftrag, den Termin, den Status und die ausgewählten Self-Bondage-fähigen Szenen. Nutze Bearbeiten, um die Anweisung oder die Szenen zu ändern."
           : isIdea
             ? "Diese Detailseite sammelt eine Idee, passende Bausteine und Bilder, die nur zu dieser Idee gehören."
           : "Diese Detailseite zeigt Termin, Notiz, Status und alle ausgewählten Bausteine eines Spielplans. Nutze Bearbeiten, um Status, Termin oder Verknüpfungen nachträglich zu ändern."}
@@ -140,10 +140,10 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
             </div>
           </SoftPanel> : null}
           <SoftPanel>
-            <h2 className="mb-3 text-lg font-semibold">{isSelfBondageOrder ? "Self-Bondage-fähige Stellungen" : "Stellungen"}</h2>
+            <h2 className="mb-3 text-lg font-semibold">{isSelfBondageOrder ? "Self-Bondage-fähige Szenen" : "Szenen"}</h2>
             <div className="space-y-2">
               {activity.positions.map((position) => <Link key={position.id} href={`/positions/${position.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{position.name}</Link>)}
-              {!activity.positions.length ? <p className="text-sm text-graphite">Keine Stellung ausgewählt.</p> : null}
+              {!activity.positions.length ? <p className="text-sm text-graphite">Keine Szene ausgewählt.</p> : null}
             </div>
           </SoftPanel>
         </div>
@@ -191,7 +191,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
       ) : null}
       <Panel className="mt-6">
         <h2 className="mb-2 text-lg font-semibold">Aktionen</h2>
-        <p className="mb-4 text-sm text-graphite">{isSelfBondageOrder ? "Bearbeite diesen Auftrag, wenn Termin, Status, Anweisung oder Stellungen geändert werden sollen." : "Bearbeite diesen Spielplan, wenn Termin, Status, Notiz oder Bausteine geändert werden sollen."}</p>
+        <p className="mb-4 text-sm text-graphite">{isSelfBondageOrder ? "Bearbeite diesen Auftrag, wenn Termin, Status, Anweisung oder Szenen geändert werden sollen." : "Bearbeite diesen Spielplan, wenn Termin, Status, Notiz oder Bausteine geändert werden sollen."}</p>
         <Link href={`/activities/${activity.slug}/edit`} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
           <Pencil className="h-4 w-4" />
           Bearbeiten

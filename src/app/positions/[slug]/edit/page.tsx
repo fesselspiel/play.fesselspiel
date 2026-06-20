@@ -68,7 +68,7 @@ export default async function EditPositionPage({ params }: { params: { slug: str
 
   return (
     <AppShell>
-      <PageHeader title="Stellung bearbeiten" />
+      <PageHeader title="Szene bearbeiten" />
       <PageGuide>
         Bearbeite hier Name, Slug, Bild, Beschreibung und die verknüpften Spielzeuge. Beim Ersetzen oder Entfernen eines Bildes wird die alte Datei bereinigt.
       </PageGuide>
@@ -113,8 +113,8 @@ export default async function EditPositionPage({ params }: { params: { slug: str
         <form action={deletePosition} className="rounded-lg border border-line bg-paper p-5">
           <input type="hidden" name="id" value={position.id} />
           <h2 className="text-lg font-semibold">Löschen</h2>
-          <p className="mt-2 text-sm text-graphite">Entfernt die Stellung, ihre Verknüpfungen und das hinterlegte Bild vom Server.</p>
-          <Button variant="danger" className="mt-4 w-full"><Trash2 className="h-4 w-4" /> Stellung löschen</Button>
+          <p className="mt-2 text-sm text-graphite">Entfernt die Szene, ihre Verknüpfungen und das hinterlegte Bild vom Server.</p>
+          <Button variant="danger" className="mt-4 w-full"><Trash2 className="h-4 w-4" /> Szene löschen</Button>
         </form>
       </div>
     </AppShell>

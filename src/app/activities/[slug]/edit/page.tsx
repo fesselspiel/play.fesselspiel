@@ -14,22 +14,22 @@ import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlugForUpdate } from "@/lib/slug";
 
 function positionNoteValue(note?: string | null) {
-  const match = String(note || "").match(/^Stellung:\s*(.+)$/m);
+  const match = String(note || "").match(/^(?:Szene|Stellung):\s*(.+)$/m);
   return match?.[1]?.trim() || "";
 }
 
 function stripPositionNote(note: string) {
   return note
     .split("\n")
-    .filter((line) => !line.trim().startsWith("Stellung:"))
+    .filter((line) => !/^(?:Szene|Stellung):/.test(line.trim()))
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
 function selfBondagePositionNote(choice: string, customText: string) {
-  if (choice === "custom") return `Stellung: ${customText}`;
-  if (choice === "surprise") return "Stellung: Denk dir was aus.";
+  if (choice === "custom") return `Szene: ${customText}`;
+  if (choice === "surprise") return "Szene: Denk dir was aus.";
   return "";
 }
 
@@ -128,9 +128,9 @@ export default async function EditActivityPage({ params, searchParams }: { param
   const selectedPosition = activity.positions.find((position) => position.selfBondageCapable);
   const selfBondageDefaultChoice = selectedPosition ? `position:${selectedPosition.id}` : customPositionText === "Denk dir was aus." ? "surprise" : customPositionText ? "custom" : "";
   const positionError = searchParams?.error === "position-text"
-    ? "Bitte gib einen Freitext ein oder wähle eine Stellung."
+    ? "Bitte gib einen Freitext ein oder wähle eine Szene."
     : searchParams?.error === "position"
-      ? "Bitte wähle genau eine Stellung, Freitext oder „Denk dir was aus“."
+      ? "Bitte wähle genau eine Szene, Freitext oder „Denk dir was aus“."
       : "";
 
   return (
@@ -138,10 +138,10 @@ export default async function EditActivityPage({ params, searchParams }: { param
       <PageHeader title={isSelfBondageOrder ? "Auftrag bearbeiten" : isIdea ? "Idee bearbeiten" : "Spielplan bearbeiten"} />
       <PageGuide title={isSelfBondageOrder ? "Self-Bondage-Auftrag bearbeiten" : isIdea ? "Idee bearbeiten" : "Spielplan bearbeiten"}>
         {isSelfBondageOrder
-          ? "Passe hier Auftrag, Termin, Status, Anweisung und die ausgewählten Self-Bondage-fähigen Stellungen an. Löschen entfernt nur diesen Auftrag."
+          ? "Passe hier Auftrag, Termin, Status, Anweisung und die ausgewählten Self-Bondage-fähigen Szenen an. Löschen entfernt nur diesen Auftrag."
           : isIdea
             ? "Passe hier Titel, Beschreibung, Status und Bausteine dieser Idee an. Bilder verwaltest du direkt auf der Ideendetailseite."
-          : "Passe hier Titel, Slug, Termin, Status, Notiz und die verknüpften Spielsachen oder Stellungen an. Löschen entfernt nur diesen Plan, nicht die verwendeten Bausteine."}
+          : "Passe hier Titel, Slug, Termin, Status, Notiz und die verknüpften Spielsachen oder Szenen an. Löschen entfernt nur diesen Plan, nicht die verwendeten Bausteine."}
       </PageGuide>
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
         <form action={updateActivity} className="grid gap-6 xl:grid-cols-[1fr_420px]">
@@ -209,7 +209,7 @@ export default async function EditActivityPage({ params, searchParams }: { param
               />
             ) : (
             <section>
-              <h2 className="mb-2 text-sm font-semibold text-graphite">Stellungen</h2>
+              <h2 className="mb-2 text-sm font-semibold text-graphite">Szenen</h2>
               <div className="space-y-2">
                 {positions.map((position) => (
                   <label key={position.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">

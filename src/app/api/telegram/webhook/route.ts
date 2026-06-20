@@ -21,7 +21,7 @@ const HELP_TEXT = `<b>Befehle</b>
 /status - kurze Übersicht
 /toys - Spielzeuge anzeigen
 /toy_new Name - neues Spielzeug mit Dialog anlegen
-/positions - Stellungen anzeigen
+/positions - Szenen anzeigen
 /activities - geplante Aktivitäten anzeigen
 /activity_request Titel - Spielplan anfragen
 /activity_confirm_1 - angefragten Spielplan aus der Liste bestätigen
@@ -72,7 +72,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
       prisma.segufixSession.count({ where: { ownerId: userId } }),
       prisma.kgSession.count({ where: { ownerId: userId } })
     ]);
-    return ["<b>Portalstatus</b>", htmlLine("Spielzeuge", toys), htmlLine("Stellungen", positions), htmlLine("Geplante Aktivitäten", activities), htmlLine("Segufix-Sessions", sessions), htmlLine("KG-Einträge", kgSessions)].join("\n");
+    return ["<b>Portalstatus</b>", htmlLine("Spielzeuge", toys), htmlLine("Szenen", positions), htmlLine("Geplante Aktivitäten", activities), htmlLine("Segufix-Sessions", sessions), htmlLine("KG-Einträge", kgSessions)].join("\n");
   }
 
   if (parsed.command.startsWith("/media_album_")) {
@@ -117,7 +117,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   if (parsed.command === "/positions") {
     const positions = await prisma.position.findMany({ where: { ownerId: userId }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], take: 12 });
     return htmlList(
-      "Stellungen",
+      "Szenen",
       positions.map((position, index) =>
         [`<b>${index + 1}. ${telegramHtml(position.name)}</b>`, position.description ? telegramHtml(position.description) : "", telegramLink(`${env.appUrl}/positions/${position.slug}`, "öffnen")]
           .filter(Boolean)
@@ -141,7 +141,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
           `<b>${index + 1}. ${telegramHtml(activity.title)}</b>`,
           htmlLine("Status", activityStatusLabel[activity.status]),
           htmlLine("Termin", formatDateTime(activity.plannedAt)),
-          htmlLine("Bausteine", `${activity.tools.length} Spielzeuge, ${activity.positions.length} Stellungen`),
+          htmlLine("Bausteine", `${activity.tools.length} Spielzeuge, ${activity.positions.length} Szenen`),
           telegramLink(`${env.appUrl}/activities/${activity.slug}`, "öffnen"),
           activity.status === "REQUESTED" ? `/activity_confirm_${requested.findIndex((entry) => entry.id === activity.id) + 1}` : ""
         ].join("\n")

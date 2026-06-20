@@ -185,7 +185,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
 
   const positionMap = new Map<string, string>();
   for (const entry of records(data.positions)) {
-    const name = String(entry.name || "Importierte Stellung");
+    const name = String(entry.name || "Importierte Szene");
     const slug = await uniqueSlug("position", String(entry.slug || name));
     const toolIds = strings(entry.toolIds).map((id) => toyMap.get(id)).filter((id): id is string => Boolean(id));
     const created = await prisma.position.create({

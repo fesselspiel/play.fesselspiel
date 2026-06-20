@@ -12,8 +12,8 @@ import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
 
 function selfBondagePositionNote(choice: string, customText: string) {
-  if (choice === "custom") return `Stellung: ${customText}`;
-  if (choice === "surprise") return "Stellung: Denk dir was aus.";
+  if (choice === "custom") return `Szene: ${customText}`;
+  if (choice === "surprise") return "Szene: Denk dir was aus.";
   return "";
 }
 
@@ -96,19 +96,19 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
   const statusOptions = activityStatusOptions(selfBondageTemplate, ideaTemplate);
   const timeOptions = quarterHourOptions();
   const positionError = searchParams?.error === "position-text"
-    ? "Bitte gib einen Freitext ein oder wähle eine Stellung."
+    ? "Bitte gib einen Freitext ein oder wähle eine Szene."
     : searchParams?.error === "position"
-      ? "Bitte wähle genau eine Stellung, Freitext oder „Denk dir was aus“."
+      ? "Bitte wähle genau eine Szene, Freitext oder „Denk dir was aus“."
       : "";
   return (
     <AppShell>
       <PageHeader title={selfBondageTemplate ? "Self-Bondage-Auftrag" : ideaTemplate ? "Idee festhalten" : "Lass uns spielen"} />
       <PageGuide title={selfBondageTemplate ? "Auftrag zum Vorbereiten" : ideaTemplate ? "Ideensammlung" : "Spielideen aus dem Baukastensystem"}>
         {selfBondageTemplate
-          ? "Erstelle hier einen Auftrag, bei dem eine Person sich selbst in eine passende Lage bringt. Es werden nur Stellungen angeboten, die als Self-Bondage-fähig markiert sind."
+          ? "Erstelle hier einen Auftrag, bei dem eine Person sich selbst in eine passende Lage bringt. Es werden nur Szenen angeboten, die als Self-Bondage-fähig markiert sind."
           : ideaTemplate
             ? "Halte hier eine Idee fest, die ihr irgendwann ausprobieren wollt. Bilder kannst du anschließend auf der Detailseite der Idee hinzufügen."
-          : "Erstelle hier einen konkreten Spielplan. Vergib Titel und Kategorie, setze optional Datum und Uhrzeit, Wähle passende Spielsachen und Stellungen aus und speichere den Plan mit dem gewünschten Status."}
+          : "Erstelle hier einen konkreten Spielplan. Vergib Titel und Kategorie, setze optional Datum und Uhrzeit, Wähle passende Spielsachen und Szenen aus und speichere den Plan mit dem gewünschten Status."}
       </PageGuide>
       <form action={createActivity} className="grid gap-6 xl:grid-cols-[1fr_420px]">
         {selfBondageTemplate ? <input type="hidden" name="template" value="self-bondage" /> : null}
@@ -175,7 +175,7 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
             />
           ) : (
           <section>
-            <h2 className="mb-2 text-sm font-semibold text-graphite">Stellungen</h2>
+            <h2 className="mb-2 text-sm font-semibold text-graphite">Szenen</h2>
             <div className="space-y-2">
               {positions.map((position) => (
                 <label key={position.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">

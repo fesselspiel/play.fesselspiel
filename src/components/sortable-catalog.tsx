@@ -113,7 +113,7 @@ export function SortableToyList({ items }: { items: ToyItem[] }) {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-graphite">
                     <span className="rounded-md bg-surface px-2 py-1">/toys/{toy.slug}</span>
-                    <span className="rounded-md bg-surface px-2 py-1">{toy.positionCount} Stellungen</span>
+                    <span className="rounded-md bg-surface px-2 py-1">{toy.positionCount} Szenen</span>
                     <span className="rounded-md bg-surface px-2 py-1">{toy.activityCount} Spielpläne</span>
                   </div>
                   <p className="mt-4 text-sm leading-6 text-graphite">{toy.description || "Keine Beschreibung hinterlegt."}</p>

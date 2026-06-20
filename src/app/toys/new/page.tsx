@@ -43,7 +43,7 @@ export default async function NewToyPage() {
     <AppShell>
       <PageHeader title="Spielzeug anlegen" />
       <PageGuide title="Spielzeug mit Bild, Slug und QR-Code anlegen">
-        Erfasse hier ein neues Spielzeug mit Titel, optionalem Slug, Bild, Beschreibung und passenden Stellungen. Nach dem Speichern bekommt der Eintrag eine Detailseite mit geschuetztem Bild und QR-Code.
+        Erfasse hier ein neues Spielzeug mit Titel, optionalem Slug, Bild, Beschreibung und passenden Szenen. Nach dem Speichern bekommt der Eintrag eine Detailseite mit geschuetztem Bild und QR-Code.
       </PageGuide>
       <form action={createToy} className="max-w-2xl space-y-4">
         <Field label="Titel">
@@ -57,7 +57,7 @@ export default async function NewToyPage() {
           <textarea className={inputClass} name="description" rows={6} />
         </Field>
         <div>
-          <div className="mb-2 text-sm font-medium text-graphite">Mit Stellungen verknüpfen</div>
+          <div className="mb-2 text-sm font-medium text-graphite">Mit Szenen verknüpfen</div>
           {positions.length ? (
             <div className="grid gap-2 sm:grid-cols-2">
               {positions.map((position) => (
@@ -68,7 +68,7 @@ export default async function NewToyPage() {
               ))}
             </div>
           ) : (
-            <p className="rounded-md bg-paper p-3 text-sm text-graphite">Noch keine Stellungen vorhanden.</p>
+            <p className="rounded-md bg-paper p-3 text-sm text-graphite">Noch keine Szenen vorhanden.</p>
           )}
         </div>
         <Button>

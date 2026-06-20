@@ -68,7 +68,7 @@ export default async function EditToyPage({ params }: { params: { slug: string }
     <AppShell>
       <PageHeader title="Spielzeug bearbeiten" />
       <PageGuide>
-        Ändere hier Titel, Slug, Bild, Beschreibung und verknüpfte Stellungen. Ein neues Bild ersetzt das alte; wenn du das Bild entfernst oder den Eintrag löschst, wird die gespeicherte Datei ebenfalls vom Server entfernt.
+        Ändere hier Titel, Slug, Bild, Beschreibung und verknüpfte Szenen. Ein neues Bild ersetzt das alte; wenn du das Bild entfernst oder den Eintrag löschst, wird die gespeicherte Datei ebenfalls vom Server entfernt.
       </PageGuide>
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <form action={updateToy} className="max-w-2xl space-y-4">
@@ -93,7 +93,7 @@ export default async function EditToyPage({ params }: { params: { slug: string }
             <textarea className={inputClass} name="description" rows={6} defaultValue={toy.description || ""} />
           </Field>
           <div>
-            <div className="mb-2 text-sm font-medium text-graphite">Mit Stellungen verknüpfen</div>
+            <div className="mb-2 text-sm font-medium text-graphite">Mit Szenen verknüpfen</div>
             {positions.length ? (
               <div className="grid gap-2 sm:grid-cols-2">
                 {positions.map((position) => (
@@ -104,7 +104,7 @@ export default async function EditToyPage({ params }: { params: { slug: string }
                 ))}
               </div>
             ) : (
-              <p className="rounded-md bg-paper p-3 text-sm text-graphite">Noch keine Stellungen vorhanden.</p>
+              <p className="rounded-md bg-paper p-3 text-sm text-graphite">Noch keine Szenen vorhanden.</p>
             )}
           </div>
           <div className="flex flex-wrap gap-2">

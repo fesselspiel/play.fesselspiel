@@ -20,7 +20,7 @@ import { MobileMenu } from "@/components/mobile-menu";
 
 const nav = [
   ["Start", "/", LayoutDashboard],
-  ["Stellungen", "/positions", ShieldCheck],
+  ["Szenen", "/positions", ShieldCheck],
   ["Spielsachen", "/toys", ToyBrick],
   ["Sessions", "/sessions", Timer],
   ["Bilder", "/media", Images]
