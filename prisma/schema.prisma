@@ -225,6 +225,7 @@ model ActivityPlan {
   owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   tools       Toy[]          @relation("ActivityTools")
   positions   Position[]     @relation("ActivityPositions")
+  media       Media[]
 
   @@index([ownerId, status, plannedAt])
 }
@@ -285,6 +286,7 @@ model Media {
   ownerId     String
   albumId     String?
   sessionId   String?
+  activityId  String?
   title       String
   kind        MediaKind
   url         String
@@ -294,9 +296,11 @@ model Media {
   owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   album       Album?     @relation(fields: [albumId], references: [id], onDelete: SetNull)
   session     SegufixSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  activity    ActivityPlan? @relation(fields: [activityId], references: [id], onDelete: Cascade)
   comments    MediaComment[]
 
   @@index([sessionId])
+  @@index([activityId])
 }
 
 model MediaComment {

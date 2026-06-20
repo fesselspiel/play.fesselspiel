@@ -273,11 +273,14 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
   for (const entry of records(data.media)) {
     const url = rewriteFileUrl(entry.url, fileMap);
     if (!url) continue;
+    const importedActivityId = activityMap.get(String(entry.activityId || "")) || null;
+    const importedAlbumId = albumMap.get(String(entry.albumId || "")) || (importedActivityId ? null : fallbackAlbum.id);
     const created = await prisma.media.create({
       data: {
         ownerId: user.id,
-        albumId: albumMap.get(String(entry.albumId || "")) || fallbackAlbum.id,
+        albumId: importedAlbumId,
         sessionId: sessionMap.get(String(entry.sessionId || "")) || null,
+        activityId: importedActivityId,
         title: String(entry.title || "Importiertes Medium"),
         kind: String(entry.kind || "IMAGE") as "IMAGE" | "VIDEO",
         url,

@@ -68,7 +68,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     const [toys, positions, activities, sessions, kgSessions] = await Promise.all([
       prisma.toy.count({ where: { ownerId: userId } }),
       prisma.position.count({ where: { ownerId: userId } }),
-      prisma.activityPlan.count({ where: { ownerId: userId, status: { in: ["REQUESTED", "PLANNED"] } } }),
+      prisma.activityPlan.count({ where: { ownerId: userId, category: { not: "IDEA_COLLECTION" }, status: { in: ["REQUESTED", "PLANNED"] } } }),
       prisma.segufixSession.count({ where: { ownerId: userId } }),
       prisma.kgSession.count({ where: { ownerId: userId } })
     ]);

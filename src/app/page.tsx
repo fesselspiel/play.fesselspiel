@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Activity, CalendarDays, Images, MessageCircle, Plus, ShieldCheck, Timer, ToyBrick } from "lucide-react";
+import { Activity, CalendarDays, Images, Lightbulb, MessageCircle, Plus, ShieldCheck, Timer, ToyBrick } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, PageGuide, Panel, PageHeader, SoftPanel } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
@@ -117,9 +117,9 @@ export default async function DashboardPage() {
   const weekEnd = new Date(todayStart);
   weekEnd.setDate(todayStart.getDate() + 7);
   const scope = await ownerScope(user);
-  const [toyCount, plannedCount, sessionCount, mediaCount, messageCount, sessions, weekActivities, weekEvents, circleUsers] = await Promise.all([
+  const [toyCount, plannedCount, sessionCount, mediaCount, messageCount, sessions, weekActivities, weekEvents, circleUsers, ideas] = await Promise.all([
     prisma.toy.count({ where: scope }),
-    prisma.activityPlan.count({ where: { ...scope, status: { in: ["REQUESTED", "PLANNED"] } } }),
+    prisma.activityPlan.count({ where: { ...scope, category: { not: "IDEA_COLLECTION" }, status: { in: ["REQUESTED", "PLANNED"] } } }),
     prisma.segufixSession.count({ where: { ...scope, startTime: { gte: yearStart } } }),
     prisma.media.count({ where: scope }),
     prisma.message.count({ where: { OR: [{ senderId: user.id }, { recipientId: user.id }] } }),
@@ -137,6 +137,11 @@ export default async function DashboardPage() {
       where: user.circleId ? { circleId: user.circleId, active: true } : user.role === "ADMIN" ? { active: true } : { id: user.id },
       include: { settings: true, profile: true },
       orderBy: [{ name: "asc" }, { email: "asc" }]
+    }),
+    prisma.activityPlan.findMany({
+      where: { ...scope, category: "IDEA_COLLECTION", status: { in: ["REQUESTED", "PLANNED"] } },
+      orderBy: { updatedAt: "desc" },
+      take: 5
     })
   ]);
 
@@ -240,6 +245,32 @@ export default async function DashboardPage() {
               );
             })}
           </div>
+        </Panel>
+
+        <Panel>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-lg font-semibold"><Lightbulb className="h-5 w-5 text-amber-500" /> Ideensammlung</h2>
+              <p className="mt-1 text-sm text-graphite">Dinge, die ihr irgendwann ausprobieren wollt.</p>
+            </div>
+            <Link href="/activities" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
+              Öffnen
+            </Link>
+          </div>
+          {ideas.length ? (
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {ideas.map((idea) => (
+                <Link key={idea.id} href={`/activities/${idea.slug}`} className="rounded-md border border-line bg-paper p-3 hover:border-amber-500">
+                  <strong className="block truncate text-ink">{idea.title}</strong>
+                  <span className="mt-1 block text-xs text-graphite">{activityStatusDisplay(idea.status, false, true)}</span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <Link href="/activities/new?template=idea" className="block rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite hover:border-amber-500 hover:text-ink">
+              Noch keine Ideen festgehalten.
+            </Link>
+          )}
         </Panel>
 
         {openSessions.length ? (

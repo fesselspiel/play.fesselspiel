@@ -316,6 +316,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
     prisma.media.findMany({
       where: {
         ...mediaScope,
+        activityId: null,
         ...(albumFilter ? { albumId: albumFilter } : {}),
         ...(kindFilter ? { kind: kindFilter as "IMAGE" | "VIDEO" } : {}),
         ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {})
@@ -329,7 +330,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
       orderBy: [{ title: "asc" }, { createdAt: "asc" }]
     }),
     prisma.media.findMany({
-      where: mediaScope,
+      where: { ...mediaScope, activityId: null },
       include: { album: true },
       orderBy: { createdAt: "desc" },
       take: 120
@@ -352,7 +353,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
   const selectedAlbumForUi = selected?.albumId ? albums.find((album) => album.id === selected.albumId) : null;
   const explicitCoverIds = albums.map((album) => album.coverMediaId).filter((id): id is string => Boolean(id));
   const explicitCoverMedia = explicitCoverIds.length
-    ? await prisma.media.findMany({ where: { ...mediaScope, id: { in: explicitCoverIds } } })
+    ? await prisma.media.findMany({ where: { ...mediaScope, activityId: null, id: { in: explicitCoverIds } } })
     : [];
   const coverSource = [...explicitCoverMedia, ...albumMedia, ...media];
   const coverById = new Map(coverSource.map((entry) => [entry.id, entry]));

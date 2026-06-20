@@ -5,10 +5,11 @@ import { AppShell } from "@/components/app-shell";
 import { SelfBondagePositionChoice } from "@/components/self-bondage-position-choice";
 import { SelfBondageScheduleFields } from "@/components/self-bondage-schedule-fields";
 import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
-import { activityStatusLabel, activityStatusOptions, type ActivityStatusValue } from "@/lib/activity-status";
+import { activityStatusOptions, type ActivityStatusValue } from "@/lib/activity-status";
 import { isAccessibleOwner, ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { formatDateTimeLocal } from "@/lib/dates";
+import { deleteOwnedFile, fileIdFromUrl } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlugForUpdate } from "@/lib/slug";
 
@@ -47,9 +48,10 @@ async function updateActivity(formData: FormData) {
   const activity = await prisma.activityPlan.findFirst({ where: { id, ...scope } });
   if (!activity) notFound();
   const selfBondageOrder = activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage";
+  const idea = activity.category === "IDEA_COLLECTION";
 
   const title = String(formData.get("title") || "").trim();
-  const slug = selfBondageOrder ? activity.slug : await uniqueSlugForUpdate("activityPlan", normalizeSlug(String(formData.get("slug") || ""), title), activity.id);
+  const slug = selfBondageOrder || idea ? activity.slug : await uniqueSlugForUpdate("activityPlan", normalizeSlug(String(formData.get("slug") || ""), title), activity.id);
   const plannedAtRaw = String(formData.get("plannedAt") || "");
   const withoutSchedule = selfBondageOrder && formData.get("noSchedule") === "on";
   const toolIds = selfBondageOrder ? [] : formData.getAll("tools").map(String);
@@ -74,9 +76,9 @@ async function updateActivity(formData: FormData) {
     data: {
       title,
       slug,
-      category: selfBondageOrder ? "SELF_BONDAGE_ORDER" : String(formData.get("category") || "").trim(),
+      category: selfBondageOrder ? "SELF_BONDAGE_ORDER" : idea ? "IDEA_COLLECTION" : String(formData.get("category") || "").trim(),
       note,
-      plannedAt: !withoutSchedule && plannedAtRaw ? new Date(plannedAtRaw) : null,
+      plannedAt: !idea && !withoutSchedule && plannedAtRaw ? new Date(plannedAtRaw) : null,
       status: String(formData.get("status") || "PLANNED") as ActivityStatusValue,
       tools: { set: ownedTools.map((tool) => ({ id: tool.id })) },
       positions: { set: ownedPositions.map((position) => ({ id: position.id })) }
@@ -92,11 +94,14 @@ async function deleteActivity(formData: FormData) {
   const id = String(formData.get("id"));
   const activity = await prisma.activityPlan.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!activity) notFound();
+  const media = await prisma.media.findMany({ where: { activityId: activity.id } });
   await prisma.activityPlan.delete({ where: { id: activity.id } });
+  for (const entry of media) {
+    const fileId = fileIdFromUrl(entry.url);
+    if (fileId) await deleteOwnedFile(entry.ownerId, fileId);
+  }
   redirect("/activities");
 }
-
-const statusLabel = activityStatusLabel;
 
 export default async function EditActivityPage({ params, searchParams }: { params: { slug: string }; searchParams?: { error?: string } }) {
   const user = await currentUser();
@@ -109,9 +114,10 @@ export default async function EditActivityPage({ params, searchParams }: { param
     prisma.position.findMany({ where: { ...scope, ...(activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage" ? { selfBondageCapable: true } : {}) }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] })
   ]);
   const isSelfBondageOrder = activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage";
+  const isIdea = activity.category === "IDEA_COLLECTION";
   const selectedTools = new Set(activity.tools.map((tool) => tool.id));
   const selectedPositions = new Set(activity.positions.map((position) => position.id));
-  const statusOptions = activityStatusOptions(isSelfBondageOrder);
+  const statusOptions = activityStatusOptions(isSelfBondageOrder, isIdea);
   const customPositionText = positionNoteValue(activity.note);
   const selectedPosition = activity.positions.find((position) => position.selfBondageCapable);
   const selfBondageDefaultChoice = selectedPosition ? `position:${selectedPosition.id}` : customPositionText === "Denk dir was aus." ? "surprise" : customPositionText ? "custom" : "";
@@ -123,18 +129,20 @@ export default async function EditActivityPage({ params, searchParams }: { param
 
   return (
     <AppShell>
-      <PageHeader title={isSelfBondageOrder ? "Auftrag bearbeiten" : "Spielplan bearbeiten"} />
-      <PageGuide title={isSelfBondageOrder ? "Self-Bondage-Auftrag bearbeiten" : "Spielplan bearbeiten"}>
+      <PageHeader title={isSelfBondageOrder ? "Auftrag bearbeiten" : isIdea ? "Idee bearbeiten" : "Spielplan bearbeiten"} />
+      <PageGuide title={isSelfBondageOrder ? "Self-Bondage-Auftrag bearbeiten" : isIdea ? "Idee bearbeiten" : "Spielplan bearbeiten"}>
         {isSelfBondageOrder
           ? "Passe hier Auftrag, Termin, Status, Anweisung und die ausgewählten Self-Bondage-fähigen Stellungen an. Löschen entfernt nur diesen Auftrag."
+          : isIdea
+            ? "Passe hier Titel, Beschreibung, Status und Bausteine dieser Idee an. Bilder verwaltest du direkt auf der Ideendetailseite."
           : "Passe hier Titel, Slug, Termin, Status, Notiz und die verknüpften Spielsachen oder Stellungen an. Löschen entfernt nur diesen Plan, nicht die verwendeten Bausteine."}
       </PageGuide>
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
         <form action={updateActivity} className="grid gap-6 xl:grid-cols-[1fr_420px]">
           <input type="hidden" name="id" value={activity.id} />
           <div className="space-y-4">
-            <Field label={isSelfBondageOrder ? "Auftrag" : "Spielidee"}><input className={inputClass} name="title" required defaultValue={activity.title} /></Field>
-            {isSelfBondageOrder ? null : (
+            <Field label={isSelfBondageOrder ? "Auftrag" : isIdea ? "Idee" : "Spielidee"}><input className={inputClass} name="title" required defaultValue={activity.title} /></Field>
+            {isSelfBondageOrder || isIdea ? null : (
               <>
                 <Field label="Kategorie"><input className={inputClass} name="category" defaultValue={activity.category || ""} /></Field>
                 <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" defaultValue={activity.slug} /></Field>
@@ -148,19 +156,25 @@ export default async function EditActivityPage({ params, searchParams }: { param
                 statusDefault={activity.status}
                 statusOptions={statusOptions}
               />
+            ) : isIdea ? (
+              <Field label="Status">
+                <select className={selectClass} name="status" defaultValue={activity.status}>
+                  {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </Field>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Datum und Uhrzeit"><input className={inputClass} name="plannedAt" type="datetime-local" step={900} defaultValue={formatDateTimeLocal(activity.plannedAt)} /></Field>
                 <Field label="Status">
                   <select className={selectClass} name="status" defaultValue={activity.status}>
-                    {Object.entries(statusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                 </Field>
               </div>
             )}
-            <Field label={isSelfBondageOrder ? "Anweisung" : "Notiz"}><textarea className={inputClass} name="note" rows={6} defaultValue={isSelfBondageOrder ? stripPositionNote(activity.note || "") : activity.note || ""} /></Field>
+            <Field label={isSelfBondageOrder ? "Anweisung" : isIdea ? "Beschreibung" : "Notiz"}><textarea className={inputClass} name="note" rows={6} defaultValue={isSelfBondageOrder ? stripPositionNote(activity.note || "") : activity.note || ""} /></Field>
             <div className="flex flex-wrap gap-2">
-              <Button><Save className="h-4 w-4" /> {isSelfBondageOrder ? "Auftrag speichern" : "Änderungen speichern"}</Button>
+              <Button><Save className="h-4 w-4" /> {isSelfBondageOrder ? "Auftrag speichern" : isIdea ? "Idee speichern" : "Änderungen speichern"}</Button>
               <Link href={`/activities/${activity.slug}`} className="focus-ring inline-flex min-h-10 items-center justify-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
                 Abbrechen
               </Link>
@@ -208,8 +222,8 @@ export default async function EditActivityPage({ params, searchParams }: { param
         <form action={deleteActivity} className="rounded-lg border border-line bg-paper p-5">
           <input type="hidden" name="id" value={activity.id} />
           <h2 className="text-lg font-semibold">Löschen</h2>
-          <p className="mt-2 text-sm text-graphite">{isSelfBondageOrder ? "Entfernt diesen Auftrag und alle Verknüpfungen dazu." : "Entfernt diesen Spielplan und alle Verknüpfungen dazu."}</p>
-          <Button variant="danger" className="mt-4 w-full"><Trash2 className="h-4 w-4" /> {isSelfBondageOrder ? "Auftrag löschen" : "Spielplan löschen"}</Button>
+          <p className="mt-2 text-sm text-graphite">{isSelfBondageOrder ? "Entfernt diesen Auftrag und alle Verknüpfungen dazu." : isIdea ? "Entfernt diese Idee und ihre zugehörigen Bilder." : "Entfernt diesen Spielplan und alle Verknüpfungen dazu."}</p>
+          <Button variant="danger" className="mt-4 w-full"><Trash2 className="h-4 w-4" /> {isSelfBondageOrder ? "Auftrag löschen" : isIdea ? "Idee löschen" : "Spielplan löschen"}</Button>
         </form>
       </div>
     </AppShell>

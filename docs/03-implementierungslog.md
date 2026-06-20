@@ -614,3 +614,12 @@ Details:
 - Die Variablen der Telegram-Nachricht sind als klickbare Chips umgesetzt und werden an der aktuellen Cursorposition in die Nachricht eingefügt.
 - Die aktiven Telegram-Kanäle verwenden die Überschrift `Aktive Kanäle` und zeigen fehlende Thread-Namen klar als `Thread-Name fehlt` statt nur als ID an.
 - Der Self-Bondage-Auftrag auf `Lass uns spielen` nutzt denselben zentrierten Aufbau wie `Spieltermin planen`.
+
+## Ideensammlung
+
+- `Lass uns spielen` hat eine dritte große Rubrik `Ideensammlung` mit Button `Idee festhalten`.
+- Ideen werden als `ActivityPlan` mit Kategorie `IDEA_COLLECTION` gespeichert und ohne Datum/Uhrzeit geführt.
+- Für Ideen gibt es eigenes Status-Wording: `vorgeschlagen`, `auf der Liste`, `ausprobiert`, `verworfen`.
+- Die Ideendetailseite erlaubt mehrere geschützte Bild-Uploads, die über `Media.activityId` nur dieser Idee zugeordnet sind.
+- Reine Ideenbilder werden aus der allgemeinen Mediengalerie ausgeblendet und bleiben auf der Ideendetailseite sichtbar.
+- Das Dashboard zeigt eine kompakte Ideensammlungs-Box mit den neuesten offenen Ideen.

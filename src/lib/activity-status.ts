@@ -14,14 +14,22 @@ export const selfBondageStatusLabel: Record<ActivityStatusValue, string> = {
   DISCARDED: "verworfen"
 };
 
-export function activityStatusDisplay(status: ActivityStatusValue, selfBondageOrder = false) {
+export const ideaStatusLabel: Record<ActivityStatusValue, string> = {
+  REQUESTED: "vorgeschlagen",
+  PLANNED: "auf der Liste",
+  DONE: "ausprobiert",
+  DISCARDED: "verworfen"
+};
+
+export function activityStatusDisplay(status: ActivityStatusValue, selfBondageOrder = false, idea = false) {
+  if (idea) return ideaStatusLabel[status];
   return selfBondageOrder ? selfBondageStatusLabel[status] : activityStatusLabel[status];
 }
 
-export function activityStatusOptions(selfBondageOrder = false) {
+export function activityStatusOptions(selfBondageOrder = false, idea = false) {
   return Object.keys(activityStatusLabel).map((value) => ({
     value,
-    label: activityStatusDisplay(value as ActivityStatusValue, selfBondageOrder)
+    label: activityStatusDisplay(value as ActivityStatusValue, selfBondageOrder, idea)
   }));
 }
 

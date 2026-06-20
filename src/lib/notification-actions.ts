@@ -4,6 +4,8 @@ export const knownAuditActions = [
   ["activity_confirmed_telegram", "Spielplan per Telegram bestätigt"],
   ["activity_requested", "Spielplan angefragt"],
   ["activity_requested_telegram", "Spielplan per Telegram angefragt"],
+  ["idea_created", "Idee festgehalten"],
+  ["idea_media_uploaded", "Bilder zur Idee hochgeladen"],
   ["kg_auto_closed", "KG-Tracker automatisch geschlossen"],
   ["kg_created", "KG-Tracker angelegt"],
   ["kg_deleted", "KG-Tracker gelöscht"],

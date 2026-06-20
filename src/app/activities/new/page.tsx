@@ -27,12 +27,13 @@ async function createActivity(formData: FormData) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const selfBondageTemplate = String(formData.get("template") || "") === "self-bondage";
+  const ideaTemplate = String(formData.get("template") || "") === "idea";
   const title = String(formData.get("title") || "").trim();
   const slug = await uniqueSlug("activityPlan", normalizeSlug(String(formData.get("slug") || ""), title));
   const date = String(formData.get("date") || "");
   const time = String(formData.get("time") || "");
   const withoutSchedule = selfBondageTemplate && formData.get("noSchedule") === "on";
-  const plannedAt = !withoutSchedule && date ? new Date(`${date}T${time || "20:00"}:00`) : null;
+  const plannedAt = !ideaTemplate && !withoutSchedule && date ? new Date(`${date}T${time || "20:00"}:00`) : null;
   const toolIds = selfBondageTemplate ? [] : formData.getAll("tools").map(String);
   const selfBondageChoice = String(formData.get("selfBondageChoice") || "");
   const selfBondageCustomText = String(formData.get("selfBondageCustomText") || "").trim();
@@ -56,7 +57,7 @@ async function createActivity(formData: FormData) {
       ownerId: user.id,
       title,
       slug,
-      category: selfBondageTemplate ? "SELF_BONDAGE_ORDER" : String(formData.get("category") || "").trim(),
+      category: selfBondageTemplate ? "SELF_BONDAGE_ORDER" : ideaTemplate ? "IDEA_COLLECTION" : String(formData.get("category") || "").trim(),
       note,
       plannedAt,
       status,
@@ -66,10 +67,10 @@ async function createActivity(formData: FormData) {
   });
   await logAction({
     actorId: user.id,
-    action: status === "REQUESTED" ? "activity_requested" : "activity_created",
+    action: ideaTemplate ? "idea_created" : status === "REQUESTED" ? "activity_requested" : "activity_created",
     entityType: "activity",
     entityId: activity.id,
-    title: `${status === "REQUESTED" ? "Spielplan angefragt" : "Spielplan angelegt"}: ${activity.title}`,
+    title: `${ideaTemplate ? "Idee festgehalten" : status === "REQUESTED" ? "Spielplan angefragt" : "Spielplan angelegt"}: ${activity.title}`,
     href: `/activities/${activity.slug}`
   });
   redirect(`/activities/${slug}`);
@@ -85,11 +86,14 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
   ]);
   const defaultDate = String(searchParams?.date || "").match(/^\d{4}-\d{2}-\d{2}$/) ? String(searchParams?.date) : "";
   const selfBondageTemplate = searchParams?.template === "self-bondage";
+  const ideaTemplate = searchParams?.template === "idea";
   const defaultTitle = selfBondageTemplate ? "Self-Bondage-Auftrag" : "";
   const defaultNote = selfBondageTemplate
     ? "Auftrag: Bring dich in die ausgewählte Lage und richte dich so ein, dass du ruhig warten kannst. Dokumentiere danach kurz, wie die Vorbereitung funktioniert hat."
+    : ideaTemplate
+      ? "Warum wollen wir das ausprobieren? Was brauchen wir dafür?"
     : "";
-  const statusOptions = activityStatusOptions(selfBondageTemplate);
+  const statusOptions = activityStatusOptions(selfBondageTemplate, ideaTemplate);
   const timeOptions = quarterHourOptions();
   const positionError = searchParams?.error === "position-text"
     ? "Bitte gib einen Freitext ein oder wähle eine Stellung."
@@ -98,17 +102,20 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
       : "";
   return (
     <AppShell>
-      <PageHeader title={selfBondageTemplate ? "Self-Bondage-Auftrag" : "Lass uns spielen"} />
-      <PageGuide title={selfBondageTemplate ? "Auftrag zum Vorbereiten" : "Spielideen aus dem Baukastensystem"}>
+      <PageHeader title={selfBondageTemplate ? "Self-Bondage-Auftrag" : ideaTemplate ? "Idee festhalten" : "Lass uns spielen"} />
+      <PageGuide title={selfBondageTemplate ? "Auftrag zum Vorbereiten" : ideaTemplate ? "Ideensammlung" : "Spielideen aus dem Baukastensystem"}>
         {selfBondageTemplate
           ? "Erstelle hier einen Auftrag, bei dem eine Person sich selbst in eine passende Lage bringt. Es werden nur Stellungen angeboten, die als Self-Bondage-fähig markiert sind."
+          : ideaTemplate
+            ? "Halte hier eine Idee fest, die ihr irgendwann ausprobieren wollt. Bilder kannst du anschließend auf der Detailseite der Idee hinzufügen."
           : "Erstelle hier einen konkreten Spielplan. Vergib Titel und Kategorie, setze optional Datum und Uhrzeit, Wähle passende Spielsachen und Stellungen aus und speichere den Plan mit dem gewünschten Status."}
       </PageGuide>
       <form action={createActivity} className="grid gap-6 xl:grid-cols-[1fr_420px]">
         {selfBondageTemplate ? <input type="hidden" name="template" value="self-bondage" /> : null}
+        {ideaTemplate ? <input type="hidden" name="template" value="idea" /> : null}
         <div className="space-y-4">
-          <Field label={selfBondageTemplate ? "Auftrag" : "Spieltermin"}><input className={inputClass} name="title" required placeholder={selfBondageTemplate ? "Self-Bondage-Auftrag" : "Entspannungsabend"} defaultValue={defaultTitle} /></Field>
-          {selfBondageTemplate ? null : (
+          <Field label={selfBondageTemplate ? "Auftrag" : ideaTemplate ? "Idee" : "Spieltermin"}><input className={inputClass} name="title" required placeholder={selfBondageTemplate ? "Self-Bondage-Auftrag" : ideaTemplate ? "Das wollen wir ausprobieren" : "Entspannungsabend"} defaultValue={defaultTitle} /></Field>
+          {selfBondageTemplate || ideaTemplate ? null : (
             <>
               <Field label="Kategorie"><input className={inputClass} name="category" placeholder="Entspannung, Bondage, Foto-Session" /></Field>
               <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" placeholder="entspannungsabend" /></Field>
@@ -123,6 +130,12 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
               statusOptions={statusOptions}
               timeOptions={timeOptions}
             />
+          ) : ideaTemplate ? (
+            <Field label="Status">
+              <select className={selectClass} name="status" defaultValue="PLANNED">
+                {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </Field>
           ) : (
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label="Datum"><input className={inputClass} name="date" type="date" defaultValue={defaultDate} /></Field>
@@ -138,8 +151,8 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
               </Field>
             </div>
           )}
-          <Field label={selfBondageTemplate ? "Anweisung" : "Notiz"}><textarea className={inputClass} name="note" rows={6} defaultValue={defaultNote} /></Field>
-          <Button><Save className="h-4 w-4" /> {selfBondageTemplate ? "Auftrag speichern" : "Plan speichern"}</Button>
+          <Field label={selfBondageTemplate ? "Anweisung" : ideaTemplate ? "Beschreibung" : "Notiz"}><textarea className={inputClass} name="note" rows={6} defaultValue={defaultNote} /></Field>
+          <Button><Save className="h-4 w-4" /> {selfBondageTemplate ? "Auftrag speichern" : ideaTemplate ? "Idee speichern" : "Plan speichern"}</Button>
         </div>
         <div className="space-y-5">
           {!selfBondageTemplate ? <section>
