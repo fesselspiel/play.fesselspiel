@@ -630,3 +630,9 @@ Details:
 - Die sichtbare Navigation und Seitentexte nennen die Galerie jetzt `Bilder`.
 - Telegram-Rückmeldungen, Dashboard-Kacheln, Datenexport-Hinweise und Dokumentation verwenden ebenfalls die Bezeichnung `Bilder`.
 - Technische Pfade und interne Modellnamen wie `/media` und `Media` bleiben stabil, damit vorhandene Links, API-Endpunkte und Datenbanktabellen kompatibel bleiben.
+
+## Spielzeug-Stellungs-Verknüpfung
+
+- Beim Anlegen und Bearbeiten von Spielsachen können vorhandene Stellungen per Checkbox verknüpft werden.
+- Die Auswahl nutzt denselben Benutzer-/Zirkel-Scope wie die restlichen Spielzeug- und Stellungsansichten.
+- Die Spielzeug-Detailseite zeigt die Verknüpfungen weiterhin direkt im Bereich `Verknüpfungen`.
