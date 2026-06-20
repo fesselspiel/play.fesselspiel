@@ -670,3 +670,9 @@ Details:
 
 - Der Schnellzugriffsbereich mit den Kacheln `Spiel`, `Szenen`, `Spielsachen`, `Sessions/Jahr`, `Bilder` und `Protokoll` wurde von der Startseite entfernt.
 - Die Startseite fokussiert damit auf Spielampel, zentrale Spiel-Aktionen, Ideensammlung, Wochenkalender und letzte Sessions.
+
+## Öffentliche Startseite statt Login-Karte
+
+- Die Seite `/login` ist jetzt eine öffentliche Startseite mit Hero-Bereich, Funktionsübersicht, Ablaufsektion und Login-Panel.
+- Der bestehende Login-Flow bleibt unverändert; geschützte Seiten leiten weiterhin auf `/login`, dort ist der Login nun in die Startseite eingebettet.
+- Die öffentliche Startseite nutzt `playplaner.com` als sichtbare Hauptdomain.
