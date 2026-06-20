@@ -4,7 +4,7 @@ Diese Dokumentation beschreibt den aktuellen Stand der Plattform, die bisher umg
 
 ## Dateien
 
-- [01-projektüberblick.md](./01-projektüberblick.md): Zweck, Module, Design und aktueller Funktionsumfang.
+- [01-projektueberblick.md](./01-projektueberblick.md): Zweck, Module, Design und aktueller Funktionsumfang.
 - [02-reproduktion-und-deployment.md](./02-reproduktion-und-deployment.md): Lokaler Start, VPS-Deployment, Build, Smoke-Tests und Betrieb.
 - [03-implementierungslog.md](./03-implementierungslog.md): Chronologische Zusammenfassung der bisher gebauten Features.
 - [04-dateien-und-architektur.md](./04-dateien-und-architektur.md): Wichtige Dateien, Routen, Datenmodelle und Helfer.
