@@ -38,7 +38,8 @@ async function findRulesForAudit(audit: Pick<AuditForNotification, "action">) {
     include: {
       settings: { include: { telegramChats: { where: { status: "ACTIVE" } } } },
       targetUser: { include: { profile: true } },
-      targetCircle: true
+      targetCircle: true,
+      outputChat: true
     }
   });
 }
@@ -51,11 +52,13 @@ async function sendRule(rule: RuleForNotification, audit: Pick<AuditForNotificat
   const targetUserCircleId = rule.targetUserId
     ? (await prisma.user.findUnique({ where: { id: rule.targetUserId }, select: { circleId: true } }))?.circleId || null
     : null;
-  const chats = rule.settings.telegramChats.filter((chat) => {
-    if (rule.targetUserId) return chat.targetUserId === rule.targetUserId || Boolean(targetUserCircleId && chat.targetCircleId === targetUserCircleId);
-    if (rule.targetCircleId) return chat.targetCircleId === rule.targetCircleId || Boolean(chat.targetUserId && targetUserIds.has(chat.targetUserId));
-    return false;
-  });
+  const chats = rule.outputChatId
+    ? rule.outputChat?.status === "ACTIVE" ? [rule.outputChat] : []
+    : rule.settings.telegramChats.filter((chat) => {
+        if (rule.targetUserId) return chat.targetUserId === rule.targetUserId || Boolean(targetUserCircleId && chat.targetCircleId === targetUserCircleId);
+        if (rule.targetCircleId) return chat.targetCircleId === rule.targetCircleId || Boolean(chat.targetUserId && targetUserIds.has(chat.targetUserId));
+        return false;
+      });
   const message = renderTemplate(rule.message, audit, actor);
   return chats
     .filter((chat) => {
@@ -100,7 +103,8 @@ export async function testTelegramNotificationRule(ruleId: string, settingsId: s
     include: {
       settings: { include: { telegramChats: { where: { status: "ACTIVE" } } } },
       targetUser: { include: { profile: true } },
-      targetCircle: true
+      targetCircle: true,
+      outputChat: true
     }
   });
   if (!rule) return { sent: 0, failed: 0 };

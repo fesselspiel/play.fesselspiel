@@ -377,6 +377,7 @@ model TelegramChat {
   settings        UserSettings       @relation(fields: [settingsId], references: [id], onDelete: Cascade)
   targetUser      User?              @relation("TelegramChatTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
   targetCircle    Circle?            @relation("TelegramChatTargetCircle", fields: [targetCircleId], references: [id], onDelete: SetNull)
+  notificationRules TelegramNotificationRule[] @relation("TelegramNotificationOutputChat")
 
   @@unique([settingsId, chatId, threadId])
   @@index([targetUserId])
@@ -421,6 +422,7 @@ model TelegramNotificationRule {
   action         String
   targetUserId   String?
   targetCircleId String?
+  outputChatId   String?
   message        String
   active         Boolean      @default(true)
   createdAt      DateTime     @default(now())
@@ -428,8 +430,10 @@ model TelegramNotificationRule {
   settings       UserSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
   targetUser     User?        @relation("TelegramNotificationTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
   targetCircle   Circle?      @relation("TelegramNotificationTargetCircle", fields: [targetCircleId], references: [id], onDelete: SetNull)
+  outputChat     TelegramChat? @relation("TelegramNotificationOutputChat", fields: [outputChatId], references: [id], onDelete: SetNull)
 
   @@index([settingsId, action, active])
   @@index([targetUserId])
   @@index([targetCircleId])
+  @@index([outputChatId])
 }

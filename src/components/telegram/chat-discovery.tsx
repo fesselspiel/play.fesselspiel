@@ -166,7 +166,7 @@ export function TelegramChatDiscovery() {
               <div className="grid gap-2 text-sm sm:grid-cols-2">
                 <div><span className="text-graphite">Chat-ID:</span> <strong>{candidate.chatId}</strong></div>
                 <div><span className="text-graphite">Thread-ID:</span> <strong>{candidate.threadId || "-"}</strong></div>
-                <div><span className="text-graphite">Titel:</span> {candidate.title}</div>
+                <div><span className="text-graphite">Thread-Name:</span> {candidate.title || "Unbenannter Thread"}</div>
                 <div><span className="text-graphite">Von:</span> {candidate.from || "-"}</div>
               </div>
               <div className="mt-3 rounded-md bg-surface p-3 text-sm">

@@ -601,3 +601,11 @@ Details:
 - Alben werden als eigenes Raster angezeigt, mobil mit vier Spalten, damit sie sich vom dreispaltigen Medienfeed unterscheiden.
 - Ein Klick auf das Bild in der Mediendetailansicht öffnet eine Vollbildansicht.
 - Die Vollbildansicht nutzt URL-State (`viewer=1`), zeigt oben ein `X` zurück zur Detailansicht und links/rechts Pfeile zum vorherigen oder nächsten Medium.
+- Die mobile Mediendetailansicht gewichtet das Bild stärker: Der Bildbereich belegt etwa zwei Drittel der Viewport-Höhe, die Detail- und Aktionsbereiche scrollen darunter.
+
+## Telegram-Threads für Aktionsbenachrichtigungen
+
+- Erkannte Telegram-Threads zeigen neben Chat-ID und Thread-ID jetzt auch einen Thread-Namen an.
+- Aktionsbenachrichtigungen können optional auf einen konkreten aktiven Ausgabe-Thread gelegt werden.
+- Ist ein Ausgabe-Thread gesetzt, wird die Nachricht genau in diesen Chat/Thread gesendet.
+- Ohne Ausgabe-Thread bleibt die bisherige automatische Zustellung über Benutzer- oder Kreis-Zuordnung aktiv.

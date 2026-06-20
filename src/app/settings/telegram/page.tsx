@@ -62,6 +62,16 @@ async function readTargetData(user: Awaited<ReturnType<typeof currentUser>>, for
   return { targetUserId: null, targetCircleId: null };
 }
 
+async function readOutputChatId(settingsId: string, formData: FormData) {
+  const outputChatId = String(formData.get("outputChatId") || "").trim();
+  if (!outputChatId) return null;
+  const chat = await prisma.telegramChat.findFirst({
+    where: { id: outputChatId, settingsId, status: "ACTIVE" },
+    select: { id: true }
+  });
+  return chat?.id || null;
+}
+
 function targetTypeFor(chat: { targetUserId: string | null; targetCircleId: string | null }) {
   if (chat.targetUserId) return "user";
   if (chat.targetCircleId) return "circle";
@@ -218,12 +228,14 @@ async function createNotificationRule(formData: FormData) {
   const action = String(formData.get("action") || "").trim();
   const message = String(formData.get("message") || "").trim();
   const targetData = await readTargetData(user, formData);
-  if (!action || !message || (!targetData.targetUserId && !targetData.targetCircleId)) redirect("/settings/telegram#notifications");
+  const outputChatId = await readOutputChatId(settings.id, formData);
+  if (!action || !message || (!targetData.targetUserId && !targetData.targetCircleId && !outputChatId)) redirect("/settings/telegram#notifications");
   await prisma.telegramNotificationRule.create({
     data: {
       settingsId: settings.id,
       action,
       message,
+      outputChatId,
       ...targetData
     }
   });
@@ -241,13 +253,15 @@ async function updateNotificationRule(formData: FormData) {
   const action = String(formData.get("action") || "").trim();
   const message = String(formData.get("message") || "").trim();
   const targetData = await readTargetData(user, formData);
-  if (!id || !action || !message || (!targetData.targetUserId && !targetData.targetCircleId)) redirect("/settings/telegram#notifications");
+  const outputChatId = await readOutputChatId(settings.id, formData);
+  if (!id || !action || !message || (!targetData.targetUserId && !targetData.targetCircleId && !outputChatId)) redirect("/settings/telegram#notifications");
   await prisma.telegramNotificationRule.updateMany({
     where: { id, settingsId: settings.id },
     data: {
       action,
       message,
       active: formData.get("active") === "on",
+      outputChatId,
       ...targetData
     }
   });
@@ -368,6 +382,21 @@ function notificationUsers(users: TelegramTargetUser[]) {
   return users.map((entry) => ({ id: entry.id, label: userLabel(entry) }));
 }
 
+type TelegramChatOption = {
+  id: string;
+  chatId: string;
+  threadId: string | null;
+  title: string | null;
+  targetCircle?: { name: string } | null;
+  targetUser?: TelegramTargetUser | null;
+};
+
+function chatLabel(chat: TelegramChatOption) {
+  const target = chat.targetCircle ? `Kreis ${chat.targetCircle.name}` : chat.targetUser ? userLabel(chat.targetUser) : "ohne Ziel";
+  const threadName = chat.title || "Unbenannter Thread";
+  return `${threadName} · Chat ${chat.chatId} · Thread ${chat.threadId || "-"} · ${target}`;
+}
+
 export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string; action?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
@@ -385,7 +414,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
         },
         telegramKnownUsers: { orderBy: { lastMessageAt: "desc" } },
         telegramNotificationRules: {
-          include: { targetUser: { include: { profile: true } }, targetCircle: true },
+          include: { targetUser: { include: { profile: true } }, targetCircle: true, outputChat: { include: { targetUser: { include: { profile: true } }, targetCircle: true } } },
           orderBy: [{ active: "desc" }, { action: "asc" }]
         }
       }
@@ -461,7 +490,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
               {pendingChats.map((chat) => (
                 <div key={chat.id} className="rounded-md border border-line bg-paper p-3 text-sm">
                   <div className="grid gap-2 sm:grid-cols-2">
-                    <div><span className="text-graphite">Titel:</span> {chat.title || chat.chatId}</div>
+                    <div><span className="text-graphite">Thread-Name:</span> {chat.title || "Unbenannter Thread"}</div>
                     <div><span className="text-graphite">Status:</span> <Badge tone="neutral">wartet</Badge></div>
                     <div><span className="text-graphite">Chat-ID:</span> <strong>{chat.chatId}</strong></div>
                     <div><span className="text-graphite">Thread-ID:</span> <strong>{chat.threadId || "-"}</strong></div>
@@ -506,6 +535,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                   <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
                     <span className="min-w-0">
                       <strong className="block truncate">{chat.title || chat.chatId}</strong>
+                      <span className="mt-1 block text-graphite">Thread-Name: {chat.title || "Unbenannter Thread"}</span>
                       <span className="mt-1 block text-graphite">Chat-ID: {chat.chatId} · Thread-ID: {chat.threadId || "-"}</span>
                       <span className="mt-1 block text-graphite">
                         Ziel: {chat.targetCircle ? `Kreis ${chat.targetCircle.name}` : chat.targetUser ? userLabel(chat.targetUser) : "kein spezielles Ziel"}
@@ -609,7 +639,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
             <Panel>
               <h2 id="notifications" className="mb-4 flex items-center gap-2 text-lg font-semibold"><BellRing className="h-5 w-5 text-redbrand" /> Aktions-Benachrichtigungen</h2>
               <p className="mb-4 text-sm leading-6 text-graphite">
-                Wähle eine protokollierte Aktion, ein Telegram-Ziel und eine HTML-Nachricht. Wenn die Aktion im Portal passiert, wird die Nachricht an aktive Kanäle geschickt, die diesem Benutzer oder Kreis zugeordnet sind.
+                Wähle eine protokollierte Aktion, ein Telegram-Ziel und eine HTML-Nachricht. Optional kannst du einen konkreten Ausgabe-Thread festlegen; dann geht die Nachricht genau in diesen Chat/Thread.
               </p>
               {searchParams?.testSent ? (
                 <div className="mb-4 rounded-md border border-line bg-paper p-3 text-sm text-graphite">
@@ -625,6 +655,12 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                     </select>
                   </Field>
                   <NotificationTargetFields users={notificationTargetUsers} circles={targetCircles} targetType="circle" />
+                  <Field label="Ausgabe-Thread">
+                    <select className={selectClass} name="outputChatId" defaultValue="">
+                      <option value="">Automatisch über Ziel</option>
+                      {activeChats.map((chat) => <option key={chat.id} value={chat.id}>{chatLabel(chat)}</option>)}
+                    </select>
+                  </Field>
                 </div>
                 <Field label="Telegram-Nachricht als HTML">
                   <textarea className={inputClass} name="message" rows={5} defaultValue={defaultNotificationTemplate()} required />
@@ -641,6 +677,9 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                         <span className="mt-1 block text-sm text-graphite">
                           Ziel: {rule.targetCircle ? `Kreis ${rule.targetCircle.name}` : rule.targetUser ? userLabel(rule.targetUser) : "-"}
                         </span>
+                        <span className="mt-1 block text-sm text-graphite">
+                          Ausgabe: {rule.outputChat ? chatLabel(rule.outputChat) : "Automatisch über Ziel"}
+                        </span>
                       </span>
                       <Badge tone={rule.active ? "green" : "neutral"}>{rule.active ? "aktiv" : "inaktiv"}</Badge>
                     </summary>
@@ -653,6 +692,12 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                           </select>
                         </Field>
                         <NotificationTargetFields users={notificationTargetUsers} circles={targetCircles} targetType={targetTypeFor(rule)} targetUserId={rule.targetUserId} targetCircleId={rule.targetCircleId} />
+                        <Field label="Ausgabe-Thread">
+                          <select className={selectClass} name="outputChatId" defaultValue={rule.outputChatId || ""}>
+                            <option value="">Automatisch über Ziel</option>
+                            {activeChats.map((chat) => <option key={chat.id} value={chat.id}>{chatLabel(chat)}</option>)}
+                          </select>
+                        </Field>
                       </div>
                       <Field label="Telegram-Nachricht als HTML">
                         <textarea className={inputClass} name="message" rows={5} defaultValue={rule.message} required />

@@ -636,20 +636,20 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
       {selected ? (
         <div className="fixed inset-0 z-50 bg-black/80 px-3 py-5 backdrop-blur-sm sm:px-6">
           <div className="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-lg bg-surface shadow-soft lg:grid lg:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="relative min-h-0 bg-black">
+            <div className="relative h-[64dvh] shrink-0 bg-black lg:h-auto lg:min-h-0">
               <Link href={closeUrl} scroll={false} className="focus-ring absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black">
                 <X className="h-5 w-5" />
               </Link>
               {selected.kind === "IMAGE" ? (
                 <Link href={fullscreenUrl} scroll={false} className="focus-ring block h-full">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={selected.url} alt={selected.title} className="h-full max-h-[70vh] w-full object-contain lg:max-h-none" />
+                  <img src={selected.url} alt={selected.title} className="h-full w-full object-contain" />
                 </Link>
               ) : (
-                <video src={selected.url} className="h-full max-h-[70vh] w-full object-contain lg:max-h-none" controls autoPlay />
+                <video src={selected.url} className="h-full w-full object-contain" controls autoPlay />
               )}
             </div>
-            <aside className="flex min-h-0 flex-col overflow-y-auto border-t border-line lg:border-l lg:border-t-0">
+            <aside className="flex min-h-0 flex-1 flex-col overflow-y-auto border-t border-line lg:border-l lg:border-t-0">
               <div className="space-y-3 border-b border-line p-4">
                 <div className="flex flex-wrap gap-2">
                   <Badge tone="red">{mediaTypeLabel(selected.kind)}</Badge>
