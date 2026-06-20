@@ -71,6 +71,7 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Der Theme-Picker hat einen iPhone-artigen Toggle-Schalter für Dark Mode statt Checkbox.
 - Dark Mode wird sofort als Vorschau angewendet und pro Benutzer gespeichert.
 - Alle vorhandenen Farbschemas haben eine dunkle Variante mit schwarzem Hintergrund, dunklen Flächen und angepasster Akzentfarbe.
+- Feste weiße Link-Flächen auf Detailseiten wurden durch Theme-Flächen ersetzt, damit verknüpfte Spielzeuge, Stellungen und Aktivitäten im Dark Mode lesbar bleiben.
 
 ## Geschützte Uploads
 

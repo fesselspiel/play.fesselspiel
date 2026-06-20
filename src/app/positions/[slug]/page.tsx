@@ -38,13 +38,13 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
           <SoftPanel>
             <h2 className="mb-3 text-lg font-semibold">Spielzeuge</h2>
             <div className="space-y-2">
-              {position.tools.map((toy) => <Link key={toy.id} href={`/toys/${toy.slug}`} className="block rounded-md bg-white px-3 py-2 text-sm hover:text-redbrand">{toy.title}</Link>)}
+              {position.tools.map((toy) => <Link key={toy.id} href={`/toys/${toy.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{toy.title}</Link>)}
             </div>
           </SoftPanel>
           <SoftPanel>
             <h2 className="mb-3 text-lg font-semibold">Aktivitäten</h2>
             <div className="space-y-2">
-              {position.activities.map((activity) => <Link key={activity.id} href={`/activities/${activity.slug}`} className="block rounded-md bg-white px-3 py-2 text-sm hover:text-redbrand">{activity.title}</Link>)}
+              {position.activities.map((activity) => <Link key={activity.id} href={`/activities/${activity.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{activity.title}</Link>)}
             </div>
           </SoftPanel>
         </div>

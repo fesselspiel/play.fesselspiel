@@ -49,7 +49,7 @@ export default async function ToyDetailPage({ params }: { params: { slug: string
                 <Download className="h-4 w-4" />
                 Download
               </a>
-              <a href={`/api/qr?url=${encodeURIComponent(url)}`} target="_blank" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold" rel="noreferrer">
+              <a href={`/api/qr?url=${encodeURIComponent(url)}`} target="_blank" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink hover:bg-paper" rel="noreferrer">
                 <Printer className="h-4 w-4" />
                 Drucken
               </a>

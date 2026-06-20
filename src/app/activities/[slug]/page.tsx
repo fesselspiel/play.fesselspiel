@@ -48,13 +48,13 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
           <SoftPanel>
             <h2 className="mb-3 text-lg font-semibold">Spielsachen</h2>
             <div className="space-y-2">
-              {activity.tools.map((toy) => <Link key={toy.id} href={`/toys/${toy.slug}`} className="block rounded-md bg-white px-3 py-2 text-sm hover:text-redbrand">{toy.title}</Link>)}
+              {activity.tools.map((toy) => <Link key={toy.id} href={`/toys/${toy.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{toy.title}</Link>)}
             </div>
           </SoftPanel>
           <SoftPanel>
             <h2 className="mb-3 text-lg font-semibold">Stellungen</h2>
             <div className="space-y-2">
-              {activity.positions.map((position) => <Link key={position.id} href={`/positions/${position.slug}`} className="block rounded-md bg-white px-3 py-2 text-sm hover:text-redbrand">{position.name}</Link>)}
+              {activity.positions.map((position) => <Link key={position.id} href={`/positions/${position.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{position.name}</Link>)}
             </div>
           </SoftPanel>
         </div>
