@@ -389,7 +389,7 @@ export async function POST(request: Request) {
             title: caption || `Telegram Bild ${formatDateTime(new Date())}`,
             kind: "IMAGE",
             url: imageUrl,
-            visibility: "PRIVATE"
+            visibility: null
           }
         })
         .then(async (media) => {

@@ -142,12 +142,12 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `Circle`: Paar-/Gruppenkreis; Mitglieder sehen gemeinsame Inhalte.
 - `FileAsset`: geschützte Upload-Datei.
 - `Toy`: Spielzeug mit Slug, Bild, Beschreibung und `sortOrder`.
-- `Position`: Stellung mit Slug, Bild, Beschreibung und `sortOrder`.
+- `Position`: Stellung mit Slug, Bild, Beschreibung, `sortOrder` und `selfBondageCapable`.
 - `ActivityPlan`: Aktivität mit Status, Termin, Spielzeugen und Stellungen. Statuswerte: `REQUESTED`, `PLANNED`, `DONE`, `DISCARDED`.
 - `SegufixSession`: Session-Tracking.
 - `KgSession`: KG-Tragezeit-Tracking mit Start, Ende, Dauer und Notiz.
-- `Album`: Medienalbum.
-- `Media`: Bild oder Video; neue Medien werden immer einem Album zugeordnet, standardmäßig `Standard`.
+- `Album`: Medienalbum mit Standardsichtbarkeit.
+- `Media`: Bild oder Video; neue Medien werden immer einem Album zugeordnet, standardmäßig `Standard`. `Media.visibility` ist optional: `null` bedeutet, dass die Sichtbarkeit des Albums gilt; ein gesetzter Wert überschreibt das Album nur für dieses Medium.
 - `MediaComment`: Kommentar oder Notiz zu einem Medium.
 - `Event`: Termin.
 - `CheckIn`: Teilnahme/Check-in.
@@ -200,7 +200,8 @@ UI-Hinweis:
 - `PRIVATE` wird in der UI als `Nur ich` angezeigt.
 - `PARTNER` wird in der UI als `Zirkel` angezeigt.
 - `SHARED` wird in der UI als `Alle` angezeigt.
-- `visibilityScope(user)` in `src/lib/access.ts` kapselt die Medien-/Album-Sichtbarkeit.
+- `visibilityScope(user)` in `src/lib/access.ts` kapselt die allgemeine Datensatz- und Album-Sichtbarkeit.
+- `mediaVisibilityScope(user)` berücksichtigt bei Medien die effektive Sichtbarkeit aus Medien-Override oder Album-Sichtbarkeit.
 - `ownerScope(user)` bleibt für Bearbeiten, Löschen und Datei-Metadaten massgeblich.
 - Admins erhalten über `accessibleOwnerIds` Zugriff auf aktive Benutzer, damit Admin-Ansichten und geschützte Profilbilder konsistent funktionieren.
 

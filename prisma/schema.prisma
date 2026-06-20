@@ -182,6 +182,7 @@ model Toy {
   slug        String         @unique
   description String?
   imageUrl    String?
+  selfBondageCapable Boolean @default(false)
   sortOrder   Int            @default(0)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -199,6 +200,7 @@ model Position {
   slug        String         @unique
   description String?
   imageUrl    String?
+  selfBondageCapable Boolean @default(false)
   sortOrder   Int            @default(0)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -283,7 +285,7 @@ model Media {
   title       String
   kind        MediaKind
   url         String
-  visibility  Visibility @default(PRIVATE)
+  visibility  Visibility?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)

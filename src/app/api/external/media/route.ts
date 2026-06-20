@@ -6,6 +6,12 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
+function parsedVisibility(value: FormDataEntryValue | null) {
+  const raw = String(value || "");
+  if (raw === "PRIVATE" || raw === "PARTNER" || raw === "SHARED") return raw;
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
@@ -21,7 +27,7 @@ export async function POST(request: NextRequest) {
       title: String(formData.get("title") || asset.originalName || "API Upload").trim(),
       kind: asset.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE",
       url,
-      visibility: String(formData.get("visibility") || "PRIVATE") as "PRIVATE" | "PARTNER" | "SHARED"
+      visibility: parsedVisibility(formData.get("visibility"))
     }
   });
   return NextResponse.json({

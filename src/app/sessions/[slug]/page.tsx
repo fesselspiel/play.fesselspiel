@@ -32,7 +32,7 @@ async function addSessionMedia(formData: FormData) {
       title: String(formData.get("title") || asset.originalName || "Session Bild").trim(),
       kind: asset.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE",
       url: fileAssetUrl(asset.id),
-      visibility: "PRIVATE"
+      visibility: null
     }
   });
   await logAction({

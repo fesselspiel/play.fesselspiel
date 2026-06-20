@@ -26,6 +26,7 @@ async function createPosition(formData: FormData) {
       slug,
       imageUrl: uploadedImageUrl || (image ? fileAssetUrl(image.id) : ""),
       description: String(formData.get("description") || "").trim(),
+      selfBondageCapable: formData.get("selfBondageCapable") === "on",
       tools: { connect: accessibleTools.map(({ id }) => ({ id })) }
     }
   });
@@ -47,6 +48,10 @@ export default async function NewPositionPage() {
         <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" placeholder="rueckenlage" /></Field>
         <FileUploadField name="image" uploadedUrlName="imageUploadedUrl" label="Bild" accept="image/*" help="Wähle ein Bild aus der Mediathek oder Kamera aus." />
         <Field label="Beschreibung"><textarea className={inputClass} name="description" rows={5} /></Field>
+        <label className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm font-medium text-ink">
+          <input name="selfBondageCapable" type="checkbox" className="h-4 w-4 accent-redbrand" />
+          <span>Self-Bondage-fähig</span>
+        </label>
         <div>
           <div className="mb-2 text-sm font-medium text-graphite">Spielzeuge</div>
           <div className="grid gap-2 sm:grid-cols-2">

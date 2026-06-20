@@ -219,6 +219,37 @@ Anforderung:
 - Kuenftige Arbeiten sollen dort weiter dokumentiert werden.
 - Reproduzierbarkeit inklusive Files und Prompt.
 
+## Stellungen Self-Bondage Prompt
+
+Anforderung:
+
+- Bei Stellungen in der Konfiguration beim Anlegen und Ändern ein Checkboxfeld ergänzen.
+- Feldname: `Self-Bondage-fähig`.
+- Das Feld soll später weiterverwendet werden können.
+
+Umsetzung:
+
+- `Position.selfBondageCapable` als Boolean mit Default `false`.
+- Checkbox in `/positions/new`.
+- Checkbox in `/positions/[slug]/edit`.
+
+## Medien-Sichtbarkeit Prompt
+
+Anforderung:
+
+- Einzelne Bilder in Alben sollen eine eigene Sichtbarkeit bekommen.
+- Album-Bearbeitung soll Sichtbarkeit enthalten, nicht nur Löschen.
+- Einzelne Medien sollen standardmäßig die Album-Sichtbarkeit übernehmen, aber überschrieben werden können.
+- Der Abruf muss so umgesetzt werden, dass Benutzer nur sehen, was sie sehen dürfen.
+
+Umsetzung:
+
+- `Media.visibility` ist optional; `null` bedeutet `Wie Album`.
+- Medien-Detailansicht erlaubt Albumwechsel und Sichtbarkeits-Override.
+- Album-Verwaltung erlaubt Name, Beschreibung und Sichtbarkeit zu ändern.
+- Medienlisten filtern nach effektiver Sichtbarkeit.
+- Geschützter Dateiabruf prüft sichtbare Medien zusätzlich zum Eigentümer-/Zirkelzugriff.
+
 Umsetzung:
 
 - Dokumentation unter `docs/` angelegt.

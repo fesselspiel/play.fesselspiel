@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
-import { accessibleOwnerIds, type AccessUser } from "@/lib/access";
+import { accessibleOwnerIds, mediaVisibilityScope, type AccessUser } from "@/lib/access";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
@@ -114,7 +114,19 @@ export async function fileAssetForUser(ownerId: string, id: string) {
 }
 
 export async function fileAssetForAccess(user: AccessUser, id: string) {
-  return prisma.fileAsset.findFirst({ where: { id, ownerId: { in: await accessibleOwnerIds(user) } } });
+  const asset = await prisma.fileAsset.findFirst({ where: { id, ownerId: { in: await accessibleOwnerIds(user) } } });
+  if (asset) return asset;
+
+  const sharedAsset = await prisma.fileAsset.findUnique({ where: { id } });
+  if (!sharedAsset) return null;
+  const visibleMedia = await prisma.media.findFirst({
+    where: {
+      ...(await mediaVisibilityScope(user)),
+      url: assetUrl(id)
+    },
+    select: { id: true }
+  });
+  return visibleMedia ? sharedAsset : null;
 }
 
 export function absolutePathForAsset(storagePath: string) {

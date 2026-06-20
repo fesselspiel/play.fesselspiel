@@ -281,7 +281,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
         title: String(entry.title || "Importiertes Medium"),
         kind: String(entry.kind || "IMAGE") as "IMAGE" | "VIDEO",
         url,
-        visibility: String(entry.visibility || "PRIVATE") as "PRIVATE" | "PARTNER" | "SHARED"
+        visibility: entry.visibility ? (String(entry.visibility) as "PRIVATE" | "PARTNER" | "SHARED") : null
       }
     });
     mediaMap.set(String(entry.id || ""), created.id);

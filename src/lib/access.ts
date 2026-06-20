@@ -38,6 +38,31 @@ export async function visibilityScope(user: AccessUser) {
   };
 }
 
+export async function mediaVisibilityScope(user: AccessUser) {
+  if (user.role === "ADMIN") return { ownerId: { in: await accessibleOwnerIds(user) } };
+  const ownerIds = await accessibleOwnerIds(user);
+  const circleVisibility: Visibility[] = ["PARTNER", "SHARED"];
+  const otherOwnerIds = ownerIds.filter((id) => id !== user.id);
+  return {
+    OR: [
+      { ownerId: user.id },
+      ...(user.circleId
+        ? [
+            {
+              ownerId: { in: otherOwnerIds },
+              OR: [
+                { visibility: { in: circleVisibility } },
+                { visibility: null, album: { is: { visibility: { in: circleVisibility } } } }
+              ]
+            }
+          ]
+        : []),
+      { visibility: "SHARED" as const },
+      { visibility: null, album: { is: { visibility: "SHARED" as const } } }
+    ]
+  };
+}
+
 export async function isAccessibleOwner(user: AccessUser, ownerId: string) {
   return (await accessibleOwnerIds(user)).includes(ownerId);
 }

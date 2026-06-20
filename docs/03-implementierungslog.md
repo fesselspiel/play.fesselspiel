@@ -93,6 +93,15 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Upload-Formular.
 - Album-Formular.
 - Löschaktion je Medium.
+- Medien können die Sichtbarkeit ihres Albums übernehmen oder einzeln auf `Nur ich`, `Zirkel` oder `Alle` überschrieben werden.
+- Album-Verwaltung erlaubt jetzt auch das Bearbeiten von Name, Beschreibung und Sichtbarkeit.
+- Der geschützte Dateiabruf berücksichtigt sichtbare Medien, damit freigegebene Bilder korrekt ausgeliefert werden und private Dateien geschützt bleiben.
+
+## Stellungen: Self-Bondage
+
+- Stellungen haben im Datenmodell das Boolean-Feld `selfBondageCapable`.
+- Beim Anlegen und Bearbeiten einer Stellung gibt es die Checkbox `Self-Bondage-fähig`.
+- Das Feld ist bewusst noch nicht in Filter oder Auswertungen eingebunden und steht für spätere Nutzung bereit.
 
 ## Mobile Navigation
 
