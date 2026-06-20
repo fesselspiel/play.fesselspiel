@@ -6,6 +6,7 @@ import {
   Images,
   KeyRound,
   LayoutDashboard,
+  Mail,
   Menu,
   MessageCircle,
   Settings,
@@ -37,6 +38,7 @@ const mobileSettingsNav = [["Profil", "/profile", UserRound]] as const;
 const adminOnlyMobileSettingsNav = [
   ["Benutzer", "/settings/users", UsersRound],
   ["Telegram", "/settings/telegram", Settings],
+  ["E-Mail", "/settings/email", Mail],
   ["Daten", "/settings/data", DatabaseBackup],
   ["API Tokens", "/settings/api", KeyRound],
   ["Protokoll", "/messages", MessageCircle]

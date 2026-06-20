@@ -5,5 +5,7 @@ export const env = {
   uploadPath: process.env.UPLOAD_PATH || "/app/uploads",
   maxUploadBytes: Number(process.env.MAX_UPLOAD_BYTES || 50 * 1024 * 1024),
   openAiApiKey: process.env.OPENAI_API_KEY || "",
-  openAiTranscriptionModel: process.env.OPENAI_TRANSCRIPTION_MODEL || "whisper-1"
+  openAiTranscriptionModel: process.env.OPENAI_TRANSCRIPTION_MODEL || "whisper-1",
+  emailSmtpHost: process.env.EMAIL_SMTP_HOST || "postfix",
+  emailSmtpPort: Number(process.env.EMAIL_SMTP_PORT || 25)
 };

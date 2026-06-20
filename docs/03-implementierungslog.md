@@ -676,3 +676,11 @@ Details:
 - Die Seite `/login` ist jetzt eine öffentliche Startseite mit Hero-Bereich, Funktionsübersicht, Ablaufsektion und Login-Panel.
 - Der bestehende Login-Flow bleibt unverändert; geschützte Seiten leiten weiterhin auf `/login`, dort ist der Login nun in die Startseite eingebettet.
 - Die öffentliche Startseite nutzt `playplaner.com` als sichtbare Hauptdomain.
+
+## Postfix und E-Mail-Templates
+
+- Docker Compose enthält einen eigenen Postfix-Service `postfix`, den die App intern über SMTP nutzt.
+- Es gibt eine neue Admin-Seite `E-Mail` unter Einstellungen mit Systemschalter, Absender, SMTP-Daten, Templates, Testmail und Versandprotokoll.
+- E-Mail-Templates sind kontrolliert abschaltbar; zusätzlich gibt es einen globalen Schalter für das komplette E-Mail-System.
+- Die Benutzeranlage kann die Vorlage `Neues Benutzerkonto` senden, Login-Ereignisse können optional die Vorlage `Login-Benachrichtigung` senden.
+- Alle Versandversuche werden als `EmailLog` protokolliert.

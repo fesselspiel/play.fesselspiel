@@ -5,6 +5,7 @@ import {
   Images,
   KeyRound,
   LayoutDashboard,
+  Mail,
   MessageCircle,
   Settings,
   ShieldCheck,
@@ -35,6 +36,7 @@ const settingsNav = [["Profil", "/profile", UserRound]] as const;
 const adminOnlySettingsNav = [
   ["Benutzer", "/settings/users", UsersRound],
   ["Telegram", "/settings/telegram", Settings],
+  ["E-Mail", "/settings/email", Mail],
   ["Daten", "/settings/data", DatabaseBackup],
   ["API Tokens", "/settings/api", KeyRound],
   ["Protokoll", "/messages", MessageCircle]

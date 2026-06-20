@@ -8,6 +8,8 @@ import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectC
 import { UsernameField } from "@/components/username-field";
 import { currentUser, requireAdmin } from "@/lib/auth";
 import { appTimeZone, formatDateTime } from "@/lib/dates";
+import { sendTemplateEmail } from "@/lib/email";
+import { env } from "@/lib/env";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 
@@ -39,6 +41,16 @@ async function createUser(formData: FormData) {
   });
   const image = await saveUploadedFile(user.id, formData.get("profileImage") as File | null);
   if (image) await prisma.profile.update({ where: { userId: user.id }, data: { imageUrl: fileAssetUrl(image.id) } });
+  await sendTemplateEmail({
+    key: "user_created",
+    to: rawEmail || null,
+    variables: {
+      userName: user.name || user.username || user.email,
+      loginIdentifier: user.username || user.email,
+      appUrl: env.appUrl,
+      profileUrl: `${env.appUrl}/profile`
+    }
+  });
   redirect(`/settings/users#user-${user.id}`);
 }
 

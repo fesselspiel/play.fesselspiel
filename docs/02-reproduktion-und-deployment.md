@@ -48,6 +48,10 @@ ENCRYPTION_KEY=...
 OPENAI_API_KEY=...
 OPENAI_TRANSCRIPTION_MODEL=whisper-1
 UPLOAD_PATH=/app/uploads
+EMAIL_SMTP_HOST=postfix
+EMAIL_SMTP_PORT=25
+EMAIL_POSTFIX_HOSTNAME=playplaner.com
+EMAIL_ALLOWED_SENDER_DOMAINS=playplaner.com
 ```
 
 Secrets werden nicht in Markdown dokumentiert. Werte stehen in der jeweiligen `.env` auf dem Zielsystem.
@@ -63,6 +67,7 @@ Hauptdomain: playplaner.com
 Zweitdomain: play.fesselspiel.com
 Container App: kink_social_app
 Container DB: kink_social_postgres
+Container Mail: kink_social_postfix
 Interner Port: 127.0.0.1:8097
 ```
 
@@ -192,3 +197,23 @@ Weitere Telegram-Endpunkte:
 - `/api/telegram/chats`
 - `/api/telegram/send`
 - `/api/telegram/webhook-info`
+
+## E-Mail und Postfix
+
+Postfix läuft als eigener Docker-Service im gleichen Compose-Projekt. Die App versendet intern per SMTP an:
+
+```text
+postfix:25
+```
+
+Die Verwaltung erfolgt im Admin-Bereich unter:
+
+```text
+/settings/email
+```
+
+Wichtig:
+
+- E-Mail-Versand ist standardmäßig deaktiviert.
+- Zusätzlich muss jedes Template einzeln aktiviert werden.
+- Für verlässliche Zustellung nach außen müssen DNS/SPF/DKIM/Reverse-DNS passend zur Domain gepflegt werden.

@@ -176,6 +176,44 @@ model AuditLog {
   @@index([entityType, entityId])
 }
 
+model EmailSettings {
+  id        String   @id @default("system")
+  enabled   Boolean  @default(false)
+  fromName  String   @default("Fesselspiel")
+  fromEmail String   @default("no-reply@playplaner.com")
+  smtpHost  String   @default("postfix")
+  smtpPort  Int      @default(25)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  title     String
+  subject   String
+  body      String
+  enabled   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled])
+}
+
+model EmailLog {
+  id          String   @id @default(cuid())
+  templateKey String?
+  recipient   String
+  subject     String
+  status      String
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([templateKey, createdAt])
+  @@index([status, createdAt])
+}
+
 model Toy {
   id          String         @id @default(cuid())
   ownerId     String

@@ -6,6 +6,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      postfix:
+        condition: service_started
     ports:
       - "127.0.0.1:${APP_PORT:-8097}:8097"
     environment:
@@ -22,6 +24,8 @@ services:
       OPENAI_TRANSCRIPTION_MODEL: ${OPENAI_TRANSCRIPTION_MODEL:-whisper-1}
       UPLOAD_PATH: ${UPLOAD_PATH:-/app/uploads}
       STARTUP_LOG_DIR: /app/logs
+      EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-postfix}
+      EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-25}
     volumes:
       - uploads_data:/app/uploads
       - ./runtime-logs:/app/logs
@@ -47,6 +51,17 @@ services:
       retries: 20
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  postfix:
+    image: boky/postfix:latest
+    container_name: kink_social_postfix
+    restart: unless-stopped
+    environment:
+      HOSTNAME: ${EMAIL_POSTFIX_HOSTNAME:-playplaner.com}
+      ALLOWED_SENDER_DOMAINS: ${EMAIL_ALLOWED_SENDER_DOMAINS:-playplaner.com}
+      POSTFIX_myhostname: ${EMAIL_POSTFIX_HOSTNAME:-playplaner.com}
+      POSTFIX_myorigin: ${EMAIL_POSTFIX_HOSTNAME:-playplaner.com}
+      POSTFIX_mynetworks: ${EMAIL_POSTFIX_NETWORKS:-127.0.0.0/8 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16}
 
 volumes:
   postgres_data:
