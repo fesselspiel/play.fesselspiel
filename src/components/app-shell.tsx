@@ -14,7 +14,7 @@ import {
   UserRound,
   UsersRound
 } from "lucide-react";
-import { currentUser } from "@/lib/auth";
+import { currentSessionContext } from "@/lib/auth";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
 import { LogoutButton } from "@/components/logout-button";
 import { MobileMenu } from "@/components/mobile-menu";
@@ -37,8 +37,12 @@ const settingsNav = [
   ["Protokoll", "/messages", MessageCircle]
 ] as const;
 
+const adminSettingsNav = [["Ansicht wechseln", "/settings/view-as", UsersRound]] as const;
+
 export async function AppShell({ children }: { children: ReactNode }) {
-  const user = await currentUser();
+  const { actor, user } = await currentSessionContext();
+  const isAdminActor = actor?.role === "ADMIN";
+  const isViewingAs = Boolean(actor && user && actor.id !== user.id);
   return (
     <div className="min-h-screen bg-canvas">
       <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-line bg-surface px-5 py-6 lg:block">
@@ -59,6 +63,12 @@ export async function AppShell({ children }: { children: ReactNode }) {
               Einstellungen
             </summary>
             <div className="mt-1 space-y-1 border-l border-line pl-4">
+              {isAdminActor ? adminSettingsNav.map(([label, href, Icon]) => (
+                <Link key={href} href={href} className="flex min-h-9 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </Link>
+              )) : null}
               {settingsNav.map(([label, href, Icon]) => (
                 <Link key={href} href={href} className="flex min-h-9 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
                   <Icon className="h-4 w-4" />
@@ -82,7 +92,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
               )}
               <div className="min-w-0">
                 <div className="truncate font-semibold text-ink">{user.profile?.displayName || user.name || user.username || user.email}</div>
-                <div className="truncate">{user.email}</div>
+                <div className="truncate">{isViewingAs ? `Ansicht als ${user.username || user.email}` : user.email}</div>
               </div>
             </div>
             <LogoutButton className="focus-ring w-full rounded-md border border-line px-3 py-2 text-sm font-medium hover:bg-paper disabled:opacity-60" />
@@ -90,7 +100,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         ) : null}
       </aside>
       <main className="min-h-screen lg:pl-72">
-        <MobileMenu activeDarkMode={Boolean(user?.settings?.darkMode)} />
+        <MobileMenu activeDarkMode={Boolean(user?.settings?.darkMode)} showAdminViewSwitch={isAdminActor} />
         <div className="mx-auto flex min-h-[calc(100vh-4.5rem)] max-w-7xl flex-col px-4 py-6 sm:px-6 lg:min-h-screen lg:px-8">{children}</div>
       </main>
     </div>

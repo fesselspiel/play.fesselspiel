@@ -39,7 +39,9 @@ const mobileSettingsNav = [
   ["Protokoll", "/messages", MessageCircle]
 ] as const;
 
-export function MobileMenu({ activeDarkMode = false }: { activeDarkMode?: boolean }) {
+const adminMobileSettingsNav = [["Ansicht wechseln", "/settings/view-as", UsersRound]] as const;
+
+export function MobileMenu({ activeDarkMode = false, showAdminViewSwitch = false }: { activeDarkMode?: boolean; showAdminViewSwitch?: boolean }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -83,6 +85,17 @@ export function MobileMenu({ activeDarkMode = false }: { activeDarkMode?: boolea
                 Einstellungen
               </summary>
               <div className="border-t border-line bg-paper px-2 py-2">
+                {showAdminViewSwitch ? adminMobileSettingsNav.map(([label, href, Icon]) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setOpen(false)}
+                    className="flex min-h-10 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-surface hover:text-redbrand"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </Link>
+                )) : null}
                 {mobileSettingsNav.map(([label, href, Icon]) => (
                   <Link
                     key={href}

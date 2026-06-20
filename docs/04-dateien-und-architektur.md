@@ -171,8 +171,9 @@ UI-Hinweis:
 - Bei Bildersatz gewinnt eine neu ausgewählte Datei automatisch gegen die Entfernen-Option.
 - `next.config.mjs` setzt `experimental.serverActions.bodySizeLimit` auf `50mb`, passend zur Upload-Grenze der App.
 - Spielzeug- und Stellungsbilder werden beim Auswählen direkt an `/api/uploads` gesendet. Die anschließende Server Action speichert nur die zurückgegebene geschützte Datei-URL.
-- `ensureDefaultAlbum(ownerId)` in `src/lib/albums.ts` legt bei Bedarf das Standardalbum `Standard` an und benennt alte `Eingang`-Alben um.
-- Medienuploads über Web, Telegram, externe API, Session-Detailseite und Import verwenden dieses Album als Fallback.
+- `ensureDefaultAlbum(ownerId)` in `src/lib/albums.ts` legt bei Bedarf das persönliche Hauptalbum des Benutzers an. Der Albumname kommt aus dem Profil-Anzeigenamen, danach Name, Benutzername oder E-Mail.
+- Alte `Standard`- und `Eingang`-Alben werden in dieses persönliche Hauptalbum überführt.
+- Medienuploads über Web, Telegram, externe API, Session-Detailseite und Import verwenden dieses Hauptalbum als Fallback.
 
 ## Telegram-Aktionsregeln
 

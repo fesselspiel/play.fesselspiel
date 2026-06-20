@@ -481,9 +481,10 @@ Details:
 - Das Protokoll hat ein Suchfeld mit Live-Vorschlägen; Treffer springen direkt zum passenden Eintrag.
 - Telegram-Protokolleinträge werden so zusammengeführt, dass empfangene Nachricht und Antwort nicht mehr wie getrennte Fremdeinträge wirken.
 - Medien ohne Album werden nicht mehr als eigenes Ziel angeboten.
-- Für jeden Benutzer wird ein Standardalbum `Standard` angelegt.
-- Alte Standardalben mit dem Namen `Eingang` werden automatisch zu `Standard` umbenannt.
-- Neue Uploads aus Webformularen, Session-Detailseiten, Import, externer API und Telegram landen automatisch in `Standard`, wenn kein Album gesetzt ist.
+- Für jeden Benutzer wird ein persönliches Hauptalbum angelegt.
+- Der Albumname kommt aus dem Profil-Anzeigenamen, danach Name, Benutzername oder E-Mail.
+- Alte Standardalben mit den Namen `Standard` oder `Eingang` werden automatisch in dieses persönliche Hauptalbum überführt.
+- Neue Uploads aus Webformularen, Session-Detailseiten, Import, externer API und Telegram landen automatisch im persönlichen Hauptalbum, wenn kein Album gesetzt ist.
 - Telegram-Bilduploads senden nach dem Speichern eine HTML-formatierte Albumauswahl mit anklickbaren `/media_album_...`-Kommandos.
 
 ## Telegram-Aktionsregeln
@@ -492,11 +493,11 @@ Details:
 - Admins können in den Telegram-Einstellungen aktionsbasierte Regeln anlegen.
 - Das Aktions-Dropdown kombiniert bekannte Systemaktionen mit bereits im Protokoll vorhandenen Aktionen.
 - Jede Regel besteht aus Aktion, Ziel-Benutzer oder Ziel-Kreis, HTML-Nachricht und Aktiv-Status.
-- Nachrichten unterstuetzen Variablen: `{title}`, `{actor}`, `{event}`, `{action}`, `{url}`, `{details}`.
+- Nachrichten unterstützen Variablen: `{title}`, `{actor}`, `{event}`, `{action}`, `{url}`, `{details}`.
 - `logAction` prüft nach dem Speichern eines Protokolleintrags passende Regeln und sendet Telegram-HTML an aktive Kanäle, die diesem Benutzer oder Kreis zugeordnet sind.
 - Dadurch können z.B. Ampelwechsel, Spielanfragen, Telegram-Nachrichten, API-Sessions oder Logins gezielt an Benutzer oder Kreise gepusht werden.
 
-## Medien-Alben nachgeschaerft
+## Medien-Alben nachgeschärft
 
 - In der Bild-Detailansicht kann direkt ein neues Album für das geöffnete Bild angelegt werden.
 - Nach dem Anlegen bleibt die Detailansicht offen und das Bild wird sofort dem neuen Album zugeordnet.
@@ -505,9 +506,9 @@ Details:
 - Sichtbarkeit heißt jetzt in der UI `Nur ich`, `Zirkel`, `Alle`.
 - Die Medienseite respektiert diese Sichtbarkeit: eigene Medien immer, Zirkel-Medien nur mit `Zirkel`/`Alle`, globale Medien mit `Alle`.
 - Alben können gelöscht werden.
-- Beim Löschen werden Medien standardmäßig in das Standardalbum verschoben.
+- Beim Löschen werden Medien standardmäßig in das persönliche Hauptalbum verschoben.
 - Optional können Medien und Dateien bewusst mitgelöscht werden.
-- Das Standardalbum selbst kann nicht gelöscht werden.
+- Das persönliche Hauptalbum selbst kann nicht gelöscht werden.
 
 ## Navigation, Admin-Dateien und Demo-Seed
 

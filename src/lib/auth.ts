@@ -10,6 +10,7 @@ export const SESSION_COOKIE = "fesselspiel_session";
 type SessionPayload = {
   userId: string;
   exp: number;
+  viewAsUserId?: string;
 };
 
 function base64url(input: Buffer | string) {
@@ -20,10 +21,11 @@ function sign(value: string) {
   return createHmac("sha256", env.jwtSecret).update(value).digest("base64url");
 }
 
-export function createSessionToken(userId: string, remember: boolean) {
+export function createSessionToken(userId: string, remember: boolean, viewAsUserId?: string) {
   const payload: SessionPayload = {
     userId,
-    exp: Date.now() + (remember ? 1000 * 60 * 60 * 24 * 30 : 1000 * 60 * 60 * 12)
+    exp: Date.now() + (remember ? 1000 * 60 * 60 * 24 * 30 : 1000 * 60 * 60 * 12),
+    ...(viewAsUserId ? { viewAsUserId } : {})
   };
   const body = base64url(JSON.stringify(payload));
   return `${body}.${sign(body)}`;
@@ -37,9 +39,13 @@ export function verifySessionToken(token?: string | null): SessionPayload | null
   const given = Buffer.from(signature);
   const signed = Buffer.from(expected);
   if (given.length !== signed.length || !timingSafeEqual(given, signed)) return null;
-  const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as SessionPayload;
-  if (!payload.userId || payload.exp < Date.now()) return null;
-  return payload;
+  try {
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as SessionPayload;
+    if (!payload.userId || payload.exp < Date.now()) return null;
+    return payload;
+  } catch {
+    return null;
+  }
 }
 
 export async function login(identifier: string, password: string, remember: boolean) {
@@ -64,7 +70,29 @@ export async function currentUser() {
   const token = cookies().get(SESSION_COOKIE)?.value;
   const session = verifySessionToken(token);
   if (!session) return null;
+  const actor = await prisma.user.findFirst({ where: { id: session.userId, active: true }, include: { settings: true, profile: true, circle: true } });
+  if (!actor) return null;
+  if (!session.viewAsUserId || actor.role !== "ADMIN") return actor;
+  return await prisma.user.findFirst({ where: { id: session.viewAsUserId, active: true }, include: { settings: true, profile: true, circle: true } }) || actor;
+}
+
+export async function currentSessionUser() {
+  const token = cookies().get(SESSION_COOKIE)?.value;
+  const session = verifySessionToken(token);
+  if (!session) return null;
   return prisma.user.findFirst({ where: { id: session.userId, active: true }, include: { settings: true, profile: true, circle: true } });
+}
+
+export async function currentSessionContext() {
+  const token = cookies().get(SESSION_COOKIE)?.value;
+  const session = verifySessionToken(token);
+  if (!session) return { actor: null, user: null, viewAsUserId: null };
+  const actor = await prisma.user.findFirst({ where: { id: session.userId, active: true }, include: { settings: true, profile: true, circle: true } });
+  if (!actor) return { actor: null, user: null, viewAsUserId: null };
+  const user = session.viewAsUserId && actor.role === "ADMIN"
+    ? await prisma.user.findFirst({ where: { id: session.viewAsUserId, active: true }, include: { settings: true, profile: true, circle: true } })
+    : actor;
+  return { actor, user: user || actor, viewAsUserId: session.viewAsUserId || null };
 }
 
 export async function requireUser() {
@@ -74,19 +102,24 @@ export async function requireUser() {
 }
 
 export async function requireAdmin() {
-  const user = await requireUser();
+  const user = await currentSessionUser();
+  if (!user) throw new Response("Nicht angemeldet", { status: 401 });
   if (user.role !== "ADMIN") throw new Response("Nicht berechtigt", { status: 403 });
   return user;
 }
 
-export function setSessionCookie(response: NextResponse, token: string, remember: boolean) {
-  response.cookies.set(SESSION_COOKIE, token, {
+export function sessionCookieOptions(maxAge: number) {
+  return {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: remember ? 60 * 60 * 24 * 30 : 60 * 60 * 12
-  });
+    maxAge
+  };
+}
+
+export function setSessionCookie(response: NextResponse, token: string, remember: boolean) {
+  response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(remember ? 60 * 60 * 24 * 30 : 60 * 60 * 12));
 }
 
 export function clearSessionCookie(response: NextResponse) {
@@ -101,5 +134,8 @@ export async function userFromRequest(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const session = verifySessionToken(token);
   if (!session) return null;
-  return prisma.user.findFirst({ where: { id: session.userId, active: true }, include: { settings: true, circle: true } });
+  const actor = await prisma.user.findFirst({ where: { id: session.userId, active: true }, include: { settings: true, circle: true } });
+  if (!actor) return null;
+  if (!session.viewAsUserId || actor.role !== "ADMIN") return actor;
+  return await prisma.user.findFirst({ where: { id: session.viewAsUserId, active: true }, include: { settings: true, circle: true } }) || actor;
 }

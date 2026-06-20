@@ -575,14 +575,14 @@ Weitere Nachbesserung:
 
 - `Ohne Album` soll verschwinden.
 - Jedes Bild soll in einem Album liegen.
-- Es soll ein Standardalbum geben, in das neue Medien automatisch gespeichert werden.
-- Telegram-Bilduploads sollen im Standardalbum landen und danach eine Nachricht mit Album-Kommandos senden.
+- Es soll ein persönliches Hauptalbum geben, in das neue Medien automatisch gespeichert werden.
+- Telegram-Bilduploads sollen im persönlichen Hauptalbum landen und danach eine Nachricht mit Album-Kommandos senden.
 
 Umsetzung:
 
-- Standardalbum heißt `Standard`.
-- `ensureDefaultAlbum(ownerId)` legt es bei Bedarf an.
-- Medienseite, Session-Bilder, externe Medien-API, Import und Telegram nutzen `Standard` als Fallback.
+- Das Hauptalbum heißt wie der jeweilige Benutzer, bevorzugt nach Profil-Anzeigename.
+- `ensureDefaultAlbum(ownerId)` legt es bei Bedarf an und übernimmt alte `Standard`-/`Eingang`-Alben.
+- Medienseite, Session-Bilder, externe Medien-API, Import und Telegram nutzen dieses Hauptalbum als Fallback.
 - Die Telegram-Antwort nach einem Bild-Upload listet alle Alben mit anklickbaren `/media_album_<nummer>_<mediaId>`-Kommandos auf.
 
 Weitere Nachbesserung:
@@ -621,7 +621,7 @@ Anforderung:
 - Der Album-Speichern-Button braucht Feedback.
 - Sichtbarkeit `Privat`, `Partner`, `geteilt` ist unklar und soll klarer benannt und logisch geprüft werden.
 - Alben sollen sichtbar verwaltet und gelöscht werden können.
-- Beim Album-Löschen dürfen Bilder nicht versehentlich gelöscht werden; Standard ist Verschieben ins Standardalbum.
+- Beim Album-Löschen dürfen Bilder nicht versehentlich gelöscht werden; Standard ist Verschieben ins persönliche Hauptalbum.
 - Album-Anlegen, Zielalbum und Verschieben sollen nicht unklar in einem Block vermischt sein.
 
 Umsetzung:

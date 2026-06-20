@@ -23,7 +23,7 @@ import { QuickAlbumForm } from "@/components/quick-album-form";
 import { SubmitButton } from "@/components/submit-button";
 import { Badge, Button, EmptyState, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
 import { mediaVisibilityScope, ownerScope, visibilityScope } from "@/lib/access";
-import { defaultAlbumTitle, ensureDefaultAlbum } from "@/lib/albums";
+import { ensureDefaultAlbum, isDefaultAlbumTitle } from "@/lib/albums";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
@@ -86,6 +86,10 @@ async function createAlbum(formData: FormData) {
   if (!user) redirect("/login");
   const title = String(formData.get("title") || "").trim();
   if (!title) redirect("/media");
+  if (await isDefaultAlbumTitle(user.id, title)) {
+    await ensureDefaultAlbum(user.id);
+    redirect("/media");
+  }
   await prisma.album.create({
     data: {
       ownerId: user.id,
@@ -104,10 +108,13 @@ async function updateAlbum(formData: FormData) {
   const albumId = String(formData.get("albumId") || "");
   const album = await prisma.album.findFirst({ where: { id: albumId, ...(await ownerScope(user)) } });
   if (!album) redirect("/media");
+  const defaultAlbum = await ensureDefaultAlbum(album.ownerId);
+  const requestedTitle = String(formData.get("title") || album.title).trim() || album.title;
+  const nextTitle = await isDefaultAlbumTitle(album.ownerId, requestedTitle) && album.id !== defaultAlbum.id ? album.title : requestedTitle;
   await prisma.album.update({
     where: { id: album.id },
     data: {
-      title: String(formData.get("title") || album.title).trim() || album.title,
+      title: nextTitle,
       description: String(formData.get("description") || "").trim(),
       visibility: String(formData.get("visibility") || album.visibility) as "PRIVATE" | "PARTNER" | "SHARED"
     }
@@ -124,6 +131,11 @@ async function createAlbumForMedia(formData: FormData) {
   const title = String(formData.get("title") || "").trim();
   const media = await prisma.media.findFirst({ where: { id: mediaId, ...scope } });
   if (!media || !title) redirect("/media");
+  if (await isDefaultAlbumTitle(user.id, title)) {
+    const album = await ensureDefaultAlbum(user.id);
+    await prisma.media.update({ where: { id: media.id }, data: { albumId: album.id, visibility: null } });
+    redirect(mediaUrl({ album: album.id, view: media.id }));
+  }
   const album = await prisma.album.create({
     data: {
       ownerId: user.id,
@@ -182,7 +194,7 @@ async function deleteAlbum(formData: FormData) {
   const album = await prisma.album.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!album) redirect("/media");
   const fallback = await ensureDefaultAlbum(album.ownerId);
-  if (album.id === fallback.id || album.title === defaultAlbumTitle) redirect("/media");
+  if (album.id === fallback.id) redirect("/media");
   const media = await prisma.media.findMany({ where: { albumId: album.id } });
   if (formData.get("deleteMedia") === "on") {
     for (const entry of media) {
@@ -243,6 +255,29 @@ function mediaTypeLabel(value: string) {
   return value === "VIDEO" ? "Video" : "Bild";
 }
 
+type AlbumForUi = {
+  id: string;
+  ownerId: string;
+  title: string;
+  owner?: {
+    email: string;
+    username: string | null;
+    name: string | null;
+    profile?: { displayName: string | null } | null;
+  } | null;
+};
+
+function albumOwnerLabel(album: AlbumForUi) {
+  return album.owner?.profile?.displayName || album.owner?.name || album.owner?.username || album.owner?.email || "Unbekannt";
+}
+
+function albumLabel(album: AlbumForUi, currentUserId: string, allAlbums: AlbumForUi[]) {
+  const duplicateTitle = allAlbums.some((entry) => entry.id !== album.id && entry.title === album.title);
+  const owner = albumOwnerLabel(album);
+  if ((duplicateTitle || album.ownerId !== currentUserId) && album.title !== owner) return `${album.title} · ${owner}`;
+  return album.title;
+}
+
 function mediaUrl(params: Record<string, string | undefined>) {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -275,7 +310,11 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
       include: { album: true },
       orderBy: { createdAt: "desc" }
     }),
-    prisma.album.findMany({ where: albumScope, orderBy: { title: "asc" } }),
+    prisma.album.findMany({
+      where: albumScope,
+      include: { owner: { include: { profile: true } } },
+      orderBy: [{ title: "asc" }, { createdAt: "asc" }]
+    }),
     prisma.media.findMany({
       where: mediaScope,
       include: { album: true },
@@ -293,6 +332,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
   const baseFilters = { album: albumFilter, kind: kindFilter, visibility: visibilityFilter, q };
   const closeUrl = mediaUrl({ ...baseFilters, view: undefined });
   const selectedUrl = selected ? mediaUrl({ ...baseFilters, view: selected.id }) : "/media";
+  const selectedAlbumForUi = selected?.albumId ? albums.find((album) => album.id === selected.albumId) : null;
   const selectedComments = selected
     ? await prisma.mediaComment.findMany({
         where: { mediaId: selected.id },
@@ -316,7 +356,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
           </Link>
           {albums.map((album) => (
             <Link key={album.id} href={mediaUrl({ ...baseFilters, album: album.id, view: undefined })} className={`focus-ring shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${albumFilter === album.id ? "border-redbrand bg-redbrand text-white" : "border-line bg-surface text-ink hover:bg-paper"}`}>
-              {album.title}
+              {albumLabel(album, user.id, albums)}
             </Link>
           ))}
         </div>
@@ -369,7 +409,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
               <FileUploadField name="file" label="Datei" accept="image/*,video/*" required help="Bild oder Video auswählen." />
               <Field label="Album">
                 <select className={selectClass} name="albumId" defaultValue={defaultAlbum.id}>
-                  {albums.map((album) => <option key={album.id} value={album.id}>{album.title}</option>)}
+                  {albums.map((album) => <option key={album.id} value={album.id}>{albumLabel(album, user.id, albums)}</option>)}
                 </select>
               </Field>
               <Field label="Sichtbarkeit">
@@ -390,93 +430,108 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
               <Plus className="h-4 w-4 text-graphite" />
             </summary>
             <div className="border-t border-line">
-              <form action={createAlbum} className="space-y-3 p-4">
-                <h3 className="text-sm font-semibold text-ink">Neues Album</h3>
-                <Field label="Titel"><input className={inputClass} name="title" required /></Field>
-                <Field label="Beschreibung"><textarea className={inputClass} name="description" rows={3} /></Field>
-                <Field label="Sichtbarkeit">
-                  <select className={selectClass} name="visibility">
-                    <option value="PRIVATE">Nur ich</option>
-                    <option value="PARTNER">Zirkel</option>
-                    <option value="SHARED">Alle</option>
-                  </select>
-                </Field>
-                <SubmitButton pendingLabel="Album wird gespeichert...">Album speichern</SubmitButton>
-              </form>
+              <details className="border-b border-line">
+                <summary className="focus-ring flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-ink hover:bg-paper [&::-webkit-details-marker]:hidden">
+                  Neues Album
+                  <Plus className="h-4 w-4 text-graphite" />
+                </summary>
+                <form action={createAlbum} className="space-y-3 border-t border-line p-4">
+                  <Field label="Titel"><input className={inputClass} name="title" required /></Field>
+                  <Field label="Beschreibung"><textarea className={inputClass} name="description" rows={3} /></Field>
+                  <Field label="Sichtbarkeit">
+                    <select className={selectClass} name="visibility">
+                      <option value="PRIVATE">Nur ich</option>
+                      <option value="PARTNER">Zirkel</option>
+                      <option value="SHARED">Alle</option>
+                    </select>
+                  </Field>
+                  <SubmitButton pendingLabel="Album wird gespeichert...">Album speichern</SubmitButton>
+                </form>
+              </details>
             </div>
             {albums.length && albumMedia.length ? (
-              <form action={addMediaToAlbum} className="space-y-3 border-t border-line p-4">
-                <h3 className="text-sm font-semibold text-ink">Medien verschieben</h3>
-                <Field label="Zielalbum">
-                  <select className={selectClass} name="albumId" required>
-                    <option value="">Album wählen</option>
-                    {albums.map((album) => <option key={album.id} value={album.id}>{album.title}</option>)}
-                  </select>
-                </Field>
-                <div className="max-h-72 overflow-y-auto rounded-lg border border-line bg-paper p-2">
-                  <div className="grid grid-cols-3 gap-2">
-                    {albumMedia.map((entry) => (
-                      <label key={entry.id} className="group relative aspect-square cursor-pointer overflow-hidden rounded-md bg-surface">
-                        <input name="mediaIds" type="checkbox" value={entry.id} className="peer absolute left-2 top-2 z-10 h-4 w-4 accent-redbrand" />
-                        {entry.kind === "IMAGE" ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={entry.url} alt={entry.title} className="h-full w-full object-cover transition group-hover:scale-[1.04]" />
-                        ) : (
-                          <video src={entry.url} className="h-full w-full object-cover transition group-hover:scale-[1.04]" muted playsInline />
-                        )}
-                        <span className="absolute inset-0 border-2 border-transparent peer-checked:border-redbrand" />
-                        <span className="absolute inset-x-0 bottom-0 truncate bg-black/65 px-2 py-1 text-[11px] font-semibold text-white">{entry.title}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <Button variant="secondary" className="w-full">Auswahl ins Zielalbum verschieben</Button>
-              </form>
-            ) : null}
-            <div className="space-y-3 border-t border-line p-4">
-              <h3 className="text-sm font-semibold text-ink">Alben verwalten</h3>
-              {albums.map((album) => {
-                const count = albumMedia.filter((entry) => entry.albumId === album.id).length;
-                const isDefault = album.id === defaultAlbum.id || album.title === defaultAlbumTitle;
-                return (
-                  <details key={album.id} className="rounded-md border border-line bg-paper p-3">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-                      <span className="min-w-0">
-                        <strong className="block truncate">{album.title}</strong>
-                        <span className="text-xs text-graphite">{count} Medien · {visibilityLabel(album.visibility)}</span>
-                      </span>
-                      <Badge tone={isDefault ? "red" : "neutral"}>{isDefault ? "Standard" : "Album"}</Badge>
-                    </summary>
-                    <form action={updateAlbum} className="mt-3 space-y-3 border-t border-line pt-3">
-                      <input type="hidden" name="albumId" value={album.id} />
-                      <Field label="Albumname"><input className={inputClass} name="title" defaultValue={album.title} required /></Field>
-                      <Field label="Beschreibung"><textarea className={inputClass} name="description" rows={2} defaultValue={album.description || ""} /></Field>
-                      <Field label="Sichtbarkeit">
-                        <select className={selectClass} name="visibility" defaultValue={album.visibility}>
-                          <option value="PRIVATE">Nur ich</option>
-                          <option value="PARTNER">Zirkel</option>
-                          <option value="SHARED">Alle</option>
-                        </select>
-                      </Field>
-                      <SubmitButton pendingLabel="Album wird gespeichert..." className="w-full">Album aktualisieren</SubmitButton>
-                    </form>
-                    {isDefault ? (
-                      <p className="mt-3 rounded-md bg-surface p-3 text-sm text-graphite">Das Standardalbum kann nicht gelöscht werden.</p>
-                    ) : (
-                      <form action={deleteAlbum} className="mt-3 space-y-3 border-t border-line pt-3">
-                        <input type="hidden" name="albumId" value={album.id} />
-                        <p className="text-sm text-graphite">Beim Löschen werden die Medien standardmaessig nach <strong>{defaultAlbum.title}</strong> verschoben.</p>
-                        <label className="flex items-start gap-2 rounded-md border border-redbrand/30 bg-redbrand/5 p-3 text-sm text-redbrand">
-                          <input name="deleteMedia" type="checkbox" className="mt-1 h-4 w-4 accent-redbrand" />
-                          Medien und Dateien endgültig mitlöschen
+              <details className="border-b border-line">
+                <summary className="focus-ring flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-ink hover:bg-paper [&::-webkit-details-marker]:hidden">
+                  Medien verschieben
+                  <Plus className="h-4 w-4 text-graphite" />
+                </summary>
+                <form action={addMediaToAlbum} className="space-y-3 border-t border-line p-4">
+                  <Field label="Zielalbum">
+                    <select className={selectClass} name="albumId" required>
+                      <option value="">Album wählen</option>
+                      {albums.map((album) => <option key={album.id} value={album.id}>{albumLabel(album, user.id, albums)}</option>)}
+                    </select>
+                  </Field>
+                  <div className="max-h-72 overflow-y-auto rounded-lg border border-line bg-paper p-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      {albumMedia.map((entry) => (
+                        <label key={entry.id} className="group relative aspect-square cursor-pointer overflow-hidden rounded-md bg-surface">
+                          <input name="mediaIds" type="checkbox" value={entry.id} className="peer absolute left-2 top-2 z-10 h-4 w-4 accent-redbrand" />
+                          {entry.kind === "IMAGE" ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={entry.url} alt={entry.title} className="h-full w-full object-cover transition group-hover:scale-[1.04]" />
+                          ) : (
+                            <video src={entry.url} className="h-full w-full object-cover transition group-hover:scale-[1.04]" muted playsInline />
+                          )}
+                          <span className="absolute inset-0 border-2 border-transparent peer-checked:border-redbrand" />
+                          <span className="absolute inset-x-0 bottom-0 truncate bg-black/65 px-2 py-1 text-[11px] font-semibold text-white">{entry.title}</span>
                         </label>
-                        <Button variant="danger" className="w-full"><Trash2 className="h-4 w-4" /> Album löschen</Button>
+                      ))}
+                    </div>
+                  </div>
+                  <Button variant="secondary" className="w-full">Auswahl ins Zielalbum verschieben</Button>
+                </form>
+              </details>
+            ) : null}
+            <details>
+              <summary className="focus-ring flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-ink hover:bg-paper [&::-webkit-details-marker]:hidden">
+                Alben verwalten
+                <Plus className="h-4 w-4 text-graphite" />
+              </summary>
+              <div className="space-y-3 border-t border-line p-4">
+                {albums.map((album) => {
+                  const count = albumMedia.filter((entry) => entry.albumId === album.id).length;
+                  const isDefault = album.id === defaultAlbum.id;
+                  return (
+                    <details key={album.id} className="rounded-md border border-line bg-paper p-3">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                        <span className="min-w-0">
+                          <strong className="block truncate">{albumLabel(album, user.id, albums)}</strong>
+                          <span className="text-xs text-graphite">{count} Medien · {visibilityLabel(album.visibility)}</span>
+                        </span>
+                        <Badge tone={isDefault ? "red" : "neutral"}>{isDefault ? "Hauptalbum" : "Album"}</Badge>
+                      </summary>
+                      <form action={updateAlbum} className="mt-3 space-y-3 border-t border-line pt-3">
+                        <input type="hidden" name="albumId" value={album.id} />
+                        <Field label="Albumname"><input className={inputClass} name="title" defaultValue={album.title} required /></Field>
+                        <Field label="Beschreibung"><textarea className={inputClass} name="description" rows={2} defaultValue={album.description || ""} /></Field>
+                        <Field label="Sichtbarkeit">
+                          <select className={selectClass} name="visibility" defaultValue={album.visibility}>
+                            <option value="PRIVATE">Nur ich</option>
+                            <option value="PARTNER">Zirkel</option>
+                            <option value="SHARED">Alle</option>
+                          </select>
+                        </Field>
+                        <SubmitButton pendingLabel="Album wird gespeichert..." className="w-full">Album aktualisieren</SubmitButton>
                       </form>
-                    )}
-                  </details>
-                );
-              })}
-            </div>
+                      {isDefault ? (
+                        <p className="mt-3 rounded-md bg-surface p-3 text-sm text-graphite">Das persönliche Hauptalbum kann nicht gelöscht werden.</p>
+                      ) : (
+                        <form action={deleteAlbum} className="mt-3 space-y-3 border-t border-line pt-3">
+                          <input type="hidden" name="albumId" value={album.id} />
+                          <p className="text-sm text-graphite">Beim Löschen werden die Medien standardmäßig nach <strong>{defaultAlbum.title}</strong> verschoben.</p>
+                          <label className="flex items-start gap-2 rounded-md border border-redbrand/30 bg-redbrand/5 p-3 text-sm text-redbrand">
+                            <input name="deleteMedia" type="checkbox" className="mt-1 h-4 w-4 accent-redbrand" />
+                            Medien und Dateien endgültig mitlöschen
+                          </label>
+                          <Button variant="danger" className="w-full"><Trash2 className="h-4 w-4" /> Album löschen</Button>
+                        </form>
+                      )}
+                    </details>
+                  );
+                })}
+              </div>
+            </details>
           </details>
 
           <details className="rounded-lg border border-line bg-surface shadow-soft">
@@ -529,7 +584,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                 <div className="flex flex-wrap gap-2">
                   <Badge tone="red">{mediaTypeLabel(selected.kind)}</Badge>
                   <Badge>{visibilityModeLabel(selected)}</Badge>
-                  <Badge>{selected.album?.title || defaultAlbum.title}</Badge>
+                  <Badge>{selectedAlbumForUi ? albumLabel(selectedAlbumForUi, user.id, albums) : defaultAlbum.title}</Badge>
                 </div>
                 <h2 className="text-xl font-semibold text-ink">{selected.title}</h2>
               </div>
@@ -544,7 +599,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                 <input type="hidden" name="next" value={selectedUrl} />
                 <Field label="Album">
                   <select className={selectClass} name="albumId" defaultValue={selected.albumId || defaultAlbum.id}>
-                    {albums.map((album) => <option key={album.id} value={album.id}>{album.title}</option>)}
+                    {albums.map((album) => <option key={album.id} value={album.id}>{albumLabel(album, user.id, albums)}</option>)}
                   </select>
                 </Field>
                 <Field label="Sichtbarkeit">

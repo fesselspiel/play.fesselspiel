@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { defaultAlbumTitle, ensureDefaultAlbum } from "@/lib/albums";
+import { ensureDefaultAlbum } from "@/lib/albums";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { answerWithPortalAgent } from "@/lib/telegram-agent";
@@ -393,6 +393,7 @@ export async function POST(request: Request) {
           }
         })
         .then(async (media) => {
+          const defaultAlbum = await ensureDefaultAlbum(actorUserId);
           const albums = await prisma.album.findMany({ where: { ownerId: actorUserId }, orderBy: { title: "asc" } });
           await logAction({
             actorId: actorUserId,
@@ -406,12 +407,12 @@ export async function POST(request: Request) {
           return [
             "<b>Bild in Medien gespeichert</b>",
             telegramHtml(media.title),
-            htmlLine("Album", albums.find((album) => album.id === media.albumId)?.title || defaultAlbumTitle),
+            htmlLine("Album", albums.find((album) => album.id === media.albumId)?.title || defaultAlbum.title),
             "",
             "<b>In anderes Album verschieben</b>",
             ...albumLines,
             "",
-            "Wenn du nichts anklickst, bleibt das Bild im Standardalbum."
+            `Wenn du nichts anklickst, bleibt das Bild in ${telegramHtml(defaultAlbum.title)}.`
           ].join("\n");
         }));
 
