@@ -128,6 +128,7 @@ export function FileUploadField({
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadedInputRef = useRef<HTMLInputElement>(null);
   const submitAfterCropRef = useRef(false);
+  const cropReadyRef = useRef(false);
   const sourceUrl = useMemo(() => {
     if (!sourceFile || !sourceFile.type.startsWith("image/")) return "";
     return URL.createObjectURL(sourceFile);
@@ -150,13 +151,13 @@ export function FileUploadField({
     const form = rootRef.current?.closest("form");
     if (!form) return;
     const handleSubmit = (event: SubmitEvent) => {
-      if (cropEnabled && !cropApplied) {
+      if (cropEnabled && !cropApplied && !cropReadyRef.current) {
         event.preventDefault();
         submitAfterCropRef.current = true;
         void applyCrop();
         return;
       }
-      if (uploadedUrlName && uploadState === "uploading") {
+      if (uploadedUrlName && uploadState === "uploading" && !uploadedInputRef.current?.value) {
         event.preventDefault();
         setUploadMessage("Bitte warten, bis der Upload fertig ist.");
       }
@@ -210,6 +211,7 @@ export function FileUploadField({
     setFile(sourceFile);
     setInputFile(sourceFile);
     setUploadedUrl("");
+    cropReadyRef.current = false;
     if (uploadedInputRef.current) uploadedInputRef.current.value = "";
     setUploadState("cropping");
     setUploadMessage("Ausschnitt wird beim Speichern übernommen.");
@@ -231,6 +233,7 @@ export function FileUploadField({
       setSourceFile(currentFile);
       setFile(currentFile);
       setUploadedUrl("");
+      cropReadyRef.current = false;
       setRemoveCurrent(false);
       setCropX(50);
       setCropY(50);
@@ -252,6 +255,7 @@ export function FileUploadField({
       setFile(cropped);
       setInputFile(cropped);
       setRemoveCurrent(false);
+      cropReadyRef.current = true;
       if (uploadedUrlName) {
         const uploaded = await uploadFile(cropped);
         if (uploaded && submitAfterCropRef.current) {
@@ -279,6 +283,7 @@ export function FileUploadField({
     setUploadedUrl("");
     setUploadState("idle");
     setUploadMessage("");
+    cropReadyRef.current = false;
     setCropX(50);
     setCropY(50);
     setCropZoom(1);
@@ -323,6 +328,7 @@ export function FileUploadField({
             setSourceFile(nextFile);
             setFile(nextFile);
             setUploadedUrl("");
+            cropReadyRef.current = false;
             setUploadMessage("");
             setCropX(50);
             setCropY(50);

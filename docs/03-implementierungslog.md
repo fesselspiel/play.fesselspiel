@@ -590,6 +590,7 @@ Details:
 - Profilbilder nutzen standardmäßig Quadrat-Zuschnitt.
 - Spielzeug- und Stellungsbilder nutzen standardmäßig ein Querformat.
 - Der gewählte Ausschnitt wird beim Speichern automatisch übernommen; ein separater Bestätigen-Button ist nicht mehr nötig.
+- Der automatische Zuschnitt nutzt synchrone Status-Refs, damit der direkt anschließende Formular-Submit nicht durch veralteten React-State als `Upload läuft noch` blockiert wird.
 - Medienuploads bleiben unverändert, damit die Galerie Originalbilder und Videos behalten kann.
 - Der Zuschnitt speichert PNG/WebP-Quellen als PNG, damit transparente Hintergründe nicht durch JPEG-Konvertierung verloren gehen.
 - Bereits gespeicherte Bilder können im Bearbeiten-Dialog über `Aktuelles Bild neu zuschneiden` erneut geladen, zugeschnitten und ersetzt werden.
