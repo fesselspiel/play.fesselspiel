@@ -652,3 +652,9 @@ Details:
 - Technische Routen und Datenmodelle wie `/positions` und `Position` bleiben stabil, damit bestehende Links und Daten nicht brechen.
 - Telegram-Dialoge verstehen weiterhin alte Begriffe wie `Stellung` und zusätzlich `Szene`.
 - Self-Bondage-Notizen lesen alte `Stellung:`-Einträge weiter, speichern neue Angaben aber als `Szene:`.
+
+## Spielzeugliste und Menütrennung
+
+- Die Spielzeugliste zeigt in der eingeklappten Zeile nicht mehr den URL-Slug, sondern wie die Szenenliste graue Verknüpfungszahlen.
+- Der URL-Slug wurde auch aus den Detail-Badges der Spielzeugliste entfernt; Detailseite und permanente URL bleiben auf der Spielzeugdetailseite.
+- Desktop- und Mobile-Menü sind optisch getrennt: `Start`, dann `Szenen`/`Spielsachen`/`Sessions`, dann `Bilder`, dann `Einstellungen`.

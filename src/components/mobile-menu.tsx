@@ -28,6 +28,10 @@ const mobileNav = [
   ["Bilder", "/media", Images]
 ] as const;
 
+const primaryMobileNav = mobileNav.slice(0, 1);
+const catalogMobileNav = mobileNav.slice(1, 4);
+const pictureMobileNav = mobileNav.slice(4);
+
 const mobileSettingsNav = [["Profil", "/profile", UserRound]] as const;
 
 const adminOnlyMobileSettingsNav = [
@@ -70,7 +74,7 @@ export function MobileMenu({ activeDarkMode = false, showAdminViewSwitch = false
           className="absolute left-0 right-0 top-full z-40 max-h-[calc(100dvh-4.25rem)] overflow-y-auto overscroll-contain border-b border-line bg-surface px-4 pb-6 pt-3 shadow-soft [-webkit-overflow-scrolling:touch]"
         >
           <nav className="overflow-hidden rounded-md border border-line bg-surface">
-            {mobileNav.map(([label, href, Icon]) => (
+            {primaryMobileNav.map(([label, href, Icon]) => (
               <Link
                 key={href}
                 href={href}
@@ -81,6 +85,31 @@ export function MobileMenu({ activeDarkMode = false, showAdminViewSwitch = false
                 {label}
               </Link>
             ))}
+            <div className="h-3 border-b border-line bg-paper" />
+            {catalogMobileNav.map(([label, href, Icon]) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setOpen(false)}
+                className="flex min-h-11 items-center gap-3 border-b border-line bg-surface px-3 py-2 text-sm font-medium text-graphite last:border-b-0 hover:bg-paper hover:text-redbrand"
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </Link>
+            ))}
+            <div className="h-3 border-b border-line bg-paper" />
+            {pictureMobileNav.map(([label, href, Icon]) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setOpen(false)}
+                className="flex min-h-11 items-center gap-3 border-b border-line bg-surface px-3 py-2 text-sm font-medium text-graphite last:border-b-0 hover:bg-paper hover:text-redbrand"
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </Link>
+            ))}
+            <div className="h-3 border-b border-line bg-paper" />
             <details className="border-b border-line bg-surface last:border-b-0">
               <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 bg-surface px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand [&::-webkit-details-marker]:hidden">
                 <Settings className="h-4 w-4" />

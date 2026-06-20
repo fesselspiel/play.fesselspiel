@@ -100,7 +100,9 @@ export function SortableToyList({ items }: { items: ToyItem[] }) {
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="truncate text-base font-semibold text-ink">{toy.title}</h2>
-                <div className="mt-1 truncate text-xs font-medium text-redbrand">/toys/{toy.slug}</div>
+                <p className="mt-1 truncate text-xs text-graphite">
+                  {toy.positionCount} Szenen · {toy.activityCount} Spielpläne
+                </p>
               </div>
               <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open:rotate-180" />
             </summary>
@@ -112,7 +114,6 @@ export function SortableToyList({ items }: { items: ToyItem[] }) {
                 </div>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-graphite">
-                    <span className="rounded-md bg-surface px-2 py-1">/toys/{toy.slug}</span>
                     <span className="rounded-md bg-surface px-2 py-1">{toy.positionCount} Szenen</span>
                     <span className="rounded-md bg-surface px-2 py-1">{toy.activityCount} Spielpläne</span>
                   </div>

@@ -26,6 +26,10 @@ const nav = [
   ["Bilder", "/media", Images]
 ] as const;
 
+const primaryNav = nav.slice(0, 1);
+const catalogNav = nav.slice(1, 4);
+const pictureNav = nav.slice(4);
+
 const settingsNav = [["Profil", "/profile", UserRound]] as const;
 
 const adminOnlySettingsNav = [
@@ -51,12 +55,27 @@ export async function AppShell({ children }: { children: ReactNode }) {
           <div className="text-sm text-graphite">play.fesselspiel.com</div>
         </Link>
         <nav className="space-y-1">
-          {nav.map(([label, href, Icon]) => (
+          {primaryNav.map(([label, href, Icon]) => (
             <Link key={href} href={href} className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
               <Icon className="h-4 w-4" />
               {label}
             </Link>
           ))}
+          <div className="my-3 border-t border-line" />
+          {catalogNav.map(([label, href, Icon]) => (
+            <Link key={href} href={href} className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
+              <Icon className="h-4 w-4" />
+              {label}
+            </Link>
+          ))}
+          <div className="my-3 border-t border-line" />
+          {pictureNav.map(([label, href, Icon]) => (
+            <Link key={href} href={href} className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
+              <Icon className="h-4 w-4" />
+              {label}
+            </Link>
+          ))}
+          <div className="my-3 border-t border-line" />
           <details className="group rounded-md">
             <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand [&::-webkit-details-marker]:hidden">
               <Settings className="h-4 w-4" />
