@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Crop, ImagePlus, Upload, X } from "lucide-react";
+import { Crop, ImagePlus, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type CropAspect = "landscape" | "square" | "portrait" | "free";
@@ -126,6 +126,8 @@ export function FileUploadField({
   const [cropZoom, setCropZoom] = useState(1);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const uploadedInputRef = useRef<HTMLInputElement>(null);
+  const submitAfterCropRef = useRef(false);
   const sourceUrl = useMemo(() => {
     if (!sourceFile || !sourceFile.type.startsWith("image/")) return "";
     return URL.createObjectURL(sourceFile);
@@ -150,7 +152,8 @@ export function FileUploadField({
     const handleSubmit = (event: SubmitEvent) => {
       if (cropEnabled && !cropApplied) {
         event.preventDefault();
-        setUploadMessage("Bitte zuerst den Bildausschnitt übernehmen.");
+        submitAfterCropRef.current = true;
+        void applyCrop();
         return;
       }
       if (uploadedUrlName && uploadState === "uploading") {
@@ -164,7 +167,13 @@ export function FileUploadField({
     };
     form.addEventListener("submit", handleSubmit);
     return () => form.removeEventListener("submit", handleSubmit);
-  }, [cropApplied, cropEnabled, uploadState, uploadedUrlName]);
+  }, [cropApplied, cropEnabled, uploadState, uploadedUrlName, cropAspect, cropX, cropY, cropZoom, sourceFile, sourceUrl]);
+
+  function submitParentFormSoon() {
+    const form = rootRef.current?.closest("form");
+    if (!form) return;
+    window.setTimeout(() => form.requestSubmit(), 0);
+  }
 
   async function uploadFile(nextFile: File) {
     setUploadState("uploading");
@@ -176,12 +185,16 @@ export function FileUploadField({
       const payload = (await response.json().catch(() => ({}))) as { url?: string; error?: string };
       if (!response.ok || !payload.url) throw new Error(payload.error || "Upload fehlgeschlagen");
       setUploadedUrl(payload.url);
+      if (uploadedInputRef.current) uploadedInputRef.current.value = payload.url;
       setUploadMessage("Upload bereit. Du kannst jetzt speichern.");
       setUploadState("ready");
+      return true;
     } catch (error) {
       setUploadedUrl("");
+      if (uploadedInputRef.current) uploadedInputRef.current.value = "";
       setUploadMessage(error instanceof Error ? error.message : "Upload fehlgeschlagen");
       setUploadState("error");
+      return false;
     }
   }
 
@@ -197,8 +210,9 @@ export function FileUploadField({
     setFile(sourceFile);
     setInputFile(sourceFile);
     setUploadedUrl("");
+    if (uploadedInputRef.current) uploadedInputRef.current.value = "";
     setUploadState("cropping");
-    setUploadMessage("Ausschnitt geändert. Bitte erneut übernehmen.");
+    setUploadMessage("Ausschnitt wird beim Speichern übernommen.");
   }
 
   async function loadCurrentForCrop() {
@@ -222,7 +236,7 @@ export function FileUploadField({
       setCropY(50);
       setCropZoom(1);
       setUploadState("cropping");
-      setUploadMessage("Wähle den neuen Bildausschnitt und übernimm ihn danach.");
+      setUploadMessage("Wähle den neuen Bildausschnitt. Beim Speichern wird er automatisch übernommen.");
     } catch (error) {
       setUploadMessage(error instanceof Error ? error.message : "Aktuelles Bild konnte nicht geladen werden.");
       setUploadState("error");
@@ -238,12 +252,22 @@ export function FileUploadField({
       setFile(cropped);
       setInputFile(cropped);
       setRemoveCurrent(false);
-      if (uploadedUrlName) await uploadFile(cropped);
-      else {
+      if (uploadedUrlName) {
+        const uploaded = await uploadFile(cropped);
+        if (uploaded && submitAfterCropRef.current) {
+          submitAfterCropRef.current = false;
+          submitParentFormSoon();
+        }
+      } else {
         setUploadMessage("Ausschnitt bereit. Du kannst jetzt speichern.");
         setUploadState("ready");
+        if (submitAfterCropRef.current) {
+          submitAfterCropRef.current = false;
+          submitParentFormSoon();
+        }
       }
     } catch (error) {
+      submitAfterCropRef.current = false;
       setUploadMessage(error instanceof Error ? error.message : "Ausschnitt konnte nicht erstellt werden.");
       setUploadState("error");
     }
@@ -258,12 +282,13 @@ export function FileUploadField({
     setCropX(50);
     setCropY(50);
     setCropZoom(1);
+    submitAfterCropRef.current = false;
     if (inputRef.current) inputRef.current.value = "";
   }
 
   return (
     <div ref={rootRef} className="space-y-3">
-      {uploadedUrlName ? <input type="hidden" name={uploadedUrlName} value={uploadedUrl} /> : null}
+      {uploadedUrlName ? <input ref={uploadedInputRef} type="hidden" name={uploadedUrlName} value={uploadedUrl} readOnly /> : null}
       <div className="text-sm font-medium text-graphite">{label}</div>
       {currentUrl || previewUrl ? (
         <div className="overflow-hidden rounded-md border border-line bg-paper">
@@ -272,7 +297,7 @@ export function FileUploadField({
             <img src={previewUrl || currentUrl || ""} alt={currentAlt} className="h-full w-full object-cover" />
           </div>
           <div className="flex items-center justify-between gap-3 px-3 py-2 text-xs text-graphite">
-            <span>{file ? "Übernommener Ausschnitt" : "Aktuelles Bild"}</span>
+            <span>{cropApplied ? "Übernommener Ausschnitt" : file ? "Ausgewähltes Bild" : "Aktuelles Bild"}</span>
             {file ? <span className="font-medium text-redbrand">{file.name}</span> : null}
           </div>
         </div>
@@ -309,7 +334,7 @@ export function FileUploadField({
             setRemoveCurrent(false);
             if (canCropFile(nextFile, accept, enableImageCrop)) {
               setUploadState("cropping");
-              setUploadMessage("Wähle den Bildausschnitt und übernimm ihn danach.");
+              setUploadMessage("Wähle den Bildausschnitt. Beim Speichern wird er automatisch übernommen.");
               return;
             }
             if (uploadedUrlName) void uploadFile(nextFile);
@@ -362,10 +387,6 @@ export function FileUploadField({
               <input className="mt-2 w-full accent-redbrand" type="range" min="0" max="100" step="1" value={cropY} onChange={(event) => { setCropY(Number(event.currentTarget.value)); markCropDirty(); }} />
             </label>
           </div>
-          <button type="button" className="focus-ring mt-3 inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover" onClick={applyCrop}>
-            <Check className="h-4 w-4" />
-            Ausschnitt übernehmen
-          </button>
         </div>
       ) : null}
 
