@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { currentSessionContext } from "@/lib/auth";
 import { currentTenant } from "@/lib/tenancy";
 
 export const featureCatalog = [
@@ -30,7 +31,8 @@ export function featureEnabled(features: { key: string; enabled: boolean }[] | u
 }
 
 export async function hasFeature(key: FeatureKey | string) {
-  const tenant = await currentTenant();
+  const context = await currentSessionContext();
+  const tenant = context.user?.tenant || context.tenant || await currentTenant();
   return featureEnabled(tenant?.features, key);
 }
 

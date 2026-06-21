@@ -733,6 +733,7 @@ Details:
 - Direkte URLs zu deaktivierten Features landen auf einer freundlich formulierten, pro Seite konfigurierbaren Sperrseite. Server-Actions und externe API-Endpunkte prüfen die Features zusätzlich, damit bekannte Direktlinks nicht weiter Daten ändern.
 - Abhängigkeiten werden berücksichtigt: Self-Bondage hängt an Szenen, Tracker-Untertypen hängen am Tracker-Core. Wenn Spielsachen deaktiviert sind, werden Verknüpfungen aus Szenen/Spielplanung ausgeblendet statt weiter auf gesperrte Detailseiten zu zeigen.
 - Unterfeatures respektieren zusätzlich ihren eigenen Schalter: `selfBondage` ist nur sichtbar, wenn Self-Bondage und Szenen aktiv sind; `tracker.segufix`, `tracker.kg` und dynamische `tracker.*` sind nur sichtbar, wenn sowohl der Tracker-Core als auch der jeweilige Untertracker aktiv sind.
+- Die Feature-Prüfung nutzt bei gewechselten Seitenansichten die effektive Seite aus der Session. Dadurch bleiben z. B. KG/Segufix in der Seite `rope` ausgeblendet, obwohl sie auf der Hauptseite aktiv sind.
 - Segufix und KG wurden zusätzlich in einen generischen Tracker-Core gespiegelt: `TrackerType` definiert Tracker-Arten, `TrackerEntry` speichert gemeinsame Start-/End-/Dauer-/Notizdaten und JSON-Feldwerte.
 - Der Seed migriert bestehende Segufix- und KG-Einträge idempotent in `TrackerEntry`, behält die alten Tabellen aber für Kompatibilität weiter bei.
 - Neue generische API-Endpunkte `/api/external/trackers/[trackerKey]/start` und `/api/external/trackers/[trackerKey]/stop` erlauben externe Tracker-Starts/-Stops für beliebige aktivierte Tracker-Typen.
