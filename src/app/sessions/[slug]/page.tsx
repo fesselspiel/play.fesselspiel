@@ -8,6 +8,7 @@ import { ownerScope } from "@/lib/access";
 import { ensureDefaultAlbum } from "@/lib/albums";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
+import { requireFeature } from "@/lib/features";
 import { fileAssetUrl, saveUploadedFile } from "@/lib/files";
 import { moodAfter, moodBefore, neutralMood } from "@/lib/moods";
 import { prisma } from "@/lib/prisma";
@@ -18,6 +19,7 @@ async function addSessionMedia(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("tracker.segufix");
   const sessionId = String(formData.get("sessionId") || "");
   const session = await prisma.segufixSession.findFirst({ where: { id: sessionId, ...(await ownerScope(user)) } });
   if (!session) notFound();
@@ -50,6 +52,7 @@ async function addSessionComment(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("tracker.segufix");
   const sessionId = String(formData.get("sessionId") || "");
   const body = String(formData.get("body") || "").trim();
   const session = await prisma.segufixSession.findFirst({ where: { id: sessionId, ...(await ownerScope(user)) } });
@@ -72,6 +75,7 @@ async function addMediaComment(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("tracker.segufix");
   const sessionId = String(formData.get("sessionId") || "");
   const mediaId = String(formData.get("mediaId") || "");
   const body = String(formData.get("body") || "").trim();
@@ -93,6 +97,7 @@ async function addMediaComment(formData: FormData) {
 }
 
 export default async function SessionDetailPage({ params }: { params: { slug: string } }) {
+  await requireFeature("tracker.segufix");
   const user = await currentUser();
   if (!user) redirect("/login");
   const session = await prisma.segufixSession.findFirst({

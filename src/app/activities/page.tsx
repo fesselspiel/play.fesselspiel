@@ -6,22 +6,27 @@ import { Badge, EmptyState, PageGuide, PageHeader, Panel, SoftPanel } from "@/co
 import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
+import { hasFeature, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
 
 export default async function ActivitiesPage() {
+  await requireFeature("activities");
   const user = await currentUser();
   if (!user) redirect("/login");
+  const selfBondageEnabled = await hasFeature("selfBondage");
+  const toolsEnabled = await hasFeature("toys");
+  const positionsEnabled = await hasFeature("positions");
   const activities = await prisma.activityPlan.findMany({
     where: await ownerScope(user),
-    include: { tools: true, positions: true },
+    include: { tools: toolsEnabled, positions: positionsEnabled },
     orderBy: [{ status: "asc" }, { plannedAt: "asc" }]
   });
-  const selfBondagePositions = await prisma.position.findMany({
+  const selfBondagePositions = selfBondageEnabled ? await prisma.position.findMany({
     where: { ...(await ownerScope(user)), selfBondageCapable: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     take: 6
-  });
+  }) : [];
   const ideas = activities.filter((activity) => activity.category === "IDEA_COLLECTION");
   const plans = activities.filter((activity) => activity.category !== "IDEA_COLLECTION");
   return (
@@ -44,7 +49,7 @@ export default async function ActivitiesPage() {
             Neuen Spieltermin anlegen
           </Link>
         </Panel>
-        <Panel className="bg-paper text-center">
+        {selfBondageEnabled ? <Panel className="bg-paper text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-sky-600 text-white">
             <ShieldCheck className="h-6 w-6" />
           </div>
@@ -65,7 +70,7 @@ export default async function ActivitiesPage() {
             <ShieldCheck className="h-5 w-5" />
             Self-Bondage-Auftrag erteilen
           </Link>
-        </Panel>
+        </Panel> : null}
         <Panel className="bg-paper text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500 text-white">
             <Lightbulb className="h-6 w-6" />
@@ -113,7 +118,13 @@ export default async function ActivitiesPage() {
                   <Badge tone={activityStatusTone(activity.status)}>{activityStatusDisplay(activity.status, isSelfBondageOrder)}</Badge>
                 </div>
                 <p className="mt-4 text-sm text-graphite">{activity.note || "Keine Notiz."}</p>
-                <p className="mt-4 text-xs text-graphite">{activity.tools.length} Spielzeuge · {activity.positions.length} Szenen</p>
+                {toolsEnabled || positionsEnabled ? (
+                  <p className="mt-4 text-xs text-graphite">
+                    {toolsEnabled ? `${(activity as { tools?: unknown[] }).tools?.length || 0} Spielzeuge` : ""}
+                    {toolsEnabled && positionsEnabled ? " · " : ""}
+                    {positionsEnabled ? `${(activity as { positions?: unknown[] }).positions?.length || 0} Szenen` : ""}
+                  </p>
+                ) : null}
               </SoftPanel>
             </Link>
             );

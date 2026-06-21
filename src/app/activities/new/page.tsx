@@ -8,6 +8,7 @@ import { ownerScope } from "@/lib/access";
 import { activityStatusOptions, type ActivityStatusValue, quarterHourOptions } from "@/lib/activity-status";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
+import { hasFeature, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
 
@@ -26,22 +27,26 @@ async function createActivity(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("activities");
   const selfBondageTemplate = String(formData.get("template") || "") === "self-bondage";
   const ideaTemplate = String(formData.get("template") || "") === "idea";
+  if (selfBondageTemplate) await requireFeature("selfBondage");
   const title = String(formData.get("title") || "").trim();
   const slug = await uniqueSlug("activityPlan", normalizeSlug(String(formData.get("slug") || ""), title));
   const date = String(formData.get("date") || "");
   const time = String(formData.get("time") || "");
   const withoutSchedule = selfBondageTemplate && formData.get("noSchedule") === "on";
   const plannedAt = !ideaTemplate && !withoutSchedule && date ? new Date(`${date}T${time || "20:00"}:00`) : null;
-  const toolIds = selfBondageTemplate ? [] : formData.getAll("tools").map(String);
+  const toolsEnabled = await hasFeature("toys");
+  const positionsEnabled = await hasFeature("positions");
+  const toolIds = selfBondageTemplate || !toolsEnabled ? [] : formData.getAll("tools").map(String);
   const selfBondageChoice = String(formData.get("selfBondageChoice") || "");
   const selfBondageCustomText = String(formData.get("selfBondageCustomText") || "").trim();
   if (selfBondageTemplate && !selfBondageChoice) redirect("/activities/new?template=self-bondage&error=position");
   if (selfBondageTemplate && selfBondageChoice === "custom" && !selfBondageCustomText) redirect("/activities/new?template=self-bondage&error=position-text");
   const positionIds = selfBondageTemplate
     ? selfBondageChoice.startsWith("position:") ? [selfBondageChoice.replace("position:", "")].filter(Boolean) : []
-    : formData.getAll("positions").map(String);
+    : positionsEnabled ? formData.getAll("positions").map(String) : [];
   const scope = await ownerScope(user);
   const [accessibleTools, accessiblePositions] = await Promise.all([
     toolIds.length ? prisma.toy.findMany({ where: { ...scope, id: { in: toolIds } }, select: { id: true } }) : [],
@@ -77,15 +82,19 @@ async function createActivity(formData: FormData) {
 }
 
 export default async function NewActivityPage({ searchParams }: { searchParams?: { date?: string; template?: string; error?: string } }) {
+  await requireFeature("activities");
   const user = await currentUser();
   if (!user) redirect("/login");
+  const selfBondageTemplate = searchParams?.template === "self-bondage";
+  if (selfBondageTemplate) await requireFeature("selfBondage");
+  const toolsEnabled = await hasFeature("toys");
+  const positionsEnabled = await hasFeature("positions");
   const scope = await ownerScope(user);
   const [toys, positions] = await Promise.all([
-    prisma.toy.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }),
-    prisma.position.findMany({ where: { ...scope, ...(searchParams?.template === "self-bondage" ? { selfBondageCapable: true } : {}) }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] })
+    toolsEnabled ? prisma.toy.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }) : [],
+    positionsEnabled ? prisma.position.findMany({ where: { ...scope, ...(selfBondageTemplate ? { selfBondageCapable: true } : {}) }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : []
   ]);
   const defaultDate = String(searchParams?.date || "").match(/^\d{4}-\d{2}-\d{2}$/) ? String(searchParams?.date) : "";
-  const selfBondageTemplate = searchParams?.template === "self-bondage";
   const ideaTemplate = searchParams?.template === "idea";
   const defaultTitle = selfBondageTemplate ? "Self-Bondage-Auftrag" : "";
   const defaultNote = selfBondageTemplate
@@ -155,7 +164,7 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
           <Button><Save className="h-4 w-4" /> {selfBondageTemplate ? "Auftrag speichern" : ideaTemplate ? "Idee speichern" : "Plan speichern"}</Button>
         </div>
         <div className="space-y-5">
-          {!selfBondageTemplate ? <section>
+          {!selfBondageTemplate && toolsEnabled ? <section>
             <h2 className="mb-2 text-sm font-semibold text-graphite">Spielsachen</h2>
             <div className="space-y-2">
               {toys.map((toy) => (
@@ -173,7 +182,7 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
               positions={positions.map((position) => ({ id: position.id, name: position.name }))}
               error={positionError}
             />
-          ) : (
+          ) : positionsEnabled ? (
           <section>
             <h2 className="mb-2 text-sm font-semibold text-graphite">Szenen</h2>
             <div className="space-y-2">
@@ -188,7 +197,7 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
               ))}
             </div>
           </section>
-          )}
+          ) : null}
         </div>
       </form>
     </AppShell>

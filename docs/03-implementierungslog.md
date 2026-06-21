@@ -693,12 +693,15 @@ Details:
 - Ausgabe-Thread-Dropdowns verwenden eindeutige Labels mit Threadname und Chatname.
 - Der Telegram-Webhook verarbeitet Bilder und Texte jetzt auch aus `channel_post`-Updates, nicht nur aus normalen `message`-Updates.
 
-## Mandanten, Features und Tracker-Core
+## Seiten, Features und Tracker-Core
 
-- Es gibt jetzt einen `Tenant`-Core mit Domain-Mapping über `TenantDomain`; `playplaner.com` und `play.fesselspiel.com` werden beim Seed als Alias-Domains auf den Default-Mandanten `Playplaner` gelegt.
-- Die Session kann neben einer Benutzeransicht auch eine Mandantenansicht tragen. `SUPER_ADMIN` wurde als globale Betreiberrolle ergänzt und die Seite `Ansicht wechseln` kann Mandanten und Benutzeransichten öffnen.
-- Pro Mandant gibt es Feature-Schalter (`TenantFeature`) und eine neue Einstellungsseite `Instanz`, über die Admins Name, Beschreibung und Feature-Sichtbarkeit pflegen können.
-- Navigation und Mobile-Menü lesen die aktiven Features des Mandanten und blenden deaktivierte Hauptmodule aus, ohne Daten zu löschen.
+- Es gibt jetzt einen `Tenant`-Core für getrennte Seiten mit Domain-Mapping über `TenantDomain`; `playplaner.com` und `play.fesselspiel.com` werden beim Seed als Alias-Domains auf die Default-Seite `Playplaner` gelegt.
+- Die Session kann neben einer Benutzeransicht auch eine Seitenansicht tragen. `SUPER_ADMIN` wurde als globale Betreiberrolle ergänzt und die Seite `Ansicht wechseln` kann Seiten und Benutzeransichten öffnen.
+- Pro Seite gibt es Feature-Schalter (`TenantFeature`) und eine Einstellungsseite `Seite`, über die Admins Name, Beschreibung, Sperrseite und Feature-Sichtbarkeit pflegen können.
+- Superadmins verwalten unter `Einstellungen > Seiten` neue Seiten, Domains, Hauptdomains, Status, Sperrseiten und Features. Die Hauptseite `playplaner` ist vor Löschen/Deaktivieren geschützt; leere Zusatzseiten können gelöscht werden, Seiten mit Daten werden deaktiviert.
+- Navigation und Mobile-Menü lesen die aktiven Features der Seite und blenden deaktivierte Hauptmodule aus, ohne Daten zu löschen.
+- Direkte URLs zu deaktivierten Features landen auf einer freundlich formulierten, pro Seite konfigurierbaren Sperrseite. Server-Actions und externe API-Endpunkte prüfen die Features zusätzlich, damit bekannte Direktlinks nicht weiter Daten ändern.
+- Abhängigkeiten werden berücksichtigt: Self-Bondage hängt an Szenen, Tracker-Untertypen hängen am Tracker-Core. Wenn Spielsachen deaktiviert sind, werden Verknüpfungen aus Szenen/Spielplanung ausgeblendet statt weiter auf gesperrte Detailseiten zu zeigen.
 - Segufix und KG wurden zusätzlich in einen generischen Tracker-Core gespiegelt: `TrackerType` definiert Tracker-Arten, `TrackerEntry` speichert gemeinsame Start-/End-/Dauer-/Notizdaten und JSON-Feldwerte.
 - Der Seed migriert bestehende Segufix- und KG-Einträge idempotent in `TrackerEntry`, behält die alten Tabellen aber für Kompatibilität weiter bei.
 - Neue generische API-Endpunkte `/api/external/trackers/[trackerKey]/start` und `/api/external/trackers/[trackerKey]/stop` erlauben externe Tracker-Starts/-Stops für beliebige aktivierte Tracker-Typen.

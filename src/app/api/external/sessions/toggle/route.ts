@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { minutesBetween } from "@/lib/dates";
-import { dateFromValue, requestValues, requireApiUser } from "@/lib/external-api";
+import { apiFeatureGate, dateFromValue, requestValues, requireApiUser } from "@/lib/external-api";
 import { prisma } from "@/lib/prisma";
 import { uniqueSessionSlug } from "@/lib/session-slug";
 
@@ -9,6 +9,8 @@ export const runtime = "nodejs";
 async function toggleSession(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
+  const blocked = apiFeatureGate(auth.user, "externalApi", "tracker.segufix");
+  if (blocked) return blocked;
   const values = await requestValues(request);
   const open = await prisma.segufixSession.findFirst({ where: { ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } });
   if (!open) {

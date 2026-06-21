@@ -134,7 +134,7 @@ export function SortableToyList({ items }: { items: ToyItem[] }) {
   );
 }
 
-export function SortablePositionList({ items, canSort = false }: { items: PositionItem[]; canSort?: boolean }) {
+export function SortablePositionList({ items, canSort = false, showTools = true }: { items: PositionItem[]; canSort?: boolean; showTools?: boolean }) {
   const { ordered, dragId, setDragId, move, moveBy, isPending } = useReorder("positions", items);
   return (
     <div className="space-y-3">
@@ -157,7 +157,7 @@ export function SortablePositionList({ items, canSort = false }: { items: Positi
               <div className="min-w-0 flex-1">
                 <h2 className="truncate text-base font-semibold text-ink">{position.name}</h2>
                 <p className="mt-1 truncate text-xs text-graphite">
-                  {position.toolCount} Spielzeuge · {position.activityCount} Spielpläne
+                  {showTools ? `${position.toolCount} Spielzeuge · ` : ""}{position.activityCount} Spielpläne
                   {position.selfBondageCapable ? " · Self-Bondage" : ""}
                 </p>
               </div>
@@ -172,14 +172,14 @@ export function SortablePositionList({ items, canSort = false }: { items: Positi
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-graphite">
                     <span className="rounded-md bg-surface px-2 py-1">/positions/{position.slug}</span>
-                    <span className="rounded-md bg-surface px-2 py-1">{position.toolCount} Spielzeuge</span>
+                    {showTools ? <span className="rounded-md bg-surface px-2 py-1">{position.toolCount} Spielzeuge</span> : null}
                     <span className="rounded-md bg-surface px-2 py-1">{position.activityCount} Spielpläne</span>
                     <span className={`rounded-md px-2 py-1 ${position.selfBondageCapable ? "bg-redbrand text-white" : "bg-surface text-graphite"}`}>
                       {position.selfBondageCapable ? "Self-Bondage-fähig" : "Nicht als Self-Bondage-fähig markiert"}
                     </span>
                   </div>
                   <p className="mt-4 text-sm leading-6 text-graphite">{position.description || "Keine Beschreibung hinterlegt."}</p>
-                  {position.tools.length ? (
+                  {showTools && position.tools.length ? (
                     <div className="mt-4 flex flex-wrap gap-2">
                       {position.tools.slice(0, 6).map((tool) => (
                         <Link key={tool.id} href={`/toys/${tool.slug}`} className="rounded-md bg-surface px-2 py-1 text-xs font-medium text-graphite hover:text-redbrand">

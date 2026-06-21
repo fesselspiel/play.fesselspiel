@@ -45,7 +45,7 @@ async function switchView(formData: FormData) {
     entityId: target?.id || targetTenant?.id || null,
     title: target
       ? `${userDisplayName(admin)} hat die Ansicht von ${userDisplayName(target)} geöffnet`
-      : `${userDisplayName(admin)} hat den Mandanten ${targetTenant?.name || ""} geöffnet`,
+      : `${userDisplayName(admin)} hat die Seite ${targetTenant?.name || ""} geöffnet`,
     href: "/settings/view-as"
   });
   redirect("/settings/view-as");
@@ -95,7 +95,7 @@ export default async function ViewAsPage() {
               <h2 className="text-lg font-semibold text-ink">Aktive Ansicht</h2>
               <p className="mt-1 text-sm text-graphite">
                 Eingeloggt als <strong className="text-ink">{userDisplayName(actor)}</strong>
-                {tenant ? <> · Mandant <strong className="text-ink">{tenant.name}</strong></> : null}
+                {tenant ? <> · Seite <strong className="text-ink">{tenant.name}</strong></> : null}
                 {viewingOtherUser && user ? <> · Ansicht von <strong className="text-ink">{userDisplayName(user)}</strong></> : <> · eigene Ansicht</>}
               </p>
             </div>
@@ -116,7 +116,7 @@ export default async function ViewAsPage() {
                       <span className="block truncate text-sm text-graphite">{entry.domains.find((domain) => domain.primary)?.hostname || entry.domains[0]?.hostname || "Keine Domain"}</span>
                       <span className="block text-xs text-graphite">{entry._count.users} Benutzer</span>
                     </div>
-                    <Button variant={tenant?.id === entry.id && !viewingOtherUser ? "secondary" : "primary"} type="submit">Mandant öffnen</Button>
+                    <Button variant={tenant?.id === entry.id && !viewingOtherUser ? "secondary" : "primary"} type="submit">Seite öffnen</Button>
                   </div>
                 </form>
               ))}

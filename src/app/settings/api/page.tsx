@@ -5,6 +5,7 @@ import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel } from "
 import { createApiToken } from "@/lib/api-tokens";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
+import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 
 type ApiSearchParams = {
@@ -16,7 +17,8 @@ async function addToken(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
-  if (user.role !== "ADMIN") redirect("/");
+  await requireFeature("externalApi");
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");
   const { token, record } = await createApiToken(user.id, String(formData.get("name") || ""));
   const params = new URLSearchParams({ created: record.tokenLastSix, token });
   redirect(`/settings/api?${params.toString()}`);
@@ -26,16 +28,18 @@ async function revokeToken(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
-  if (user.role !== "ADMIN") redirect("/");
+  await requireFeature("externalApi");
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");
   const id = String(formData.get("id") || "");
   await prisma.apiToken.updateMany({ where: { id, userId: user.id }, data: { active: false } });
   redirect("/settings/api");
 }
 
 export default async function ApiSettingsPage({ searchParams }: { searchParams: ApiSearchParams }) {
+  await requireFeature("externalApi");
   const user = await currentUser();
   if (!user) redirect("/login");
-  if (user.role !== "ADMIN") redirect("/");
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");
   const tokens = await prisma.apiToken.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } });
 
   return (

@@ -5,6 +5,7 @@ import { FileUploadField } from "@/components/file-upload-field";
 import { Button, Field, inputClass, PageGuide, PageHeader } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
+import { hasFeature, requireFeature } from "@/lib/features";
 import { fileAssetUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
@@ -13,10 +14,12 @@ async function createPosition(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("positions");
+  const toysEnabled = await hasFeature("toys");
   const name = String(formData.get("name") || "").trim();
   const slug = await uniqueSlug("position", normalizeSlug(String(formData.get("slug") || ""), name));
-  const toolIds = formData.getAll("tools").map(String);
-  const accessibleTools = toolIds.length ? await prisma.toy.findMany({ where: { ...(await ownerScope(user)), id: { in: toolIds } }, select: { id: true } }) : [];
+  const toolIds = toysEnabled ? formData.getAll("tools").map(String) : [];
+  const accessibleTools = toysEnabled && toolIds.length ? await prisma.toy.findMany({ where: { ...(await ownerScope(user)), id: { in: toolIds } }, select: { id: true } }) : [];
   const uploadedImageUrl = String(formData.get("imageUploadedUrl") || "").trim();
   const image = uploadedImageUrl ? null : await saveUploadedFile(user.id, formData.get("image") as File | null);
   await prisma.position.create({
@@ -27,7 +30,7 @@ async function createPosition(formData: FormData) {
       imageUrl: uploadedImageUrl || (image ? fileAssetUrl(image.id) : ""),
       description: String(formData.get("description") || "").trim(),
       selfBondageCapable: formData.get("selfBondageCapable") === "on",
-      tools: { connect: accessibleTools.map(({ id }) => ({ id })) }
+      ...(toysEnabled ? { tools: { connect: accessibleTools.map(({ id }) => ({ id })) } } : {})
     }
   });
   redirect(`/positions/${slug}`);
@@ -36,7 +39,9 @@ async function createPosition(formData: FormData) {
 export default async function NewPositionPage() {
   const user = await currentUser();
   if (!user) redirect("/login");
-  const toys = await prisma.toy.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { title: "asc" }] });
+  await requireFeature("positions");
+  const toysEnabled = await hasFeature("toys");
+  const toys = toysEnabled ? await prisma.toy.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }) : [];
   return (
     <AppShell>
       <PageHeader title="Szene anlegen" />
@@ -52,17 +57,19 @@ export default async function NewPositionPage() {
           <input name="selfBondageCapable" type="checkbox" className="h-4 w-4 accent-redbrand" />
           <span>Self-Bondage-fähig</span>
         </label>
-        <div>
-          <div className="mb-2 text-sm font-medium text-graphite">Spielzeuge</div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {toys.map((toy) => (
-              <label key={toy.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">
-                <input name="tools" value={toy.id} type="checkbox" className="h-4 w-4 accent-redbrand" />
-                <span>{toy.title}</span>
-              </label>
-            ))}
+        {toysEnabled ? (
+          <div>
+            <div className="mb-2 text-sm font-medium text-graphite">Spielzeuge</div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {toys.map((toy) => (
+                <label key={toy.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">
+                  <input name="tools" value={toy.id} type="checkbox" className="h-4 w-4 accent-redbrand" />
+                  <span>{toy.title}</span>
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
         <Button><Save className="h-4 w-4" /> Speichern</Button>
       </form>
     </AppShell>

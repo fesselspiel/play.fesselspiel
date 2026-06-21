@@ -7,6 +7,7 @@ import { Badge, EmptyState, PageGuide, PageHeader, Panel } from "@/components/ui
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { appTimeZone, formatDate } from "@/lib/dates";
+import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 
 const pageSize = 120;
@@ -89,9 +90,10 @@ function groupEntries(entries: ProtocolEntry[]) {
 }
 
 export default async function MessagesPage({ searchParams }: { searchParams?: { page?: string } }) {
+  await requireFeature("auditLog");
   const user = await currentUser();
   if (!user) redirect("/login");
-  if (user.role !== "ADMIN") redirect("/");
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");
   const accessIds = await accessibleOwnerIds(user);
   const page = Math.max(1, Number(searchParams?.page || 1) || 1);
   const skip = (page - 1) * pageSize;

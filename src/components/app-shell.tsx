@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Mail,
   MessageCircle,
+  Network,
   Settings,
   SlidersHorizontal,
   ShieldCheck,
@@ -37,7 +38,7 @@ const pictureNav = nav.slice(4);
 const settingsNav = [["Profil", "/profile", UserRound]] as const;
 
 const adminOnlySettingsNav = [
-  ["Instanz", "/settings/tenant", SlidersHorizontal],
+  ["Seite", "/settings/tenant", SlidersHorizontal],
   ["Benutzer", "/settings/users", UsersRound],
   ["Telegram", "/settings/telegram", Settings],
   ["E-Mail", "/settings/email", Mail],
@@ -47,6 +48,7 @@ const adminOnlySettingsNav = [
 ] as const;
 
 const adminSettingsNav = [["Ansicht wechseln", "/settings/view-as", UsersRound]] as const;
+const superAdminSettingsNav = [["Seiten", "/settings/sites", Network]] as const;
 
 export async function AppShell({ children }: { children: ReactNode }) {
   const { actor, user, tenant } = await currentSessionContext();
@@ -100,6 +102,12 @@ export async function AppShell({ children }: { children: ReactNode }) {
                   {label}
                 </Link>
               )) : null}
+              {actor?.role === "SUPER_ADMIN" ? superAdminSettingsNav.map(([label, href, Icon]) => (
+                <Link key={href} href={href} className="flex min-h-9 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </Link>
+              )) : null}
               {settingsNav.map(([label, href, Icon]) => (
                 <Link key={href} href={href} className="flex min-h-9 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
                   <Icon className="h-4 w-4" />
@@ -137,7 +145,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         ) : null}
       </aside>
       <main className="min-h-screen lg:pl-72">
-        <MobileMenu activeDarkMode={Boolean(user?.settings?.darkMode)} showAdminViewSwitch={isAdminActor} showAdminSettings={showAdminSettings} tenantName={tenantName} tenantDomain={tenantDomain} enabledFeatures={features.filter((feature) => feature.enabled).map((feature) => feature.key)} />
+        <MobileMenu activeDarkMode={Boolean(user?.settings?.darkMode)} showAdminViewSwitch={isAdminActor} showSiteManagement={actor?.role === "SUPER_ADMIN"} showAdminSettings={showAdminSettings} tenantName={tenantName} tenantDomain={tenantDomain} enabledFeatures={features.filter((feature) => feature.enabled).map((feature) => feature.key)} />
         <div className="mx-auto flex min-h-[calc(100vh-4.5rem)] max-w-7xl flex-col px-4 py-6 sm:px-6 lg:min-h-screen lg:px-8">{children}</div>
       </main>
     </div>

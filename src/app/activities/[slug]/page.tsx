@@ -9,6 +9,7 @@ import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status
 import { isAccessibleOwner, ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { env } from "@/lib/env";
+import { hasFeature, requireFeature } from "@/lib/features";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
@@ -18,6 +19,7 @@ async function addActivityImage(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("activities");
   const activityId = String(formData.get("activityId") || "");
   const activity = await prisma.activityPlan.findFirst({ where: { id: activityId, ...(await ownerScope(user)) } });
   if (!activity) notFound();
@@ -50,6 +52,7 @@ async function deleteActivityImage(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("activities");
   const activityId = String(formData.get("activityId") || "");
   const imageKey = String(formData.get("imageKey") || "");
   const activity = await prisma.activityPlan.findFirst({ where: { id: activityId, ...(await ownerScope(user)) } });
@@ -74,13 +77,16 @@ async function deleteActivityImage(formData: FormData) {
 }
 
 export default async function ActivityDetailPage({ params }: { params: { slug: string } }) {
+  await requireFeature("activities");
   const user = await currentUser();
   if (!user) redirect("/login");
+  const toolsEnabled = await hasFeature("toys");
+  const positionsEnabled = await hasFeature("positions");
   const activity = await prisma.activityPlan.findUnique({
     where: { slug: params.slug },
     include: {
-      tools: true,
-      positions: true,
+      tools: toolsEnabled,
+      positions: positionsEnabled,
       images: { include: { file: true }, orderBy: { createdAt: "desc" } },
       media: { orderBy: { createdAt: "desc" } }
     }
@@ -132,20 +138,20 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
           <p className="mt-5 leading-7 text-graphite">{activity.note || "Keine Notiz hinterlegt."}</p>
         </Panel>
         <div className="space-y-6">
-          {!isSelfBondageOrder ? <SoftPanel>
+          {!isSelfBondageOrder && toolsEnabled ? <SoftPanel>
             <h2 className="mb-3 text-lg font-semibold">Spielsachen</h2>
             <div className="space-y-2">
-              {activity.tools.map((toy) => <Link key={toy.id} href={`/toys/${toy.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{toy.title}</Link>)}
-              {!activity.tools.length ? <p className="text-sm text-graphite">Keine Spielsachen ausgewählt.</p> : null}
+              {((activity as { tools?: { id: string; slug: string; title: string }[] }).tools || []).map((toy) => <Link key={toy.id} href={`/toys/${toy.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{toy.title}</Link>)}
+              {!((activity as { tools?: unknown[] }).tools || []).length ? <p className="text-sm text-graphite">Keine Spielsachen ausgewählt.</p> : null}
             </div>
           </SoftPanel> : null}
-          <SoftPanel>
+          {positionsEnabled ? <SoftPanel>
             <h2 className="mb-3 text-lg font-semibold">{isSelfBondageOrder ? "Self-Bondage-fähige Szenen" : "Szenen"}</h2>
             <div className="space-y-2">
-              {activity.positions.map((position) => <Link key={position.id} href={`/positions/${position.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{position.name}</Link>)}
-              {!activity.positions.length ? <p className="text-sm text-graphite">Keine Szene ausgewählt.</p> : null}
+              {((activity as { positions?: { id: string; slug: string; name: string }[] }).positions || []).map((position) => <Link key={position.id} href={`/positions/${position.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{position.name}</Link>)}
+              {!((activity as { positions?: unknown[] }).positions || []).length ? <p className="text-sm text-graphite">Keine Szene ausgewählt.</p> : null}
             </div>
-          </SoftPanel>
+          </SoftPanel> : null}
         </div>
       </div>
       {isIdea ? (

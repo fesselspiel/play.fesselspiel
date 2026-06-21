@@ -59,6 +59,10 @@ model Tenant {
   name        String
   headline    String?
   description String?
+  disabledTitle String        @default("Dieser Bereich macht gerade Pause")
+  disabledText  String        @default("Dieses Feature ist auf dieser Seite momentan nicht eingeschaltet. Falls du es erwartest, sprich kurz mit der Person, die diese Seite verwaltet. Eure vorhandenen Daten bleiben dabei erhalten.")
+  disabledButtonText String   @default("Zur Startseite")
+  disabledButtonHref String   @default("/")
   status      String         @default("ACTIVE")
   primaryColor String        @default("#E30613")
   createdAt   DateTime      @default(now())

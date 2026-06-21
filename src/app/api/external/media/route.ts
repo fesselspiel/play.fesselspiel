@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureDefaultAlbum } from "@/lib/albums";
-import { requireApiUser } from "@/lib/external-api";
+import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { fileAssetUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 
@@ -15,6 +15,8 @@ function parsedVisibility(value: FormDataEntryValue | null) {
 export async function POST(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
+  const blocked = apiFeatureGate(auth.user, "externalApi", "media");
+  if (blocked) return blocked;
   const formData = await request.formData();
   const asset = await saveUploadedFile(auth.user.id, formData.get("file") as File | null);
   if (!asset) return NextResponse.json({ ok: false, error: "Keine Datei erhalten" }, { status: 400 });

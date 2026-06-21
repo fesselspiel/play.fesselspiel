@@ -128,7 +128,7 @@ async function updateTimeSettings(formData: FormData) {
 export default async function UsersPage({ searchParams }: { searchParams?: { error?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
-  if (user.role !== "ADMIN") redirect("/");
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");
   const [users, circles] = await Promise.all([
     prisma.user.findMany({ include: { profile: true, circle: true }, orderBy: { createdAt: "asc" } }),
     prisma.circle.findMany({ orderBy: { name: "asc" } })

@@ -9,6 +9,7 @@ import { activityStatusOptions, type ActivityStatusValue } from "@/lib/activity-
 import { isAccessibleOwner, ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { formatDateTimeLocal } from "@/lib/dates";
+import { hasFeature, requireFeature } from "@/lib/features";
 import { deleteOwnedFile, fileIdFromUrl } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlugForUpdate } from "@/lib/slug";
@@ -43,6 +44,7 @@ async function updateActivity(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("activities");
   const id = String(formData.get("id"));
   const scope = await ownerScope(user);
   const activity = await prisma.activityPlan.findFirst({ where: { id, ...scope } });
@@ -54,14 +56,17 @@ async function updateActivity(formData: FormData) {
   const slug = selfBondageOrder || idea ? activity.slug : await uniqueSlugForUpdate("activityPlan", normalizeSlug(String(formData.get("slug") || ""), title), activity.id);
   const plannedAtRaw = String(formData.get("plannedAt") || "");
   const withoutSchedule = selfBondageOrder && formData.get("noSchedule") === "on";
-  const toolIds = selfBondageOrder ? [] : formData.getAll("tools").map(String);
+  if (selfBondageOrder) await requireFeature("selfBondage");
+  const toolsEnabled = await hasFeature("toys");
+  const positionsEnabled = await hasFeature("positions");
+  const toolIds = selfBondageOrder || !toolsEnabled ? [] : formData.getAll("tools").map(String);
   const selfBondageChoice = String(formData.get("selfBondageChoice") || "");
   const selfBondageCustomText = String(formData.get("selfBondageCustomText") || "").trim();
   if (selfBondageOrder && !selfBondageChoice) redirect(`/activities/${activity.slug}/edit?error=position`);
   if (selfBondageOrder && selfBondageChoice === "custom" && !selfBondageCustomText) redirect(`/activities/${activity.slug}/edit?error=position-text`);
   const positionIds = selfBondageOrder
     ? selfBondageChoice.startsWith("position:") ? [selfBondageChoice.replace("position:", "")].filter(Boolean) : []
-    : formData.getAll("positions").map(String);
+    : positionsEnabled ? formData.getAll("positions").map(String) : [];
   const [ownedTools, ownedPositions] = await Promise.all([
     prisma.toy.findMany({ where: { ...scope, id: { in: toolIds } }, select: { id: true } }),
     prisma.position.findMany({ where: { ...scope, id: { in: positionIds }, ...(selfBondageOrder ? { selfBondageCapable: true } : {}) }, select: { id: true } })
@@ -91,6 +96,7 @@ async function deleteActivity(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("activities");
   const id = String(formData.get("id"));
   const activity = await prisma.activityPlan.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!activity) notFound();
@@ -110,22 +116,25 @@ async function deleteActivity(formData: FormData) {
 }
 
 export default async function EditActivityPage({ params, searchParams }: { params: { slug: string }; searchParams?: { error?: string } }) {
+  await requireFeature("activities");
   const user = await currentUser();
   if (!user) redirect("/login");
-  const activity = await prisma.activityPlan.findUnique({ where: { slug: params.slug }, include: { tools: true, positions: true } });
+  const toolsEnabled = await hasFeature("toys");
+  const positionsEnabled = await hasFeature("positions");
+  const activity = await prisma.activityPlan.findUnique({ where: { slug: params.slug }, include: { tools: toolsEnabled, positions: positionsEnabled } });
   if (!activity || !(await isAccessibleOwner(user, activity.ownerId))) notFound();
   const scope = await ownerScope(user);
   const [toys, positions] = await Promise.all([
-    prisma.toy.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }),
-    prisma.position.findMany({ where: { ...scope, ...(activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage" ? { selfBondageCapable: true } : {}) }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] })
+    toolsEnabled ? prisma.toy.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }) : [],
+    positionsEnabled ? prisma.position.findMany({ where: { ...scope, ...(activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage" ? { selfBondageCapable: true } : {}) }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : []
   ]);
   const isSelfBondageOrder = activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage";
   const isIdea = activity.category === "IDEA_COLLECTION";
-  const selectedTools = new Set(activity.tools.map((tool) => tool.id));
-  const selectedPositions = new Set(activity.positions.map((position) => position.id));
+  const selectedTools = new Set(((activity as { tools?: { id: string }[] }).tools || []).map((tool) => tool.id));
+  const selectedPositions = new Set(((activity as { positions?: { id: string }[] }).positions || []).map((position) => position.id));
   const statusOptions = activityStatusOptions(isSelfBondageOrder, isIdea);
   const customPositionText = positionNoteValue(activity.note);
-  const selectedPosition = activity.positions.find((position) => position.selfBondageCapable);
+  const selectedPosition = ((activity as { positions?: { id: string; selfBondageCapable: boolean }[] }).positions || []).find((position) => position.selfBondageCapable);
   const selfBondageDefaultChoice = selectedPosition ? `position:${selectedPosition.id}` : customPositionText === "Denk dir was aus." ? "surprise" : customPositionText ? "custom" : "";
   const positionError = searchParams?.error === "position-text"
     ? "Bitte gib einen Freitext ein oder wähle eine Szene."
@@ -187,7 +196,7 @@ export default async function EditActivityPage({ params, searchParams }: { param
             </div>
           </div>
           <div className="space-y-5">
-            {!isSelfBondageOrder ? <section>
+            {!isSelfBondageOrder && toolsEnabled ? <section>
               <h2 className="mb-2 text-sm font-semibold text-graphite">Spielsachen</h2>
               <div className="space-y-2">
                 {toys.map((toy) => (
@@ -207,7 +216,7 @@ export default async function EditActivityPage({ params, searchParams }: { param
                 defaultCustomText={selfBondageDefaultChoice === "custom" ? customPositionText : ""}
                 error={positionError}
               />
-            ) : (
+            ) : positionsEnabled ? (
             <section>
               <h2 className="mb-2 text-sm font-semibold text-graphite">Szenen</h2>
               <div className="space-y-2">
@@ -222,7 +231,7 @@ export default async function EditActivityPage({ params, searchParams }: { param
                 ))}
               </div>
             </section>
-            )}
+            ) : null}
           </div>
         </form>
         <form action={deleteActivity} className="rounded-lg border border-line bg-paper p-5">

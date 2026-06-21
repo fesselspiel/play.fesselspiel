@@ -8,10 +8,12 @@ import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
 import { env } from "@/lib/env";
+import { requireFeature } from "@/lib/features";
 
 async function saveEmailSettings(formData: FormData) {
   "use server";
   await requireAdmin();
+  await requireFeature("email");
   await ensureEmailSetup();
   await prisma.emailSettings.update({
     where: { id: "system" },
@@ -29,6 +31,7 @@ async function saveEmailSettings(formData: FormData) {
 async function saveEmailTemplate(formData: FormData) {
   "use server";
   await requireAdmin();
+  await requireFeature("email");
   await ensureEmailSetup();
   const key = String(formData.get("key") || "");
   await prisma.emailTemplate.update({
@@ -45,6 +48,7 @@ async function saveEmailTemplate(formData: FormData) {
 async function sendTestEmail(formData: FormData) {
   "use server";
   await requireAdmin();
+  await requireFeature("email");
   const to = String(formData.get("to") || "").trim();
   if (!to) redirect("/settings/email?error=missing-test-recipient");
   const result = await sendTemplateEmail({
@@ -62,6 +66,7 @@ async function sendTestEmail(formData: FormData) {
 }
 
 export default async function EmailSettingsPage({ searchParams }: { searchParams?: { saved?: string; test?: string; error?: string } }) {
+  await requireFeature("email");
   await requireAdmin();
   await ensureEmailSetup();
   const [settings, templates, logs] = await Promise.all([

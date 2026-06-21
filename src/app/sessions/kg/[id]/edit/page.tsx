@@ -7,12 +7,14 @@ import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { formatDateTimeLocal, minutesBetween } from "@/lib/dates";
+import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 
 async function updateKgSession(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("tracker.kg");
   const id = String(formData.get("id") || "");
   const session = await prisma.kgSession.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!session) notFound();
@@ -43,6 +45,7 @@ async function deleteKgSession(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("tracker.kg");
   const id = String(formData.get("id") || "");
   const session = await prisma.kgSession.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!session) notFound();
@@ -60,6 +63,7 @@ async function deleteKgSession(formData: FormData) {
 }
 
 export default async function EditKgSessionPage({ params }: { params: { id: string } }) {
+  await requireFeature("tracker.kg");
   const user = await currentUser();
   if (!user) redirect("/login");
   const session = await prisma.kgSession.findFirst({ where: { id: params.id, ...(await ownerScope(user)) } });

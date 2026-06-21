@@ -9,6 +9,7 @@ import {
   Mail,
   Menu,
   MessageCircle,
+  Network,
   Settings,
   SlidersHorizontal,
   ShieldCheck,
@@ -37,7 +38,7 @@ const pictureMobileNav = mobileNav.slice(4);
 const mobileSettingsNav = [["Profil", "/profile", UserRound]] as const;
 
 const adminOnlyMobileSettingsNav = [
-  ["Instanz", "/settings/tenant", SlidersHorizontal],
+  ["Seite", "/settings/tenant", SlidersHorizontal],
   ["Benutzer", "/settings/users", UsersRound],
   ["Telegram", "/settings/telegram", Settings],
   ["E-Mail", "/settings/email", Mail],
@@ -47,6 +48,7 @@ const adminOnlyMobileSettingsNav = [
 ] as const;
 
 const adminMobileSettingsNav = [["Ansicht wechseln", "/settings/view-as", UsersRound]] as const;
+const superAdminMobileSettingsNav = [["Seiten", "/settings/sites", Network]] as const;
 
 function isVisible(feature: string | null, enabledFeatures: string[]) {
   return !feature || enabledFeatures.includes(feature);
@@ -55,6 +57,7 @@ function isVisible(feature: string | null, enabledFeatures: string[]) {
 export function MobileMenu({
   activeDarkMode = false,
   showAdminViewSwitch = false,
+  showSiteManagement = false,
   showAdminSettings = false,
   tenantName = "Fesselspiel",
   tenantDomain = "playplaner.com",
@@ -62,6 +65,7 @@ export function MobileMenu({
 }: {
   activeDarkMode?: boolean;
   showAdminViewSwitch?: boolean;
+  showSiteManagement?: boolean;
   showAdminSettings?: boolean;
   tenantName?: string;
   tenantDomain?: string;
@@ -142,6 +146,17 @@ export function MobileMenu({
               </summary>
               <div className="border-t border-line bg-paper px-2 py-2">
                 {showAdminViewSwitch ? adminMobileSettingsNav.map(([label, href, Icon]) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setOpen(false)}
+                    className="flex min-h-10 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-surface hover:text-redbrand"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </Link>
+                )) : null}
+                {showSiteManagement ? superAdminMobileSettingsNav.map(([label, href, Icon]) => (
                   <Link
                     key={href}
                     href={href}

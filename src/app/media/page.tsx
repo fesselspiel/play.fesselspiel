@@ -28,6 +28,7 @@ import { mediaVisibilityScope, ownerScope, visibilityScope } from "@/lib/access"
 import { ensureDefaultAlbum, isDefaultAlbumTitle } from "@/lib/albums";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
+import { requireFeature } from "@/lib/features";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 
@@ -50,6 +51,7 @@ async function createMedia(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("media");
   const file = await saveUploadedFile(user.id, formData.get("file") as File | null);
   if (!file) redirect("/media");
   const selectedAlbumId = String(formData.get("albumId") || "");
@@ -74,6 +76,7 @@ async function deleteMedia(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("media");
   const id = String(formData.get("id") || "");
   const media = await prisma.media.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!media) redirect("/media");
@@ -88,6 +91,7 @@ async function createAlbum(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("media");
   const title = String(formData.get("title") || "").trim();
   if (!title) redirect("/media");
   if (await isDefaultAlbumTitle(user.id, title)) {
@@ -109,6 +113,7 @@ async function updateAlbum(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("media");
   const albumId = String(formData.get("albumId") || "");
   const album = await prisma.album.findFirst({ where: { id: albumId, ...(await ownerScope(user)) } });
   if (!album) redirect("/media");
@@ -130,6 +135,7 @@ async function createAlbumForMedia(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("media");
   const scope = await ownerScope(user);
   const mediaId = String(formData.get("mediaId") || "");
   const title = String(formData.get("title") || "").trim();
@@ -156,6 +162,7 @@ async function updateMediaSettings(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("media");
   const scope = await ownerScope(user);
   const mediaId = String(formData.get("mediaId") || "");
   const albumId = String(formData.get("albumId") || "");
@@ -184,6 +191,7 @@ async function addMediaToAlbum(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("media");
   const scope = await ownerScope(user);
   const albumId = String(formData.get("albumId") || "");
   const mediaIds = formData.getAll("mediaIds").map(String).filter(Boolean);
@@ -200,6 +208,7 @@ async function deleteAlbum(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("media");
   const id = String(formData.get("albumId") || "");
   const album = await prisma.album.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!album) redirect("/media");
@@ -223,6 +232,7 @@ async function createMediaComment(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("media");
   const mediaId = String(formData.get("mediaId") || "");
   const body = String(formData.get("body") || "").trim();
   const next = String(formData.get("next") || "/media");
@@ -301,6 +311,7 @@ function mediaUrl(params: Record<string, string | undefined>) {
 }
 
 export default async function MediaPage({ searchParams }: { searchParams: MediaSearchParams }) {
+  await requireFeature("media");
   const user = await currentUser();
   if (!user) redirect("/login");
 

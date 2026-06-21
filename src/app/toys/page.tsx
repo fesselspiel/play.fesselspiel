@@ -6,12 +6,15 @@ import { SortableToyList } from "@/components/sortable-catalog";
 import { EmptyState, PageGuide, PageHeader } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
+import { hasFeature, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 
 export default async function ToysPage() {
   const user = await currentUser();
   if (!user) redirect("/login");
-  const toys = await prisma.toy.findMany({ where: await ownerScope(user), include: { positions: true, activities: true }, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] });
+  await requireFeature("toys");
+  const positionsEnabled = await hasFeature("positions");
+  const toys = await prisma.toy.findMany({ where: await ownerScope(user), include: { positions: positionsEnabled, activities: true }, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] });
 
   return (
     <AppShell>
@@ -34,7 +37,7 @@ export default async function ToysPage() {
           slug: toy.slug,
           description: toy.description,
           imageUrl: toy.imageUrl,
-          positionCount: toy.positions.length,
+          positionCount: positionsEnabled ? toy.positions.length : 0,
           activityCount: toy.activities.length
         }))} />
       ) : (

@@ -7,13 +7,16 @@ import { PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { isAccessibleOwner } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { env } from "@/lib/env";
+import { hasFeature, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
 
 export default async function ToyDetailPage({ params }: { params: { slug: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
-  const toy = await prisma.toy.findUnique({ where: { slug: params.slug }, include: { positions: true, activities: true } });
+  await requireFeature("toys");
+  const positionsEnabled = await hasFeature("positions");
+  const toy = await prisma.toy.findUnique({ where: { slug: params.slug }, include: { positions: positionsEnabled, activities: true } });
   if (!toy || !(await isAccessibleOwner(user, toy.ownerId))) notFound();
   const url = `${env.appUrl}/toys/${toy.slug}`;
   const displayUrl = url.replace(/^https?:\/\//, "");
@@ -58,13 +61,13 @@ export default async function ToyDetailPage({ params }: { params: { slug: string
           <Panel>
             <h2 className="mb-3 text-lg font-semibold">Verknüpfungen</h2>
             <div className="space-y-2 text-sm">
-              {toy.positions.map((position) => (
+              {positionsEnabled ? toy.positions.map((position) => (
                 <Link key={position.id} href={`/positions/${position.slug}`} className="block rounded-md bg-paper px-3 py-2 hover:text-redbrand">{position.name}</Link>
-              ))}
+              )) : null}
               {toy.activities.map((activity) => (
                 <Link key={activity.id} href={`/activities/${activity.slug}`} className="block rounded-md bg-paper px-3 py-2 hover:text-redbrand">{activity.title}</Link>
               ))}
-              {!toy.positions.length && !toy.activities.length ? <p className="text-graphite">Noch keine Verknüpfungen.</p> : null}
+              {(!positionsEnabled || !toy.positions.length) && !toy.activities.length ? <p className="text-graphite">Noch keine Verknüpfungen.</p> : null}
             </div>
           </Panel>
         </div>

@@ -6,6 +6,7 @@ import { FileUploadField } from "@/components/file-upload-field";
 import { Button, Field, inputClass, PageGuide, PageHeader } from "@/components/ui";
 import { isAccessibleOwner, ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
+import { hasFeature, requireFeature } from "@/lib/features";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlugForUpdate } from "@/lib/slug";
@@ -14,6 +15,8 @@ async function updatePosition(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("positions");
+  const toysEnabled = await hasFeature("toys");
   const id = String(formData.get("id"));
   const scope = await ownerScope(user);
   const position = await prisma.position.findFirst({ where: { id, ...scope } });
@@ -21,8 +24,8 @@ async function updatePosition(formData: FormData) {
 
   const name = String(formData.get("name") || "").trim();
   const slug = await uniqueSlugForUpdate("position", normalizeSlug(String(formData.get("slug") || ""), name), position.id);
-  const selectedToolIds = formData.getAll("tools").map(String);
-  const ownedTools = await prisma.toy.findMany({ where: { ...scope, id: { in: selectedToolIds } }, select: { id: true } });
+  const selectedToolIds = toysEnabled ? formData.getAll("tools").map(String) : [];
+  const ownedTools = toysEnabled ? await prisma.toy.findMany({ where: { ...scope, id: { in: selectedToolIds } }, select: { id: true } }) : [];
   const uploadedImageUrl = String(formData.get("imageUploadedUrl") || "").trim();
   const image = uploadedImageUrl ? null : await saveUploadedFile(user.id, formData.get("image") as File | null);
   const removeImage = formData.get("removeImage") === "on";
@@ -37,7 +40,7 @@ async function updatePosition(formData: FormData) {
       imageUrl,
       description: String(formData.get("description") || "").trim(),
       selfBondageCapable: formData.get("selfBondageCapable") === "on",
-      tools: { set: ownedTools.map((tool) => ({ id: tool.id })) }
+      ...(toysEnabled ? { tools: { set: ownedTools.map((tool) => ({ id: tool.id })) } } : {})
     }
   });
 
@@ -49,6 +52,7 @@ async function deletePosition(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("positions");
   const id = String(formData.get("id"));
   const position = await prisma.position.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!position) notFound();
@@ -61,10 +65,12 @@ async function deletePosition(formData: FormData) {
 export default async function EditPositionPage({ params }: { params: { slug: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
-  const position = await prisma.position.findUnique({ where: { slug: params.slug }, include: { tools: true } });
+  await requireFeature("positions");
+  const toysEnabled = await hasFeature("toys");
+  const position = await prisma.position.findUnique({ where: { slug: params.slug }, include: { tools: toysEnabled } });
   if (!position || !(await isAccessibleOwner(user, position.ownerId))) notFound();
-  const toys = await prisma.toy.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { title: "asc" }] });
-  const selected = new Set(position.tools.map((tool) => tool.id));
+  const toys = toysEnabled ? await prisma.toy.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }) : [];
+  const selected = new Set(toysEnabled ? position.tools.map((tool) => tool.id) : []);
 
   return (
     <AppShell>
@@ -92,17 +98,19 @@ export default async function EditPositionPage({ params }: { params: { slug: str
             <input name="selfBondageCapable" type="checkbox" defaultChecked={position.selfBondageCapable} className="h-4 w-4 accent-redbrand" />
             <span>Self-Bondage-fähig</span>
           </label>
-          <div>
-            <div className="mb-2 text-sm font-medium text-graphite">Spielzeuge</div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {toys.map((toy) => (
-                <label key={toy.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">
-                  <input name="tools" value={toy.id} type="checkbox" defaultChecked={selected.has(toy.id)} className="h-4 w-4 accent-redbrand" />
-                  <span>{toy.title}</span>
-                </label>
-              ))}
+          {toysEnabled ? (
+            <div>
+              <div className="mb-2 text-sm font-medium text-graphite">Spielzeuge</div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {toys.map((toy) => (
+                  <label key={toy.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">
+                    <input name="tools" value={toy.id} type="checkbox" defaultChecked={selected.has(toy.id)} className="h-4 w-4 accent-redbrand" />
+                    <span>{toy.title}</span>
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <Button><Save className="h-4 w-4" /> Änderungen speichern</Button>
             <Link href={`/positions/${position.slug}`} className="focus-ring inline-flex min-h-10 items-center justify-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">

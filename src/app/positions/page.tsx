@@ -6,14 +6,17 @@ import { SortablePositionList } from "@/components/sortable-catalog";
 import { EmptyState, PageGuide, PageHeader } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
+import { hasFeature, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 
 export default async function PositionsPage({ searchParams }: { searchParams: { q?: string; toy?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("positions");
+  const toysEnabled = await hasFeature("toys");
   const scope = await ownerScope(user);
   const q = searchParams.q?.trim();
-  const toy = searchParams.toy;
+  const toy = toysEnabled ? searchParams.toy : undefined;
   const [positions, toys] = await Promise.all([
     prisma.position.findMany({
       where: {
@@ -21,10 +24,10 @@ export default async function PositionsPage({ searchParams }: { searchParams: { 
         ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
         ...(toy ? { tools: { some: { id: toy } } } : {})
       },
-      include: { tools: true, activities: true },
+      include: { tools: toysEnabled, activities: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
     }),
-    prisma.toy.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] })
+    toysEnabled ? prisma.toy.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }) : Promise.resolve([])
   ]);
 
   return (
@@ -41,12 +44,14 @@ export default async function PositionsPage({ searchParams }: { searchParams: { 
       <PageGuide title="Positionen mit Bildern und Verknüpfungen">
         Szenen sind wiederverwendbare Bausteine für Aktivitäten. Suche nach Namen, filtere nach Spielzeug und öffne einen Eintrag, um Bild, Beschreibung, Verknüpfungen und Bearbeitung zu sehen.
       </PageGuide>
-      <form className="mb-5 grid gap-3 rounded-lg bg-paper p-4 sm:grid-cols-[1fr_260px_auto]">
+      <form className={`mb-5 grid gap-3 rounded-lg bg-paper p-4 ${toysEnabled ? "sm:grid-cols-[1fr_260px_auto]" : "sm:grid-cols-[1fr_auto]"}`}>
         <input className="focus-ring rounded-md border border-line px-3 py-2 text-sm" name="q" placeholder="Nach Name suchen" defaultValue={q} />
-        <select className="focus-ring rounded-md border border-line px-3 py-2 text-sm" name="toy" defaultValue={toy || ""}>
-          <option value="">Alle Spielzeuge</option>
-          {toys.map((entry) => <option key={entry.id} value={entry.id}>{entry.title}</option>)}
-        </select>
+        {toysEnabled ? (
+          <select className="focus-ring rounded-md border border-line px-3 py-2 text-sm" name="toy" defaultValue={toy || ""}>
+            <option value="">Alle Spielzeuge</option>
+            {toys.map((entry) => <option key={entry.id} value={entry.id}>{entry.title}</option>)}
+          </select>
+        ) : null}
         <button className="rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white">Filtern</button>
       </form>
       {positions.length ? (
@@ -58,10 +63,10 @@ export default async function PositionsPage({ searchParams }: { searchParams: { 
             description: position.description,
             imageUrl: position.imageUrl,
             selfBondageCapable: position.selfBondageCapable,
-            toolCount: position.tools.length,
+            toolCount: toysEnabled ? position.tools.length : 0,
             activityCount: position.activities.length,
-            tools: position.tools.map((tool) => ({ id: tool.id, title: tool.title, slug: tool.slug }))
-          }))} />
+            tools: toysEnabled ? position.tools.map((tool) => ({ id: tool.id, title: tool.title, slug: tool.slug })) : []
+          }))} showTools={toysEnabled} />
         </div>
       ) : (
         <EmptyState title="Keine Szenen gefunden" />

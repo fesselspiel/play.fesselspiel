@@ -30,7 +30,7 @@ export async function ensureDefaultTenant() {
       slug: DEFAULT_TENANT_SLUG,
       name: DEFAULT_TENANT_NAME,
       headline: "Private Planung für Paare und Kreise",
-      description: "Geschützte Instanz für Planung, Bilder, Tracker und Telegram."
+      description: "Geschützte Seite für Planung, Bilder, Tracker und Telegram."
     }
   });
   await Promise.all(

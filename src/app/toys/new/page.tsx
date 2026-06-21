@@ -5,6 +5,7 @@ import { FileUploadField } from "@/components/file-upload-field";
 import { Button, Field, inputClass, PageGuide, PageHeader } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
+import { hasFeature, requireFeature } from "@/lib/features";
 import { fileAssetUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
@@ -13,6 +14,8 @@ async function createToy(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("toys");
+  const positionsEnabled = await hasFeature("positions");
   const title = String(formData.get("title") || "").trim();
   const description = String(formData.get("description") || "").trim();
   const uploadedImageUrl = String(formData.get("imageUploadedUrl") || "").trim();
@@ -20,8 +23,8 @@ async function createToy(formData: FormData) {
   const imageUrl = uploadedImageUrl || (image ? fileAssetUrl(image.id) : "");
   const requestedSlug = normalizeSlug(String(formData.get("slug") || ""), title);
   const slug = await uniqueSlug("toy", requestedSlug);
-  const selectedPositionIds = formData.getAll("positions").map(String);
-  const positions = await prisma.position.findMany({ where: { ...(await ownerScope(user)), id: { in: selectedPositionIds } }, select: { id: true } });
+  const selectedPositionIds = positionsEnabled ? formData.getAll("positions").map(String) : [];
+  const positions = positionsEnabled ? await prisma.position.findMany({ where: { ...(await ownerScope(user)), id: { in: selectedPositionIds } }, select: { id: true } }) : [];
   await prisma.toy.create({
     data: {
       ownerId: user.id,
@@ -29,7 +32,7 @@ async function createToy(formData: FormData) {
       description,
       imageUrl,
       slug,
-      positions: { connect: positions.map((position) => ({ id: position.id })) }
+      ...(positionsEnabled ? { positions: { connect: positions.map((position) => ({ id: position.id })) } } : {})
     }
   });
   redirect(`/toys/${slug}`);
@@ -38,7 +41,9 @@ async function createToy(formData: FormData) {
 export default async function NewToyPage() {
   const user = await currentUser();
   if (!user) redirect("/login");
-  const positions = await prisma.position.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
+  await requireFeature("toys");
+  const positionsEnabled = await hasFeature("positions");
+  const positions = positionsEnabled ? await prisma.position.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : [];
   return (
     <AppShell>
       <PageHeader title="Spielzeug anlegen" />
@@ -56,21 +61,23 @@ export default async function NewToyPage() {
         <Field label="Beschreibung">
           <textarea className={inputClass} name="description" rows={6} />
         </Field>
-        <div>
-          <div className="mb-2 text-sm font-medium text-graphite">Mit Szenen verknüpfen</div>
-          {positions.length ? (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {positions.map((position) => (
-                <label key={position.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">
-                  <input name="positions" value={position.id} type="checkbox" className="h-4 w-4 accent-redbrand" />
-                  <span>{position.name}</span>
-                </label>
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-md bg-paper p-3 text-sm text-graphite">Noch keine Szenen vorhanden.</p>
-          )}
-        </div>
+        {positionsEnabled ? (
+          <div>
+            <div className="mb-2 text-sm font-medium text-graphite">Mit Szenen verknüpfen</div>
+            {positions.length ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {positions.map((position) => (
+                  <label key={position.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">
+                    <input name="positions" value={position.id} type="checkbox" className="h-4 w-4 accent-redbrand" />
+                    <span>{position.name}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-md bg-paper p-3 text-sm text-graphite">Noch keine Szenen vorhanden.</p>
+            )}
+          </div>
+        ) : null}
         <Button>
           <Save className="h-4 w-4" />
           Speichern

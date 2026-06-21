@@ -6,6 +6,7 @@ import { Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass, S
 import { logAction } from "@/lib/audit";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
+import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
 import { moodAfter, moodBefore, moodScore, neutralMood } from "@/lib/moods";
@@ -19,6 +20,7 @@ async function createSession(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("tracker.segufix");
   const startTime = new Date(String(formData.get("startTime")));
   const endRaw = String(formData.get("endTime") || "");
   const endTime = endRaw ? new Date(endRaw) : null;
@@ -52,6 +54,7 @@ async function createKgSession(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("tracker.kg");
   const startTime = new Date(String(formData.get("startTime")));
   const endRaw = String(formData.get("endTime") || "");
   const endTime = endRaw ? new Date(endRaw) : null;
@@ -78,6 +81,7 @@ async function createKgSession(formData: FormData) {
 const months = ["Januar", "Februar", "Maerz", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
 export default async function SessionsPage({ searchParams }: { searchParams: { year?: string; tracker?: string } }) {
+  await requireFeature("trackers");
   const user = await currentUser();
   if (!user) redirect("/login");
   const year = Number(searchParams.year || new Date().getFullYear());

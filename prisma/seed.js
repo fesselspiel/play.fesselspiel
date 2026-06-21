@@ -24,7 +24,7 @@ async function main() {
       slug: "playplaner",
       name: "Playplaner",
       headline: "Private Planung für Paare und Kreise",
-      description: "Geschützte Instanz für Planung, Bilder, Tracker und Telegram."
+      description: "Geschützte Seite für Planung, Bilder, Tracker und Telegram."
     }
   });
   for (const [hostname, primary] of [["playplaner.com", true], ["play.fesselspiel.com", false]]) {

@@ -6,6 +6,7 @@ import { FileUploadField } from "@/components/file-upload-field";
 import { Button, Field, inputClass, PageGuide, PageHeader } from "@/components/ui";
 import { isAccessibleOwner, ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
+import { hasFeature, requireFeature } from "@/lib/features";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlugForUpdate } from "@/lib/slug";
@@ -14,6 +15,8 @@ async function updateToy(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("toys");
+  const positionsEnabled = await hasFeature("positions");
   const id = String(formData.get("id"));
   const toy = await prisma.toy.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!toy) notFound();
@@ -25,8 +28,8 @@ async function updateToy(formData: FormData) {
   const removeImage = formData.get("removeImage") === "on";
   const oldFileId = fileIdFromUrl(toy.imageUrl);
   const imageUrl = uploadedImageUrl || (image ? fileAssetUrl(image.id) : removeImage ? "" : toy.imageUrl);
-  const selectedPositionIds = formData.getAll("positions").map(String);
-  const positions = await prisma.position.findMany({ where: { ...(await ownerScope(user)), id: { in: selectedPositionIds } }, select: { id: true } });
+  const selectedPositionIds = positionsEnabled ? formData.getAll("positions").map(String) : [];
+  const positions = positionsEnabled ? await prisma.position.findMany({ where: { ...(await ownerScope(user)), id: { in: selectedPositionIds } }, select: { id: true } }) : [];
 
   await prisma.toy.update({
     where: { id: toy.id },
@@ -35,7 +38,7 @@ async function updateToy(formData: FormData) {
       slug,
       description: String(formData.get("description") || "").trim(),
       imageUrl,
-      positions: { set: positions.map((position) => ({ id: position.id })) }
+      ...(positionsEnabled ? { positions: { set: positions.map((position) => ({ id: position.id })) } } : {})
     }
   });
 
@@ -47,6 +50,7 @@ async function deleteToy(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("toys");
   const id = String(formData.get("id"));
   const toy = await prisma.toy.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!toy) notFound();
@@ -59,10 +63,12 @@ async function deleteToy(formData: FormData) {
 export default async function EditToyPage({ params }: { params: { slug: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
-  const toy = await prisma.toy.findUnique({ where: { slug: params.slug }, include: { positions: true } });
+  await requireFeature("toys");
+  const positionsEnabled = await hasFeature("positions");
+  const toy = await prisma.toy.findUnique({ where: { slug: params.slug }, include: { positions: positionsEnabled } });
   if (!toy || !(await isAccessibleOwner(user, toy.ownerId))) notFound();
-  const positions = await prisma.position.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
-  const selectedPositions = new Set(toy.positions.map((position) => position.id));
+  const positions = positionsEnabled ? await prisma.position.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : [];
+  const selectedPositions = new Set(positionsEnabled ? toy.positions.map((position) => position.id) : []);
 
   return (
     <AppShell>
@@ -92,21 +98,23 @@ export default async function EditToyPage({ params }: { params: { slug: string }
           <Field label="Beschreibung">
             <textarea className={inputClass} name="description" rows={6} defaultValue={toy.description || ""} />
           </Field>
-          <div>
-            <div className="mb-2 text-sm font-medium text-graphite">Mit Szenen verknüpfen</div>
-            {positions.length ? (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {positions.map((position) => (
-                  <label key={position.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">
-                    <input name="positions" value={position.id} type="checkbox" defaultChecked={selectedPositions.has(position.id)} className="h-4 w-4 accent-redbrand" />
-                    <span>{position.name}</span>
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <p className="rounded-md bg-paper p-3 text-sm text-graphite">Noch keine Szenen vorhanden.</p>
-            )}
-          </div>
+          {positionsEnabled ? (
+            <div>
+              <div className="mb-2 text-sm font-medium text-graphite">Mit Szenen verknüpfen</div>
+              {positions.length ? (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {positions.map((position) => (
+                    <label key={position.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">
+                      <input name="positions" value={position.id} type="checkbox" defaultChecked={selectedPositions.has(position.id)} className="h-4 w-4 accent-redbrand" />
+                      <span>{position.name}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-md bg-paper p-3 text-sm text-graphite">Noch keine Szenen vorhanden.</p>
+              )}
+            </div>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <Button>
               <Save className="h-4 w-4" />

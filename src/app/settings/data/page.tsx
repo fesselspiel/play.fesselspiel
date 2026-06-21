@@ -3,6 +3,7 @@ import { ArchiveRestore, DatabaseBackup, Download, Upload } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button, Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
 import { currentUser } from "@/lib/auth";
+import { requireFeature } from "@/lib/features";
 
 type DataSearchParams = {
   imported?: string;
@@ -14,9 +15,10 @@ type DataSearchParams = {
 };
 
 export default async function DataSettingsPage({ searchParams }: { searchParams: DataSearchParams }) {
+  await requireFeature("dataTransfer");
   const user = await currentUser();
   if (!user) redirect("/login");
-  if (user.role !== "ADMIN") redirect("/");
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");
 
   return (
     <AppShell>

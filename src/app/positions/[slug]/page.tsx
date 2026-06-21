@@ -5,12 +5,15 @@ import { AppShell } from "@/components/app-shell";
 import { Badge, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { isAccessibleOwner } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
+import { hasFeature, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 
 export default async function PositionDetailPage({ params }: { params: { slug: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
-  const position = await prisma.position.findUnique({ where: { slug: params.slug }, include: { tools: true, activities: true } });
+  await requireFeature("positions");
+  const toysEnabled = await hasFeature("toys");
+  const position = await prisma.position.findUnique({ where: { slug: params.slug }, include: { tools: toysEnabled, activities: true } });
   if (!position || !(await isAccessibleOwner(user, position.ownerId))) notFound();
   return (
     <AppShell>
@@ -35,12 +38,14 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
           <p className="mt-5 leading-7 text-graphite">{position.description || "Keine Beschreibung hinterlegt."}</p>
         </Panel>
         <div className="space-y-6">
-          <SoftPanel>
-            <h2 className="mb-3 text-lg font-semibold">Spielzeuge</h2>
-            <div className="space-y-2">
-              {position.tools.map((toy) => <Link key={toy.id} href={`/toys/${toy.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{toy.title}</Link>)}
-            </div>
-          </SoftPanel>
+          {toysEnabled ? (
+            <SoftPanel>
+              <h2 className="mb-3 text-lg font-semibold">Spielzeuge</h2>
+              <div className="space-y-2">
+                {position.tools.map((toy) => <Link key={toy.id} href={`/toys/${toy.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{toy.title}</Link>)}
+              </div>
+            </SoftPanel>
+          ) : null}
           <SoftPanel>
             <h2 className="mb-3 text-lg font-semibold">Aktivitäten</h2>
             <div className="space-y-2">

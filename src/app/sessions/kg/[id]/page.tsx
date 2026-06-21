@@ -6,10 +6,12 @@ import { Button, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
+import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { stopKgSession } from "@/lib/session-actions";
 
 export default async function KgSessionDetailPage({ params }: { params: { id: string } }) {
+  await requireFeature("tracker.kg");
   const user = await currentUser();
   if (!user) redirect("/login");
   const session = await prisma.kgSession.findFirst({ where: { id: params.id, ...(await ownerScope(user)) } });

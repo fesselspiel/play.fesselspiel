@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ownerScope } from "@/lib/access";
-import { requireApiUser } from "@/lib/external-api";
+import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -8,6 +8,8 @@ export const runtime = "nodejs";
 export async function GET(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
+  const blocked = apiFeatureGate(auth.user, "externalApi");
+  if (blocked) return blocked;
   const scope = await ownerScope(auth.user);
   const [toys, positions, activities, media, openSession, openKgSession] = await Promise.all([
     prisma.toy.count({ where: scope }),

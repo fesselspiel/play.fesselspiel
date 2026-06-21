@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logAction } from "@/lib/audit";
-import { dateFromValue, requestValues, requireApiUser } from "@/lib/external-api";
+import { apiFeatureGate, dateFromValue, requestValues, requireApiUser } from "@/lib/external-api";
 import { startTrackerEntry } from "@/lib/tracker-core";
 
 export const runtime = "nodejs";
@@ -8,6 +8,8 @@ export const runtime = "nodejs";
 async function startTracker(request: NextRequest, trackerKey: string) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
+  const blocked = apiFeatureGate(auth.user, "externalApi", "trackers", `tracker.${trackerKey}`);
+  if (blocked) return blocked;
   const values = await requestValues(request);
   const entry = await startTrackerEntry({
     key: trackerKey,
@@ -34,4 +36,3 @@ export async function GET(request: NextRequest, { params }: { params: { trackerK
 export async function POST(request: NextRequest, { params }: { params: { trackerKey: string } }) {
   return startTracker(request, params.trackerKey);
 }
-

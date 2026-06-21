@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logAction } from "@/lib/audit";
 import { minutesBetween } from "@/lib/dates";
-import { dateFromValue, requestValues, requireApiUser } from "@/lib/external-api";
+import { apiFeatureGate, dateFromValue, requestValues, requireApiUser } from "@/lib/external-api";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -9,6 +9,8 @@ export const runtime = "nodejs";
 async function startKgSession(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
+  const blocked = apiFeatureGate(auth.user, "externalApi", "tracker.kg");
+  if (blocked) return blocked;
   const values = await requestValues(request);
   const open = await prisma.kgSession.findFirst({ where: { ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } });
   const autoClosedAt = new Date();
