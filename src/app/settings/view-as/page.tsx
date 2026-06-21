@@ -6,6 +6,7 @@ import { Button, EmptyState, PageGuide, PageHeader, Panel } from "@/components/u
 import { logAction, userDisplayName } from "@/lib/audit";
 import { createSessionToken, currentSessionContext, requireAdmin, SESSION_COOKIE, sessionCookieOptions, verifySessionToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { primaryTenantDomain } from "@/lib/tenancy";
 
 function currentCookieMaxAge() {
   const token = cookies().get(SESSION_COOKIE)?.value;
@@ -94,6 +95,7 @@ export default async function ViewAsPage() {
     role: membership.user.role === "SUPER_ADMIN" ? "SUPER_ADMIN" : membership.role
   }));
   const viewingOtherUser = Boolean(user && user.id !== actor.id);
+  const activeTenantDomain = tenant ? primaryTenantDomain(tenant) : "";
 
   return (
     <AppShell>
@@ -105,7 +107,7 @@ export default async function ViewAsPage() {
               <h2 className="text-lg font-semibold text-ink">Aktive Ansicht</h2>
               <p className="mt-1 text-sm text-graphite">
                 Eingeloggt als <strong className="text-ink">{userDisplayName(actor)}</strong>
-                {tenant ? <> · Seite <strong className="text-ink">{tenant.name}</strong></> : null}
+                {tenant ? <> · Seite <strong className="text-ink">{tenant.name}</strong>{activeTenantDomain ? <> · {activeTenantDomain}</> : null}</> : null}
                 {viewingOtherUser && user ? <> · Ansicht von <strong className="text-ink">{userDisplayName(user)}</strong></> : <> · eigene Ansicht</>}
               </p>
             </div>
@@ -117,19 +119,26 @@ export default async function ViewAsPage() {
           </div>
           {tenants.length ? (
             <div className="mb-6 grid gap-3 sm:grid-cols-2">
-              {tenants.map((entry) => (
-                <form key={entry.id} action={switchView} className={`rounded-md border p-3 ${tenant?.id === entry.id && !viewingOtherUser ? "border-redbrand bg-redbrand/5" : "border-line bg-paper"}`}>
-                  <input type="hidden" name="targetTenantId" value={entry.id} />
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <strong className="block truncate text-ink">{entry.name}</strong>
-                      <span className="block truncate text-sm text-graphite">{entry.domains.find((domain) => domain.primary)?.hostname || entry.domains[0]?.hostname || "Keine Domain"}</span>
-                      <span className="block text-xs text-graphite">{entry._count.memberships} Benutzer</span>
+              {tenants.map((entry) => {
+                const activeTenant = tenant?.id === entry.id && !viewingOtherUser;
+                return (
+                  <form key={entry.id} action={switchView} className={`rounded-md border p-3 ${activeTenant ? "border-redbrand bg-redbrand/5" : "border-line bg-paper"}`}>
+                    <input type="hidden" name="targetTenantId" value={entry.id} />
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <strong className="block truncate text-ink">{entry.name}</strong>
+                        <span className="block truncate text-sm text-graphite">{entry.domains.find((domain) => domain.primary)?.hostname || entry.domains[0]?.hostname || "Keine Domain"}</span>
+                        <span className="block text-xs text-graphite">{entry._count.memberships} Benutzer</span>
+                      </div>
+                      {activeTenant ? (
+                        <Button variant="secondary" type="button">Aktive Seite</Button>
+                      ) : (
+                        <Button type="submit">Seite öffnen</Button>
+                      )}
                     </div>
-                    <Button variant={tenant?.id === entry.id && !viewingOtherUser ? "secondary" : "primary"} type="submit">Seite öffnen</Button>
-                  </div>
-                </form>
-              ))}
+                  </form>
+                );
+              })}
             </div>
           ) : null}
 

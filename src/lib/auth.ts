@@ -90,11 +90,11 @@ async function ensureTenantMembership(userId: string, tenantId: string) {
   if (existing?.active) return existing;
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { tenantId: true, circleId: true, role: true, active: true } });
   if (!user?.active) return null;
-  if (user.role === "SUPER_ADMIN" || user.tenantId === tenantId) {
+  if (user.role !== "SUPER_ADMIN" && user.tenantId === tenantId) {
     return prisma.tenantMembership.upsert({
       where: { tenantId_userId: { tenantId, userId } },
-      update: { active: true, role: user.role === "SUPER_ADMIN" ? "ADMIN" : user.role, circleId: user.circleId },
-      create: { tenantId, userId, role: user.role === "SUPER_ADMIN" ? "ADMIN" : user.role, circleId: user.circleId, active: true },
+      update: { active: true, role: user.role, circleId: user.circleId },
+      create: { tenantId, userId, role: user.role, circleId: user.circleId, active: true },
       include: { circle: true, tenant: { include: { domains: true, features: true } } }
     });
   }
@@ -112,6 +112,16 @@ async function tenantMembershipFor(user: IncludedUser, tenantId?: string | null)
 }
 
 function withEffectiveMembership(user: IncludedUser, membership: Awaited<ReturnType<typeof tenantMembershipFor>>, tenant: Awaited<ReturnType<typeof currentTenant>> | null) {
+  if (!membership && user.role === "SUPER_ADMIN" && tenant) {
+    return {
+      ...user,
+      tenantId: tenant.id,
+      tenant,
+      circleId: null,
+      circle: null,
+      role: "SUPER_ADMIN" as const
+    };
+  }
   if (!membership) return user;
   return {
     ...user,

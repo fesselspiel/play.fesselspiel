@@ -760,3 +760,12 @@ Details:
 - Sichtbarkeit pro freigegebenem Produkt unterstützt Benutzer, Zirkel und alle Benutzer der aktuellen Seite.
 - Szenen und Spielpläne können Bondage-System-Produkte getrennt von normalen Spielsachen verknüpfen.
 - `POST /api/shopify/sync` ist als JSON-Sync-Endpunkt vorhanden und blockiert bei deaktiviertem Feature mit `feature_disabled`.
+
+## Superadmin und Seitenansichten
+
+- `SUPER_ADMIN` wird nicht mehr automatisch als normales Mitglied in jede neue Seite eingetragen.
+- Neue Seiten starten dadurch ohne automatisch gesetzten Kreis-/Ampel-/Benutzerkontext des Hauptadmins.
+- Superadmins können eine Seite weiterhin über `Einstellungen > Seitenansicht` öffnen und testen; diese Ansicht erzeugt aber keine `TenantMembership`.
+- Die aktive Seitenansicht zeigt jetzt die passende Hauptdomain der geöffneten Seite an.
+- In der Seitenauswahl heißt die aktuell geöffnete Seite `Aktive Seite` statt erneut `Seite öffnen`.
+- Alte automatisch erzeugte Superadmin-Mitgliedschaften in Nebenseiten wurden auf dem VPS entfernt, ohne den Benutzer selbst zu löschen.

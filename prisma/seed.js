@@ -105,11 +105,12 @@ async function main() {
 
   const usersForMembership = await prisma.user.findMany({ select: { id: true, tenantId: true, circleId: true, role: true, active: true } });
   for (const user of usersForMembership) {
+    if (user.role === "SUPER_ADMIN") continue;
     const tenantId = user.tenantId || tenant.id;
     await prisma.tenantMembership.upsert({
       where: { tenantId_userId: { tenantId, userId: user.id } },
-      update: { role: user.role === "SUPER_ADMIN" ? "ADMIN" : user.role, circleId: user.circleId, active: user.active },
-      create: { tenantId, userId: user.id, role: user.role === "SUPER_ADMIN" ? "ADMIN" : user.role, circleId: user.circleId, active: user.active }
+      update: { role: user.role, circleId: user.circleId, active: user.active },
+      create: { tenantId, userId: user.id, role: user.role, circleId: user.circleId, active: user.active }
     });
   }
   const ownerTenant = async (ownerId) => {
