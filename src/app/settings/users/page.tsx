@@ -344,11 +344,11 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
             </form>
           </Panel>
           <Panel>
-            <details className="group" open={circles.length <= 1}>
+            <details className="group/circles-list" open={circles.length <= 1}>
               <summary className="focus-ring flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 text-lg font-semibold text-ink hover:text-redbrand [&::-webkit-details-marker]:hidden">
                 Kreise bearbeiten
-                <span className="text-sm font-medium text-graphite group-open:hidden">aufklappen</span>
-                <span className="hidden text-sm font-medium text-graphite group-open:inline">einklappen</span>
+                <span className="text-sm font-medium text-graphite group-open/circles-list:hidden">aufklappen</span>
+                <span className="hidden text-sm font-medium text-graphite group-open/circles-list:inline">einklappen</span>
               </summary>
               <div className="mt-4 space-y-3">
                 {circles.map((circle) => {
@@ -407,11 +407,11 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
             </details>
           </Panel>
           <Panel>
-            <details className="group">
+            <details className="group/user-create">
               <summary className="focus-ring flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 text-lg font-semibold text-ink hover:text-redbrand [&::-webkit-details-marker]:hidden">
                 Benutzer anlegen
-                <span className="text-sm font-medium text-graphite group-open:hidden">aufklappen</span>
-                <span className="hidden text-sm font-medium text-graphite group-open:inline">einklappen</span>
+                <span className="text-sm font-medium text-graphite group-open/user-create:hidden">aufklappen</span>
+                <span className="hidden text-sm font-medium text-graphite group-open/user-create:inline">einklappen</span>
               </summary>
               <form action={createUser} className="mt-4 space-y-4">
                 <Field label="Name"><input className={inputClass} name="name" /></Field>
@@ -431,11 +431,11 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
             </details>
           </Panel>
           <Panel>
-            <details className="group">
+            <details className="group/user-adopt">
               <summary className="focus-ring flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 text-lg font-semibold text-ink hover:text-redbrand [&::-webkit-details-marker]:hidden">
                 Bestehenden Benutzer übernehmen
-                <span className="text-sm font-medium text-graphite group-open:hidden">aufklappen</span>
-                <span className="hidden text-sm font-medium text-graphite group-open:inline">einklappen</span>
+                <span className="text-sm font-medium text-graphite group-open/user-adopt:hidden">aufklappen</span>
+                <span className="hidden text-sm font-medium text-graphite group-open/user-adopt:inline">einklappen</span>
               </summary>
               <form action={adoptExistingUser} className="mt-4 space-y-4">
                 <Field label="Benutzer">
@@ -461,11 +461,11 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
             </details>
           </Panel>
           <Panel className="order-last" id="systemzeit">
-            <details className="group">
+            <details className="group/system-time">
               <summary className="focus-ring flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 text-lg font-semibold text-ink hover:text-redbrand [&::-webkit-details-marker]:hidden">
                 Systemzeit
-                <span className="text-sm font-medium text-graphite group-open:hidden">aufklappen</span>
-                <span className="hidden text-sm font-medium text-graphite group-open:inline">einklappen</span>
+                <span className="text-sm font-medium text-graphite group-open/system-time:hidden">aufklappen</span>
+                <span className="hidden text-sm font-medium text-graphite group-open/system-time:inline">einklappen</span>
               </summary>
               <div className="mt-4 space-y-1 text-sm text-graphite">
                 <div>App-Zeitzone: <strong className="text-ink">{appTimeZone}</strong></div>
@@ -483,11 +483,11 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
           </Panel>
         </div>
         <Panel>
-          <details className="group" open>
+          <details className="group/users-edit" open>
             <summary className="focus-ring flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 text-lg font-semibold text-ink hover:text-redbrand [&::-webkit-details-marker]:hidden">
               Benutzer bearbeiten
-              <span className="text-sm font-medium text-graphite group-open:hidden">aufklappen</span>
-              <span className="hidden text-sm font-medium text-graphite group-open:inline">einklappen</span>
+              <span className="text-sm font-medium text-graphite group-open/users-edit:hidden">aufklappen</span>
+              <span className="hidden text-sm font-medium text-graphite group-open/users-edit:inline">einklappen</span>
             </summary>
             <div className="mt-4 space-y-3">
               {users.map((entry) => (

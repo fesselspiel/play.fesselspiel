@@ -103,7 +103,7 @@ export function SortableToyList({ items }: { items: ToyItem[] }) {
           onDragEnd={() => setDragId(null)}
           className={dragId === toy.id ? "opacity-60" : ""}
         >
-          <details className="group overflow-hidden rounded-lg border border-line bg-surface">
+          <details className="group/toy-card overflow-hidden rounded-lg border border-line bg-surface">
             <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 px-3 py-3 hover:bg-paper [&::-webkit-details-marker]:hidden">
               <DragHandle />
               <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-paper sm:h-16 sm:w-16">
@@ -116,7 +116,7 @@ export function SortableToyList({ items }: { items: ToyItem[] }) {
                   {toy.positionCount} Szenen · {toy.activityCount} Spielpläne
                 </p>
               </div>
-              <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open:rotate-180" />
+              <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open/toy-card:rotate-180" />
             </summary>
             <div className="border-t border-line bg-paper p-4">
               <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
@@ -160,7 +160,7 @@ export function SortablePositionList({ items, canSort = false, showTools = true 
           onDragEnd={() => setDragId(null)}
           className={dragId === position.id ? "opacity-60" : ""}
         >
-          <details className="group overflow-hidden rounded-lg border border-line bg-surface">
+          <details className="group/position-card overflow-hidden rounded-lg border border-line bg-surface">
             <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 px-3 py-3 hover:bg-paper [&::-webkit-details-marker]:hidden">
               <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-paper sm:h-16 sm:w-16">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -173,7 +173,7 @@ export function SortablePositionList({ items, canSort = false, showTools = true 
                   {position.selfBondageCapable ? " · Self-Bondage" : ""}
                 </p>
               </div>
-              <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open:rotate-180" />
+              <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open/position-card:rotate-180" />
             </summary>
             <div className="border-t border-line bg-paper p-4">
               <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
@@ -243,7 +243,7 @@ export function SortableBondageSystemList({ items, canSort = false }: { items: B
   return (
     <div className="space-y-3">
       {ordered.map((item) => (
-        <details key={item.id} className="group overflow-hidden rounded-lg border border-line bg-surface">
+        <details key={item.id} className="group/bondage-card overflow-hidden rounded-lg border border-line bg-surface">
           <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 px-3 py-3 hover:bg-paper [&::-webkit-details-marker]:hidden">
             <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-paper sm:h-16 sm:w-16">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -255,7 +255,7 @@ export function SortableBondageSystemList({ items, canSort = false }: { items: B
                 {item.positionCount} Szenen · {item.activityCount} Spielpläne · {item.vendor || "Shopify"}
               </p>
             </div>
-            <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open:rotate-180" />
+            <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open/bondage-card:rotate-180" />
           </summary>
           <div className="border-t border-line bg-paper p-4">
             <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
