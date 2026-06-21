@@ -3,18 +3,27 @@ import { prisma } from "@/lib/prisma";
 
 export type AccessUser = {
   id: string;
+  tenantId?: string | null;
   circleId?: string | null;
   role?: string | null;
 };
 
+function tenantWhere(user: AccessUser) {
+  return user.tenantId ? { OR: [{ tenantId: user.tenantId }, { tenantId: null }] } : {};
+}
+
 export async function accessibleOwnerIds(user: AccessUser) {
-  if (user.role === "ADMIN") {
+  if (user.role === "SUPER_ADMIN") {
     const users = await prisma.user.findMany({ where: { active: true }, select: { id: true } });
+    return users.map((entry) => entry.id);
+  }
+  if (user.role === "ADMIN") {
+    const users = await prisma.user.findMany({ where: { active: true, ...tenantWhere(user) }, select: { id: true } });
     return users.map((entry) => entry.id);
   }
   if (!user.circleId) return [user.id];
   const users = await prisma.user.findMany({
-    where: { circleId: user.circleId, active: true },
+    where: { circleId: user.circleId, active: true, ...tenantWhere(user) },
     select: { id: true }
   });
   const ids = users.map((entry) => entry.id);

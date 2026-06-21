@@ -8,6 +8,7 @@ import {
   Mail,
   MessageCircle,
   Settings,
+  SlidersHorizontal,
   ShieldCheck,
   Timer,
   ToyBrick,
@@ -18,13 +19,15 @@ import { currentSessionContext } from "@/lib/auth";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
 import { LogoutButton } from "@/components/logout-button";
 import { MobileMenu } from "@/components/mobile-menu";
+import { featureEnabled } from "@/lib/features";
+import { primaryTenantDomain } from "@/lib/tenancy";
 
 const nav = [
-  ["Start", "/", LayoutDashboard],
-  ["Szenen", "/positions", ShieldCheck],
-  ["Spielsachen", "/toys", ToyBrick],
-  ["Sessions", "/sessions", Timer],
-  ["Bilder", "/media", Images]
+  ["Start", "/", LayoutDashboard, null],
+  ["Szenen", "/positions", ShieldCheck, "positions"],
+  ["Spielsachen", "/toys", ToyBrick, "toys"],
+  ["Sessions", "/sessions", Timer, "trackers"],
+  ["Bilder", "/media", Images, "media"]
 ] as const;
 
 const primaryNav = nav.slice(0, 1);
@@ -34,6 +37,7 @@ const pictureNav = nav.slice(4);
 const settingsNav = [["Profil", "/profile", UserRound]] as const;
 
 const adminOnlySettingsNav = [
+  ["Instanz", "/settings/tenant", SlidersHorizontal],
   ["Benutzer", "/settings/users", UsersRound],
   ["Telegram", "/settings/telegram", Settings],
   ["E-Mail", "/settings/email", Mail],
@@ -45,33 +49,39 @@ const adminOnlySettingsNav = [
 const adminSettingsNav = [["Ansicht wechseln", "/settings/view-as", UsersRound]] as const;
 
 export async function AppShell({ children }: { children: ReactNode }) {
-  const { actor, user } = await currentSessionContext();
-  const isAdminActor = actor?.role === "ADMIN";
+  const { actor, user, tenant } = await currentSessionContext();
+  const isAdminActor = actor?.role === "ADMIN" || actor?.role === "SUPER_ADMIN";
   const isViewingAs = Boolean(actor && user && actor.id !== user.id);
-  const showAdminSettings = user?.role === "ADMIN";
+  const showAdminSettings = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const tenantName = tenant?.name || "Fesselspiel";
+  const tenantDomain = tenant ? primaryTenantDomain(tenant) : "playplaner.com";
+  const features = tenant?.features || [];
+  const visiblePrimaryNav = primaryNav.filter(([, , , feature]) => !feature || featureEnabled(features, feature));
+  const visibleCatalogNav = catalogNav.filter(([, , , feature]) => !feature || featureEnabled(features, feature));
+  const visiblePictureNav = pictureNav.filter(([, , , feature]) => !feature || featureEnabled(features, feature));
   return (
     <div className="min-h-screen bg-canvas">
       <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-line bg-surface px-5 py-6 lg:block">
         <Link href="/" className="mb-8 block">
-          <div className="text-xl font-semibold text-ink">Fesselspiel</div>
-          <div className="text-sm text-graphite">playplaner.com</div>
+          <div className="text-xl font-semibold text-ink">{tenantName}</div>
+          <div className="text-sm text-graphite">{tenantDomain}</div>
         </Link>
         <nav className="space-y-1">
-          {primaryNav.map(([label, href, Icon]) => (
+          {visiblePrimaryNav.map(([label, href, Icon]) => (
             <Link key={href} href={href} className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
               <Icon className="h-4 w-4" />
               {label}
             </Link>
           ))}
           <div className="my-3 border-t border-line" />
-          {catalogNav.map(([label, href, Icon]) => (
+          {visibleCatalogNav.map(([label, href, Icon]) => (
             <Link key={href} href={href} className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
               <Icon className="h-4 w-4" />
               {label}
             </Link>
           ))}
           <div className="my-3 border-t border-line" />
-          {pictureNav.map(([label, href, Icon]) => (
+          {visiblePictureNav.map(([label, href, Icon]) => (
             <Link key={href} href={href} className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
               <Icon className="h-4 w-4" />
               {label}
@@ -127,7 +137,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         ) : null}
       </aside>
       <main className="min-h-screen lg:pl-72">
-        <MobileMenu activeDarkMode={Boolean(user?.settings?.darkMode)} showAdminViewSwitch={isAdminActor} showAdminSettings={showAdminSettings} />
+        <MobileMenu activeDarkMode={Boolean(user?.settings?.darkMode)} showAdminViewSwitch={isAdminActor} showAdminSettings={showAdminSettings} tenantName={tenantName} tenantDomain={tenantDomain} enabledFeatures={features.filter((feature) => feature.enabled).map((feature) => feature.key)} />
         <div className="mx-auto flex min-h-[calc(100vh-4.5rem)] max-w-7xl flex-col px-4 py-6 sm:px-6 lg:min-h-screen lg:px-8">{children}</div>
       </main>
     </div>

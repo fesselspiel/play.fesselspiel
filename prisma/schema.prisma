@@ -8,6 +8,7 @@ datasource db {
 }
 
 enum Role {
+  SUPER_ADMIN
   ADMIN
   USER
 }
@@ -52,8 +53,55 @@ enum TelegramChatStatus {
   DISABLED
 }
 
+model Tenant {
+  id          String         @id @default(cuid())
+  slug        String         @unique
+  name        String
+  headline    String?
+  description String?
+  status      String         @default("ACTIVE")
+  primaryColor String        @default("#E30613")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  domains     TenantDomain[]
+  features    TenantFeature[]
+  users       User[]
+  circles     Circle[]
+  trackerTypes TrackerType[]
+
+  @@index([status])
+}
+
+model TenantDomain {
+  id        String   @id @default(cuid())
+  tenantId  String
+  hostname  String   @unique
+  primary   Boolean  @default(false)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, primary])
+  @@index([active])
+}
+
+model TenantFeature {
+  id        String   @id @default(cuid())
+  tenantId  String
+  key       String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key])
+  @@index([key, enabled])
+}
+
 model User {
   id                String          @id @default(cuid())
+  tenantId          String?
   circleId          String?
   email             String          @unique
   username          String?         @unique
@@ -64,6 +112,7 @@ model User {
   rememberTokenHash String?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
+  tenant            Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   circle            Circle?         @relation(fields: [circleId], references: [id], onDelete: SetNull)
   profile           Profile?
   settings          UserSettings?
@@ -85,18 +134,24 @@ model User {
   telegramMappings  TelegramUserMapping[] @relation("TelegramMappedAppUser")
   telegramNotificationTargets TelegramNotificationRule[] @relation("TelegramNotificationTargetUser")
   auditLogs         AuditLog[]
+  trackerEntries    TrackerEntry[]
 
+  @@index([tenantId])
   @@index([circleId])
 }
 
 model Circle {
   id        String   @id @default(cuid())
+  tenantId  String?
   name      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   users     User[]
   telegramChatTargets TelegramChat[] @relation("TelegramChatTargetCircle")
   telegramNotificationTargets TelegramNotificationRule[] @relation("TelegramNotificationTargetCircle")
+
+  @@index([tenantId])
 }
 
 model FileAsset {
@@ -303,6 +358,52 @@ model SegufixSession {
 
   @@index([ownerId, startTime])
   @@index([slug])
+}
+
+model TrackerType {
+  id                    String         @id @default(cuid())
+  tenantId              String?
+  key                   String
+  title                 String
+  description           String?
+  color                 String         @default("#E30613")
+  icon                  String?
+  enabled               Boolean        @default(true)
+  allowOpenSession      Boolean        @default(true)
+  autoCloseOpenSession  Boolean        @default(true)
+  fields                Json           @default("[]")
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  tenant                Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entries               TrackerEntry[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId, enabled])
+}
+
+model TrackerEntry {
+  id              String      @id @default(cuid())
+  tenantId        String?
+  ownerId         String
+  trackerTypeId   String
+  legacyType      String?
+  legacyId        String?
+  slug            String?
+  title           String?
+  startTime       DateTime
+  endTime         DateTime?
+  durationMinutes Int?
+  notes           String?
+  fieldValues     Json        @default("{}")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  owner           User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  trackerType     TrackerType @relation(fields: [trackerTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([trackerTypeId, legacyType, legacyId])
+  @@unique([tenantId, trackerTypeId, slug])
+  @@index([ownerId, startTime])
+  @@index([tenantId, trackerTypeId, startTime])
 }
 
 model KgSession {

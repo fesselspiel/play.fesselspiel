@@ -17,15 +17,56 @@ function slugify(value) {
 }
 
 async function main() {
+  const tenant = await prisma.tenant.upsert({
+    where: { slug: "playplaner" },
+    update: {},
+    create: {
+      slug: "playplaner",
+      name: "Playplaner",
+      headline: "Private Planung für Paare und Kreise",
+      description: "Geschützte Instanz für Planung, Bilder, Tracker und Telegram."
+    }
+  });
+  for (const [hostname, primary] of [["playplaner.com", true], ["play.fesselspiel.com", false]]) {
+    await prisma.tenantDomain.upsert({
+      where: { hostname },
+      update: { tenantId: tenant.id, active: true, primary },
+      create: { tenantId: tenant.id, hostname, active: true, primary }
+    });
+  }
+  const features = [
+    "positions",
+    "toys",
+    "media",
+    "activities",
+    "selfBondage",
+    "trackers",
+    "tracker.segufix",
+    "tracker.kg",
+    "telegram",
+    "externalApi",
+    "email",
+    "dataTransfer",
+    "auditLog"
+  ];
+  for (const key of features) {
+    await prisma.tenantFeature.upsert({
+      where: { tenantId_key: { tenantId: tenant.id, key } },
+      update: {},
+      create: { tenantId: tenant.id, key, enabled: true }
+    });
+  }
+
   const email = process.env.ADMIN_EMAIL || "admin@fesselspiel.com";
   const username = process.env.ADMIN_USERNAME || "admin";
   const password = process.env.ADMIN_PASSWORD || "bitte_ändern";
   const passwordHash = await bcrypt.hash(password, 12);
+  const adminRole = process.env.ADMIN_IS_SUPER_ADMIN === "false" ? "ADMIN" : "SUPER_ADMIN";
 
   const admin = await prisma.user.upsert({
     where: { email },
-    update: { username, role: "ADMIN", active: true },
-    create: { email, username, name: "Admin", passwordHash, role: "ADMIN" }
+    update: { tenantId: tenant.id, username, role: adminRole, active: true },
+    create: { tenantId: tenant.id, email, username, name: "Admin", passwordHash, role: adminRole }
   });
 
   await prisma.profile.upsert({
@@ -45,6 +86,95 @@ async function main() {
     update: {},
     create: { userId: admin.id }
   });
+
+  await Promise.all([
+    prisma.user.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } }),
+    prisma.circle.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
+  ]);
+
+  const segufixType = await prisma.trackerType.upsert({
+    where: { tenantId_key: { tenantId: tenant.id, key: "segufix" } },
+    update: {
+      title: "Segufix Time Tracker",
+      color: "#E30613",
+      enabled: true
+    },
+    create: {
+      tenantId: tenant.id,
+      key: "segufix",
+      title: "Segufix Time Tracker",
+      description: "Sessions mit Stimmung, Dauer und Begleitnotiz dokumentieren.",
+      color: "#E30613",
+      icon: "shield",
+      fields: [
+        { key: "moodBefore", label: "Stimmung vorher", type: "select", scale: true },
+        { key: "moodAfter", label: "Stimmung nachher", type: "select", scale: true }
+      ]
+    }
+  });
+  const kgType = await prisma.trackerType.upsert({
+    where: { tenantId_key: { tenantId: tenant.id, key: "kg" } },
+    update: {
+      title: "KG Time Tracker",
+      color: "#0284C7",
+      enabled: true
+    },
+    create: {
+      tenantId: tenant.id,
+      key: "kg",
+      title: "KG Time Tracker",
+      description: "Tragezeiten minutengenau erfassen.",
+      color: "#0284C7",
+      icon: "timer",
+      fields: []
+    }
+  });
+
+  for (const session of await prisma.segufixSession.findMany()) {
+    const owner = await prisma.user.findUnique({ where: { id: session.ownerId }, select: { tenantId: true } });
+    await prisma.trackerEntry.upsert({
+      where: { trackerTypeId_legacyType_legacyId: { trackerTypeId: segufixType.id, legacyType: "segufix", legacyId: session.id } },
+      update: {},
+      create: {
+        tenantId: owner?.tenantId || tenant.id,
+        ownerId: session.ownerId,
+        trackerTypeId: segufixType.id,
+        legacyType: "segufix",
+        legacyId: session.id,
+        slug: session.slug || slugify(`session-${session.startTime.toISOString()}`),
+        title: "Segufix Session",
+        startTime: session.startTime,
+        endTime: session.endTime,
+        durationMinutes: session.durationMinutes,
+        notes: session.notes,
+        fieldValues: {
+          moodBefore: session.moodBefore,
+          moodAfter: session.moodAfter
+        }
+      }
+    });
+  }
+  for (const session of await prisma.kgSession.findMany()) {
+    const owner = await prisma.user.findUnique({ where: { id: session.ownerId }, select: { tenantId: true } });
+    await prisma.trackerEntry.upsert({
+      where: { trackerTypeId_legacyType_legacyId: { trackerTypeId: kgType.id, legacyType: "kg", legacyId: session.id } },
+      update: {},
+      create: {
+        tenantId: owner?.tenantId || tenant.id,
+        ownerId: session.ownerId,
+        trackerTypeId: kgType.id,
+        legacyType: "kg",
+        legacyId: session.id,
+        slug: slugify(`kg-${session.startTime.toISOString()}`),
+        title: "KG Tracker",
+        startTime: session.startTime,
+        endTime: session.endTime,
+        durationMinutes: session.durationMinutes,
+        notes: session.notes,
+        fieldValues: {}
+      }
+    });
+  }
 
   if (process.env.SEED_DEMO_DATA !== "true" || process.env.SEED_ALLOW_DEMO_RECREATE !== "true") return;
 

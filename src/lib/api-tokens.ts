@@ -41,7 +41,7 @@ export async function userFromApiToken(request: NextRequest | Request) {
   if (!token) return null;
   const record = await prisma.apiToken.findFirst({
     where: { tokenHash: tokenHash(token), active: true, user: { active: true } },
-    include: { user: { include: { settings: true, profile: true, circle: true } } }
+    include: { user: { include: { settings: true, profile: true, circle: true, tenant: { include: { domains: true, features: true } } } } }
   });
   if (!record) return null;
   await prisma.apiToken.update({ where: { id: record.id }, data: { lastUsedAt: new Date() } });

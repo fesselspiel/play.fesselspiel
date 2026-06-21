@@ -692,3 +692,14 @@ Details:
 - Die Adminseite zeigt bei aktiven Kanälen jetzt Threadname, Chatname, Chat-ID und Thread-ID getrennt an.
 - Ausgabe-Thread-Dropdowns verwenden eindeutige Labels mit Threadname und Chatname.
 - Der Telegram-Webhook verarbeitet Bilder und Texte jetzt auch aus `channel_post`-Updates, nicht nur aus normalen `message`-Updates.
+
+## Mandanten, Features und Tracker-Core
+
+- Es gibt jetzt einen `Tenant`-Core mit Domain-Mapping über `TenantDomain`; `playplaner.com` und `play.fesselspiel.com` werden beim Seed als Alias-Domains auf den Default-Mandanten `Playplaner` gelegt.
+- Die Session kann neben einer Benutzeransicht auch eine Mandantenansicht tragen. `SUPER_ADMIN` wurde als globale Betreiberrolle ergänzt und die Seite `Ansicht wechseln` kann Mandanten und Benutzeransichten öffnen.
+- Pro Mandant gibt es Feature-Schalter (`TenantFeature`) und eine neue Einstellungsseite `Instanz`, über die Admins Name, Beschreibung und Feature-Sichtbarkeit pflegen können.
+- Navigation und Mobile-Menü lesen die aktiven Features des Mandanten und blenden deaktivierte Hauptmodule aus, ohne Daten zu löschen.
+- Segufix und KG wurden zusätzlich in einen generischen Tracker-Core gespiegelt: `TrackerType` definiert Tracker-Arten, `TrackerEntry` speichert gemeinsame Start-/End-/Dauer-/Notizdaten und JSON-Feldwerte.
+- Der Seed migriert bestehende Segufix- und KG-Einträge idempotent in `TrackerEntry`, behält die alten Tabellen aber für Kompatibilität weiter bei.
+- Neue generische API-Endpunkte `/api/external/trackers/[trackerKey]/start` und `/api/external/trackers/[trackerKey]/stop` erlauben externe Tracker-Starts/-Stops für beliebige aktivierte Tracker-Typen.
+- Eine generische Detailseite `/trackers/[trackerKey]/[slug]` zeigt migrierte und neue Tracker-Einträge an.

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
+import { currentTenant } from "@/lib/tenancy";
 
 export const SESSION_COOKIE = "fesselspiel_session";
 
@@ -11,6 +12,7 @@ type SessionPayload = {
   userId: string;
   exp: number;
   viewAsUserId?: string;
+  viewAsTenantId?: string;
 };
 
 function base64url(input: Buffer | string) {
@@ -21,11 +23,12 @@ function sign(value: string) {
   return createHmac("sha256", env.jwtSecret).update(value).digest("base64url");
 }
 
-export function createSessionToken(userId: string, remember: boolean, viewAsUserId?: string) {
+export function createSessionToken(userId: string, remember: boolean, viewAsUserId?: string, viewAsTenantId?: string) {
   const payload: SessionPayload = {
     userId,
     exp: Date.now() + (remember ? 1000 * 60 * 60 * 24 * 30 : 1000 * 60 * 60 * 12),
-    ...(viewAsUserId ? { viewAsUserId } : {})
+    ...(viewAsUserId ? { viewAsUserId } : {}),
+    ...(viewAsTenantId ? { viewAsTenantId } : {})
   };
   const body = base64url(JSON.stringify(payload));
   return `${body}.${sign(body)}`;
@@ -49,10 +52,15 @@ export function verifySessionToken(token?: string | null): SessionPayload | null
 }
 
 export async function login(identifier: string, password: string, remember: boolean) {
+  const tenant = await currentTenant();
+  const tenantFilter = tenant?.id ? { OR: [{ tenantId: tenant.id }, { tenantId: null }] } : {};
   const user = await prisma.user.findFirst({
     where: {
       active: true,
-      OR: [{ email: identifier.toLowerCase() }, { username: identifier }]
+      ...tenantFilter,
+      AND: [{
+        OR: [{ email: identifier.toLowerCase() }, { username: identifier }]
+      }]
     }
   });
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) return null;
@@ -70,29 +78,33 @@ export async function currentUser() {
   const token = cookies().get(SESSION_COOKIE)?.value;
   const session = verifySessionToken(token);
   if (!session) return null;
-  const actor = await prisma.user.findFirst({ where: { id: session.userId, active: true }, include: { settings: true, profile: true, circle: true } });
+  const actor = await prisma.user.findFirst({ where: { id: session.userId, active: true }, include: { settings: true, profile: true, circle: true, tenant: { include: { domains: true, features: true } } } });
   if (!actor) return null;
-  if (!session.viewAsUserId || actor.role !== "ADMIN") return actor;
-  return await prisma.user.findFirst({ where: { id: session.viewAsUserId, active: true }, include: { settings: true, profile: true, circle: true } }) || actor;
+  if (!session.viewAsUserId || (actor.role !== "ADMIN" && actor.role !== "SUPER_ADMIN")) return actor;
+  return await prisma.user.findFirst({ where: { id: session.viewAsUserId, active: true }, include: { settings: true, profile: true, circle: true, tenant: { include: { domains: true, features: true } } } }) || actor;
 }
 
 export async function currentSessionUser() {
   const token = cookies().get(SESSION_COOKIE)?.value;
   const session = verifySessionToken(token);
   if (!session) return null;
-  return prisma.user.findFirst({ where: { id: session.userId, active: true }, include: { settings: true, profile: true, circle: true } });
+  return prisma.user.findFirst({ where: { id: session.userId, active: true }, include: { settings: true, profile: true, circle: true, tenant: { include: { domains: true, features: true } } } });
 }
 
 export async function currentSessionContext() {
   const token = cookies().get(SESSION_COOKIE)?.value;
   const session = verifySessionToken(token);
-  if (!session) return { actor: null, user: null, viewAsUserId: null };
-  const actor = await prisma.user.findFirst({ where: { id: session.userId, active: true }, include: { settings: true, profile: true, circle: true } });
-  if (!actor) return { actor: null, user: null, viewAsUserId: null };
-  const user = session.viewAsUserId && actor.role === "ADMIN"
-    ? await prisma.user.findFirst({ where: { id: session.viewAsUserId, active: true }, include: { settings: true, profile: true, circle: true } })
+  if (!session) return { actor: null, user: null, tenant: null, viewAsUserId: null, viewAsTenantId: null };
+  const actor = await prisma.user.findFirst({ where: { id: session.userId, active: true }, include: { settings: true, profile: true, circle: true, tenant: { include: { domains: true, features: true } } } });
+  if (!actor) return { actor: null, user: null, tenant: null, viewAsUserId: null, viewAsTenantId: null };
+  const canImpersonate = actor.role === "ADMIN" || actor.role === "SUPER_ADMIN";
+  const user = session.viewAsUserId && canImpersonate
+    ? await prisma.user.findFirst({ where: { id: session.viewAsUserId, active: true }, include: { settings: true, profile: true, circle: true, tenant: { include: { domains: true, features: true } } } })
     : actor;
-  return { actor, user: user || actor, viewAsUserId: session.viewAsUserId || null };
+  const tenant = session.viewAsTenantId && actor.role === "SUPER_ADMIN"
+    ? await prisma.tenant.findUnique({ where: { id: session.viewAsTenantId }, include: { domains: true, features: true } })
+    : user?.tenant || actor.tenant || await currentTenant();
+  return { actor, user: user || actor, tenant, viewAsUserId: session.viewAsUserId || null, viewAsTenantId: session.viewAsTenantId || null };
 }
 
 export async function requireUser() {
@@ -104,7 +116,7 @@ export async function requireUser() {
 export async function requireAdmin() {
   const user = await currentSessionUser();
   if (!user) throw new Response("Nicht angemeldet", { status: 401 });
-  if (user.role !== "ADMIN") throw new Response("Nicht berechtigt", { status: 403 });
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") throw new Response("Nicht berechtigt", { status: 403 });
   return user;
 }
 
@@ -134,8 +146,8 @@ export async function userFromRequest(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const session = verifySessionToken(token);
   if (!session) return null;
-  const actor = await prisma.user.findFirst({ where: { id: session.userId, active: true }, include: { settings: true, circle: true } });
+  const actor = await prisma.user.findFirst({ where: { id: session.userId, active: true }, include: { settings: true, circle: true, tenant: { include: { domains: true, features: true } } } });
   if (!actor) return null;
-  if (!session.viewAsUserId || actor.role !== "ADMIN") return actor;
-  return await prisma.user.findFirst({ where: { id: session.viewAsUserId, active: true }, include: { settings: true, circle: true } }) || actor;
+  if (!session.viewAsUserId || (actor.role !== "ADMIN" && actor.role !== "SUPER_ADMIN")) return actor;
+  return await prisma.user.findFirst({ where: { id: session.viewAsUserId, active: true }, include: { settings: true, circle: true, tenant: { include: { domains: true, features: true } } } }) || actor;
 }

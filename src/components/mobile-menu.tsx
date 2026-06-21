@@ -10,6 +10,7 @@ import {
   Menu,
   MessageCircle,
   Settings,
+  SlidersHorizontal,
   ShieldCheck,
   Timer,
   ToyBrick,
@@ -22,11 +23,11 @@ import { DarkModeToggle } from "@/components/dark-mode-toggle";
 import { LogoutButton } from "@/components/logout-button";
 
 const mobileNav = [
-  ["Start", "/", LayoutDashboard],
-  ["Szenen", "/positions", ShieldCheck],
-  ["Spielsachen", "/toys", ToyBrick],
-  ["Sessions", "/sessions", Timer],
-  ["Bilder", "/media", Images]
+  ["Start", "/", LayoutDashboard, null],
+  ["Szenen", "/positions", ShieldCheck, "positions"],
+  ["Spielsachen", "/toys", ToyBrick, "toys"],
+  ["Sessions", "/sessions", Timer, "trackers"],
+  ["Bilder", "/media", Images, "media"]
 ] as const;
 
 const primaryMobileNav = mobileNav.slice(0, 1);
@@ -36,6 +37,7 @@ const pictureMobileNav = mobileNav.slice(4);
 const mobileSettingsNav = [["Profil", "/profile", UserRound]] as const;
 
 const adminOnlyMobileSettingsNav = [
+  ["Instanz", "/settings/tenant", SlidersHorizontal],
   ["Benutzer", "/settings/users", UsersRound],
   ["Telegram", "/settings/telegram", Settings],
   ["E-Mail", "/settings/email", Mail],
@@ -46,15 +48,36 @@ const adminOnlyMobileSettingsNav = [
 
 const adminMobileSettingsNav = [["Ansicht wechseln", "/settings/view-as", UsersRound]] as const;
 
-export function MobileMenu({ activeDarkMode = false, showAdminViewSwitch = false, showAdminSettings = false }: { activeDarkMode?: boolean; showAdminViewSwitch?: boolean; showAdminSettings?: boolean }) {
+function isVisible(feature: string | null, enabledFeatures: string[]) {
+  return !feature || enabledFeatures.includes(feature);
+}
+
+export function MobileMenu({
+  activeDarkMode = false,
+  showAdminViewSwitch = false,
+  showAdminSettings = false,
+  tenantName = "Fesselspiel",
+  tenantDomain = "playplaner.com",
+  enabledFeatures = []
+}: {
+  activeDarkMode?: boolean;
+  showAdminViewSwitch?: boolean;
+  showAdminSettings?: boolean;
+  tenantName?: string;
+  tenantDomain?: string;
+  enabledFeatures?: string[];
+}) {
   const [open, setOpen] = useState(false);
+  const visiblePrimaryNav = primaryMobileNav.filter(([, , , feature]) => isVisible(feature, enabledFeatures));
+  const visibleCatalogNav = catalogMobileNav.filter(([, , , feature]) => isVisible(feature, enabledFeatures));
+  const visiblePictureNav = pictureMobileNav.filter(([, , , feature]) => isVisible(feature, enabledFeatures));
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur lg:hidden">
       <div className="flex min-h-10 items-center justify-between gap-3">
         <Link href="/" onClick={() => setOpen(false)} className="min-w-0">
-          <div className="truncate font-semibold text-ink">Fesselspiel</div>
-          <div className="truncate text-xs text-graphite">playplaner.com</div>
+          <div className="truncate font-semibold text-ink">{tenantName}</div>
+          <div className="truncate text-xs text-graphite">{tenantDomain}</div>
         </Link>
         <div className="flex shrink-0 items-center gap-2">
           <DarkModeToggle active={activeDarkMode} compact />
@@ -76,7 +99,7 @@ export function MobileMenu({ activeDarkMode = false, showAdminViewSwitch = false
           className="absolute left-0 right-0 top-full z-40 max-h-[calc(100dvh-4.25rem)] overflow-y-auto overscroll-contain border-b border-line bg-surface px-4 pb-6 pt-3 shadow-soft [-webkit-overflow-scrolling:touch]"
         >
           <nav className="overflow-hidden rounded-md border border-line bg-surface">
-            {primaryMobileNav.map(([label, href, Icon]) => (
+            {visiblePrimaryNav.map(([label, href, Icon]) => (
               <Link
                 key={href}
                 href={href}
@@ -88,7 +111,7 @@ export function MobileMenu({ activeDarkMode = false, showAdminViewSwitch = false
               </Link>
             ))}
             <div className="h-3 border-b border-line bg-paper" />
-            {catalogMobileNav.map(([label, href, Icon]) => (
+            {visibleCatalogNav.map(([label, href, Icon]) => (
               <Link
                 key={href}
                 href={href}
@@ -100,7 +123,7 @@ export function MobileMenu({ activeDarkMode = false, showAdminViewSwitch = false
               </Link>
             ))}
             <div className="h-3 border-b border-line bg-paper" />
-            {pictureMobileNav.map(([label, href, Icon]) => (
+            {visiblePictureNav.map(([label, href, Icon]) => (
               <Link
                 key={href}
                 href={href}
