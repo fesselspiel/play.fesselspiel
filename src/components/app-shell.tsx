@@ -43,6 +43,7 @@ const adminOnlySettingsNav = [
   ["Seite", "/settings/tenant", SlidersHorizontal],
   ["Benutzer", "/settings/users", UsersRound],
   ["Shopify", "/settings/shopify", PackageSearch],
+  ["Tracker", "/settings/trackers", Timer],
   ["Telegram", "/settings/telegram", Settings],
   ["E-Mail", "/settings/email", Mail],
   ["Daten", "/settings/data", DatabaseBackup],

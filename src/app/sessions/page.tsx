@@ -6,12 +6,14 @@ import { Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass, S
 import { logAction } from "@/lib/audit";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
-import { requireFeature } from "@/lib/features";
+import { featureEnabled, hasFeature, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
+import { currentTenant } from "@/lib/tenancy";
 import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
 import { moodAfter, moodBefore, moodScore, neutralMood } from "@/lib/moods";
 import { ensureSessionSlug, uniqueSessionSlug } from "@/lib/session-slug";
 import { stopKgSession, stopSegufixSession } from "@/lib/session-actions";
+import { startTrackerEntry } from "@/lib/tracker-core";
 
 type MoodBeforeValue = keyof typeof moodBefore;
 type MoodAfterValue = keyof typeof moodAfter;
@@ -80,17 +82,114 @@ async function createKgSession(formData: FormData) {
   redirect("/sessions?tracker=kg");
 }
 
+async function startGenericTracker(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const key = String(formData.get("trackerKey") || "");
+  await requireFeature(`tracker.${key}`);
+  const entry = await startTrackerEntry({
+    key,
+    user,
+    notes: String(formData.get("notes") || "").trim()
+  });
+  if (!entry) redirect("/sessions?error=tracker");
+  await logAction({
+    actorId: user.id,
+    action: "tracker_started",
+    entityType: "trackerEntry",
+    entityId: entry.id,
+    title: `${entry.title || key}-Tracker gestartet`,
+    href: `/trackers/${key}/${entry.slug || entry.id}`
+  });
+  redirect(`/trackers/${key}/${entry.slug || entry.id}`);
+}
+
 const months = ["Januar", "Februar", "Maerz", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
 export default async function SessionsPage({ searchParams }: { searchParams: { year?: string; tracker?: string } }) {
   await requireFeature("trackers");
   const user = await currentUser();
   if (!user) redirect("/login");
+  const tenant = await currentTenant();
+  const [segufixEnabled, kgEnabled] = await Promise.all([hasFeature("tracker.segufix"), hasFeature("tracker.kg")]);
   const year = Number(searchParams.year || new Date().getFullYear());
   const yearStart = new Date(year, 0, 1);
   const yearEnd = new Date(year + 1, 0, 1);
   const scope = await ownerScope(user);
   const tracker = searchParams.tracker === "kg" ? "kg" : "segufix";
+  const genericTrackers = await prisma.trackerType.findMany({
+    where: {
+      tenantId: user.tenantId || tenant.id,
+      enabled: true,
+      key: { notIn: ["segufix", "kg"] }
+    },
+    include: {
+      entries: {
+        where: { ...scope },
+        orderBy: { startTime: "desc" },
+        take: 5
+      }
+    },
+    orderBy: { title: "asc" }
+  });
+  const visibleGenericTrackers = genericTrackers.filter((entry) => featureEnabled(tenant.features, `tracker.${entry.key}`));
+  if (tracker === "kg" && !kgEnabled) {
+    if (segufixEnabled) redirect(`/sessions?year=${year}`);
+    if (visibleGenericTrackers.length) redirect(`/sessions?tracker=${visibleGenericTrackers[0].key}&year=${year}`);
+    redirect("/feature-disabled?feature=tracker.kg");
+  }
+  if (tracker === "segufix" && !segufixEnabled) {
+    if (kgEnabled) redirect(`/sessions?tracker=kg&year=${year}`);
+    if (visibleGenericTrackers.length) {
+      return (
+        <AppShell>
+          <PageHeader title="Tracker" />
+          <PageGuide title="Konfigurierbare Tracker">
+            Diese Seite zeigt die für diese Seite aktivierten Tracker. Segufix und KG sind hier ausgeschaltet; zusätzliche Tracker können Admins unter Einstellungen konfigurieren.
+          </PageGuide>
+          <div className="space-y-4">
+            {visibleGenericTrackers.map((generic) => {
+              const open = generic.entries.find((entry) => !entry.endTime);
+              return (
+                <Panel key={generic.id}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-semibold text-ink">{generic.title}</h2>
+                      <p className="mt-1 text-sm text-graphite">{generic.description || `Allgemeiner Tracker ${generic.key}`}</p>
+                    </div>
+                    <span className="rounded-md bg-paper px-3 py-1 text-xs font-semibold text-graphite">tracker.{generic.key}</span>
+                  </div>
+                  {open ? (
+                    <Link href={`/trackers/${generic.key}/${open.slug || open.id}`} className="mt-4 block rounded-md border border-line bg-paper p-3 text-sm hover:border-redbrand">
+                      Läuft seit {formatDateTime(open.startTime)}
+                    </Link>
+                  ) : (
+                    <form action={startGenericTracker} className="mt-4 flex flex-col gap-3 sm:flex-row">
+                      <input type="hidden" name="trackerKey" value={generic.key} />
+                      <input className={inputClass} name="notes" placeholder="Optionaler Kommentar" />
+                      <Button><Save className="h-4 w-4" /> Starten</Button>
+                    </form>
+                  )}
+                  {generic.entries.length ? (
+                    <div className="mt-4 space-y-2">
+                      {generic.entries.map((entry) => (
+                        <Link key={entry.id} href={`/trackers/${generic.key}/${entry.slug || entry.id}`} className="block rounded-md border border-line p-3 text-sm hover:bg-paper">
+                          <strong>{formatDateTime(entry.startTime)}</strong>
+                          <span className="ml-2 text-graphite">{entry.endTime ? formatMinutes(entry.durationMinutes) : "läuft"}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
+                </Panel>
+              );
+            })}
+          </div>
+        </AppShell>
+      );
+    }
+    redirect("/feature-disabled?feature=tracker.segufix");
+  }
   if (tracker === "kg") {
     const kgSessions = await prisma.kgSession.findMany({ where: { ...scope, startTime: { gte: yearStart, lt: yearEnd } }, orderBy: { startTime: "desc" } });
     const totalMinutes = kgSessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
@@ -105,7 +204,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
       <AppShell>
         <PageHeader title="KG Time Tracker" />
         <nav className="mb-5 flex border-b border-line" aria-label="Tracker">
-          <Link href={`/sessions?year=${year}`} className="-mb-px rounded-t-md border border-transparent px-3 py-2 text-sm font-semibold text-graphite hover:bg-paper hover:text-ink">Segufix Time Tracker</Link>
+          {segufixEnabled ? <Link href={`/sessions?year=${year}`} className="-mb-px rounded-t-md border border-transparent px-3 py-2 text-sm font-semibold text-graphite hover:bg-paper hover:text-ink">Segufix Time Tracker</Link> : null}
           <Link href={`/sessions?tracker=kg&year=${year}`} aria-current="page" className="-mb-px rounded-t-md border border-line border-b-surface bg-surface px-3 py-2 text-sm font-semibold text-sky-700">KG Time Tracker</Link>
         </nav>
         <PageGuide title="KG-Tragezeiten minutengenau dokumentieren">
@@ -228,7 +327,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
       <PageHeader title="Segufix-Timetracker" />
       <nav className="mb-5 flex border-b border-line" aria-label="Tracker">
         <Link href={`/sessions?year=${year}`} aria-current="page" className="-mb-px rounded-t-md border border-line border-b-surface bg-surface px-3 py-2 text-sm font-semibold text-redbrand">Segufix Time Tracker</Link>
-        <Link href={`/sessions?tracker=kg&year=${year}`} className="-mb-px rounded-t-md border border-transparent px-3 py-2 text-sm font-semibold text-graphite hover:bg-paper hover:text-ink">KG Time Tracker</Link>
+        {kgEnabled ? <Link href={`/sessions?tracker=kg&year=${year}`} className="-mb-px rounded-t-md border border-transparent px-3 py-2 text-sm font-semibold text-graphite hover:bg-paper hover:text-ink">KG Time Tracker</Link> : null}
       </nav>
       <PageGuide title="Session-Erfassung, Jahresübersicht und Auswertung">
         Der Timetracker dokumentiert Sessions mit Start, Ende, Dauer, Stimmung und Kommentar. Erfasse links neue Einträge, nutze den Jahreskalender zur Orientierung und bearbeite bestehende Sessions in der Historie.

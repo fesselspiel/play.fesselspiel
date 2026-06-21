@@ -20,12 +20,12 @@ export const featureCatalog = [
 
 export type FeatureKey = typeof featureCatalog[number]["key"];
 
-export function featureEnabled(features: { key: string; enabled: boolean }[] | undefined, key: string) {
+export function featureEnabled(features: { key: string; enabled: boolean }[] | undefined, key: string): boolean {
   const feature = features?.find((entry) => entry.key === key);
   const direct = feature?.enabled !== false;
   if (!direct) return false;
-  if (key === "selfBondage") return featureEnabled(features, "positions");
-  if (key.startsWith("tracker.")) return featureEnabled(features, "trackers");
+  if (key === "selfBondage") return direct && featureEnabled(features, "positions");
+  if (key.startsWith("tracker.")) return direct && featureEnabled(features, "trackers");
   return true;
 }
 

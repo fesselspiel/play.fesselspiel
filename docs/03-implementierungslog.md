@@ -731,10 +731,14 @@ Details:
 - Navigation und Mobile-Menü lesen die aktiven Features der Seite und blenden deaktivierte Hauptmodule aus, ohne Daten zu löschen.
 - Direkte URLs zu deaktivierten Features landen auf einer freundlich formulierten, pro Seite konfigurierbaren Sperrseite. Server-Actions und externe API-Endpunkte prüfen die Features zusätzlich, damit bekannte Direktlinks nicht weiter Daten ändern.
 - Abhängigkeiten werden berücksichtigt: Self-Bondage hängt an Szenen, Tracker-Untertypen hängen am Tracker-Core. Wenn Spielsachen deaktiviert sind, werden Verknüpfungen aus Szenen/Spielplanung ausgeblendet statt weiter auf gesperrte Detailseiten zu zeigen.
+- Unterfeatures respektieren zusätzlich ihren eigenen Schalter: `selfBondage` ist nur sichtbar, wenn Self-Bondage und Szenen aktiv sind; `tracker.segufix`, `tracker.kg` und dynamische `tracker.*` sind nur sichtbar, wenn sowohl der Tracker-Core als auch der jeweilige Untertracker aktiv sind.
 - Segufix und KG wurden zusätzlich in einen generischen Tracker-Core gespiegelt: `TrackerType` definiert Tracker-Arten, `TrackerEntry` speichert gemeinsame Start-/End-/Dauer-/Notizdaten und JSON-Feldwerte.
 - Der Seed migriert bestehende Segufix- und KG-Einträge idempotent in `TrackerEntry`, behält die alten Tabellen aber für Kompatibilität weiter bei.
 - Neue generische API-Endpunkte `/api/external/trackers/[trackerKey]/start` und `/api/external/trackers/[trackerKey]/stop` erlauben externe Tracker-Starts/-Stops für beliebige aktivierte Tracker-Typen.
 - Eine generische Detailseite `/trackers/[trackerKey]/[slug]` zeigt migrierte und neue Tracker-Einträge an.
+- Admins können unter `Einstellungen > Tracker` Tracker-Typen pro Seite anlegen, bearbeiten, farblich markieren und für die Seite sichtbar oder unsichtbar schalten.
+- Die Startseite blendet Spielplanung, Ideensammlung, Self-Bondage und letzte Segufix-Sessions abhängig von den aktiven Features aus, statt nur die Zielseiten zu sperren.
+- Die Sessions-Seite zeigt KG und Segufix nur noch, wenn die jeweiligen Untertracker aktiv sind. Sind beide Legacy-Tracker ausgeschaltet, werden stattdessen aktivierte generische Tracker angezeigt.
 
 ## Shopify Bondage-System
 

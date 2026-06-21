@@ -8,6 +8,7 @@ import { confirmRequestedActivity } from "@/lib/activity-actions";
 import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
+import { hasFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
 import { ensureSessionSlug } from "@/lib/session-slug";
@@ -72,13 +73,20 @@ export default async function DashboardPage() {
   const weekEnd = new Date(todayStart);
   weekEnd.setDate(todayStart.getDate() + 7);
   const scope = await ownerScope(user);
+  const [activitiesEnabled, selfBondageEnabled, segufixEnabled] = await Promise.all([
+    hasFeature("activities"),
+    hasFeature("selfBondage"),
+    hasFeature("tracker.segufix")
+  ]);
   const [sessions, weekActivities, weekEvents, circleUsers, selfBondagePositions, ideas] = await Promise.all([
-    prisma.segufixSession.findMany({ where: scope, orderBy: { startTime: "desc" }, take: 4 }),
-    prisma.activityPlan.findMany({
-      where: { ...scope, status: { in: ["REQUESTED", "PLANNED"] }, plannedAt: { gte: todayStart, lt: weekEnd } },
-      include: { tools: true, positions: true },
-      orderBy: { plannedAt: "asc" }
-    }),
+    segufixEnabled ? prisma.segufixSession.findMany({ where: scope, orderBy: { startTime: "desc" }, take: 4 }) : Promise.resolve([]),
+    activitiesEnabled
+      ? prisma.activityPlan.findMany({
+          where: { ...scope, status: { in: ["REQUESTED", "PLANNED"] }, plannedAt: { gte: todayStart, lt: weekEnd } },
+          include: { tools: true, positions: true },
+          orderBy: { plannedAt: "asc" }
+        })
+      : Promise.resolve([]),
     prisma.event.findMany({
       where: { ...scope, startsAt: { gte: todayStart, lt: weekEnd } },
       orderBy: { startsAt: "asc" }
@@ -94,16 +102,20 @@ export default async function DashboardPage() {
       include: { user: { include: { settings: true, profile: true } } },
       orderBy: { createdAt: "asc" }
     }),
-    prisma.position.findMany({
-      where: { ...scope, selfBondageCapable: true },
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      take: 6
-    }),
-    prisma.activityPlan.findMany({
-      where: { ...scope, category: "IDEA_COLLECTION", status: { in: ["REQUESTED", "PLANNED"] } },
-      orderBy: { updatedAt: "desc" },
-      take: 5
-    })
+    selfBondageEnabled
+      ? prisma.position.findMany({
+          where: { ...scope, selfBondageCapable: true },
+          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+          take: 6
+        })
+      : Promise.resolve([]),
+    activitiesEnabled
+      ? prisma.activityPlan.findMany({
+          where: { ...scope, category: "IDEA_COLLECTION", status: { in: ["REQUESTED", "PLANNED"] } },
+          orderBy: { updatedAt: "desc" },
+          take: 5
+        })
+      : Promise.resolve([])
   ]);
 
   const sessionSlugs = new Map(await Promise.all(sessions.map(async (session) => [session.id, await ensureSessionSlug(session)] as const)));
@@ -147,12 +159,12 @@ export default async function DashboardPage() {
     <AppShell>
       <PageHeader
         title="Start"
-        action={
+        action={activitiesEnabled ? (
           <Link href="/activities/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-[#bc0711]">
             <Plus className="h-4 w-4" />
             Spielen
           </Link>
-        }
+        ) : null}
       />
       <PageGuide title="Private Übersicht">
         Start ist die Übersicht für dein Portal. Oben siehst du die Spielampel, direkt darunter die wichtigsten Spiel-Aktionen, danach Kalender und letzte Session-Einträge.
@@ -201,7 +213,8 @@ export default async function DashboardPage() {
           </div>
         </Panel>
 
-        <div className="grid gap-4 xl:grid-cols-3">
+        {activitiesEnabled ? (
+        <div className={`grid gap-4 ${selfBondageEnabled ? "xl:grid-cols-3" : "xl:grid-cols-2"}`}>
           <Panel className="text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-redbrand text-white">
               <Sparkles className="h-6 w-6" />
@@ -215,28 +228,30 @@ export default async function DashboardPage() {
               Neuen Spieltermin anlegen
             </Link>
           </Panel>
-          <Panel className="bg-paper text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-sky-600 text-white">
-              <ShieldCheck className="h-6 w-6" />
-            </div>
-            <h2 className="text-2xl font-semibold text-ink">Self-Bondage-Auftrag</h2>
-            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-graphite">
-              Erteile einen Auftrag mit einer Self-Bondage-fähigen Szene oder einer freien Anweisung.
-            </p>
-            {selfBondagePositions.length ? (
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {selfBondagePositions.map((position) => (
-                  <span key={position.id} className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-graphite">{position.name}</span>
-                ))}
+          {selfBondageEnabled ? (
+            <Panel className="bg-paper text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-sky-600 text-white">
+                <ShieldCheck className="h-6 w-6" />
               </div>
-            ) : (
-              <p className="mt-4 rounded-md bg-surface p-3 text-sm text-graphite">Markiere bei Szenen das Feld „Self-Bondage-fähig“, damit sie hier auftauchen.</p>
-            )}
-            <Link href="/activities/new?template=self-bondage" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-sky-600 bg-sky-600 px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-sky-700">
-              <ShieldCheck className="h-5 w-5" />
-              Self-Bondage-Auftrag erteilen
-            </Link>
-          </Panel>
+              <h2 className="text-2xl font-semibold text-ink">Self-Bondage-Auftrag</h2>
+              <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-graphite">
+                Erteile einen Auftrag mit einer Self-Bondage-fähigen Szene oder einer freien Anweisung.
+              </p>
+              {selfBondagePositions.length ? (
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  {selfBondagePositions.map((position) => (
+                    <span key={position.id} className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-graphite">{position.name}</span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 rounded-md bg-surface p-3 text-sm text-graphite">Markiere bei Szenen das Feld „Self-Bondage-fähig“, damit sie hier auftauchen.</p>
+              )}
+              <Link href="/activities/new?template=self-bondage" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-sky-600 bg-sky-600 px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-sky-700">
+                <ShieldCheck className="h-5 w-5" />
+                Self-Bondage-Auftrag erteilen
+              </Link>
+            </Panel>
+          ) : null}
           <Panel className="bg-paper text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500 text-white">
               <Lightbulb className="h-6 w-6" />
@@ -251,7 +266,9 @@ export default async function DashboardPage() {
             </Link>
           </Panel>
         </div>
+        ) : null}
 
+        {activitiesEnabled ? (
         <Panel>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -277,8 +294,9 @@ export default async function DashboardPage() {
             </Link>
           )}
         </Panel>
+        ) : null}
 
-        {openSessions.length ? (
+        {segufixEnabled && openSessions.length ? (
           <Panel>
             <h2 className="mb-3 text-lg font-semibold">Laufende Session</h2>
             <div className="space-y-2">
@@ -302,6 +320,7 @@ export default async function DashboardPage() {
           </Panel>
         ) : null}
 
+        {activitiesEnabled ? (
         <Panel>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -358,7 +377,9 @@ export default async function DashboardPage() {
             ))}
           </div>
         </Panel>
+        ) : null}
 
+        {segufixEnabled ? (
         <div className="grid gap-6 xl:grid-cols-2">
           <Panel>
             <h2 className="mb-4 text-lg font-semibold">Letzte Segufix-Sessions</h2>
@@ -376,6 +397,7 @@ export default async function DashboardPage() {
           </Panel>
           <div />
         </div>
+        ) : null}
       </div>
     </AppShell>
   );

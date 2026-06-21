@@ -6,6 +6,7 @@ import { Button, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
+import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { stopTrackerEntry } from "@/lib/tracker-core";
 
@@ -14,6 +15,7 @@ async function stopEntry(formData: FormData) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const key = String(formData.get("trackerKey") || "");
+  await requireFeature(`tracker.${key}`);
   const stopped = await stopTrackerEntry({ key, user });
   if (!stopped) notFound();
   redirect(`/trackers/${key}/${stopped.slug || stopped.id}`);
@@ -22,6 +24,7 @@ async function stopEntry(formData: FormData) {
 export default async function TrackerEntryPage({ params }: { params: { trackerKey: string; slug: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature(`tracker.${params.trackerKey}`);
   const scope = await ownerScope(user);
   const entry = await prisma.trackerEntry.findFirst({
     where: {
@@ -78,4 +81,3 @@ export default async function TrackerEntryPage({ params }: { params: { trackerKe
     </AppShell>
   );
 }
-

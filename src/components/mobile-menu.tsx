@@ -43,6 +43,7 @@ const adminOnlyMobileSettingsNav = [
   ["Seite", "/settings/tenant", SlidersHorizontal],
   ["Benutzer", "/settings/users", UsersRound],
   ["Shopify", "/settings/shopify", PackageSearch],
+  ["Tracker", "/settings/trackers", Timer],
   ["Telegram", "/settings/telegram", Settings],
   ["E-Mail", "/settings/email", Mail],
   ["Daten", "/settings/data", DatabaseBackup],
@@ -56,8 +57,8 @@ const superAdminMobileSettingsNav = [["Seiten", "/settings/sites", Network]] as 
 function isVisible(feature: string | null, disabledFeatures: string[]) {
   if (!feature) return true;
   if (disabledFeatures.includes(feature)) return false;
-  if (feature === "selfBondage") return !disabledFeatures.includes("positions");
-  if (feature.startsWith("tracker.")) return !disabledFeatures.includes("trackers");
+  if (feature === "selfBondage") return !disabledFeatures.includes(feature) && !disabledFeatures.includes("positions");
+  if (feature.startsWith("tracker.")) return !disabledFeatures.includes(feature) && !disabledFeatures.includes("trackers");
   return true;
 }
 
