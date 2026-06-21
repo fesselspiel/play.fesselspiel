@@ -684,3 +684,11 @@ Details:
 - E-Mail-Templates sind kontrolliert abschaltbar; zusätzlich gibt es einen globalen Schalter für das komplette E-Mail-System.
 - Die Benutzeranlage kann die Vorlage `Neues Benutzerkonto` senden, Login-Ereignisse können optional die Vorlage `Login-Benachrichtigung` senden.
 - Alle Versandversuche werden als `EmailLog` protokolliert.
+
+## Telegram Chatname und Threadname
+
+- Telegram-Kanäle speichern Chatname und Threadname getrennt als `chatTitle` und `threadTitle`.
+- Der alte `title`-Wert bleibt als Legacy-Feld erhalten, wird aber nicht mehr als Threadname verwendet, wenn er dem Chatnamen entspricht.
+- Die Adminseite zeigt bei aktiven Kanälen jetzt Threadname, Chatname, Chat-ID und Thread-ID getrennt an.
+- Ausgabe-Thread-Dropdowns verwenden eindeutige Labels mit Threadname und Chatname.
+- Der Telegram-Webhook verarbeitet Bilder und Texte jetzt auch aus `channel_post`-Updates, nicht nur aus normalen `message`-Updates.

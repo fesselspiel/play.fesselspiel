@@ -10,6 +10,8 @@ type Candidate = {
   chatId: string;
   threadId: string | null;
   title: string;
+  chatTitle: string;
+  threadTitle: string | null;
   chatType: string;
   from: string;
   text: string;
@@ -108,6 +110,8 @@ export function TelegramChatDiscovery() {
           chatId: candidate.chatId,
           threadId: candidate.threadId,
           title: candidate.title,
+          chatTitle: candidate.chatTitle,
+          threadTitle: candidate.threadTitle,
           lastMessageText: candidate.text,
           lastMessageFrom: candidate.from
         })
@@ -166,7 +170,8 @@ export function TelegramChatDiscovery() {
               <div className="grid gap-2 text-sm sm:grid-cols-2">
                 <div><span className="text-graphite">Chat-ID:</span> <strong>{candidate.chatId}</strong></div>
                 <div><span className="text-graphite">Thread-ID:</span> <strong>{candidate.threadId || "-"}</strong></div>
-                <div><span className="text-graphite">Thread-Name:</span> {candidate.title || "Unbenannter Thread"}</div>
+                <div><span className="text-graphite">Chatname:</span> {candidate.chatTitle || candidate.title || "Unbenannter Chat"}</div>
+                <div><span className="text-graphite">Threadname:</span> {candidate.threadTitle || (candidate.threadId ? "Thread-Name fehlt" : "Hauptchat")}</div>
                 <div><span className="text-graphite">Von:</span> {candidate.from || "-"}</div>
               </div>
               <div className="mt-3 rounded-md bg-surface p-3 text-sm">

@@ -8,11 +8,11 @@ import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
 import { logAction } from "@/lib/audit";
 import { fileAssetUrl, saveFileBuffer } from "@/lib/files";
 import { downloadTelegramFile, largestTelegramPhoto, sendTelegramMessage, telegramHtml, telegramLink, transcribeTelegramVoice } from "@/lib/telegram";
-import type { TelegramUpdate } from "@/lib/telegram";
+import type { TelegramMessage, TelegramUpdate } from "@/lib/telegram";
 import { uniqueSessionSlug } from "@/lib/session-slug";
 import { uniqueSlug } from "@/lib/slug";
 
-type TelegramMessageFrom = NonNullable<TelegramUpdate["message"]>["from"];
+type TelegramMessageFrom = TelegramMessage["from"];
 
 const HELP_TEXT = `<b>Befehle</b>
 /start - Bot starten
@@ -348,7 +348,7 @@ async function rememberTelegramKnownUser(chat: Awaited<ReturnType<typeof findAct
 
 export async function POST(request: Request) {
   const update = (await request.json()) as TelegramUpdate;
-  const message = update.message;
+  const message = update.message || update.channel_post;
   if (!message) return NextResponse.json({ ok: true });
   const chatId = String(message.chat.id);
   const threadId = message.message_thread_id ? String(message.message_thread_id) : null;
@@ -384,7 +384,7 @@ export async function POST(request: Request) {
       action: "telegram_image_received",
       entityType: "telegram",
       title: "Telegram-Bild empfangen",
-      details: { caption: caption || null, chatTitle: chat.title || null },
+      details: { caption: caption || null, chatTitle: chat.chatTitle || chat.title || null, threadTitle: chat.threadTitle || null },
       href: imageUrl
     });
 
@@ -450,7 +450,7 @@ export async function POST(request: Request) {
       action: "telegram_message_received",
       entityType: "telegram",
       title: "Telegram-Nachricht empfangen",
-      details: { text: body.slice(0, 500), chatTitle: chat.title || null }
+      details: { text: body.slice(0, 500), chatTitle: chat.chatTitle || chat.title || null, threadTitle: chat.threadTitle || null }
     });
     const itemDialogueAnswer = commandOf(body) ? null : await handleItemCreationDialogue(actorUserId, body);
     const answer = commandOf(body)

@@ -158,7 +158,9 @@ async function updateChat(formData: FormData) {
   await prisma.telegramChat.update({
     where: { id: chat.id },
     data: {
-      title: String(formData.get("title") || "").trim(),
+      title: String(formData.get("threadTitle") || "").trim() || null,
+      chatTitle: String(formData.get("chatTitle") || "").trim() || null,
+      threadTitle: String(formData.get("threadTitle") || "").trim() || null,
       chatId: String(formData.get("chatId") || "").trim(),
       threadId: String(formData.get("threadId") || "") || null,
       status: String(formData.get("status") || "ACTIVE") as "ACTIVE" | "DISABLED" | "PENDING",
@@ -312,7 +314,14 @@ async function activateDetectedChat(formData: FormData) {
     if (existingWholeChat) {
       await prisma.telegramChat.update({
         where: { id: existingWholeChat.id },
-        data: { title: chat.title || existingWholeChat.title, status: "ACTIVE", lastMessageAt: new Date(), ...targetData }
+        data: {
+          title: null,
+          chatTitle: chat.chatTitle || chat.title || existingWholeChat.chatTitle || existingWholeChat.title,
+          threadTitle: null,
+          status: "ACTIVE",
+          lastMessageAt: new Date(),
+          ...targetData
+        }
       });
     } else {
       await prisma.telegramChat.create({
@@ -321,7 +330,9 @@ async function activateDetectedChat(formData: FormData) {
           ...targetData,
           chatId: chat.chatId,
           threadId: null,
-          title: chat.title,
+          title: null,
+          chatTitle: chat.chatTitle || chat.title,
+          threadTitle: null,
           status: "ACTIVE",
           lastMessageAt: new Date()
         }
@@ -385,20 +396,27 @@ type TelegramChatOption = {
   chatId: string;
   threadId: string | null;
   title: string | null;
+  chatTitle: string | null;
+  threadTitle: string | null;
   targetCircle?: { name: string } | null;
   targetUser?: TelegramTargetUser | null;
 };
 
-function chatLabel(chat: TelegramChatOption) {
-  const target = chat.targetCircle ? `Kreis ${chat.targetCircle.name}` : chat.targetUser ? userLabel(chat.targetUser) : "ohne Ziel";
-  const threadName = chat.title || "Unbenannter Thread";
-  return `${threadName} · Chat ${chat.chatId} · Thread ${chat.threadId || "-"} · ${target}`;
+function chatTitleLabel(chat: { title?: string | null; chatTitle?: string | null; chatId: string }) {
+  const title = chat.chatTitle?.trim() || chat.title?.trim();
+  if (title && title !== chat.chatId) return title;
+  return "Chatname fehlt";
 }
 
-function threadNameLabel(chat: { title: string | null; chatId: string; threadId: string | null }) {
-  const title = chat.title?.trim();
-  if (title && title !== chat.chatId) return title;
+function threadNameLabel(chat: { title?: string | null; chatTitle?: string | null; threadTitle?: string | null; chatId: string; threadId: string | null }) {
+  const title = chat.threadTitle?.trim() || chat.title?.trim();
+  if (title && title !== chat.chatId && title !== chat.chatTitle) return title;
   return chat.threadId ? "Thread-Name fehlt" : "Hauptchat";
+}
+
+function chatLabel(chat: TelegramChatOption) {
+  const target = chat.targetCircle ? `Kreis ${chat.targetCircle.name}` : chat.targetUser ? userLabel(chat.targetUser) : "ohne Ziel";
+  return `${threadNameLabel(chat)} · ${chatTitleLabel(chat)} · Chat ${chat.chatId} · Thread ${chat.threadId || "-"} · ${target}`;
 }
 
 export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string; action?: string } }) {
@@ -493,7 +511,8 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
               {pendingChats.map((chat) => (
                 <div key={chat.id} className="rounded-md border border-line bg-paper p-3 text-sm">
                   <div className="grid gap-2 sm:grid-cols-2">
-                    <div><span className="text-graphite">Thread-Name:</span> {chat.title || "Unbenannter Thread"}</div>
+                    <div><span className="text-graphite">Chatname:</span> {chatTitleLabel(chat)}</div>
+                    <div><span className="text-graphite">Threadname:</span> {threadNameLabel(chat)}</div>
                     <div><span className="text-graphite">Status:</span> <Badge tone="neutral">wartet</Badge></div>
                     <div><span className="text-graphite">Chat-ID:</span> <strong>{chat.chatId}</strong></div>
                     <div><span className="text-graphite">Thread-ID:</span> <strong>{chat.threadId || "-"}</strong></div>
@@ -538,7 +557,8 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                   <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
                     <span className="min-w-0">
                       <strong className="block truncate">{threadNameLabel(chat)}</strong>
-                      <span className="mt-1 block text-graphite">Thread-Name: {threadNameLabel(chat)}</span>
+                      <span className="mt-1 block text-graphite">Threadname: {threadNameLabel(chat)}</span>
+                      <span className="mt-1 block text-graphite">Chatname: {chatTitleLabel(chat)}</span>
                       <span className="mt-1 block text-graphite">Chat-ID: {chat.chatId} · Thread-ID: {chat.threadId || "-"}</span>
                       <span className="mt-1 block text-graphite">
                         Ziel: {chat.targetCircle ? `Kreis ${chat.targetCircle.name}` : chat.targetUser ? userLabel(chat.targetUser) : "kein spezielles Ziel"}
@@ -554,7 +574,8 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                     </div>
                     <form action={updateChat} className="grid gap-3 sm:grid-cols-2">
                       <input type="hidden" name="chatIdInternal" value={chat.id} />
-                      <Field label="Thread-Name"><input className={inputClass} name="title" defaultValue={chat.title || ""} placeholder={chat.threadId ? "z.B. DATSW" : "z.B. Hauptgruppe"} /></Field>
+                      <Field label="Chatname"><input className={inputClass} name="chatTitle" defaultValue={chat.chatTitle || chat.title || ""} placeholder="z.B. Fesselspiel Play" /></Field>
+                      <Field label="Threadname"><input className={inputClass} name="threadTitle" defaultValue={chat.threadTitle || ""} placeholder={chat.threadId ? "z.B. Testing" : "Hauptchat"} /></Field>
                       <Field label="Status">
                         <select className={selectClass} name="status" defaultValue={chat.status}>
                           <option value="ACTIVE">aktiv</option>

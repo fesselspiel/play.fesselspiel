@@ -7,6 +7,8 @@ const Body = z.object({
   chatId: z.string().min(1),
   threadId: z.string().nullable().optional(),
   title: z.string().optional(),
+  chatTitle: z.string().optional(),
+  threadTitle: z.string().nullable().optional(),
   lastMessageText: z.string().optional(),
   lastMessageFrom: z.string().optional()
 });
@@ -18,6 +20,8 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Ungültige Eingabe" }, { status: 400 });
   const settings = await prisma.userSettings.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id } });
   const threadId = parsed.data.threadId || null;
+  const chatTitle = parsed.data.chatTitle || parsed.data.title || parsed.data.chatId;
+  const threadTitle = parsed.data.threadTitle || null;
   const existing = await prisma.telegramChat.findFirst({ where: { settingsId: settings.id, chatId: parsed.data.chatId, threadId } });
   const detectedMessage = {
     lastMessageText: parsed.data.lastMessageText || null,
@@ -27,7 +31,14 @@ export async function POST(request: Request) {
   const chat = existing
     ? await prisma.telegramChat.update({
         where: { id: existing.id },
-        data: { title: parsed.data.title || existing.title, status: "ACTIVE", targetUserId: existing.targetUserId || user.id, ...detectedMessage }
+        data: {
+          title: threadTitle || existing.threadTitle || null,
+          chatTitle: chatTitle || existing.chatTitle,
+          threadTitle: threadTitle || existing.threadTitle,
+          status: "ACTIVE",
+          targetUserId: existing.targetUserId || user.id,
+          ...detectedMessage
+        }
       })
     : await prisma.telegramChat.create({
         data: {
@@ -35,7 +46,9 @@ export async function POST(request: Request) {
           targetUserId: user.id,
           chatId: parsed.data.chatId,
           threadId,
-          title: parsed.data.title || parsed.data.chatId,
+          title: threadTitle || null,
+          chatTitle,
+          threadTitle,
           status: "ACTIVE",
           ...detectedMessage
         }

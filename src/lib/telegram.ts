@@ -14,7 +14,12 @@ type TelegramPhotoSize = {
 
 export type TelegramUpdate = {
   update_id: number;
-  message?: {
+  message?: TelegramMessage;
+  channel_post?: TelegramMessage;
+  edited_message?: TelegramMessage;
+};
+
+export type TelegramMessage = {
     message_id: number;
     date?: number;
     message_thread_id?: number;
@@ -23,9 +28,10 @@ export type TelegramUpdate = {
     photo?: TelegramPhotoSize[];
     document?: { file_id: string; file_name?: string; mime_type?: string; file_size?: number };
     voice?: { file_id: string; mime_type?: string };
+    forum_topic_created?: { name?: string };
+    reply_to_message?: { forum_topic_created?: { name?: string } };
     chat: { id: number; title?: string; username?: string; type?: string };
     from?: { id?: number; first_name?: string; last_name?: string; username?: string };
-  };
 };
 
 export type TelegramChatCandidate = {
@@ -34,6 +40,8 @@ export type TelegramChatCandidate = {
   chatId: string;
   threadId: string | null;
   title: string;
+  chatTitle: string;
+  threadTitle: string | null;
   chatType: string;
   from: string;
   text: string;
@@ -84,15 +92,18 @@ export async function deleteTelegramWebhook(tokenEnc: string) {
 }
 
 export function toChatCandidate(update: TelegramUpdate): TelegramChatCandidate | null {
-  const message = update.message;
+  const message = update.message || update.channel_post || update.edited_message;
   if (!message) return null;
-  const title = message.chat.title || message.chat.username || String(message.chat.id);
+  const chatTitle = message.chat.title || message.chat.username || String(message.chat.id);
+  const threadTitle = message.forum_topic_created?.name || message.reply_to_message?.forum_topic_created?.name || null;
   return {
     updateId: update.update_id,
     messageId: message.message_id,
     chatId: String(message.chat.id),
     threadId: message.message_thread_id ? String(message.message_thread_id) : null,
-    title,
+    title: threadTitle || chatTitle,
+    chatTitle,
+    threadTitle,
     chatType: message.chat.type || "unknown",
     from: message.from?.username || message.from?.first_name || "",
     text: message.text || message.caption || (message.voice ? "Sprachnachricht" : message.photo?.length || message.document ? "Datei" : ""),

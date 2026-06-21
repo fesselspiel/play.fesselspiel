@@ -425,6 +425,8 @@ model TelegramChat {
   chatId          String
   threadId        String?
   title           String?
+  chatTitle       String?
+  threadTitle     String?
   status          TelegramChatStatus @default(PENDING)
   lastMessageText String?
   lastMessageFrom String?
