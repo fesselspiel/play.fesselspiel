@@ -21,7 +21,7 @@ import { currentSessionContext } from "@/lib/auth";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
 import { LogoutButton } from "@/components/logout-button";
 import { MobileMenu } from "@/components/mobile-menu";
-import { featureEnabled } from "@/lib/features";
+import { featureEnabled, hasVisibleTrackerFeature } from "@/lib/features";
 import { primaryTenantDomain } from "@/lib/tenancy";
 
 const nav = [
@@ -64,9 +64,10 @@ export async function AppShell({ children }: { children: ReactNode }) {
   const userName = user ? user.profile?.displayName || user.name || user.username || user.email : "";
   const userEmail = user?.email || "";
   const features = tenant?.features || [];
-  const visiblePrimaryNav = primaryNav.filter(([, , , feature]) => !feature || featureEnabled(features, feature));
-  const visibleCatalogNav = catalogNav.filter(([, , , feature]) => !feature || featureEnabled(features, feature));
-  const visiblePictureNav = pictureNav.filter(([, , , feature]) => !feature || featureEnabled(features, feature));
+  const navFeatureVisible = (feature: string | null) => !feature || (feature === "trackers" ? hasVisibleTrackerFeature(features) : featureEnabled(features, feature));
+  const visiblePrimaryNav = primaryNav.filter(([, , , feature]) => navFeatureVisible(feature));
+  const visibleCatalogNav = catalogNav.filter(([, , , feature]) => navFeatureVisible(feature));
+  const visiblePictureNav = pictureNav.filter(([, , , feature]) => navFeatureVisible(feature));
   return (
     <div className="min-h-screen bg-canvas">
       <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-line bg-surface px-5 py-6 lg:block">
@@ -159,6 +160,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
           tenantName={tenantName}
           tenantDomain={tenantDomain}
           disabledFeatures={features.filter((feature) => !feature.enabled).map((feature) => feature.key)}
+          enabledFeatures={features.filter((feature) => feature.enabled).map((feature) => feature.key)}
           userName={userName}
           userEmail={userEmail}
           userImageUrl={user?.profile?.imageUrl}

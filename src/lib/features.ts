@@ -30,6 +30,10 @@ export function featureEnabled(features: { key: string; enabled: boolean }[] | u
   return true;
 }
 
+export function hasVisibleTrackerFeature(features: { key: string; enabled: boolean }[] | undefined): boolean {
+  return featureEnabled(features, "trackers") && Boolean(features?.some((entry) => entry.key.startsWith("tracker.") && featureEnabled(features, entry.key)));
+}
+
 export async function hasFeature(key: FeatureKey | string) {
   const context = await currentSessionContext();
   const tenant = context.user?.tenant || context.tenant || await currentTenant();

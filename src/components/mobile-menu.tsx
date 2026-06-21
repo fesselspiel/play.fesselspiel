@@ -54,9 +54,10 @@ const adminOnlyMobileSettingsNav = [
 const adminMobileSettingsNav = [["Ansicht wechseln", "/settings/view-as", UsersRound]] as const;
 const superAdminMobileSettingsNav = [["Seiten", "/settings/sites", Network]] as const;
 
-function isVisible(feature: string | null, disabledFeatures: string[]) {
+function isVisible(feature: string | null, disabledFeatures: string[], enabledFeatures: string[]) {
   if (!feature) return true;
   if (disabledFeatures.includes(feature)) return false;
+  if (feature === "trackers") return enabledFeatures.some((entry) => entry.startsWith("tracker.") && !disabledFeatures.includes(entry));
   if (feature === "selfBondage") return !disabledFeatures.includes(feature) && !disabledFeatures.includes("positions");
   if (feature.startsWith("tracker.")) return !disabledFeatures.includes(feature) && !disabledFeatures.includes("trackers");
   return true;
@@ -70,6 +71,7 @@ export function MobileMenu({
   tenantName = "Fesselspiel",
   tenantDomain = "playplaner.com",
   disabledFeatures = [],
+  enabledFeatures = [],
   userName,
   userEmail,
   userImageUrl,
@@ -82,15 +84,16 @@ export function MobileMenu({
   tenantName?: string;
   tenantDomain?: string;
   disabledFeatures?: string[];
+  enabledFeatures?: string[];
   userName?: string;
   userEmail?: string;
   userImageUrl?: string | null;
   viewAsLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const visiblePrimaryNav = primaryMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures));
-  const visibleCatalogNav = catalogMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures));
-  const visiblePictureNav = pictureMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures));
+  const visiblePrimaryNav = primaryMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
+  const visibleCatalogNav = catalogMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
+  const visiblePictureNav = pictureMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
 
   useEffect(() => {
     if (!open) return;

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Globe2, Plus, Save, Trash2 } from "lucide-react";
+import { ChevronDown, Globe2, Plus, Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
 import { Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
@@ -218,8 +218,7 @@ export default async function SitesPage({ searchParams }: { searchParams: { save
             <details className="group/site-create">
               <summary className="focus-ring flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 text-lg font-semibold text-ink hover:text-redbrand [&::-webkit-details-marker]:hidden">
                 Neue Seite anlegen
-                <span className="text-sm font-medium text-graphite group-open/site-create:hidden">aufklappen</span>
-                <span className="hidden text-sm font-medium text-graphite group-open/site-create:inline">einklappen</span>
+                <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open/site-create:rotate-180" />
               </summary>
               <form action={createSite} className="mt-4 space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -238,8 +237,7 @@ export default async function SitesPage({ searchParams }: { searchParams: { save
             <details className="group/sites-list" open>
               <summary className="focus-ring flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 text-lg font-semibold text-ink hover:text-redbrand [&::-webkit-details-marker]:hidden">
                 Vorhandene Seiten
-                <span className="text-sm font-medium text-graphite group-open/sites-list:hidden">aufklappen</span>
-                <span className="hidden text-sm font-medium text-graphite group-open/sites-list:inline">einklappen</span>
+                <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open/sites-list:rotate-180" />
               </summary>
               <div className="mt-4 space-y-4">
                 {sites.map((site) => {
@@ -247,7 +245,7 @@ export default async function SitesPage({ searchParams }: { searchParams: { save
                   const isMain = site.slug === DEFAULT_TENANT_SLUG;
                   return (
                     <div key={site.id} className="rounded-lg border border-line bg-surface p-4">
-                <details open={isMain} className="group/site-row">
+                <details className="group/site-row">
                   <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
@@ -259,8 +257,7 @@ export default async function SitesPage({ searchParams }: { searchParams: { save
                       </div>
                       <span className="flex shrink-0 items-center gap-2">
                         <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-graphite">{site.slug}</span>
-                        <span className="text-xs font-medium text-graphite group-open/site-row:hidden">aufklappen</span>
-                        <span className="hidden text-xs font-medium text-graphite group-open/site-row:inline">einklappen</span>
+                        <ChevronDown className="h-4 w-4 shrink-0 text-graphite transition group-open/site-row:rotate-180" />
                       </span>
                     </div>
                   </summary>
