@@ -64,6 +64,7 @@ async function main() {
   const adminRole = process.env.ADMIN_IS_SUPER_ADMIN === "false" ? "ADMIN" : "SUPER_ADMIN";
 
   const existingAdmin = await prisma.user.findUnique({ where: { email } });
+  const userCount = await prisma.user.count();
   const usernameOwner = username ? await prisma.user.findUnique({ where: { username }, select: { id: true } }) : null;
   const nextUsername = usernameOwner && usernameOwner.id !== existingAdmin?.id ? existingAdmin?.username || null : username;
   const admin = existingAdmin
@@ -71,27 +72,31 @@ async function main() {
         where: { id: existingAdmin.id },
         data: { tenantId: tenant.id, username: nextUsername, role: adminRole, active: true }
       })
+    : userCount > 0
+      ? null
     : await prisma.user.create({
         data: { tenantId: tenant.id, email, username: nextUsername, name: "Admin", passwordHash, role: adminRole }
       });
 
-  await prisma.profile.upsert({
-    where: { userId: admin.id },
-    update: {},
-    create: {
-      userId: admin.id,
-      displayName: "Fesselspiel",
-      bio: "Privater Raum für Planung, Kommunikation und Dokumentation.",
-      imageUrl: "",
-      fields: { beziehungsform: "Paar", notizen: "Eigene Profilfelder frei anpassbar" }
-    }
-  });
+  if (admin) {
+    await prisma.profile.upsert({
+      where: { userId: admin.id },
+      update: {},
+      create: {
+        userId: admin.id,
+        displayName: "Fesselspiel",
+        bio: "Privater Raum für Planung, Kommunikation und Dokumentation.",
+        imageUrl: "",
+        fields: { beziehungsform: "Paar", notizen: "Eigene Profilfelder frei anpassbar" }
+      }
+    });
 
-  await prisma.userSettings.upsert({
-    where: { userId: admin.id },
-    update: {},
-    create: { userId: admin.id }
-  });
+    await prisma.userSettings.upsert({
+      where: { userId: admin.id },
+      update: {},
+      create: { userId: admin.id }
+    });
+  }
 
   await Promise.all([
     prisma.user.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } }),
@@ -226,7 +231,7 @@ async function main() {
     });
   }
 
-  if (process.env.SEED_DEMO_DATA !== "true" || process.env.SEED_ALLOW_DEMO_RECREATE !== "true") return;
+  if (!admin || process.env.SEED_DEMO_DATA !== "true" || process.env.SEED_ALLOW_DEMO_RECREATE !== "true") return;
 
   const toyData = [
     ["Leder Manschetten", "Weiche Manschetten für ruhige Sessions.", "/toy-cuffs.svg"],

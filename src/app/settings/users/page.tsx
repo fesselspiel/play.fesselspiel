@@ -571,7 +571,10 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
                 <form action={deleteUser} className="border-t border-redbrand/20 bg-redbrand/5 p-3">
                   <input name="id" value={entry.id} type="hidden" />
                   <p className="mb-3 text-sm text-graphite">Löscht den Benutzer inklusive seiner geschützten Dateien. Gemeinsame Inhalte dieses Benutzers verschwinden dadurch ebenfalls.</p>
-                  <Button variant="danger"><Trash2 className="h-4 w-4" /> Benutzer löschen</Button>
+                  <SubmitButton pendingLabel="Benutzer wird gelöscht..." className="border border-redbrand bg-surface text-redbrand hover:bg-redbrand hover:text-white">
+                    <Trash2 className="h-4 w-4" />
+                    Benutzer löschen
+                  </SubmitButton>
                 </form>
               ) : null}
               </details>
