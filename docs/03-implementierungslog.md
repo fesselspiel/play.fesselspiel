@@ -709,6 +709,7 @@ Details:
 - Die E-Mail-Seite ist in aufklappbare Bereiche gegliedert: Postfix/Absender, Testmail, Aktions-E-Mails, Templates und Versandprotokoll.
 - Aktions-E-Mails spiegeln die Telegram-Aktionsbenachrichtigungen: Admins wählen eine protokollierte Aktion, Zielbenutzer oder Kreis und eine E-Mail-Vorlage. Beim `logAction` werden passende Regeln automatisch ausgelöst.
 - Das Protokoll verlinkt pro Aktion nun getrennt zu Telegram- und E-Mail-Regeln mit vorausgewählter Aktion.
+- Die Protokollsuche springt beim Anklicken eines Treffers direkt zum Eintrag, klappt geschlossene Tages-/Stundenbereiche automatisch auf und markiert den Treffer kurz. Direkte `#entry-...`-Links verhalten sich beim Laden genauso.
 - Benutzer mit echter E-Mail-Adresse erhalten beim Anlegen einen Bestätigungslink über die Vorlage `Benutzerkonto bestätigen`; auf `/email/confirm` setzen sie ihr Passwort und bestätigen die Adresse.
 - Benutzer können ihre E-Mail-Adresse im Profil ändern; Admins können sie in der Benutzerverwaltung ändern. Jede neue echte Adresse wird als unbestätigt gespeichert und bekommt einen neuen Bestätigungslink.
 - Bestätigungslinks sind an die konkrete E-Mail-Adresse gebunden, damit alte Links keine später erneut geänderte Adresse bestätigen können.

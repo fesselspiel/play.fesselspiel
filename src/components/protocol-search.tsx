@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Suggestion = {
   id: string;
@@ -20,6 +20,31 @@ export function ProtocolSearch({ suggestions }: { suggestions: Suggestion[] }) {
       .slice(0, 8);
   }, [query, suggestions]);
 
+  function jumpToEntry(id: string) {
+    const target = document.getElementById(`entry-${id}`);
+    if (!target) return;
+    target.querySelectorAll("details").forEach((details) => {
+      details.open = true;
+    });
+    let parent = target.parentElement;
+    while (parent) {
+      if (parent instanceof HTMLDetailsElement) parent.open = true;
+      parent = parent.parentElement;
+    }
+    window.history.replaceState(null, "", `#entry-${id}`);
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.classList.add("ring-2", "ring-redbrand", "ring-offset-2", "ring-offset-canvas");
+    window.setTimeout(() => {
+      target.classList.remove("ring-2", "ring-redbrand", "ring-offset-2", "ring-offset-canvas");
+    }, 1800);
+  }
+
+  useEffect(() => {
+    if (!window.location.hash.startsWith("#entry-")) return;
+    const id = window.location.hash.replace("#entry-", "");
+    window.setTimeout(() => jumpToEntry(id), 50);
+  }, []);
+
   return (
     <div className="relative rounded-lg border border-line bg-surface p-3 shadow-soft">
       <label className="flex items-center gap-3">
@@ -37,7 +62,11 @@ export function ProtocolSearch({ suggestions }: { suggestions: Suggestion[] }) {
             <a
               key={entry.id}
               href={`#entry-${entry.id}`}
-              onClick={() => setQuery("")}
+              onClick={(event) => {
+                event.preventDefault();
+                setQuery("");
+                jumpToEntry(entry.id);
+              }}
               className="block border-b border-line px-3 py-2 text-sm last:border-b-0 hover:bg-paper"
             >
               <span className="block font-semibold text-ink">{entry.title}</span>
