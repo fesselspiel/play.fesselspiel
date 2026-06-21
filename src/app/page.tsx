@@ -10,7 +10,6 @@ import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
-import { sendTelegramMessage, telegramHtml } from "@/lib/telegram";
 import { ensureSessionSlug } from "@/lib/session-slug";
 import { stopSegufixSession } from "@/lib/session-actions";
 
@@ -25,10 +24,6 @@ function dayKey(value: Date) {
 
 function playReadyLabel(value: boolean) {
   return value ? "voll Lust" : "gerade nicht";
-}
-
-function playReadyEmoji(value: boolean) {
-  return value ? "🟢" : "🔴";
 }
 
 async function togglePlayReady() {
@@ -64,45 +59,6 @@ async function togglePlayReady() {
     details: { previous: playReadyLabel(previous), next: playReadyLabel(next) },
     href: "/"
   });
-  const currentUserId = user.id;
-  const currentCircleId = user.circleId;
-  const telegramSettings = await prisma.userSettings.findMany({
-    where: currentCircleId
-      ? { telegramBotTokenEnc: { not: null }, user: { circleId: currentCircleId, active: true } }
-      : { telegramBotTokenEnc: { not: null }, userId: currentUserId },
-    include: { telegramChats: { where: { status: "ACTIVE" } } }
-  });
-  const seenTargets = new Set<string>();
-  function matchesTelegramTarget(chat: { targetUserId: string | null; targetCircleId: string | null }) {
-    if (chat.targetUserId || chat.targetCircleId) {
-      return chat.targetUserId === currentUserId || Boolean(currentCircleId && chat.targetCircleId === currentCircleId);
-    }
-    return false;
-  }
-  const message = [
-    "🚦 <b>Spielampel geändert</b>",
-    "",
-    `👤 <b>${telegramHtml(actorName)}</b>`,
-    `${playReadyEmoji(next)} <b>Status:</b> ${telegramHtml(playReadyLabel(next))}`,
-    "",
-    next ? "💚 <i>Da ist gerade richtig Lust im Spiel.</i>" : "❤️ <i>Gerade lieber ruhig angehen lassen.</i>"
-  ].join("\n");
-  await Promise.allSettled(
-    telegramSettings.flatMap((setting) => {
-      if (!setting.telegramBotTokenEnc) return [];
-      const targetedChats = setting.telegramChats.filter((chat) => matchesTelegramTarget(chat));
-      const threadSpecificChatIds = new Set(targetedChats.filter((chat) => chat.threadId).map((chat) => chat.chatId));
-      return targetedChats
-        .filter((chat) => chat.threadId || !threadSpecificChatIds.has(chat.chatId))
-        .filter((chat) => {
-          const key = `${setting.telegramBotTokenEnc}:${chat.chatId}:${chat.threadId || ""}`;
-          if (seenTargets.has(key)) return false;
-          seenTargets.add(key);
-          return true;
-        })
-        .map((chat) => sendTelegramMessage(setting.telegramBotTokenEnc!, chat.chatId, chat.threadId, message, { parseMode: "HTML", disableWebPagePreview: true }));
-    })
-  );
   redirect("/");
 }
 
