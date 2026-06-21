@@ -4,7 +4,7 @@ import { Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { FileUploadField } from "@/components/file-upload-field";
 import { Button, Field, inputClass, PageGuide, PageHeader } from "@/components/ui";
-import { isAccessibleOwner, ownerScope } from "@/lib/access";
+import { bondageSystemVisibilityScope, isAccessibleOwner, ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { hasFeature, requireFeature } from "@/lib/features";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
@@ -17,6 +17,7 @@ async function updatePosition(formData: FormData) {
   if (!user) redirect("/login");
   await requireFeature("positions");
   const toysEnabled = await hasFeature("toys");
+  const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
   const id = String(formData.get("id"));
   const scope = await ownerScope(user);
   const position = await prisma.position.findFirst({ where: { id, ...scope } });
@@ -25,7 +26,9 @@ async function updatePosition(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const slug = await uniqueSlugForUpdate("position", normalizeSlug(String(formData.get("slug") || ""), name), position.id);
   const selectedToolIds = toysEnabled ? formData.getAll("tools").map(String) : [];
+  const selectedBondageItemIds = bondageSystemEnabled ? formData.getAll("bondageSystemItems").map(String) : [];
   const ownedTools = toysEnabled ? await prisma.toy.findMany({ where: { ...scope, id: { in: selectedToolIds } }, select: { id: true } }) : [];
+  const ownedBondageItems = bondageSystemEnabled ? await prisma.bondageSystemItem.findMany({ where: { id: { in: selectedBondageItemIds }, tenantId: user.tenantId || undefined, visible: true, ...bondageSystemVisibilityScope(user) }, select: { id: true } }) : [];
   const uploadedImageUrl = String(formData.get("imageUploadedUrl") || "").trim();
   const image = uploadedImageUrl ? null : await saveUploadedFile(user.id, formData.get("image") as File | null);
   const removeImage = formData.get("removeImage") === "on";
@@ -40,7 +43,8 @@ async function updatePosition(formData: FormData) {
       imageUrl,
       description: String(formData.get("description") || "").trim(),
       selfBondageCapable: formData.get("selfBondageCapable") === "on",
-      ...(toysEnabled ? { tools: { set: ownedTools.map((tool) => ({ id: tool.id })) } } : {})
+      ...(toysEnabled ? { tools: { set: ownedTools.map((tool) => ({ id: tool.id })) } } : {}),
+      ...(bondageSystemEnabled ? { bondageSystemItems: { set: ownedBondageItems.map((item) => ({ id: item.id })) } } : {})
     }
   });
 
@@ -67,10 +71,17 @@ export default async function EditPositionPage({ params }: { params: { slug: str
   if (!user) redirect("/login");
   await requireFeature("positions");
   const toysEnabled = await hasFeature("toys");
-  const position = await prisma.position.findUnique({ where: { slug: params.slug }, include: { tools: toysEnabled } });
+  const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
+  const position = await prisma.position.findUnique({ where: { slug: params.slug }, include: { tools: toysEnabled, bondageSystemItems: bondageSystemEnabled } });
   if (!position || !(await isAccessibleOwner(user, position.ownerId))) notFound();
   const toys = toysEnabled ? await prisma.toy.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }) : [];
+  const bondageItems = bondageSystemEnabled ? await prisma.bondageSystemItem.findMany({
+    where: { tenantId: user.tenantId || undefined, visible: true, ...bondageSystemVisibilityScope(user) },
+    include: { product: true },
+    orderBy: [{ sortOrder: "asc" }, { product: { title: "asc" } }]
+  }) : [];
   const selected = new Set(toysEnabled ? position.tools.map((tool) => tool.id) : []);
+  const selectedBondageItems = new Set(bondageSystemEnabled ? position.bondageSystemItems.map((item) => item.id) : []);
 
   return (
     <AppShell>
@@ -106,6 +117,19 @@ export default async function EditPositionPage({ params }: { params: { slug: str
                   <label key={toy.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">
                     <input name="tools" value={toy.id} type="checkbox" defaultChecked={selected.has(toy.id)} className="h-4 w-4 accent-redbrand" />
                     <span>{toy.title}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {bondageSystemEnabled ? (
+            <div>
+              <div className="mb-2 text-sm font-medium text-graphite">Bondage-System</div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {bondageItems.map((item) => (
+                  <label key={item.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">
+                    <input name="bondageSystemItems" value={item.id} type="checkbox" defaultChecked={selectedBondageItems.has(item.id)} className="h-4 w-4 accent-redbrand" />
+                    <span>{item.product.title}</span>
                   </label>
                 ))}
               </div>

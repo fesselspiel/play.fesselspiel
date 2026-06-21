@@ -706,3 +706,12 @@ Details:
 - Der Seed migriert bestehende Segufix- und KG-Einträge idempotent in `TrackerEntry`, behält die alten Tabellen aber für Kompatibilität weiter bei.
 - Neue generische API-Endpunkte `/api/external/trackers/[trackerKey]/start` und `/api/external/trackers/[trackerKey]/stop` erlauben externe Tracker-Starts/-Stops für beliebige aktivierte Tracker-Typen.
 - Eine generische Detailseite `/trackers/[trackerKey]/[slug]` zeigt migrierte und neue Tracker-Einträge an.
+
+## Shopify Bondage-System
+
+- Es gibt das eigene Feature `shopifyBondageSystem` mit Menüpunkt `Bondage-System`, eigener Übersicht `/bondage-system` und Detailseiten `/bondage-system/[slug]`.
+- Shopify-Produkte werden nicht in den privaten Spielzeugkatalog kopiert, sondern in `ShopifyProduct` gespiegelt und über `BondageSystemItem` einzeln sichtbar geschaltet.
+- Die Adminseite `Einstellungen > Shopify` speichert Shop-Domain, verschlüsselten Admin API Token und Produkt-Tag-Filter. Ein manueller Sync liest Produkte per Shopify Admin GraphQL API ein.
+- Sichtbarkeit pro freigegebenem Produkt unterstützt Benutzer, Zirkel und alle Benutzer der aktuellen Seite.
+- Szenen und Spielpläne können Bondage-System-Produkte getrennt von normalen Spielsachen verknüpfen.
+- `POST /api/shopify/sync` ist als JSON-Sync-Endpunkt vorhanden und blockiert bei deaktiviertem Feature mit `feature_disabled`.

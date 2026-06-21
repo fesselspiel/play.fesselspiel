@@ -10,6 +10,7 @@ import {
   Menu,
   MessageCircle,
   Network,
+  PackageSearch,
   Settings,
   SlidersHorizontal,
   ShieldCheck,
@@ -27,6 +28,7 @@ const mobileNav = [
   ["Start", "/", LayoutDashboard, null],
   ["Szenen", "/positions", ShieldCheck, "positions"],
   ["Spielsachen", "/toys", ToyBrick, "toys"],
+  ["Bondage-System", "/bondage-system", PackageSearch, "shopifyBondageSystem"],
   ["Sessions", "/sessions", Timer, "trackers"],
   ["Bilder", "/media", Images, "media"]
 ] as const;
@@ -40,6 +42,7 @@ const mobileSettingsNav = [["Profil", "/profile", UserRound]] as const;
 const adminOnlyMobileSettingsNav = [
   ["Seite", "/settings/tenant", SlidersHorizontal],
   ["Benutzer", "/settings/users", UsersRound],
+  ["Shopify", "/settings/shopify", PackageSearch],
   ["Telegram", "/settings/telegram", Settings],
   ["E-Mail", "/settings/email", Mail],
   ["Daten", "/settings/data", DatabaseBackup],

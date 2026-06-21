@@ -13,8 +13,17 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
   if (!user) redirect("/login");
   await requireFeature("positions");
   const toysEnabled = await hasFeature("toys");
-  const position = await prisma.position.findUnique({ where: { slug: params.slug }, include: { tools: toysEnabled, activities: true } });
+  const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
+  const position = await prisma.position.findUnique({
+    where: { slug: params.slug },
+    include: { tools: toysEnabled, activities: true }
+  });
   if (!position || !(await isAccessibleOwner(user, position.ownerId))) notFound();
+  const positionBondageItems = bondageSystemEnabled ? await prisma.bondageSystemItem.findMany({
+    where: { positions: { some: { id: position.id } } },
+    include: { product: true },
+    orderBy: [{ sortOrder: "asc" }, { product: { title: "asc" } }]
+  }) : [];
   return (
     <AppShell>
       <PageHeader
@@ -43,6 +52,17 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
               <h2 className="mb-3 text-lg font-semibold">Spielzeuge</h2>
               <div className="space-y-2">
                 {position.tools.map((toy) => <Link key={toy.id} href={`/toys/${toy.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{toy.title}</Link>)}
+              </div>
+            </SoftPanel>
+          ) : null}
+          {bondageSystemEnabled ? (
+            <SoftPanel>
+              <h2 className="mb-3 text-lg font-semibold">Bondage-System</h2>
+              <div className="space-y-2">
+                {positionBondageItems.map((item) => (
+                  <Link key={item.id} href={`/bondage-system/${item.product.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{item.product.title}</Link>
+                ))}
+                {!positionBondageItems.length ? <p className="text-sm text-graphite">Keine Bondage-System-Produkte verknüpft.</p> : null}
               </div>
             </SoftPanel>
           ) : null}

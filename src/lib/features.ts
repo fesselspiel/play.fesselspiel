@@ -4,6 +4,7 @@ import { currentTenant } from "@/lib/tenancy";
 export const featureCatalog = [
   { key: "positions", label: "Szenen" },
   { key: "toys", label: "Spielsachen" },
+  { key: "shopifyBondageSystem", label: "Bondage-System" },
   { key: "media", label: "Bilder" },
   { key: "activities", label: "Spielplanung" },
   { key: "selfBondage", label: "Self-Bondage" },

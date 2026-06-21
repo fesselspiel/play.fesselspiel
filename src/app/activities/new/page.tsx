@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { SelfBondagePositionChoice } from "@/components/self-bondage-position-choice";
 import { SelfBondageScheduleFields } from "@/components/self-bondage-schedule-fields";
 import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
-import { ownerScope } from "@/lib/access";
+import { bondageSystemVisibilityScope, ownerScope } from "@/lib/access";
 import { activityStatusOptions, type ActivityStatusValue, quarterHourOptions } from "@/lib/activity-status";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
@@ -39,7 +39,9 @@ async function createActivity(formData: FormData) {
   const plannedAt = !ideaTemplate && !withoutSchedule && date ? new Date(`${date}T${time || "20:00"}:00`) : null;
   const toolsEnabled = await hasFeature("toys");
   const positionsEnabled = await hasFeature("positions");
+  const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
   const toolIds = selfBondageTemplate || !toolsEnabled ? [] : formData.getAll("tools").map(String);
+  const bondageItemIds = selfBondageTemplate || !bondageSystemEnabled ? [] : formData.getAll("bondageSystemItems").map(String);
   const selfBondageChoice = String(formData.get("selfBondageChoice") || "");
   const selfBondageCustomText = String(formData.get("selfBondageCustomText") || "").trim();
   if (selfBondageTemplate && !selfBondageChoice) redirect("/activities/new?template=self-bondage&error=position");
@@ -48,9 +50,10 @@ async function createActivity(formData: FormData) {
     ? selfBondageChoice.startsWith("position:") ? [selfBondageChoice.replace("position:", "")].filter(Boolean) : []
     : positionsEnabled ? formData.getAll("positions").map(String) : [];
   const scope = await ownerScope(user);
-  const [accessibleTools, accessiblePositions] = await Promise.all([
+  const [accessibleTools, accessiblePositions, accessibleBondageItems] = await Promise.all([
     toolIds.length ? prisma.toy.findMany({ where: { ...scope, id: { in: toolIds } }, select: { id: true } }) : [],
-    positionIds.length ? prisma.position.findMany({ where: { ...scope, id: { in: positionIds }, ...(selfBondageTemplate ? { selfBondageCapable: true } : {}) }, select: { id: true } }) : []
+    positionIds.length ? prisma.position.findMany({ where: { ...scope, id: { in: positionIds }, ...(selfBondageTemplate ? { selfBondageCapable: true } : {}) }, select: { id: true } }) : [],
+    bondageItemIds.length ? prisma.bondageSystemItem.findMany({ where: { tenantId: user.tenantId || undefined, id: { in: bondageItemIds }, visible: true, ...bondageSystemVisibilityScope(user) }, select: { id: true } }) : []
   ]);
   if (selfBondageTemplate && selfBondageChoice.startsWith("position:") && accessiblePositions.length !== 1) redirect("/activities/new?template=self-bondage&error=position");
   const status = String(formData.get("status") || "PLANNED") as ActivityStatusValue;
@@ -67,6 +70,7 @@ async function createActivity(formData: FormData) {
       plannedAt,
       status,
       tools: { connect: accessibleTools.map(({ id }) => ({ id })) },
+      bondageSystemItems: { connect: accessibleBondageItems.map(({ id }) => ({ id })) },
       positions: { connect: accessiblePositions.map(({ id }) => ({ id })) }
     }
   });
@@ -89,10 +93,12 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
   if (selfBondageTemplate) await requireFeature("selfBondage");
   const toolsEnabled = await hasFeature("toys");
   const positionsEnabled = await hasFeature("positions");
+  const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
   const scope = await ownerScope(user);
-  const [toys, positions] = await Promise.all([
+  const [toys, positions, bondageItems] = await Promise.all([
     toolsEnabled ? prisma.toy.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }) : [],
-    positionsEnabled ? prisma.position.findMany({ where: { ...scope, ...(selfBondageTemplate ? { selfBondageCapable: true } : {}) }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : []
+    positionsEnabled ? prisma.position.findMany({ where: { ...scope, ...(selfBondageTemplate ? { selfBondageCapable: true } : {}) }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : [],
+    bondageSystemEnabled ? prisma.bondageSystemItem.findMany({ where: { tenantId: user.tenantId || undefined, visible: true, ...bondageSystemVisibilityScope(user) }, include: { product: true }, orderBy: [{ sortOrder: "asc" }, { product: { title: "asc" } }] }) : []
   ]);
   const defaultDate = String(searchParams?.date || "").match(/^\d{4}-\d{2}-\d{2}$/) ? String(searchParams?.date) : "";
   const ideaTemplate = searchParams?.template === "idea";
@@ -177,6 +183,21 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
               ))}
             </div>
           </section> : null}
+          {!selfBondageTemplate && bondageSystemEnabled ? (
+            <section>
+              <h2 className="mb-2 text-sm font-semibold text-graphite">Bondage-System</h2>
+              <div className="space-y-2">
+                {bondageItems.map((item) => (
+                  <label key={item.id} className="flex gap-3 rounded-md bg-paper p-3 text-sm">
+                    <input name="bondageSystemItems" value={item.id} type="checkbox" className="mt-1 h-4 w-4 accent-redbrand" />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={item.product.imageUrl || "/toy-placeholder.svg"} alt="" className="h-12 w-12 rounded-md object-cover" />
+                    <span><strong className="block">{item.product.title}</strong><span className="text-graphite">{item.product.vendor || "Shopify"}</span></span>
+                  </label>
+                ))}
+              </div>
+            </section>
+          ) : null}
           {selfBondageTemplate ? (
             <SelfBondagePositionChoice
               positions={positions.map((position) => ({ id: position.id, name: position.name }))}

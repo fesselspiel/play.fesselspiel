@@ -72,6 +72,9 @@ model Tenant {
   users       User[]
   circles     Circle[]
   trackerTypes TrackerType[]
+  shopifyIntegration ShopifyIntegration?
+  shopifyProducts ShopifyProduct[]
+  bondageSystemItems BondageSystemItem[]
 
   @@index([status])
 }
@@ -139,6 +142,7 @@ model User {
   telegramNotificationTargets TelegramNotificationRule[] @relation("TelegramNotificationTargetUser")
   auditLogs         AuditLog[]
   trackerEntries    TrackerEntry[]
+  bondageSystemTargets BondageSystemItem[] @relation("BondageSystemTargetUser")
 
   @@index([tenantId])
   @@index([circleId])
@@ -154,6 +158,7 @@ model Circle {
   users     User[]
   telegramChatTargets TelegramChat[] @relation("TelegramChatTargetCircle")
   telegramNotificationTargets TelegramNotificationRule[] @relation("TelegramNotificationTargetCircle")
+  bondageSystemTargets BondageSystemItem[] @relation("BondageSystemTargetCircle")
 
   @@index([tenantId])
 }
@@ -304,6 +309,7 @@ model Position {
   updatedAt   DateTime       @updatedAt
   owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   tools       Toy[]          @relation("PositionTools")
+  bondageSystemItems BondageSystemItem[] @relation("PositionBondageSystemItems")
   activities  ActivityPlan[] @relation("ActivityPositions")
 
   @@index([ownerId, sortOrder, name])
@@ -322,11 +328,77 @@ model ActivityPlan {
   updatedAt   DateTime       @updatedAt
   owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   tools       Toy[]          @relation("ActivityTools")
+  bondageSystemItems BondageSystemItem[] @relation("ActivityBondageSystemItems")
   positions   Position[]     @relation("ActivityPositions")
   media       Media[]
   images      ActivityImage[]
 
   @@index([ownerId, status, plannedAt])
+}
+
+model ShopifyIntegration {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique
+  shopDomain      String
+  accessTokenEnc  String?
+  productTag      String
+  enabled         Boolean  @default(true)
+  lastSyncAt      DateTime?
+  lastSyncStatus  String?
+  lastSyncMessage String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([enabled])
+}
+
+model ShopifyProduct {
+  id               String   @id @default(cuid())
+  tenantId         String
+  shopifyProductId String
+  title            String
+  slug             String
+  handle           String
+  description      String?
+  imageUrl         String?
+  productUrl       String?
+  vendor           String?
+  tags             String[] @default([])
+  inTagFilter      Boolean  @default(true)
+  lastSyncedAt     DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bondageSystemItem BondageSystemItem?
+
+  @@unique([tenantId, shopifyProductId])
+  @@unique([tenantId, slug])
+  @@index([tenantId, inTagFilter, title])
+}
+
+model BondageSystemItem {
+  id               String     @id @default(cuid())
+  tenantId         String
+  shopifyProductId String     @unique
+  visible          Boolean    @default(false)
+  visibility       Visibility @default(PRIVATE)
+  targetUserId     String?
+  targetCircleId   String?
+  sortOrder        Int        @default(0)
+  showExternalLink Boolean    @default(false)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  tenant           Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product          ShopifyProduct @relation(fields: [shopifyProductId], references: [id], onDelete: Cascade)
+  targetUser       User?      @relation("BondageSystemTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+  targetCircle     Circle?    @relation("BondageSystemTargetCircle", fields: [targetCircleId], references: [id], onDelete: SetNull)
+  positions        Position[] @relation("PositionBondageSystemItems")
+  activities       ActivityPlan[] @relation("ActivityBondageSystemItems")
+
+  @@index([tenantId, visible, sortOrder])
+  @@index([targetUserId])
+  @@index([targetCircleId])
 }
 
 model ActivityImage {

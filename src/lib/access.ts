@@ -72,6 +72,17 @@ export async function mediaVisibilityScope(user: AccessUser) {
   };
 }
 
+export function bondageSystemVisibilityScope(user: AccessUser) {
+  if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") return {};
+  return {
+    OR: [
+      { visibility: "SHARED" as const },
+      { targetUserId: user.id },
+      ...(user.circleId ? [{ visibility: "PARTNER" as const, OR: [{ targetCircleId: user.circleId }, { targetCircleId: null }] }] : [])
+    ]
+  };
+}
+
 export async function isAccessibleOwner(user: AccessUser, ownerId: string) {
   return (await accessibleOwnerIds(user)).includes(ownerId);
 }

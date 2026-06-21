@@ -6,7 +6,7 @@ import { SelfBondagePositionChoice } from "@/components/self-bondage-position-ch
 import { SelfBondageScheduleFields } from "@/components/self-bondage-schedule-fields";
 import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
 import { activityStatusOptions, type ActivityStatusValue } from "@/lib/activity-status";
-import { isAccessibleOwner, ownerScope } from "@/lib/access";
+import { bondageSystemVisibilityScope, isAccessibleOwner, ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { formatDateTimeLocal } from "@/lib/dates";
 import { hasFeature, requireFeature } from "@/lib/features";
@@ -59,7 +59,9 @@ async function updateActivity(formData: FormData) {
   if (selfBondageOrder) await requireFeature("selfBondage");
   const toolsEnabled = await hasFeature("toys");
   const positionsEnabled = await hasFeature("positions");
+  const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
   const toolIds = selfBondageOrder || !toolsEnabled ? [] : formData.getAll("tools").map(String);
+  const bondageItemIds = selfBondageOrder || !bondageSystemEnabled ? [] : formData.getAll("bondageSystemItems").map(String);
   const selfBondageChoice = String(formData.get("selfBondageChoice") || "");
   const selfBondageCustomText = String(formData.get("selfBondageCustomText") || "").trim();
   if (selfBondageOrder && !selfBondageChoice) redirect(`/activities/${activity.slug}/edit?error=position`);
@@ -67,9 +69,10 @@ async function updateActivity(formData: FormData) {
   const positionIds = selfBondageOrder
     ? selfBondageChoice.startsWith("position:") ? [selfBondageChoice.replace("position:", "")].filter(Boolean) : []
     : positionsEnabled ? formData.getAll("positions").map(String) : [];
-  const [ownedTools, ownedPositions] = await Promise.all([
+  const [ownedTools, ownedPositions, ownedBondageItems] = await Promise.all([
     prisma.toy.findMany({ where: { ...scope, id: { in: toolIds } }, select: { id: true } }),
-    prisma.position.findMany({ where: { ...scope, id: { in: positionIds }, ...(selfBondageOrder ? { selfBondageCapable: true } : {}) }, select: { id: true } })
+    prisma.position.findMany({ where: { ...scope, id: { in: positionIds }, ...(selfBondageOrder ? { selfBondageCapable: true } : {}) }, select: { id: true } }),
+    prisma.bondageSystemItem.findMany({ where: { tenantId: user.tenantId || undefined, id: { in: bondageItemIds }, visible: true, ...bondageSystemVisibilityScope(user) }, select: { id: true } })
   ]);
   if (selfBondageOrder && selfBondageChoice.startsWith("position:") && ownedPositions.length !== 1) redirect(`/activities/${activity.slug}/edit?error=position`);
   const note = selfBondageOrder
@@ -86,6 +89,7 @@ async function updateActivity(formData: FormData) {
       plannedAt: !idea && !withoutSchedule && plannedAtRaw ? new Date(plannedAtRaw) : null,
       status: String(formData.get("status") || "PLANNED") as ActivityStatusValue,
       tools: { set: ownedTools.map((tool) => ({ id: tool.id })) },
+      bondageSystemItems: { set: ownedBondageItems.map((item) => ({ id: item.id })) },
       positions: { set: ownedPositions.map((position) => ({ id: position.id })) }
     }
   });
@@ -121,16 +125,19 @@ export default async function EditActivityPage({ params, searchParams }: { param
   if (!user) redirect("/login");
   const toolsEnabled = await hasFeature("toys");
   const positionsEnabled = await hasFeature("positions");
-  const activity = await prisma.activityPlan.findUnique({ where: { slug: params.slug }, include: { tools: toolsEnabled, positions: positionsEnabled } });
+  const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
+  const activity = await prisma.activityPlan.findUnique({ where: { slug: params.slug }, include: { tools: toolsEnabled, bondageSystemItems: bondageSystemEnabled, positions: positionsEnabled } });
   if (!activity || !(await isAccessibleOwner(user, activity.ownerId))) notFound();
   const scope = await ownerScope(user);
-  const [toys, positions] = await Promise.all([
+  const [toys, positions, bondageItems] = await Promise.all([
     toolsEnabled ? prisma.toy.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }) : [],
-    positionsEnabled ? prisma.position.findMany({ where: { ...scope, ...(activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage" ? { selfBondageCapable: true } : {}) }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : []
+    positionsEnabled ? prisma.position.findMany({ where: { ...scope, ...(activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage" ? { selfBondageCapable: true } : {}) }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : [],
+    bondageSystemEnabled ? prisma.bondageSystemItem.findMany({ where: { tenantId: user.tenantId || undefined, visible: true, ...bondageSystemVisibilityScope(user) }, include: { product: true }, orderBy: [{ sortOrder: "asc" }, { product: { title: "asc" } }] }) : []
   ]);
   const isSelfBondageOrder = activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage";
   const isIdea = activity.category === "IDEA_COLLECTION";
   const selectedTools = new Set(((activity as { tools?: { id: string }[] }).tools || []).map((tool) => tool.id));
+  const selectedBondageItems = new Set(((activity as { bondageSystemItems?: { id: string }[] }).bondageSystemItems || []).map((item) => item.id));
   const selectedPositions = new Set(((activity as { positions?: { id: string }[] }).positions || []).map((position) => position.id));
   const statusOptions = activityStatusOptions(isSelfBondageOrder, isIdea);
   const customPositionText = positionNoteValue(activity.note);
@@ -209,6 +216,21 @@ export default async function EditActivityPage({ params, searchParams }: { param
                 ))}
               </div>
             </section> : null}
+            {!isSelfBondageOrder && bondageSystemEnabled ? (
+              <section>
+                <h2 className="mb-2 text-sm font-semibold text-graphite">Bondage-System</h2>
+                <div className="space-y-2">
+                  {bondageItems.map((item) => (
+                    <label key={item.id} className="flex gap-3 rounded-md bg-paper p-3 text-sm">
+                      <input name="bondageSystemItems" value={item.id} type="checkbox" defaultChecked={selectedBondageItems.has(item.id)} className="mt-1 h-4 w-4 accent-redbrand" />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={item.product.imageUrl || "/toy-placeholder.svg"} alt="" className="h-12 w-12 rounded-md object-cover" />
+                      <span><strong className="block">{item.product.title}</strong><span className="text-graphite">{item.product.vendor || "Shopify"}</span></span>
+                    </label>
+                  ))}
+                </div>
+              </section>
+            ) : null}
             {isSelfBondageOrder ? (
               <SelfBondagePositionChoice
                 positions={positions.map((position) => ({ id: position.id, name: position.name }))}

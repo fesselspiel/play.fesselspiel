@@ -82,6 +82,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
   if (!user) redirect("/login");
   const toolsEnabled = await hasFeature("toys");
   const positionsEnabled = await hasFeature("positions");
+  const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
   const activity = await prisma.activityPlan.findUnique({
     where: { slug: params.slug },
     include: {
@@ -92,6 +93,11 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
     }
   });
   if (!activity || !(await isAccessibleOwner(user, activity.ownerId))) notFound();
+  const activityBondageItems = bondageSystemEnabled ? await prisma.bondageSystemItem.findMany({
+    where: { activities: { some: { id: activity.id } } },
+    include: { product: true },
+    orderBy: [{ sortOrder: "asc" }, { product: { title: "asc" } }]
+  }) : [];
   const isSelfBondageOrder = activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage";
   const isIdea = activity.category === "IDEA_COLLECTION";
   const ideaImages = [
@@ -145,6 +151,17 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
               {!((activity as { tools?: unknown[] }).tools || []).length ? <p className="text-sm text-graphite">Keine Spielsachen ausgewählt.</p> : null}
             </div>
           </SoftPanel> : null}
+          {!isSelfBondageOrder && bondageSystemEnabled ? (
+            <SoftPanel>
+              <h2 className="mb-3 text-lg font-semibold">Bondage-System</h2>
+              <div className="space-y-2">
+                {activityBondageItems.map((item) => (
+                  <Link key={item.id} href={`/bondage-system/${item.product.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{item.product.title}</Link>
+                ))}
+                {!activityBondageItems.length ? <p className="text-sm text-graphite">Keine Bondage-System-Produkte ausgewählt.</p> : null}
+              </div>
+            </SoftPanel>
+          ) : null}
           {positionsEnabled ? <SoftPanel>
             <h2 className="mb-3 text-lg font-semibold">{isSelfBondageOrder ? "Self-Bondage-fähige Szenen" : "Szenen"}</h2>
             <div className="space-y-2">
