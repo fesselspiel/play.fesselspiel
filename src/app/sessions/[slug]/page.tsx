@@ -28,6 +28,7 @@ async function addSessionMedia(formData: FormData) {
   const album = await ensureDefaultAlbum(user.id);
   await prisma.media.create({
     data: {
+      tenantId: user.tenantId || undefined,
       ownerId: user.id,
       albumId: album.id,
       sessionId: session.id,

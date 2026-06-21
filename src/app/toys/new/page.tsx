@@ -22,11 +22,12 @@ async function createToy(formData: FormData) {
   const image = uploadedImageUrl ? null : await saveUploadedFile(user.id, formData.get("image") as File | null);
   const imageUrl = uploadedImageUrl || (image ? fileAssetUrl(image.id) : "");
   const requestedSlug = normalizeSlug(String(formData.get("slug") || ""), title);
-  const slug = await uniqueSlug("toy", requestedSlug);
+  const slug = await uniqueSlug("toy", requestedSlug, user.tenantId);
   const selectedPositionIds = positionsEnabled ? formData.getAll("positions").map(String) : [];
   const positions = positionsEnabled ? await prisma.position.findMany({ where: { ...(await ownerScope(user)), id: { in: selectedPositionIds } }, select: { id: true } }) : [];
   await prisma.toy.create({
     data: {
+      tenantId: user.tenantId || undefined,
       ownerId: user.id,
       title,
       description,

@@ -10,7 +10,7 @@ LOG_FILE="${STARTUP_LOG_DIR:-/app/logs}/startup.log"
 {
   echo "---- $(date -u '+%Y-%m-%dT%H:%M:%SZ') startup ----"
   echo "running prisma db push"
-  npx prisma db push --skip-generate
+  npx prisma db push --accept-data-loss --skip-generate
   echo "running seed"
   node prisma/seed.js
   echo "starting app: $*"

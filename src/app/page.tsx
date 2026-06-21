@@ -83,10 +83,16 @@ export default async function DashboardPage() {
       where: { ...scope, startsAt: { gte: todayStart, lt: weekEnd } },
       orderBy: { startsAt: "asc" }
     }),
-    prisma.user.findMany({
-      where: user.circleId ? { circleId: user.circleId, active: true } : user.role === "ADMIN" ? { active: true } : { id: user.id },
-      include: { settings: true, profile: true },
-      orderBy: [{ name: "asc" }, { email: "asc" }]
+    prisma.tenantMembership.findMany({
+      where: user.tenantId
+        ? user.circleId
+          ? { tenantId: user.tenantId, circleId: user.circleId, active: true, user: { active: true } }
+          : user.role === "ADMIN" || user.role === "SUPER_ADMIN"
+            ? { tenantId: user.tenantId, active: true, user: { active: true } }
+            : { tenantId: user.tenantId, userId: user.id, active: true, user: { active: true } }
+        : { userId: user.id, active: true, user: { active: true } },
+      include: { user: { include: { settings: true, profile: true } } },
+      orderBy: { createdAt: "asc" }
     }),
     prisma.position.findMany({
       where: { ...scope, selfBondageCapable: true },
@@ -159,7 +165,8 @@ export default async function DashboardPage() {
             <p className="mt-1 text-sm text-graphite">Grün heißt volle Lust, Rot heißt gerade nicht.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {circleUsers.map((member) => {
+            {circleUsers.map((membership) => {
+              const member = membership.user;
               const ready = Boolean(member.settings?.playReady);
               const isSelf = member.id === user.id;
               const displayName = member.profile?.displayName || member.name || member.username || member.email;

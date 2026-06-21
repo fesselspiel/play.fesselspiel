@@ -12,13 +12,14 @@ async function toggleSession(request: NextRequest) {
   const blocked = apiFeatureGate(auth.user, "externalApi", "tracker.segufix");
   if (blocked) return blocked;
   const values = await requestValues(request);
-  const open = await prisma.segufixSession.findFirst({ where: { ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } });
+  const open = await prisma.segufixSession.findFirst({ where: { tenantId: auth.user.tenantId || undefined, ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } });
   if (!open) {
     const startTime = dateFromValue(values.get("startTime")) || new Date();
     const session = await prisma.segufixSession.create({
       data: {
         ownerId: auth.user.id,
-        slug: await uniqueSessionSlug(startTime),
+        tenantId: auth.user.tenantId || undefined,
+        slug: await uniqueSessionSlug(startTime, undefined, auth.user.tenantId),
         startTime,
         notes: values.get("note") || values.get("notes") || "Per API gestartet"
       }

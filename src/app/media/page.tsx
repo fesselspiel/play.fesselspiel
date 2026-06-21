@@ -61,6 +61,7 @@ async function createMedia(formData: FormData) {
   const kind = file.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE";
   await prisma.media.create({
     data: {
+      tenantId: user.tenantId || undefined,
       ownerId: user.id,
       albumId: targetAlbum.id,
       title: String(formData.get("title") || "").trim(),
@@ -100,6 +101,7 @@ async function createAlbum(formData: FormData) {
   }
   await prisma.album.create({
     data: {
+      tenantId: user.tenantId || undefined,
       ownerId: user.id,
       title,
       description: String(formData.get("description") || "").trim(),
@@ -148,6 +150,7 @@ async function createAlbumForMedia(formData: FormData) {
   }
   const album = await prisma.album.create({
     data: {
+      tenantId: user.tenantId || undefined,
       ownerId: user.id,
       title,
       description: "",

@@ -22,20 +22,21 @@ async function switchView(formData: FormData) {
   const targetTenant = targetTenantId && admin.role === "SUPER_ADMIN"
     ? await prisma.tenant.findUnique({ where: { id: targetTenantId } })
     : null;
+  const effectiveTenantId = targetTenant?.id || targetTenantId || admin.tenantId || "";
   const target = targetId
     ? await prisma.user.findFirst({
         where: {
           id: targetId,
           active: true,
-          ...(admin.role === "SUPER_ADMIN" ? {} : { tenantId: admin.tenantId || undefined })
+          ...(effectiveTenantId ? { memberships: { some: { tenantId: effectiveTenantId, active: true } } } : {})
         },
-        include: { profile: true, tenant: true }
+        include: { profile: true }
       })
     : null;
   if (targetId && !target) redirect("/settings/view-as");
   if (targetTenantId && !targetTenant) redirect("/settings/view-as");
   const viewAsUserId = target && target.id !== admin.id ? target.id : undefined;
-  const viewAsTenantId = target?.tenantId || targetTenant?.id || undefined;
+  const viewAsTenantId = effectiveTenantId || targetTenant?.id || undefined;
   const token = createSessionToken(admin.id, currentCookieMaxAge() > 60 * 60 * 12, viewAsUserId, viewAsTenantId);
   cookies().set(SESSION_COOKIE, token, sessionCookieOptions(currentCookieMaxAge()));
   await logAction({
@@ -73,16 +74,25 @@ export default async function ViewAsPage() {
   if (actor.role !== "ADMIN" && actor.role !== "SUPER_ADMIN") redirect("/");
 
   const tenants = actor.role === "SUPER_ADMIN"
-    ? await prisma.tenant.findMany({ include: { domains: true, _count: { select: { users: true } } }, orderBy: { name: "asc" } })
+    ? await prisma.tenant.findMany({ include: { domains: true, _count: { select: { memberships: true } } }, orderBy: { name: "asc" } })
     : [];
-  const users = await prisma.user.findMany({
+  const memberships = await prisma.tenantMembership.findMany({
     where: {
       active: true,
-      ...(actor.role === "SUPER_ADMIN" ? (tenant?.id ? { tenantId: tenant.id } : {}) : { tenantId: actor.tenantId || undefined })
+      tenantId: tenant?.id || actor.tenantId || "",
+      user: { active: true }
     },
-    include: { profile: true, circle: true, tenant: true },
+    include: { circle: true, tenant: true, user: { include: { profile: true } } },
     orderBy: [{ role: "asc" }, { createdAt: "asc" }]
   });
+  const users = memberships.map((membership) => ({
+    ...membership.user,
+    tenantId: membership.tenantId,
+    tenant: membership.tenant,
+    circleId: membership.circleId,
+    circle: membership.circle,
+    role: membership.user.role === "SUPER_ADMIN" ? "SUPER_ADMIN" : membership.role
+  }));
   const viewingOtherUser = Boolean(user && user.id !== actor.id);
 
   return (
@@ -114,7 +124,7 @@ export default async function ViewAsPage() {
                     <div className="min-w-0">
                       <strong className="block truncate text-ink">{entry.name}</strong>
                       <span className="block truncate text-sm text-graphite">{entry.domains.find((domain) => domain.primary)?.hostname || entry.domains[0]?.hostname || "Keine Domain"}</span>
-                      <span className="block text-xs text-graphite">{entry._count.users} Benutzer</span>
+                      <span className="block text-xs text-graphite">{entry._count.memberships} Benutzer</span>
                     </div>
                     <Button variant={tenant?.id === entry.id && !viewingOtherUser ? "secondary" : "primary"} type="submit">Seite öffnen</Button>
                   </div>

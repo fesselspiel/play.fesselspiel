@@ -26,6 +26,18 @@ type PositionItem = {
   tools: { id: string; title: string; slug: string }[];
 };
 
+type BondageSystemItem = {
+  id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  imageUrl: string | null;
+  vendor: string | null;
+  positionCount: number;
+  activityCount: number;
+  inTagFilter: boolean;
+};
+
 function DragHandle() {
   return (
     <span className="focus-ring inline-flex h-10 w-10 shrink-0 cursor-grab items-center justify-center rounded-md border border-line bg-surface text-graphite active:cursor-grabbing">
@@ -35,7 +47,7 @@ function DragHandle() {
   );
 }
 
-function useReorder<T extends { id: string }>(kind: "toys" | "positions", items: T[]) {
+function useReorder<T extends { id: string }>(kind: "toys" | "positions" | "bondageSystem", items: T[]) {
   const [ordered, setOrdered] = useState(items);
   const [dragId, setDragId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -222,6 +234,74 @@ export function SortablePositionList({ items, canSort = false, showTools = true 
         </details>
       ) : null}
       {isPending ? <p className="text-xs text-graphite">Reihenfolge wird gespeichert ...</p> : null}
+    </div>
+  );
+}
+
+export function SortableBondageSystemList({ items, canSort = false }: { items: BondageSystemItem[]; canSort?: boolean }) {
+  const { ordered, moveBy, isPending } = useReorder("bondageSystem", items);
+  return (
+    <div className="space-y-3">
+      {ordered.map((item) => (
+        <details key={item.id} className="group overflow-hidden rounded-lg border border-line bg-surface">
+          <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 px-3 py-3 hover:bg-paper [&::-webkit-details-marker]:hidden">
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-paper sm:h-16 sm:w-16">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={item.imageUrl || "/toy-placeholder.svg"} alt="" className="block h-full w-full max-w-full object-contain" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-base font-semibold text-ink">{item.title}</h2>
+              <p className="mt-1 truncate text-xs text-graphite">
+                {item.positionCount} Szenen · {item.activityCount} Spielpläne · {item.vendor || "Shopify"}
+              </p>
+            </div>
+            <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open:rotate-180" />
+          </summary>
+          <div className="border-t border-line bg-paper p-4">
+            <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+              <div className="flex h-56 max-h-56 items-center justify-center overflow-hidden rounded-md bg-surface">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={item.imageUrl || "/toy-placeholder.svg"} alt="" className="block h-full w-full max-w-full object-contain" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-graphite">
+                  <span className="rounded-md bg-surface px-2 py-1">{item.positionCount} Szenen</span>
+                  <span className="rounded-md bg-surface px-2 py-1">{item.activityCount} Spielpläne</span>
+                  {!item.inTagFilter ? <span className="rounded-md bg-surface px-2 py-1">nicht mehr im Shopify-Filter</span> : null}
+                </div>
+                <p className="mt-4 line-clamp-5 text-sm leading-6 text-graphite">{item.description || "Keine Beschreibung von Shopify erhalten."}</p>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <Link href={`/bondage-system/${item.slug}`} className="inline-flex min-h-10 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
+                    Detail öffnen
+                  </Link>
+                  <span className="text-xs text-graphite">Detailseite mit Shopify-Beschreibung, Bild und Verknüpfungen.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+      ))}
+      {canSort ? (
+        <details className="rounded-lg border border-line bg-surface p-4">
+          <summary className="cursor-pointer list-none text-sm font-semibold text-graphite hover:text-redbrand [&::-webkit-details-marker]:hidden">
+            Reihenfolge bearbeiten
+          </summary>
+          <div className="mt-3 space-y-2">
+            {ordered.map((item, index) => (
+              <div key={item.id} className="flex items-center gap-2 rounded-md bg-paper p-2">
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{item.title}</span>
+                <button type="button" onClick={() => moveBy(item.id, -1)} disabled={index === 0} className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface disabled:opacity-40">
+                  <MoveUp className="h-4 w-4" />
+                </button>
+                <button type="button" onClick={() => moveBy(item.id, 1)} disabled={index === ordered.length - 1} className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface disabled:opacity-40">
+                  <MoveDown className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            {isPending ? <p className="text-xs text-graphite">Reihenfolge wird gespeichert ...</p> : null}
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }

@@ -12,7 +12,7 @@ async function stopKgSession(request: NextRequest) {
   const blocked = apiFeatureGate(auth.user, "externalApi", "tracker.kg");
   if (blocked) return blocked;
   const values = await requestValues(request);
-  const session = await prisma.kgSession.findFirst({ where: { ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } });
+  const session = await prisma.kgSession.findFirst({ where: { tenantId: auth.user.tenantId || undefined, ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } });
   if (!session) return NextResponse.json({ ok: false, error: "Kein laufender KG-Tracker gefunden" }, { status: 404 });
   const endTime = dateFromValue(values.get("endTime")) || new Date();
   const note = values.get("note") || values.get("notes") || "";

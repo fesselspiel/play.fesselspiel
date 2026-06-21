@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
     prisma.position.count({ where: scope }),
     prisma.activityPlan.count({ where: { ...scope, category: { not: "IDEA_COLLECTION" }, status: { in: ["REQUESTED", "PLANNED"] } } }),
     prisma.media.count({ where: scope }),
-    prisma.segufixSession.findFirst({ where: { ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } }),
-    prisma.kgSession.findFirst({ where: { ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } })
+    prisma.segufixSession.findFirst({ where: { tenantId: auth.user.tenantId || undefined, ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } }),
+    prisma.kgSession.findFirst({ where: { tenantId: auth.user.tenantId || undefined, ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } })
   ]);
   return NextResponse.json({
     ok: true,

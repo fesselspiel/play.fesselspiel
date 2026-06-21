@@ -18,7 +18,7 @@ async function createPosition(formData: FormData) {
   const toysEnabled = await hasFeature("toys");
   const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
   const name = String(formData.get("name") || "").trim();
-  const slug = await uniqueSlug("position", normalizeSlug(String(formData.get("slug") || ""), name));
+  const slug = await uniqueSlug("position", normalizeSlug(String(formData.get("slug") || ""), name), user.tenantId);
   const toolIds = toysEnabled ? formData.getAll("tools").map(String) : [];
   const bondageItemIds = bondageSystemEnabled ? formData.getAll("bondageSystemItems").map(String) : [];
   const accessibleTools = toysEnabled && toolIds.length ? await prisma.toy.findMany({ where: { ...(await ownerScope(user)), id: { in: toolIds } }, select: { id: true } }) : [];
@@ -27,6 +27,7 @@ async function createPosition(formData: FormData) {
   const image = uploadedImageUrl ? null : await saveUploadedFile(user.id, formData.get("image") as File | null);
   await prisma.position.create({
     data: {
+      tenantId: user.tenantId || undefined,
       ownerId: user.id,
       name,
       slug,

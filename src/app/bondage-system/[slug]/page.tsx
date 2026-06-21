@@ -7,6 +7,7 @@ import { bondageSystemVisibilityScope } from "@/lib/access";
 import { currentSessionContext } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
+import { sanitizeShopifyHtml } from "@/lib/html";
 import { prisma } from "@/lib/prisma";
 
 export default async function BondageSystemDetailPage({ params }: { params: { slug: string } }) {
@@ -32,11 +33,18 @@ export default async function BondageSystemDetailPage({ params }: { params: { sl
       </PageGuide>
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <Panel>
-          <div className="aspect-[16/10] overflow-hidden rounded-md bg-paper">
+          <div className="flex max-h-[520px] min-h-64 items-center justify-center overflow-hidden rounded-md bg-paper">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={item.product.imageUrl || "/toy-placeholder.svg"} alt="" className="h-full w-full object-cover" />
+            <img src={item.product.imageUrl || "/toy-placeholder.svg"} alt="" className="block max-h-[520px] w-full max-w-full object-contain" />
           </div>
-          <p className="mt-5 whitespace-pre-wrap leading-7 text-graphite">{item.product.description || "Keine Beschreibung von Shopify erhalten."}</p>
+          {item.product.description ? (
+            <div
+              className="mt-5 space-y-4 leading-7 text-graphite [&_a]:font-semibold [&_a]:text-redbrand [&_blockquote]:border-l-4 [&_blockquote]:border-line [&_blockquote]:pl-4 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-ink [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-ink [&_li]:ml-5 [&_ol]:list-decimal [&_p]:leading-7 [&_strong]:font-semibold [&_ul]:list-disc"
+              dangerouslySetInnerHTML={{ __html: sanitizeShopifyHtml(item.product.description) }}
+            />
+          ) : (
+            <p className="mt-5 leading-7 text-graphite">Keine Beschreibung von Shopify erhalten.</p>
+          )}
           <div className="mt-5 grid gap-3 text-sm text-graphite sm:grid-cols-2">
             <div>Vendor: {item.product.vendor || "Shopify"}</div>
             <div>Synchronisiert: {formatDateTime(item.product.lastSyncedAt)}</div>

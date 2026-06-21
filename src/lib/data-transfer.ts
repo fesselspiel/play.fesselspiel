@@ -55,6 +55,26 @@ function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
 }
 
+function extensionForMime(mimeType: string) {
+  if (mimeType === "image/jpeg") return ".jpg";
+  if (mimeType === "image/png") return ".png";
+  if (mimeType === "image/webp") return ".webp";
+  if (mimeType === "image/gif") return ".gif";
+  if (mimeType === "video/mp4") return ".mp4";
+  if (mimeType === "video/quicktime") return ".mov";
+  if (mimeType === "application/pdf") return ".pdf";
+  return "";
+}
+
+function fileExtension(originalName: string, mimeType: string) {
+  const parsed = path.extname(originalName || "").toLowerCase();
+  return parsed || extensionForMime(mimeType);
+}
+
+function archiveFileName(asset: { id: string; originalName: string; mimeType: string }) {
+  return `${asset.id}${fileExtension(asset.originalName, asset.mimeType)}`;
+}
+
 export async function buildDataExport(user: AccessUser) {
   const ownerIds = await accessibleOwnerIds(user);
   const ownerScope = { ownerId: { in: ownerIds } };
@@ -95,6 +115,7 @@ export async function buildDataExport(user: AccessUser) {
     files: files.map((entry) => ({
       id: entry.id,
       originalName: entry.originalName,
+      archiveName: archiveFileName(entry),
       mimeType: entry.mimeType,
       sizeBytes: entry.sizeBytes,
       createdAt: entry.createdAt
@@ -136,7 +157,7 @@ export async function buildDataExport(user: AccessUser) {
     for (const asset of files) {
       try {
         const bytes = await readFile(absolutePathForAsset(asset.storagePath));
-        fileFolder.file(asset.id, bytes);
+        fileFolder.file(archiveFileName(asset), bytes);
       } catch {
         // Missing files stay visible in data.json but are skipped in the archive.
       }
@@ -155,14 +176,16 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
   const fileMap = new Map<string, string>();
   for (const entry of records(data.files)) {
     const id = String(entry.id || "");
-    const archived = id ? zip.file(`files/${id}`) : null;
+    const archiveName = String(entry.archiveName || "");
+    const archived = id ? zip.file(archiveName ? `files/${archiveName}` : `files/${id}`) || zip.file(`files/${id}`) : null;
     if (!id || !archived) continue;
     const fileBytes = Buffer.from(await archived.async("uint8array"));
     const asset = await saveFileBuffer({
       ownerId: user.id,
       bytes: fileBytes,
       originalName: String(entry.originalName || path.basename(id)),
-      mimeType: String(entry.mimeType || "application/octet-stream")
+      mimeType: String(entry.mimeType || "application/octet-stream"),
+      tenantId: user.tenantId
     });
     if (asset) fileMap.set(id, asset.id);
   }
@@ -170,10 +193,11 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
   const toyMap = new Map<string, string>();
   for (const entry of records(data.toys)) {
     const title = String(entry.title || "Importiertes Spielzeug");
-    const slug = await uniqueSlug("toy", String(entry.slug || title));
+    const slug = await uniqueSlug("toy", String(entry.slug || title), user.tenantId);
     const created = await prisma.toy.create({
       data: {
         ownerId: user.id,
+        tenantId: user.tenantId || undefined,
         title,
         slug,
         description: String(entry.description || ""),
@@ -186,11 +210,12 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
   const positionMap = new Map<string, string>();
   for (const entry of records(data.positions)) {
     const name = String(entry.name || "Importierte Szene");
-    const slug = await uniqueSlug("position", String(entry.slug || name));
+    const slug = await uniqueSlug("position", String(entry.slug || name), user.tenantId);
     const toolIds = strings(entry.toolIds).map((id) => toyMap.get(id)).filter((id): id is string => Boolean(id));
     const created = await prisma.position.create({
       data: {
         ownerId: user.id,
+        tenantId: user.tenantId || undefined,
         name,
         slug,
         description: String(entry.description || ""),
@@ -204,12 +229,13 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
   const activityMap = new Map<string, string>();
   for (const entry of records(data.activities)) {
     const title = String(entry.title || "Importierte Aktivität");
-    const slug = await uniqueSlug("activityPlan", String(entry.slug || title));
+    const slug = await uniqueSlug("activityPlan", String(entry.slug || title), user.tenantId);
     const toolIds = strings(entry.toolIds).map((id) => toyMap.get(id)).filter((id): id is string => Boolean(id));
     const positionIds = strings(entry.positionIds).map((id) => positionMap.get(id)).filter((id): id is string => Boolean(id));
     const created = await prisma.activityPlan.create({
       data: {
         ownerId: user.id,
+        tenantId: user.tenantId || undefined,
         title,
         slug,
         category: typeof entry.category === "string" ? entry.category : null,
@@ -246,7 +272,8 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     const created = await prisma.segufixSession.create({
       data: {
         ownerId: user.id,
-        slug: await uniqueSessionSlug(startTime),
+        tenantId: user.tenantId || undefined,
+        slug: await uniqueSessionSlug(startTime, undefined, user.tenantId),
         startTime,
         endTime: toDate(entry.endTime),
         durationMinutes: typeof entry.durationMinutes === "number" ? entry.durationMinutes : null,
@@ -266,6 +293,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     await prisma.kgSession.create({
       data: {
         ownerId: user.id,
+        tenantId: user.tenantId || undefined,
         startTime,
         endTime: toDate(entry.endTime),
         durationMinutes: typeof entry.durationMinutes === "number" ? entry.durationMinutes : null,
@@ -286,6 +314,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     const created = await prisma.album.create({
       data: {
         ownerId: user.id,
+        tenantId: user.tenantId || undefined,
         title: String(entry.title || "Importiertes Album"),
         description: String(entry.description || ""),
         visibility: String(entry.visibility || "PRIVATE") as "PRIVATE" | "PARTNER" | "SHARED"
@@ -293,7 +322,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     });
     albumMap.set(String(entry.id || ""), created.id);
   }
-  const fallbackAlbum = await ensureDefaultAlbum(user.id);
+  const fallbackAlbum = await ensureDefaultAlbum(user.id, user.tenantId);
 
   const mediaMap = new Map<string, string>();
   for (const entry of records(data.media)) {
@@ -318,6 +347,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     const created = await prisma.media.create({
       data: {
         ownerId: user.id,
+        tenantId: user.tenantId || undefined,
         albumId: importedAlbumId,
         sessionId: sessionMap.get(String(entry.sessionId || "")) || null,
         title: String(entry.title || "Importiertes Bild"),
@@ -351,6 +381,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     const created = await prisma.event.create({
       data: {
         ownerId: user.id,
+        tenantId: user.tenantId || undefined,
         title: String(entry.title || "Importierter Termin"),
         location: typeof entry.location === "string" ? entry.location : null,
         startsAt,

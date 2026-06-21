@@ -4,7 +4,7 @@ import { Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { FileUploadField } from "@/components/file-upload-field";
 import { Button, Field, inputClass, PageGuide, PageHeader } from "@/components/ui";
-import { bondageSystemVisibilityScope, isAccessibleOwner, ownerScope } from "@/lib/access";
+import { bondageSystemVisibilityScope, contentTenantScope, isAccessibleOwner, ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { hasFeature, requireFeature } from "@/lib/features";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
@@ -24,7 +24,7 @@ async function updatePosition(formData: FormData) {
   if (!position) notFound();
 
   const name = String(formData.get("name") || "").trim();
-  const slug = await uniqueSlugForUpdate("position", normalizeSlug(String(formData.get("slug") || ""), name), position.id);
+  const slug = await uniqueSlugForUpdate("position", normalizeSlug(String(formData.get("slug") || ""), name), position.id, user.tenantId);
   const selectedToolIds = toysEnabled ? formData.getAll("tools").map(String) : [];
   const selectedBondageItemIds = bondageSystemEnabled ? formData.getAll("bondageSystemItems").map(String) : [];
   const ownedTools = toysEnabled ? await prisma.toy.findMany({ where: { ...scope, id: { in: selectedToolIds } }, select: { id: true } }) : [];
@@ -72,7 +72,7 @@ export default async function EditPositionPage({ params }: { params: { slug: str
   await requireFeature("positions");
   const toysEnabled = await hasFeature("toys");
   const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
-  const position = await prisma.position.findUnique({ where: { slug: params.slug }, include: { tools: toysEnabled, bondageSystemItems: bondageSystemEnabled } });
+  const position = await prisma.position.findFirst({ where: { slug: params.slug, ...contentTenantScope(user) }, include: { tools: toysEnabled, bondageSystemItems: bondageSystemEnabled } });
   if (!position || !(await isAccessibleOwner(user, position.ownerId))) notFound();
   const toys = toysEnabled ? await prisma.toy.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }) : [];
   const bondageItems = bondageSystemEnabled ? await prisma.bondageSystemItem.findMany({

@@ -113,6 +113,9 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Dropdown klappt nach unten auf und schwebt über dem Inhalt.
 - Menü schließt nach Klick auf einen Eintrag.
 - Danach optisch korrigiert: geschlossene Liste ohne Lücken zwischen den Menüpunkten.
+- Mobile Menü-Overlay auf feste Viewport-Höhe umgestellt, mit eigenem Scrollbereich und Body-Scroll-Lock.
+- Menü kann jetzt zuverlässig per X, Hintergrundklick, Escape oder Link-Auswahl geschlossen werden.
+- Benutzerkarte und Abmelden liegen im scrollbaren Menübereich, damit sie auf iPad/iPhone erreichbar bleiben.
 
 ## Bearbeiten und Löschen
 
@@ -192,6 +195,9 @@ Details:
 - Für Spielzeug- und Szenenbilder wurde ein direkter Upload-Endpunkt `/api/uploads` ergänzt.
 - Bei Bildauswahl wird die Datei sofort hochgeladen; der Speichern-Button speichert danach nur noch die fertige `/api/files/...` Referenz.
 - Solange der direkte Upload noch läuft oder fehlgeschlagen ist, verhindert die Komponente das Absenden und zeigt einen Hinweis.
+- Profilbilder in der Admin-Benutzerverwaltung verwenden ebenfalls den direkten Upload-Flow.
+- Beim Bearbeiten eines Benutzers wird ein vom Admin hochgeladenes Profilbild dem Zielbenutzer zugeordnet, damit der geschützte Dateiabruf danach korrekt funktioniert.
+- Speichern-Buttons in der Benutzerbearbeitung zeigen während des Speicherns Feedback und melden erfolgreiche Speicherung oder Uploadfehler.
 - Der öffentliche Upload scheiterte zusätzlich an Nginx mit `413 Request Entity Too Large`, weil für `play.fesselspiel.com` kein `client_max_body_size` gesetzt war.
 - Nginx-Site `play.fesselspiel.com` auf `client_max_body_size 50m` gesetzt, Konfiguration getestet und Nginx neu geladen.
 
@@ -212,6 +218,20 @@ Details:
 ## Navigation: Lass uns spielen
 
 - Der Hauptmenüpunkt `Aktivitäten` heißt jetzt `Lass uns spielen`.
+
+## Seiten-/Mandanten-Trennung
+
+- Benutzerkonten bleiben globale Logins; Seitenrechte werden über `TenantMembership` pro Seite abgebildet.
+- Dieselbe Person kann dadurch mit gleichem Login in mehreren Seiten vorkommen, aber pro Seite eine eigene Rolle und Kreiszuordnung haben.
+- Benutzerverwaltung zeigt nur noch Mitglieder der aktiven Seite.
+- Admins können vorhandene globale Benutzer über „Bestehenden Benutzer übernehmen“ in die aktive Seite aufnehmen.
+- Kreise sind pro Seite eindeutig und werden über Mitgliedschaften statt globale `User.circleId` ausgewertet.
+- Alte Inhaltsmodelle wurden um `tenantId` erweitert: Spielzeuge, Szenen, Aktivitäten/Aufträge, Segufix-Sessions, KG-Sessions, Alben, Bilder, Events, Dateien und API-Tokens.
+- Listen- und Detailseiten für Spielzeuge, Szenen und Aktivitäten laden Slugs nur noch im Kontext der aktiven Seite.
+- Dashboard-Spielampel, E-Mail-/Telegram-Zielauswahlen und API-Token-Ausführung wurden auf Seitenkontext umgestellt.
+- Telegram-Webhook, Telegram-Agent und Telegram-Erfassungsdialoge speichern neue Inhalte mit der ermittelten Seite.
+- Seed/Startup führt einen Backfill aus: vorhandene Benutzer bekommen Mitgliedschaften, vorhandene Inhalte erhalten `tenantId` aus dem bisherigen Besitzer.
+- VPS-Prüfung am 21.06.2026: neue Seite `rope` hatte danach keine alten Spielzeuge, Szenen, Sessions, Bilder oder Alben; alle alten Inhalte hatten eine `tenantId`.
 - Die Menü-Reihenfolge wurde angepasst: Dashboard, Lass uns spielen, Szenen, Spielsachen.
 - Der separate Menüpunkt `Events` wurde aus Desktop- und Mobile-Navigation entfernt, damit Termine nicht als doppeltes Hauptmodul neben der Spielplanung wirken.
 - Bestehende Event-Daten werden nicht gelöscht; Termine aus Events erscheinen weiterhin in der Dashboard-Wochenansicht als `Termin`.
@@ -684,6 +704,15 @@ Details:
 - E-Mail-Templates sind kontrolliert abschaltbar; zusätzlich gibt es einen globalen Schalter für das komplette E-Mail-System.
 - Die Benutzeranlage kann die Vorlage `Neues Benutzerkonto` senden, Login-Ereignisse können optional die Vorlage `Login-Benachrichtigung` senden.
 - Alle Versandversuche werden als `EmailLog` protokolliert.
+- Die Testmail kann eine beliebige gespeicherte Vorlage auswählen; der Empfänger ist standardmäßig die E-Mail des aktuellen Admins.
+- Template-Texte nutzen anklickbare Variablen-Chips wie die Telegram-Vorlagen. Unterstützt werden u. a. `{{confirmUrl}}`, `{{resetUrl}}` und Audit-Variablen wie `{{title}}`, `{{actor}}`, `{{event}}`, `{{url}}`.
+- Die E-Mail-Seite ist in aufklappbare Bereiche gegliedert: Postfix/Absender, Testmail, Aktions-E-Mails, Templates und Versandprotokoll.
+- Aktions-E-Mails spiegeln die Telegram-Aktionsbenachrichtigungen: Admins wählen eine protokollierte Aktion, Zielbenutzer oder Kreis und eine E-Mail-Vorlage. Beim `logAction` werden passende Regeln automatisch ausgelöst.
+- Das Protokoll verlinkt pro Aktion nun getrennt zu Telegram- und E-Mail-Regeln mit vorausgewählter Aktion.
+- Benutzer mit echter E-Mail-Adresse erhalten beim Anlegen einen Bestätigungslink über die Vorlage `Benutzerkonto bestätigen`; auf `/email/confirm` setzen sie ihr Passwort und bestätigen die Adresse.
+- Benutzer können ihre E-Mail-Adresse im Profil ändern; Admins können sie in der Benutzerverwaltung ändern. Jede neue echte Adresse wird als unbestätigt gespeichert und bekommt einen neuen Bestätigungslink.
+- Bestätigungslinks sind an die konkrete E-Mail-Adresse gebunden, damit alte Links keine später erneut geänderte Adresse bestätigen können.
+- Passwort-Reset ist über `/password/forgot` und `/password/reset` vorhanden und verwendet die Vorlage `Passwort zurücksetzen`.
 
 ## Telegram Chatname und Threadname
 
@@ -711,7 +740,15 @@ Details:
 
 - Es gibt das eigene Feature `shopifyBondageSystem` mit Menüpunkt `Bondage-System`, eigener Übersicht `/bondage-system` und Detailseiten `/bondage-system/[slug]`.
 - Shopify-Produkte werden nicht in den privaten Spielzeugkatalog kopiert, sondern in `ShopifyProduct` gespiegelt und über `BondageSystemItem` einzeln sichtbar geschaltet.
-- Die Adminseite `Einstellungen > Shopify` speichert Shop-Domain, verschlüsselten Admin API Token und Produkt-Tag-Filter. Ein manueller Sync liest Produkte per Shopify Admin GraphQL API ein.
+- Die Adminseite `Einstellungen > Shopify` speichert Shop-Domain, Shopify Admin API-Version, verschlüsselte Shopify Client ID, verschlüsseltes Client Secret und Produkt-Tag-Filter. Ein manueller Sync erzeugt bei Bedarf automatisch einen kurzlebigen Shopify Access Token per Client-Credentials-Flow, cached ihn bis kurz vor Ablauf und liest Produkte per Shopify Admin GraphQL API ein.
+- Die Admin API-Version ist pro Seite editierbar; Standard ist `2026-04`.
+- Wenn Shopify beim Produktabruf `Access denied for products field` meldet, verwirft der Sync den gecachten Token und versucht den Abruf einmal mit einem frisch erzeugten Token erneut. Das hilft, wenn Scopes in Shopify gerade erst geändert oder neu bestätigt wurden.
+- Die Shopify-Adminseite hat zusätzlich den Button `Shopify-Token erneuern`, der den Token sofort per Client Credentials neu erzeugt und Ablaufzeit/Scopes aktualisiert, ohne einen Produkt-Sync starten zu müssen.
+- Importierte Shopify-Produkte können in der Adminliste gesammelt mit `Alle anzeigen` oder `Alle verbergen` freigeschaltet werden.
+- Die Shopify-Adminliste speichert Produkt-Sichtbarkeit, externe Links und Zielgruppen gesammelt mit einem gemeinsamen Button `Alle Änderungen speichern`.
+- Shopify-Beschreibungen werden mit `descriptionHtml` synchronisiert und auf der Detailseite mit bereinigter HTML-Formatierung dargestellt.
+- Die öffentliche Bondage-System-Übersicht nutzt dieselbe kompakte, aufklappbare Katalogdarstellung wie Spielsachen und unterstützt für Admins eine eingeklappte Reihenfolge-Bearbeitung.
+- Für den Client-Credentials-Flow wird keine OAuth-Callback-URL aktiv genutzt. Falls Shopify im Dev Dashboard eine URL verlangt, kann `https://playplaner.com/settings/shopify` eingetragen werden.
 - Sichtbarkeit pro freigegebenem Produkt unterstützt Benutzer, Zirkel und alle Benutzer der aktuellen Seite.
 - Szenen und Spielpläne können Bondage-System-Produkte getrennt von normalen Spielsachen verknüpfen.
 - `POST /api/shopify/sync` ist als JSON-Sync-Endpunkt vorhanden und blockiert bei deaktiviertem Feature mit `feature_disabled`.

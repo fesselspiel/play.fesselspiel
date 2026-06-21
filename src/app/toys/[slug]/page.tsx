@@ -4,7 +4,7 @@ import { Download, Pencil, Printer } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { CopyLink } from "@/components/copy-link";
 import { PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
-import { isAccessibleOwner } from "@/lib/access";
+import { isAccessibleOwner, contentTenantScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { hasFeature, requireFeature } from "@/lib/features";
@@ -16,7 +16,7 @@ export default async function ToyDetailPage({ params }: { params: { slug: string
   if (!user) redirect("/login");
   await requireFeature("toys");
   const positionsEnabled = await hasFeature("positions");
-  const toy = await prisma.toy.findUnique({ where: { slug: params.slug }, include: { positions: positionsEnabled, activities: true } });
+  const toy = await prisma.toy.findFirst({ where: { slug: params.slug, ...contentTenantScope(user) }, include: { positions: positionsEnabled, activities: true } });
   if (!toy || !(await isAccessibleOwner(user, toy.ownerId))) notFound();
   const url = `${env.appUrl}/toys/${toy.slug}`;
   const displayUrl = url.replace(/^https?:\/\//, "");

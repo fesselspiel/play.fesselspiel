@@ -11,18 +11,30 @@ export const defaultEmailTemplates = [
       "Hallo {{userName}},\n\nfür dich wurde ein Zugang zu Fesselspiel angelegt.\n\nLogin: {{loginIdentifier}}\nPortal: {{appUrl}}\n\nBitte frage den Admin nach deinem Passwort und ändere dein Profil nach dem ersten Login.\n\nViele Grüße\nFesselspiel"
   },
   {
+    key: "user_invite",
+    title: "Benutzerkonto bestätigen",
+    subject: "Bestätige deinen Zugang zu Fesselspiel",
+    body:
+      "Hallo {{userName}},\n\nfür dich wurde ein Zugang zu Fesselspiel angelegt.\n\nLogin: {{loginIdentifier}}\nBestätigen und Passwort setzen: {{confirmUrl}}\n\nDer Link ist zeitlich begrenzt gültig.\n\nViele Grüße\nFesselspiel"
+  },
+  {
     key: "login_success",
     title: "Login-Benachrichtigung",
     subject: "Login bei Fesselspiel",
     body:
       "Hallo {{userName}},\n\nbei deinem Konto gab es gerade einen Login.\n\nZeit: {{loginTime}}\nProfil: {{profileUrl}}\n\nWenn du das nicht warst, informiere bitte den Admin.\n\nFesselspiel"
+  },
+  {
+    key: "password_reset",
+    title: "Passwort zurücksetzen",
+    subject: "Passwort zurücksetzen",
+    body:
+      "Hallo {{userName}},\n\nfür dein Konto wurde ein Link zum Zurücksetzen des Passworts angefordert.\n\nLogin: {{loginIdentifier}}\nNeues Passwort setzen: {{resetUrl}}\n\nFalls du das nicht warst, ignoriere diese E-Mail.\n\nViele Grüße\nFesselspiel"
   }
 ] as const;
 
-type EmailTemplateKey = (typeof defaultEmailTemplates)[number]["key"];
-
 type SendTemplateInput = {
-  key: EmailTemplateKey;
+  key: string;
   to: string | null | undefined;
   variables: Record<string, string | number | boolean | null | undefined>;
 };

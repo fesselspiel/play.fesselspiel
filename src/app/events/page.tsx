@@ -14,6 +14,7 @@ async function createEvent(formData: FormData) {
   if (!user) redirect("/login");
   await prisma.event.create({
     data: {
+      tenantId: user.tenantId || undefined,
       ownerId: user.id,
       title: String(formData.get("title") || "").trim(),
       location: String(formData.get("location") || "").trim(),

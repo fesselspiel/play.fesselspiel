@@ -27,7 +27,7 @@ async function updateSession(formData: FormData) {
   const updated = await prisma.segufixSession.update({
     where: { id: session.id },
     data: {
-      slug: session.slug || await uniqueSessionSlug(startTime, session.id),
+      slug: session.slug || await uniqueSessionSlug(startTime, session.id, user.tenantId),
       startTime,
       endTime,
       durationMinutes: minutesBetween(startTime, endTime),

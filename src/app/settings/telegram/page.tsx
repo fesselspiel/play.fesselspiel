@@ -6,7 +6,7 @@ import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectC
 import { TelegramChatDiscovery } from "@/components/telegram/chat-discovery";
 import { NotificationMessageField } from "@/components/telegram/notification-message-field";
 import { NotificationTargetFields } from "@/components/telegram/notification-target-fields";
-import { currentUser } from "@/lib/auth";
+import { currentSessionContext, currentUser } from "@/lib/auth";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { formatDateTime } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
@@ -423,7 +423,9 @@ function chatLabel(chat: TelegramChatOption) {
 
 export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string; action?: string } }) {
   const user = await currentAdminUser();
-  const [settings, targetUsers, targetCircles, auditActions] = await Promise.all([
+  const { tenant } = await currentSessionContext();
+  if (!tenant) redirect("/");
+  const [settings, targetMemberships, targetCircles, auditActions] = await Promise.all([
     prisma.userSettings.findUnique({
       where: { userId: user.id },
       include: {
@@ -442,16 +444,15 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
         }
       }
     }),
-    prisma.user.findMany({
-      where: {
-        active: true,
-        ...(user.role === "ADMIN" ? {} : { OR: [{ id: user.id }, ...(user.circleId ? [{ circleId: user.circleId }] : [])] })
-      },
-      include: { profile: true },
-      orderBy: [{ name: "asc" }, { email: "asc" }]
+    prisma.tenantMembership.findMany({
+      where: user.role === "ADMIN" || user.role === "SUPER_ADMIN"
+        ? { tenantId: tenant.id, active: true, user: { active: true } }
+        : { tenantId: tenant.id, active: true, user: { active: true }, OR: [{ userId: user.id }, ...(user.circleId ? [{ circleId: user.circleId }] : [])] },
+      include: { user: { include: { profile: true } } },
+      orderBy: { createdAt: "asc" }
     }),
     prisma.circle.findMany({
-      where: user.role === "ADMIN" ? {} : user.circleId ? { id: user.circleId } : { id: "__none__" },
+      where: user.role === "ADMIN" || user.role === "SUPER_ADMIN" ? { tenantId: tenant.id } : user.circleId ? { tenantId: tenant.id, id: user.circleId } : { id: "__none__" },
       orderBy: { name: "asc" }
     }),
     prisma.auditLog.findMany({
@@ -460,6 +461,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
       orderBy: { action: "asc" }
     })
   ]);
+  const targetUsers = targetMemberships.map((membership) => membership.user);
   const activeChats = settings?.telegramChats.filter((chat) => chat.status === "ACTIVE") || [];
   const pendingChats = settings?.telegramChats.filter((chat) => chat.status === "PENDING") || [];
   const mappings = settings?.telegramUserMappings || [];

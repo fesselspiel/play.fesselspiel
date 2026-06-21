@@ -4,6 +4,7 @@ import path from "path";
 import { accessibleOwnerIds, mediaVisibilityScope, type AccessUser } from "@/lib/access";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { currentTenant } from "@/lib/tenancy";
 
 function safeExtension(name: string) {
   const ext = path.extname(name).toLowerCase().replace(/[^a-z0-9.]/g, "");
@@ -33,7 +34,7 @@ export function fileIdFromUrl(url?: string | null) {
   return match?.[1] || null;
 }
 
-export async function saveUploadedFile(ownerId: string, file: File | null | undefined) {
+export async function saveUploadedFile(ownerId: string, file: File | null | undefined, tenantId?: string | null) {
   if (!file || file.size === 0) return null;
   if (file.size > env.maxUploadBytes) throw new Error(`Datei ist größer als ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB`);
 
@@ -51,6 +52,7 @@ export async function saveUploadedFile(ownerId: string, file: File | null | unde
 
   const asset = await prisma.fileAsset.create({
     data: {
+      tenantId: tenantId || (await currentTenant()).id,
       ownerId,
       originalName: file.name || filename,
       mimeType: file.type || "application/octet-stream",
@@ -65,12 +67,14 @@ export async function saveFileBuffer({
   ownerId,
   bytes,
   originalName,
-  mimeType
+  mimeType,
+  tenantId
 }: {
   ownerId: string;
   bytes: Buffer;
   originalName: string;
   mimeType: string;
+  tenantId?: string | null;
 }) {
   if (!bytes.length) return null;
   if (bytes.length > env.maxUploadBytes) throw new Error(`Datei ist größer als ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB`);
@@ -88,6 +92,7 @@ export async function saveFileBuffer({
 
   return prisma.fileAsset.create({
     data: {
+      tenantId: tenantId || (await currentTenant()).id,
       ownerId,
       originalName,
       mimeType,
@@ -115,10 +120,11 @@ export async function fileAssetForUser(ownerId: string, id: string) {
 
 export async function fileAssetForAccess(user: AccessUser, id: string) {
   const ownerIds = await accessibleOwnerIds(user);
-  const asset = await prisma.fileAsset.findFirst({ where: { id, ownerId: { in: ownerIds } } });
+  const tenantScope = user.tenantId ? { tenantId: user.tenantId } : {};
+  const asset = await prisma.fileAsset.findFirst({ where: { id, ...tenantScope, ownerId: { in: ownerIds } } });
   if (asset) return asset;
 
-  const sharedAsset = await prisma.fileAsset.findUnique({ where: { id } });
+  const sharedAsset = await prisma.fileAsset.findFirst({ where: { id, ...tenantScope } });
   if (!sharedAsset) return null;
   const visibleMedia = await prisma.media.findFirst({
     where: {
@@ -132,7 +138,7 @@ export async function fileAssetForAccess(user: AccessUser, id: string) {
   const visibleActivityImage = await prisma.activityImage.findFirst({
     where: {
       fileId: id,
-      activity: { ownerId: { in: ownerIds } }
+      activity: { ...tenantScope, ownerId: { in: ownerIds } }
     },
     select: { id: true }
   });

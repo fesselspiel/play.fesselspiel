@@ -30,14 +30,17 @@ async function createSite(formData: FormData) {
   const name = formText(formData, "name");
   const slug = slugify(formText(formData, "slug", name));
   const hostname = normalizeHostname(formText(formData, "hostname"));
-  if (!name || !slug || !hostname) redirect("/settings/sites?error=missing");
+  if (!name || !slug) redirect("/settings/sites?error=missing");
+  const existingSlug = await prisma.tenant.findUnique({ where: { slug }, select: { id: true } });
+  if (existingSlug) redirect("/settings/sites?error=slug-exists");
+  const existingDomain = hostname ? await prisma.tenantDomain.findUnique({ where: { hostname }, select: { id: true } }) : null;
   const tenant = await prisma.tenant.create({
     data: {
       name,
       slug,
       headline: formText(formData, "headline"),
       description: formText(formData, "description"),
-      domains: { create: { hostname, primary: true, active: true } },
+      ...(hostname && !existingDomain ? { domains: { create: { hostname, primary: true, active: true } } } : {}),
       features: { create: featureCatalog.map((feature) => ({ key: feature.key, enabled: true })) }
     }
   });
@@ -49,7 +52,7 @@ async function createSite(formData: FormData) {
     title: `${userDisplayName(actor)} hat die Seite ${tenant.name} angelegt`,
     href: "/settings/sites"
   });
-  redirect("/settings/sites?saved=1");
+  redirect(existingDomain ? "/settings/sites?saved=1&domainSkipped=1" : "/settings/sites?saved=1");
 }
 
 async function saveSite(formData: FormData) {
@@ -99,6 +102,8 @@ async function addDomain(formData: FormData) {
   const tenantId = formText(formData, "tenantId");
   const hostname = normalizeHostname(formText(formData, "hostname"));
   if (!tenantId || !hostname) redirect("/settings/sites?error=domain");
+  const existingDomain = await prisma.tenantDomain.findUnique({ where: { hostname }, select: { id: true } });
+  if (existingDomain) redirect("/settings/sites?error=domain-exists");
   await prisma.tenantDomain.create({ data: { tenantId, hostname, active: true, primary: false } });
   await logAction({
     actorId: actor.id,
@@ -178,7 +183,7 @@ async function deleteSite(formData: FormData) {
   redirect("/settings/sites?deleted=1");
 }
 
-export default async function SitesPage({ searchParams }: { searchParams: { saved?: string; deleted?: string; disabled?: string; error?: string } }) {
+export default async function SitesPage({ searchParams }: { searchParams: { saved?: string; deleted?: string; disabled?: string; domainSkipped?: string; error?: string } }) {
   await requireSuperAdmin();
   const sites = await prisma.tenant.findMany({
     include: {
@@ -194,39 +199,69 @@ export default async function SitesPage({ searchParams }: { searchParams: { save
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-5">
           {searchParams.saved ? <Panel className="text-sm text-graphite">Gespeichert.</Panel> : null}
+          {searchParams.domainSkipped ? <Panel className="text-sm text-graphite">Die Domain ist bereits einer anderen Seite zugeordnet. Die neue Seite wurde ohne eigene Domain angelegt und ist über die Fallback-Route erreichbar.</Panel> : null}
           {searchParams.deleted ? <Panel className="text-sm text-graphite">Leere Seite gelöscht.</Panel> : null}
           {searchParams.disabled ? <Panel className="text-sm text-graphite">Die Seite enthält noch Daten und wurde deshalb deaktiviert.</Panel> : null}
-          {searchParams.error ? <Panel className="text-sm text-redbrand">Die Aktion konnte nicht ausgeführt werden: {searchParams.error}</Panel> : null}
+          {searchParams.error ? (
+            <Panel className="text-sm text-redbrand">
+              {searchParams.error === "domain-exists"
+                ? "Diese Domain ist bereits einer anderen Seite zugeordnet."
+                : searchParams.error === "slug-exists"
+                  ? "Dieser Kurzname wird bereits verwendet."
+                  : searchParams.error === "missing"
+                    ? "Bitte mindestens Name und Kurzname angeben."
+                    : `Die Aktion konnte nicht ausgeführt werden: ${searchParams.error}`}
+            </Panel>
+          ) : null}
 
           <Panel>
-            <h2 className="mb-4 text-lg font-semibold text-ink">Neue Seite anlegen</h2>
-            <form action={createSite} className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Name"><input className={inputClass} name="name" required /></Field>
-                <Field label="Kurzname"><input className={inputClass} name="slug" placeholder="meine-seite" /></Field>
-              </div>
-              <Field label="Hauptdomain"><input className={inputClass} name="hostname" placeholder="seite.example.com" required /></Field>
-              <Field label="Überschrift"><input className={inputClass} name="headline" /></Field>
-              <Field label="Beschreibung"><textarea className={inputClass} name="description" rows={2} /></Field>
-              <SubmitButton pendingLabel="Seite wird angelegt..."><Plus className="h-4 w-4" /> Seite anlegen</SubmitButton>
-            </form>
+            <details className="group">
+              <summary className="focus-ring flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 text-lg font-semibold text-ink hover:text-redbrand [&::-webkit-details-marker]:hidden">
+                Neue Seite anlegen
+                <span className="text-sm font-medium text-graphite group-open:hidden">aufklappen</span>
+                <span className="hidden text-sm font-medium text-graphite group-open:inline">einklappen</span>
+              </summary>
+              <form action={createSite} className="mt-4 space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Name"><input className={inputClass} name="name" required /></Field>
+                  <Field label="Kurzname"><input className={inputClass} name="slug" placeholder="meine-seite" /></Field>
+                </div>
+                <Field label="Hauptdomain"><input className={inputClass} name="hostname" placeholder="Optional: seite.example.com" /></Field>
+                <Field label="Überschrift"><input className={inputClass} name="headline" /></Field>
+                <Field label="Beschreibung"><textarea className={inputClass} name="description" rows={2} /></Field>
+                <SubmitButton pendingLabel="Seite wird angelegt..."><Plus className="h-4 w-4" /> Seite anlegen</SubmitButton>
+              </form>
+            </details>
           </Panel>
 
-          {sites.map((site) => {
-            const enabled = new Set(site.features.filter((feature) => feature.enabled).map((feature) => feature.key));
-            const isMain = site.slug === DEFAULT_TENANT_SLUG;
-            return (
-              <Panel key={site.id}>
+          <Panel>
+            <details className="group" open>
+              <summary className="focus-ring flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 text-lg font-semibold text-ink hover:text-redbrand [&::-webkit-details-marker]:hidden">
+                Vorhandene Seiten
+                <span className="text-sm font-medium text-graphite group-open:hidden">aufklappen</span>
+                <span className="hidden text-sm font-medium text-graphite group-open:inline">einklappen</span>
+              </summary>
+              <div className="mt-4 space-y-4">
+                {sites.map((site) => {
+                  const enabled = new Set(site.features.filter((feature) => feature.enabled).map((feature) => feature.key));
+                  const isMain = site.slug === DEFAULT_TENANT_SLUG;
+                  return (
+                    <div key={site.id} className="rounded-lg border border-line bg-surface p-4">
                 <details open={isMain} className="group">
                   <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <h2 className="text-lg font-semibold text-ink">{site.name}</h2>
                         <p className="text-sm text-graphite">
-                          {site.domains.find((domain) => domain.primary)?.hostname || site.domains[0]?.hostname || "Keine Domain"} · {site.status === "ACTIVE" ? "aktiv" : "deaktiviert"} · {site._count.users} Benutzer
+                          {site.domains.find((domain) => domain.primary)?.hostname || site.domains[0]?.hostname || `/seite/${site.slug}`} · {site.status === "ACTIVE" ? "aktiv" : "deaktiviert"} · {site._count.users} Benutzer
                         </p>
+                        <p className="mt-1 text-xs text-graphite">Fallback: /seite/{site.slug}</p>
                       </div>
-                      <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-graphite">{site.slug}</span>
+                      <span className="flex shrink-0 items-center gap-2">
+                        <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-graphite">{site.slug}</span>
+                        <span className="text-xs font-medium text-graphite group-open:hidden">aufklappen</span>
+                        <span className="hidden text-xs font-medium text-graphite group-open:inline">einklappen</span>
+                      </span>
                     </div>
                   </summary>
 
@@ -317,9 +352,12 @@ export default async function SitesPage({ searchParams }: { searchParams: { save
                     ) : null}
                   </div>
                 </details>
-              </Panel>
-            );
-          })}
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+          </Panel>
         </div>
         <PageGuide title="Seiten verwalten">
           Seiten sind getrennte Bereiche mit eigenen Domains, Benutzern, Kreisen, Telegram-Einstellungen und Features. Die Hauptseite bleibt geschützt; weitere Seiten kannst du deaktivieren oder löschen, solange dabei keine Daten verloren gehen.

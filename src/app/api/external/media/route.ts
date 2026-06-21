@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
   const album = await ensureDefaultAlbum(auth.user.id);
   const media = await prisma.media.create({
     data: {
+      tenantId: auth.user.tenantId || undefined,
       ownerId: auth.user.id,
       albumId: album.id,
       title: String(formData.get("title") || asset.originalName || "API Upload").trim(),

@@ -6,7 +6,7 @@ import { CopySubtitle } from "@/components/copy-subtitle";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { confirmRequestedActivity } from "@/lib/activity-actions";
 import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status";
-import { isAccessibleOwner, ownerScope } from "@/lib/access";
+import { isAccessibleOwner, ownerScope, contentTenantScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { hasFeature, requireFeature } from "@/lib/features";
@@ -83,8 +83,8 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
   const toolsEnabled = await hasFeature("toys");
   const positionsEnabled = await hasFeature("positions");
   const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
-  const activity = await prisma.activityPlan.findUnique({
-    where: { slug: params.slug },
+  const activity = await prisma.activityPlan.findFirst({
+    where: { slug: params.slug, ...contentTenantScope(user) },
     include: {
       tools: toolsEnabled,
       positions: positionsEnabled,

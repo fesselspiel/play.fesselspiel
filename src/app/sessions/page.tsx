@@ -24,9 +24,10 @@ async function createSession(formData: FormData) {
   const startTime = new Date(String(formData.get("startTime")));
   const endRaw = String(formData.get("endTime") || "");
   const endTime = endRaw ? new Date(endRaw) : null;
-  const slug = await uniqueSessionSlug(startTime);
+  const slug = await uniqueSessionSlug(startTime, undefined, user.tenantId);
   const session = await prisma.segufixSession.create({
     data: {
+      tenantId: user.tenantId || undefined,
       ownerId: user.id,
       slug,
       startTime,
@@ -60,6 +61,7 @@ async function createKgSession(formData: FormData) {
   const endTime = endRaw ? new Date(endRaw) : null;
   const session = await prisma.kgSession.create({
     data: {
+      tenantId: user.tenantId || undefined,
       ownerId: user.id,
       startTime,
       endTime,

@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
-import { isAccessibleOwner } from "@/lib/access";
+import { isAccessibleOwner, contentTenantScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { hasFeature, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
@@ -14,8 +14,8 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
   await requireFeature("positions");
   const toysEnabled = await hasFeature("toys");
   const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
-  const position = await prisma.position.findUnique({
-    where: { slug: params.slug },
+  const position = await prisma.position.findFirst({
+    where: { slug: params.slug, ...contentTenantScope(user) },
     include: { tools: toysEnabled, activities: true }
   });
   if (!position || !(await isAccessibleOwner(user, position.ownerId))) notFound();

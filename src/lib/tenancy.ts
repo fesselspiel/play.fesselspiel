@@ -22,6 +22,10 @@ export function requestHostname() {
   return normalizeHostname(headerList.get("x-forwarded-host") || headerList.get("host") || "");
 }
 
+export function requestTenantSlug() {
+  return (headers().get("x-playplaner-tenant-slug") || "").trim().toLowerCase();
+}
+
 export async function ensureDefaultTenant() {
   const tenant = await prisma.tenant.upsert({
     where: { slug: DEFAULT_TENANT_SLUG },
@@ -62,6 +66,11 @@ export async function getTenantByHost(hostname: string) {
 }
 
 export async function currentTenant() {
+  const slug = requestTenantSlug();
+  if (slug) {
+    const tenantBySlug = await prisma.tenant.findUnique({ where: { slug }, include: { domains: true, features: true } });
+    if (tenantBySlug) return tenantBySlug;
+  }
   const tenant = await getTenantByHost(requestHostname());
   if (tenant) return tenant;
   const fallback = await ensureDefaultTenant();

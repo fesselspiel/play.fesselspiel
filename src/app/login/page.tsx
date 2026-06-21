@@ -72,7 +72,7 @@ const trustCards = [
   { title: "Bilderzentriert", text: "Galerien, Ideenbilder und Uploads sind auf schnelles Anschauen ausgelegt.", Icon: Camera }
 ];
 
-export default function LoginPage() {
+export default function LoginPage({ searchParams }: { searchParams?: { confirmed?: string; reset?: string } }) {
   return (
     <main className="min-h-screen bg-canvas text-ink">
       <section className="relative overflow-hidden border-b border-line bg-surface">
@@ -131,7 +131,12 @@ export default function LoginPage() {
                 Melde dich mit deinem Benutzerkonto an. Das Passwortfeld hat ein Auge, damit du deine Eingabe kurz prüfen kannst.
               </p>
             </div>
+            {searchParams?.confirmed ? <div className="mb-4 rounded-md border border-emerald-500 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-700">E-Mail bestätigt. Du kannst dich jetzt einloggen.</div> : null}
+            {searchParams?.reset ? <div className="mb-4 rounded-md border border-emerald-500 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-700">Passwort gespeichert. Du kannst dich jetzt einloggen.</div> : null}
             <LoginForm />
+            <div className="mt-4 text-right">
+              <a href="/password/forgot" className="focus-ring rounded-md text-sm font-semibold text-redbrand hover:underline">Passwort vergessen?</a>
+            </div>
           </Panel>
         </div>
       </section>

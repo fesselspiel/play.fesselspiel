@@ -27,11 +27,11 @@ export async function uniqueSlug(kind: SlugKind, base: string, tenantId?: string
   while (true) {
     const existing =
       kind === "toy"
-        ? await prisma.toy.findUnique({ where: { slug } })
+        ? await prisma.toy.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
         : kind === "position"
-          ? await prisma.position.findUnique({ where: { slug } })
+          ? await prisma.position.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
           : kind === "activityPlan"
-            ? await prisma.activityPlan.findUnique({ where: { slug } })
+            ? await prisma.activityPlan.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
             : tenantId
               ? await prisma.shopifyProduct.findUnique({ where: { tenantId_slug: { tenantId, slug } } })
               : await prisma.shopifyProduct.findFirst({ where: { slug } });
@@ -46,11 +46,11 @@ export async function uniqueSlugForUpdate(kind: SlugKind, base: string, currentI
   while (true) {
     const existing =
       kind === "toy"
-        ? await prisma.toy.findUnique({ where: { slug } })
+        ? await prisma.toy.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
         : kind === "position"
-          ? await prisma.position.findUnique({ where: { slug } })
+          ? await prisma.position.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
           : kind === "activityPlan"
-            ? await prisma.activityPlan.findUnique({ where: { slug } })
+            ? await prisma.activityPlan.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
             : tenantId
               ? await prisma.shopifyProduct.findUnique({ where: { tenantId_slug: { tenantId, slug } } })
               : await prisma.shopifyProduct.findFirst({ where: { slug } });

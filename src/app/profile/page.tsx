@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
-import { Save } from "lucide-react";
+import { MailCheck, Save } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { FileUploadField } from "@/components/file-upload-field";
 import { SubmitButton } from "@/components/submit-button";
 import { ThemePicker } from "@/components/theme-picker";
 import { Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
 import { currentUser } from "@/lib/auth";
+import { sendEmailConfirmation } from "@/lib/email-confirmation";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { normalizeTheme, normalizeThemeMode } from "@/lib/themes";
@@ -21,6 +22,13 @@ async function saveProfile(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  const nextEmail = String(formData.get("email") || "").trim().toLowerCase();
+  if (!nextEmail || !nextEmail.includes("@")) redirect("/profile?error=email-invalid");
+  const emailChanged = nextEmail !== user.email;
+  if (emailChanged) {
+    const existingEmail = await prisma.user.findFirst({ where: { email: nextEmail, id: { not: user.id } }, select: { id: true } });
+    if (existingEmail) redirect("/profile?error=email-exists");
+  }
   const currentProfile = await prisma.profile.findUnique({ where: { userId: user.id } });
   const currentImageUrl = await existingProfileImageUrl(user.id, currentProfile?.imageUrl);
   const uploadedImageUrl = String(formData.get("profileImageUploadedUrl") || "");
@@ -29,9 +37,11 @@ async function saveProfile(formData: FormData) {
   const oldFileId = fileIdFromUrl(currentImageUrl);
   if ((uploadedImageUrl || image || removeImage) && oldFileId) await deleteOwnedFile(user.id, oldFileId);
   const nextImageUrl = removeImage ? "" : uploadedImageUrl || (image ? fileAssetUrl(image.id) : currentImageUrl);
-  await prisma.user.update({
+  const updatedUser = await prisma.user.update({
     where: { id: user.id },
     data: {
+      email: nextEmail,
+      emailVerifiedAt: emailChanged ? null : user.emailVerifiedAt,
       name: String(formData.get("name") || "").trim(),
       profile: {
         upsert: {
@@ -59,12 +69,24 @@ async function saveProfile(formData: FormData) {
           }
         }
       }
-    }
+    },
+    include: { profile: true }
   });
+  if (emailChanged) await sendEmailConfirmation(updatedUser);
   redirect("/profile");
 }
 
-export default async function ProfilePage() {
+async function resendOwnEmailConfirmation() {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  if (!user.emailVerifiedAt && user.email && !user.email.endsWith("@local.fesselspiel")) {
+    await sendEmailConfirmation(user);
+  }
+  redirect("/profile?sent=email-confirmation");
+}
+
+export default async function ProfilePage({ searchParams }: { searchParams?: { error?: string; sent?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const activeTheme = normalizeTheme(user.settings?.theme);
@@ -77,6 +99,16 @@ export default async function ProfilePage() {
         Hier pflegst du sichtbare Profilangaben und persönliche Einstellungen. Ändere Basisdaten, Profiltext, Profilbild und teste Farbschemas direkt im Theme-Picker, bevor du speicherst.
       </PageGuide>
       <Panel className="max-w-3xl">
+        {searchParams?.error ? (
+          <div className="mb-4 rounded-md border border-redbrand bg-redbrand/10 px-4 py-3 text-sm font-semibold text-redbrand">
+            {searchParams.error === "email-exists" ? "Diese E-Mail-Adresse wird bereits verwendet." : "Bitte eine gültige E-Mail-Adresse angeben."}
+          </div>
+        ) : null}
+        {searchParams?.sent === "email-confirmation" ? (
+          <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+            Bestätigungs-E-Mail wurde erneut gesendet.
+          </div>
+        ) : null}
         <form action={saveProfile} className="space-y-4">
           {profileImageUrl ? (
             <div className="flex items-center gap-4 rounded-lg bg-paper p-4">
@@ -90,6 +122,16 @@ export default async function ProfilePage() {
           ) : null}
           <Field label="Name"><input className={inputClass} name="name" defaultValue={user.name || ""} /></Field>
           <Field label="Anzeigename"><input className={inputClass} name="displayName" defaultValue={user.profile?.displayName || ""} /></Field>
+          <Field label="E-Mail-Adresse"><input className={inputClass} name="email" type="email" defaultValue={user.email || ""} required /></Field>
+          <p className="rounded-md bg-paper px-3 py-2 text-sm text-graphite">
+            {user.emailVerifiedAt ? `E-Mail bestätigt: ${user.email}` : "E-Mail noch nicht bestätigt. Wenn du die Adresse änderst, senden wir automatisch einen neuen Bestätigungslink."}
+          </p>
+          {!user.emailVerifiedAt && user.email && !user.email.endsWith("@local.fesselspiel") ? (
+            <SubmitButton formAction={resendOwnEmailConfirmation} formNoValidate pendingLabel="E-Mail wird gesendet..." className="bg-surface text-redbrand ring-1 ring-line hover:bg-redbrand hover:text-white">
+              <MailCheck className="h-4 w-4" />
+              Bestätigungs-E-Mail erneut senden
+            </SubmitButton>
+          ) : null}
           <Field label="Profiltext"><textarea className={inputClass} name="bio" rows={5} defaultValue={user.profile?.bio || ""} /></Field>
           <FileUploadField
             name="profileImage"

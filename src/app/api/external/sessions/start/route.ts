@@ -13,7 +13,7 @@ async function startSession(request: NextRequest) {
   const blocked = apiFeatureGate(auth.user, "externalApi", "tracker.segufix");
   if (blocked) return blocked;
   const values = await requestValues(request);
-  const open = await prisma.segufixSession.findFirst({ where: { ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } });
+  const open = await prisma.segufixSession.findFirst({ where: { tenantId: auth.user.tenantId || undefined, ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } });
   const autoClosedAt = new Date();
   const closedSession = open
     ? await prisma.segufixSession.update({
@@ -42,7 +42,8 @@ async function startSession(request: NextRequest) {
   const session = await prisma.segufixSession.create({
     data: {
       ownerId: auth.user.id,
-      slug: await uniqueSessionSlug(startTime),
+      tenantId: auth.user.tenantId || undefined,
+      slug: await uniqueSessionSlug(startTime, undefined, auth.user.tenantId),
       startTime,
       notes,
       moodBefore,

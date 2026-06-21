@@ -33,6 +33,13 @@ function link(path: string) {
   return `${env.appUrl}${path}`;
 }
 
+async function tenantIdForUser(userId: string) {
+  const membership = await prisma.tenantMembership.findFirst({ where: { userId, active: true }, orderBy: { createdAt: "asc" }, select: { tenantId: true } });
+  if (membership?.tenantId) return membership.tenantId;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { tenantId: true } });
+  return user?.tenantId || undefined;
+}
+
 function parseDraft(body: string): ItemDraft | null {
   if (!body.startsWith(DRAFT_PREFIX)) return null;
   try {
@@ -152,9 +159,11 @@ function applyAnswer(draft: ItemDraft, text: string) {
 }
 
 async function matchingToys(userId: string, titles: string[]) {
+  const tenantId = await tenantIdForUser(userId);
   if (!titles.length) return [];
   return prisma.toy.findMany({
     where: {
+      ...(tenantId ? { tenantId } : {}),
       ownerId: userId,
       OR: titles.flatMap((title) => [
         { title: { contains: title, mode: "insensitive" as const } },
@@ -166,10 +175,12 @@ async function matchingToys(userId: string, titles: string[]) {
 }
 
 async function createFromDraft(userId: string, draft: ItemDraft) {
+  const tenantId = await tenantIdForUser(userId);
   if (draft.kind === "album") {
     const title = draft.fields.title || "";
     const album = await prisma.album.create({
       data: {
+        tenantId,
         ownerId: userId,
         title,
         description: "Per Telegram angelegt.",
@@ -183,8 +194,8 @@ async function createFromDraft(userId: string, draft: ItemDraft) {
     const title = draft.fields.title || "";
     const description = draft.fields.description || "";
     const imageUrl = draft.fields.imageUrl || "";
-    const slug = await uniqueSlug("toy", title);
-    const toy = await prisma.toy.create({ data: { ownerId: userId, title, description, imageUrl, slug } });
+    const slug = await uniqueSlug("toy", title, tenantId);
+    const toy = await prisma.toy.create({ data: { tenantId, ownerId: userId, title, description, imageUrl, slug } });
     return `<b>Spielzeug angelegt</b>\n${telegramHtml(toy.title)}\n${telegramLink(link(`/toys/${toy.slug}`), "öffnen")}`;
   }
 
@@ -193,10 +204,11 @@ async function createFromDraft(userId: string, draft: ItemDraft) {
   const imageUrl = draft.fields.imageUrl || "";
   const toyTitles = draft.fields.toyTitles || [];
   const toys = await matchingToys(userId, toyTitles);
-  const slug = await uniqueSlug("position", name);
+  const slug = await uniqueSlug("position", name, tenantId);
   const position = await prisma.position.create({
     data: {
       ownerId: userId,
+      tenantId,
       name,
       description,
       imageUrl,

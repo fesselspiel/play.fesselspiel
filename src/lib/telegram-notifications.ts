@@ -47,10 +47,10 @@ async function findRulesForAudit(audit: Pick<AuditForNotification, "action">) {
 async function sendRule(rule: RuleForNotification, audit: Pick<AuditForNotification, "action" | "title" | "href" | "entityType" | "entityId" | "details">, actor: Parameters<typeof actorName>[0] | null, sent: Set<string>) {
   if (!rule.settings.telegramBotTokenEnc) return [];
   const targetUserIds = rule.targetCircleId
-    ? new Set((await prisma.user.findMany({ where: { circleId: rule.targetCircleId }, select: { id: true } })).map((member) => member.id))
+    ? new Set((await prisma.tenantMembership.findMany({ where: { circleId: rule.targetCircleId, active: true, user: { active: true } }, select: { userId: true } })).map((member) => member.userId))
     : new Set<string>();
   const targetUserCircleId = rule.targetUserId
-    ? (await prisma.user.findUnique({ where: { id: rule.targetUserId }, select: { circleId: true } }))?.circleId || null
+    ? (await prisma.tenantMembership.findFirst({ where: { userId: rule.targetUserId, active: true }, select: { circleId: true } }))?.circleId || null
     : null;
   const chats = rule.outputChatId
     ? rule.outputChat?.status === "ACTIVE" ? [rule.outputChat] : []

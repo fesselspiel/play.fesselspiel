@@ -63,11 +63,17 @@ async function main() {
   const passwordHash = await bcrypt.hash(password, 12);
   const adminRole = process.env.ADMIN_IS_SUPER_ADMIN === "false" ? "ADMIN" : "SUPER_ADMIN";
 
-  const admin = await prisma.user.upsert({
-    where: { email },
-    update: { tenantId: tenant.id, username, role: adminRole, active: true },
-    create: { tenantId: tenant.id, email, username, name: "Admin", passwordHash, role: adminRole }
-  });
+  const existingAdmin = await prisma.user.findUnique({ where: { email } });
+  const usernameOwner = username ? await prisma.user.findUnique({ where: { username }, select: { id: true } }) : null;
+  const nextUsername = usernameOwner && usernameOwner.id !== existingAdmin?.id ? existingAdmin?.username || null : username;
+  const admin = existingAdmin
+    ? await prisma.user.update({
+        where: { id: existingAdmin.id },
+        data: { tenantId: tenant.id, username: nextUsername, role: adminRole, active: true }
+      })
+    : await prisma.user.create({
+        data: { tenantId: tenant.id, email, username: nextUsername, name: "Admin", passwordHash, role: adminRole }
+      });
 
   await prisma.profile.upsert({
     where: { userId: admin.id },
@@ -91,6 +97,50 @@ async function main() {
     prisma.user.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } }),
     prisma.circle.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
   ]);
+
+  const usersForMembership = await prisma.user.findMany({ select: { id: true, tenantId: true, circleId: true, role: true, active: true } });
+  for (const user of usersForMembership) {
+    const tenantId = user.tenantId || tenant.id;
+    await prisma.tenantMembership.upsert({
+      where: { tenantId_userId: { tenantId, userId: user.id } },
+      update: { role: user.role === "SUPER_ADMIN" ? "ADMIN" : user.role, circleId: user.circleId, active: user.active },
+      create: { tenantId, userId: user.id, role: user.role === "SUPER_ADMIN" ? "ADMIN" : user.role, circleId: user.circleId, active: user.active }
+    });
+  }
+  const ownerTenant = async (ownerId) => {
+    const owner = await prisma.user.findUnique({ where: { id: ownerId }, select: { tenantId: true } });
+    return owner?.tenantId || tenant.id;
+  };
+  for (const entry of await prisma.toy.findMany({ where: { tenantId: null }, select: { id: true, ownerId: true } })) {
+    await prisma.toy.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.ownerId) } });
+  }
+  for (const entry of await prisma.position.findMany({ where: { tenantId: null }, select: { id: true, ownerId: true } })) {
+    await prisma.position.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.ownerId) } });
+  }
+  for (const entry of await prisma.activityPlan.findMany({ where: { tenantId: null }, select: { id: true, ownerId: true } })) {
+    await prisma.activityPlan.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.ownerId) } });
+  }
+  for (const entry of await prisma.segufixSession.findMany({ where: { tenantId: null }, select: { id: true, ownerId: true } })) {
+    await prisma.segufixSession.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.ownerId) } });
+  }
+  for (const entry of await prisma.kgSession.findMany({ where: { tenantId: null }, select: { id: true, ownerId: true } })) {
+    await prisma.kgSession.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.ownerId) } });
+  }
+  for (const entry of await prisma.album.findMany({ where: { tenantId: null }, select: { id: true, ownerId: true } })) {
+    await prisma.album.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.ownerId) } });
+  }
+  for (const entry of await prisma.media.findMany({ where: { tenantId: null }, select: { id: true, ownerId: true } })) {
+    await prisma.media.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.ownerId) } });
+  }
+  for (const entry of await prisma.fileAsset.findMany({ where: { tenantId: null }, select: { id: true, ownerId: true } })) {
+    await prisma.fileAsset.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.ownerId) } });
+  }
+  for (const entry of await prisma.event.findMany({ where: { tenantId: null }, select: { id: true, ownerId: true } })) {
+    await prisma.event.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.ownerId) } });
+  }
+  for (const entry of await prisma.apiToken.findMany({ where: { tenantId: null }, select: { id: true, userId: true } })) {
+    await prisma.apiToken.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.userId) } });
+  }
 
   const segufixType = await prisma.trackerType.upsert({
     where: { tenantId_key: { tenantId: tenant.id, key: "segufix" } },
@@ -183,33 +233,34 @@ async function main() {
     ["Segufix System", "Dokumentierte Ausrüstung für geplante Entspannungs-Sessions.", "/toy-system.svg"]
   ];
   for (const [title, description, imageUrl] of toyData) {
-    await prisma.toy.upsert({
-      where: { slug: slugify(title) },
-      update: {},
-      create: { ownerId: admin.id, title, slug: slugify(title), description, imageUrl }
-    });
+    const slug = slugify(title);
+    const existing = await prisma.toy.findFirst({ where: { tenantId: tenant.id, slug } });
+    if (!existing) await prisma.toy.create({ data: { tenantId: tenant.id, ownerId: admin.id, title, slug, description, imageUrl } });
   }
 
-  const cuffs = await prisma.toy.findUnique({ where: { slug: "leder-manschetten" } });
-  const system = await prisma.toy.findUnique({ where: { slug: "segufix-system" } });
+  const cuffs = await prisma.toy.findFirst({ where: { tenantId: tenant.id, slug: "leder-manschetten" } });
+  const system = await prisma.toy.findFirst({ where: { tenantId: tenant.id, slug: "segufix-system" } });
 
-  await prisma.position.upsert({
-    where: { slug: "rueckenlage" },
-    update: {},
-    create: {
+  let demoPosition = await prisma.position.findFirst({ where: { tenantId: tenant.id, slug: "rueckenlage" } });
+  if (!demoPosition) {
+    demoPosition = await prisma.position.create({
+      data: {
+      tenantId: tenant.id,
       ownerId: admin.id,
       name: "Rückenlage",
       slug: "rueckenlage",
       description: "Ruhige Position für längere Entspannungsphasen.",
       imageUrl: "/position-back.svg",
       tools: { connect: [cuffs, system].filter(Boolean).map((tool) => ({ id: tool.id })) }
-    }
-  });
+      }
+    });
+  }
 
-  await prisma.activityPlan.upsert({
-    where: { slug: "entspannungsabend" },
-    update: {},
-    create: {
+  const demoActivity = await prisma.activityPlan.findFirst({ where: { tenantId: tenant.id, slug: "entspannungsabend" } });
+  if (!demoActivity) {
+    await prisma.activityPlan.create({
+      data: {
+      tenantId: tenant.id,
       ownerId: admin.id,
       title: "Entspannungsabend",
       slug: "entspannungsabend",
@@ -217,9 +268,10 @@ async function main() {
       note: "Sanfter Ablauf mit vorbereiteter Ausrüstung.",
       plannedAt: new Date(),
       tools: { connect: [cuffs, system].filter(Boolean).map((tool) => ({ id: tool.id })) },
-      positions: { connect: [{ slug: "rueckenlage" }] }
-    }
-  });
+      positions: { connect: demoPosition ? [{ id: demoPosition.id }] : [] }
+      }
+    });
+  }
 }
 
 main()

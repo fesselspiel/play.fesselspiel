@@ -12,7 +12,7 @@ async function startKgSession(request: NextRequest) {
   const blocked = apiFeatureGate(auth.user, "externalApi", "tracker.kg");
   if (blocked) return blocked;
   const values = await requestValues(request);
-  const open = await prisma.kgSession.findFirst({ where: { ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } });
+  const open = await prisma.kgSession.findFirst({ where: { tenantId: auth.user.tenantId || undefined, ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } });
   const autoClosedAt = new Date();
   const closedSession = open
     ? await prisma.kgSession.update({
@@ -38,6 +38,7 @@ async function startKgSession(request: NextRequest) {
   const session = await prisma.kgSession.create({
     data: {
       ownerId: auth.user.id,
+      tenantId: auth.user.tenantId || undefined,
       startTime,
       notes: values.get("note") || values.get("notes") || "Per API gestartet"
     }

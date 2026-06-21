@@ -32,7 +32,7 @@ async function createActivity(formData: FormData) {
   const ideaTemplate = String(formData.get("template") || "") === "idea";
   if (selfBondageTemplate) await requireFeature("selfBondage");
   const title = String(formData.get("title") || "").trim();
-  const slug = await uniqueSlug("activityPlan", normalizeSlug(String(formData.get("slug") || ""), title));
+  const slug = await uniqueSlug("activityPlan", normalizeSlug(String(formData.get("slug") || ""), title), user.tenantId);
   const date = String(formData.get("date") || "");
   const time = String(formData.get("time") || "");
   const withoutSchedule = selfBondageTemplate && formData.get("noSchedule") === "on";
@@ -62,6 +62,7 @@ async function createActivity(formData: FormData) {
     : String(formData.get("note") || "").trim();
   const activity = await prisma.activityPlan.create({
     data: {
+      tenantId: user.tenantId || undefined,
       ownerId: user.id,
       title,
       slug,

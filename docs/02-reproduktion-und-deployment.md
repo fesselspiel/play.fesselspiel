@@ -31,6 +31,8 @@ docker compose exec app npx prisma db push
 docker compose exec app node prisma/seed.js
 ```
 
+Beim Start führt `docker-entrypoint.sh` automatisch `prisma db push` und `node prisma/seed.js` aus. Der Seed enthält auch den Backfill für Seiten-/Mandantenfähigkeit: vorhandene Benutzer werden in `TenantMembership` übernommen und bestehende Inhalte bekommen eine `tenantId`.
+
 ## Environment
 
 Wichtige Variablen:
@@ -71,6 +73,14 @@ Container Mail: kink_social_postfix
 Interner Port: 127.0.0.1:8097
 ```
 
+Domains:
+
+- `playplaner.com` ist die Hauptdomain.
+- `play.fesselspiel.com` bleibt als Zweitdomain ohne Weiterleitung aktiv.
+- Seiten/Mandanten können ohne eigene Domain über `https://playplaner.com/seite/<kurzname>/...` geöffnet werden.
+- Auf dem VPS ist Nginx für `*.playplaner.com` auf HTTP als Catch-all konfiguriert, damit neue Subdomains für ACME HTTP-01 erreichbar sind.
+- Für eine konkrete Subdomain wird auf dem VPS `playplaner-enable-subdomain <subdomain.playplaner.com>` ausgeführt. Das Skript erstellt per Certbot ein Zertifikat, legt einen HTTPS-Nginx-Block an und lädt Nginx neu.
+
 SSH:
 
 ```bash
@@ -96,6 +106,31 @@ Container-Status:
 
 ```bash
 docker compose ps
+```
+
+Mandanten-/Seiten-Check nach Deploy:
+
+```bash
+docker compose exec app node - <<'NODE'
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
+(async () => {
+  const tenants = await prisma.tenant.findMany({ select: { id: true, slug: true, name: true } });
+  for (const tenant of tenants) {
+    const counts = {
+      members: await prisma.tenantMembership.count({ where: { tenantId: tenant.id } }),
+      toys: await prisma.toy.count({ where: { tenantId: tenant.id } }),
+      positions: await prisma.position.count({ where: { tenantId: tenant.id } }),
+      activities: await prisma.activityPlan.count({ where: { tenantId: tenant.id } }),
+      sessions: await prisma.segufixSession.count({ where: { tenantId: tenant.id } }),
+      kg: await prisma.kgSession.count({ where: { tenantId: tenant.id } }),
+      media: await prisma.media.count({ where: { tenantId: tenant.id } }),
+      albums: await prisma.album.count({ where: { tenantId: tenant.id } })
+    };
+    console.log(tenant.slug, counts);
+  }
+})().finally(() => prisma.$disconnect());
+NODE
 ```
 
 ## Smoke-Tests
@@ -216,4 +251,9 @@ Wichtig:
 
 - E-Mail-Versand ist standardmäßig deaktiviert.
 - Zusätzlich muss jedes Template einzeln aktiviert werden.
+- Der Container-Entrypoint führt `prisma db push --accept-data-loss --skip-generate` aus, damit neue Tabellen/Constraints beim Docker-Start synchronisiert werden.
+- Benutzer-Einladungen bestätigen ihre E-Mail über `/email/confirm`.
+- Passwort-Reset läuft über `/password/forgot` und `/password/reset`.
+- Aktions-E-Mails werden unter `/settings/email#notifications` konfiguriert und verwenden die protokollierten Aktionen aus dem Audit-Log.
 - Für verlässliche Zustellung nach außen müssen DNS/SPF/DKIM/Reverse-DNS passend zur Domain gepflegt werden.
+- Operative Testmails dürfen nicht an die frühere Yahoo-Testadresse gesendet werden. Für künftige Mailtests ist `playplaner@mx.fesselspiel.com` zu verwenden.

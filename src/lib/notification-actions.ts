@@ -38,7 +38,56 @@ export const knownAuditActions = [
 ] as const;
 
 export function actionLabel(action: string) {
-  return knownAuditActions.find(([value]) => value === action)?.[1] || action;
+  const known = knownAuditActions.find(([value]) => value === action)?.[1];
+  if (known) return known;
+  const words: Record<string, string> = {
+    activity: "Spielplan",
+    api: "API",
+    auto: "automatisch",
+    bondage: "Bondage-System",
+    changed: "geändert",
+    closed: "geschlossen",
+    completed: "abgeschlossen",
+    confirmed: "bestätigt",
+    created: "angelegt",
+    deleted: "gelöscht",
+    domain: "Domain",
+    email: "E-Mail",
+    failed: "fehlgeschlagen",
+    image: "Bild",
+    item: "Eintrag",
+    login: "Login",
+    logout: "Logout",
+    media: "Bild",
+    notification: "Benachrichtigung",
+    password: "Passwort",
+    play: "Spielampel",
+    product: "Produkt",
+    ready: "Bereitschaft",
+    received: "empfangen",
+    refreshed: "erneuert",
+    requested: "angefragt",
+    reset: "zurückgesetzt",
+    sent: "gesendet",
+    session: "Session",
+    settings: "Einstellungen",
+    shopify: "Shopify",
+    site: "Seite",
+    started: "gestartet",
+    stopped: "beendet",
+    sync: "Sync",
+    telegram: "Telegram",
+    token: "Token",
+    updated: "bearbeitet",
+    uploaded: "hochgeladen",
+    user: "Benutzer",
+    viewed: "aufgerufen"
+  };
+  return action
+    .split("_")
+    .filter(Boolean)
+    .map((part) => words[part] || part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 export function defaultNotificationTemplate() {

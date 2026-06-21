@@ -4,7 +4,7 @@ import { Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { FileUploadField } from "@/components/file-upload-field";
 import { Button, Field, inputClass, PageGuide, PageHeader } from "@/components/ui";
-import { isAccessibleOwner, ownerScope } from "@/lib/access";
+import { contentTenantScope, isAccessibleOwner, ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { hasFeature, requireFeature } from "@/lib/features";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
@@ -22,7 +22,7 @@ async function updateToy(formData: FormData) {
   if (!toy) notFound();
 
   const title = String(formData.get("title") || "").trim();
-  const slug = await uniqueSlugForUpdate("toy", normalizeSlug(String(formData.get("slug") || ""), title), toy.id);
+  const slug = await uniqueSlugForUpdate("toy", normalizeSlug(String(formData.get("slug") || ""), title), toy.id, user.tenantId);
   const uploadedImageUrl = String(formData.get("imageUploadedUrl") || "").trim();
   const image = uploadedImageUrl ? null : await saveUploadedFile(user.id, formData.get("image") as File | null);
   const removeImage = formData.get("removeImage") === "on";
@@ -65,7 +65,7 @@ export default async function EditToyPage({ params }: { params: { slug: string }
   if (!user) redirect("/login");
   await requireFeature("toys");
   const positionsEnabled = await hasFeature("positions");
-  const toy = await prisma.toy.findUnique({ where: { slug: params.slug }, include: { positions: positionsEnabled } });
+  const toy = await prisma.toy.findFirst({ where: { slug: params.slug, ...contentTenantScope(user) }, include: { positions: positionsEnabled } });
   if (!toy || !(await isAccessibleOwner(user, toy.ownerId))) notFound();
   const positions = positionsEnabled ? await prisma.position.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : [];
   const selectedPositions = new Set(positionsEnabled ? toy.positions.map((position) => position.id) : []);

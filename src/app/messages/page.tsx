@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BellRing, ChevronRight, Clock3, ExternalLink, History } from "lucide-react";
+import { BellRing, ChevronRight, Clock3, ExternalLink, History, Mail } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ProtocolSearch } from "@/components/protocol-search";
 import { Badge, EmptyState, PageGuide, PageHeader, Panel } from "@/components/ui";
@@ -204,12 +204,20 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
                                 </Link>
                               ) : null}
                               {entry.action ? (
-                                <Link
-                                  href={`/settings/telegram?action=${encodeURIComponent(entry.action)}#notifications`}
-                                  className="focus-ring inline-flex min-h-9 items-center gap-1 rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-paper hover:text-redbrand"
-                                >
-                                  Benachrichtigung <BellRing className="h-3.5 w-3.5" />
-                                </Link>
+                                <>
+                                  <Link
+                                    href={`/settings/telegram?action=${encodeURIComponent(entry.action)}#notifications`}
+                                    className="focus-ring inline-flex min-h-9 items-center gap-1 rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-paper hover:text-redbrand"
+                                  >
+                                    Telegram <BellRing className="h-3.5 w-3.5" />
+                                  </Link>
+                                  <Link
+                                    href={`/settings/email?action=${encodeURIComponent(entry.action)}#notifications`}
+                                    className="focus-ring inline-flex min-h-9 items-center gap-1 rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-paper hover:text-redbrand"
+                                  >
+                                    E-Mail <Mail className="h-3.5 w-3.5" />
+                                  </Link>
+                                </>
                               ) : null}
                             </div>
                             {entry.body ? (

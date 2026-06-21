@@ -14,6 +14,17 @@ import { uniqueSlug } from "@/lib/slug";
 
 type TelegramMessageFrom = TelegramMessage["from"];
 
+async function tenantIdForUser(userId: string) {
+  const membership = await prisma.tenantMembership.findFirst({
+    where: { userId, active: true },
+    orderBy: { createdAt: "asc" },
+    select: { tenantId: true }
+  });
+  if (membership?.tenantId) return membership.tenantId;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { tenantId: true } });
+  return user?.tenantId || undefined;
+}
+
 const HELP_TEXT = `<b>Befehle</b>
 /start - Bot starten
 /help - Befehle anzeigen
@@ -60,17 +71,19 @@ function commandOf(text: string) {
 async function handleCommand(userId: string, text: string, chatId: string, threadId: string | null) {
   const parsed = commandOf(text);
   if (!parsed) return `Verstanden: ${text}`;
+  const tenantId = await tenantIdForUser(userId);
+  const tenantScope = tenantId ? { tenantId } : {};
 
   if (parsed.command === "/start" || parsed.command === "/help") return HELP_TEXT;
   if (parsed.command === "/id") return ["<b>Telegram-Verbindung</b>", htmlLine("Chat-ID", chatId), htmlLine("Thread-ID", threadId || "-"), htmlLine("Status", "aktiv")].join("\n");
 
   if (parsed.command === "/status") {
     const [toys, positions, activities, sessions, kgSessions] = await Promise.all([
-      prisma.toy.count({ where: { ownerId: userId } }),
-      prisma.position.count({ where: { ownerId: userId } }),
-      prisma.activityPlan.count({ where: { ownerId: userId, category: { not: "IDEA_COLLECTION" }, status: { in: ["REQUESTED", "PLANNED"] } } }),
-      prisma.segufixSession.count({ where: { ownerId: userId } }),
-      prisma.kgSession.count({ where: { ownerId: userId } })
+      prisma.toy.count({ where: { ...tenantScope, ownerId: userId } }),
+      prisma.position.count({ where: { ...tenantScope, ownerId: userId } }),
+      prisma.activityPlan.count({ where: { ...tenantScope, ownerId: userId, category: { not: "IDEA_COLLECTION" }, status: { in: ["REQUESTED", "PLANNED"] } } }),
+      prisma.segufixSession.count({ where: { ...tenantScope, ownerId: userId } }),
+      prisma.kgSession.count({ where: { ...tenantScope, ownerId: userId } })
     ]);
     return ["<b>Portalstatus</b>", htmlLine("Spielzeuge", toys), htmlLine("Szenen", positions), htmlLine("Geplante Aktivitäten", activities), htmlLine("Segufix-Sessions", sessions), htmlLine("KG-Einträge", kgSessions)].join("\n");
   }
@@ -81,8 +94,8 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     const albumIndex = Number(match[1]);
     const mediaId = match[2];
     const [media, albums] = await Promise.all([
-      prisma.media.findFirst({ where: { id: mediaId, ownerId: userId } }),
-      prisma.album.findMany({ where: { ownerId: userId }, orderBy: { title: "asc" } })
+      prisma.media.findFirst({ where: { id: mediaId, ...tenantScope, ownerId: userId } }),
+      prisma.album.findMany({ where: { ...tenantScope, ownerId: userId }, orderBy: { title: "asc" } })
     ]);
     const album = albums[albumIndex - 1];
     if (!media || !album) return "Bild oder Album wurde nicht gefunden.";
@@ -99,7 +112,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   }
 
   if (parsed.command === "/toys") {
-    const toys = await prisma.toy.findMany({ where: { ownerId: userId }, orderBy: [{ sortOrder: "asc" }, { title: "asc" }], take: 12 });
+    const toys = await prisma.toy.findMany({ where: { ...tenantScope, ownerId: userId }, orderBy: [{ sortOrder: "asc" }, { title: "asc" }], take: 12 });
     return htmlList(
       "Spielzeuge",
       toys.map((toy, index) =>
@@ -115,7 +128,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   }
 
   if (parsed.command === "/positions") {
-    const positions = await prisma.position.findMany({ where: { ownerId: userId }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], take: 12 });
+    const positions = await prisma.position.findMany({ where: { ...tenantScope, ownerId: userId }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], take: 12 });
     return htmlList(
       "Szenen",
       positions.map((position, index) =>
@@ -128,7 +141,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
 
   if (parsed.command === "/activities") {
     const activities = await prisma.activityPlan.findMany({
-      where: { ownerId: userId, status: { in: ["REQUESTED", "PLANNED"] } },
+      where: { ...tenantScope, ownerId: userId, status: { in: ["REQUESTED", "PLANNED"] } },
       include: { tools: true, positions: true },
       orderBy: [{ status: "asc" }, { plannedAt: "asc" }],
       take: 8
@@ -153,9 +166,10 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     const title = parsed.args || "Spielanfrage";
     const activity = await prisma.activityPlan.create({
       data: {
+        tenantId,
         ownerId: userId,
         title,
-        slug: await uniqueSlug("activityPlan", title),
+        slug: await uniqueSlug("activityPlan", title, tenantId),
         status: "REQUESTED",
         note: "Per Telegram angefragt"
       }
@@ -175,7 +189,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     const index = Number(parsed.command.replace("/activity_confirm_", ""));
     if (!Number.isInteger(index) || index < 1) return "Ungültige Bestätigungsnummer. Nutze /activities für die aktuelle Liste.";
     const requested = await prisma.activityPlan.findMany({
-      where: { ownerId: userId, status: "REQUESTED" },
+      where: { ...tenantScope, ownerId: userId, status: "REQUESTED" },
       orderBy: [{ plannedAt: "asc" }, { createdAt: "asc" }],
       take: 20
     });
@@ -196,7 +210,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   if (parsed.command === "/sessions") {
     const now = new Date();
     const yearStart = new Date(now.getFullYear(), 0, 1);
-    const sessions = await prisma.segufixSession.findMany({ where: { ownerId: userId, startTime: { gte: yearStart } } });
+    const sessions = await prisma.segufixSession.findMany({ where: { ...tenantScope, ownerId: userId, startTime: { gte: yearStart } } });
     const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
     const open = sessions.filter((session) => !session.endTime).length;
     return [`<b>Sessions ${now.getFullYear()}</b>`, htmlLine("Anzahl", sessions.length), htmlLine("Gesamtdauer", formatMinutes(total)), htmlLine("Offen", open)].join("\n");
@@ -205,7 +219,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   if (parsed.command === "/kg") {
     const now = new Date();
     const yearStart = new Date(now.getFullYear(), 0, 1);
-    const sessions = await prisma.kgSession.findMany({ where: { ownerId: userId, startTime: { gte: yearStart } } });
+    const sessions = await prisma.kgSession.findMany({ where: { ...tenantScope, ownerId: userId, startTime: { gte: yearStart } } });
     const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
     const open = sessions.filter((session) => !session.endTime).length;
     return [`<b>KG Time Tracker ${now.getFullYear()}</b>`, htmlLine("Einträge", sessions.length), htmlLine("Gesamtzeit", formatMinutes(total)), htmlLine("Offen", open), telegramLink(`${env.appUrl}/sessions?tracker=kg`, "KG Tracker öffnen")].join("\n");
@@ -216,13 +230,14 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   }
 
   if (parsed.command === "/session_start") {
-    const open = await prisma.segufixSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
+    const open = await prisma.segufixSession.findFirst({ where: { ...tenantScope, ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
     if (open) return `Es läuft bereits eine Session seit ${formatDateTime(open.startTime)}. Beende sie mit /session_stop.`;
     const startTime = new Date();
     const session = await prisma.segufixSession.create({
       data: {
         ownerId: userId,
-        slug: await uniqueSessionSlug(startTime),
+        tenantId,
+        slug: await uniqueSessionSlug(startTime, undefined, tenantId),
         startTime,
         notes: parsed.args || "Per Telegram gestartet"
       }
@@ -231,7 +246,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   }
 
   if (parsed.command === "/session_stop") {
-    const session = await prisma.segufixSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
+    const session = await prisma.segufixSession.findFirst({ where: { ...tenantScope, ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
     if (!session) return "Keine laufende Session gefunden.";
     const endTime = new Date();
     const durationMinutes = minutesBetween(session.startTime, endTime);
@@ -247,7 +262,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   }
 
   if (parsed.command === "/kg_start") {
-    const open = await prisma.kgSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
+    const open = await prisma.kgSession.findFirst({ where: { ...tenantScope, ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
     const startTime = new Date();
     if (open) {
       await prisma.kgSession.update({
@@ -262,6 +277,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     const session = await prisma.kgSession.create({
       data: {
         ownerId: userId,
+        tenantId,
         startTime,
         notes: parsed.args || "Per Telegram gestartet"
       }
@@ -278,7 +294,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   }
 
   if (parsed.command === "/kg_stop") {
-    const session = await prisma.kgSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
+    const session = await prisma.kgSession.findFirst({ where: { ...tenantScope, ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
     if (!session) return "Kein laufender KG-Tracker gefunden.";
     const endTime = new Date();
     const durationMinutes = minutesBetween(session.startTime, endTime);
@@ -373,7 +389,8 @@ export async function POST(request: Request) {
       ownerId: actorUserId,
       bytes: downloaded.bytes,
       originalName: downloaded.originalName,
-      mimeType: downloaded.mimeType
+      mimeType: downloaded.mimeType,
+      tenantId: await tenantIdForUser(actorUserId)
     });
     if (!asset) return NextResponse.json({ ok: true });
     const imageUrl = fileAssetUrl(asset.id);
@@ -389,13 +406,15 @@ export async function POST(request: Request) {
     });
 
     const itemDialogueAnswer = await handleItemCreationImage(actorUserId, imageUrl);
+    const actorTenantId = await tenantIdForUser(actorUserId);
     const answer: string =
       itemDialogueAnswer ??
       (await prisma.media
         .create({
           data: {
+            tenantId: actorTenantId,
             ownerId: actorUserId,
-            albumId: (await ensureDefaultAlbum(actorUserId)).id,
+            albumId: (await ensureDefaultAlbum(actorUserId, actorTenantId)).id,
             title: caption || `Telegram Bild ${formatDateTime(new Date())}`,
             kind: "IMAGE",
             url: imageUrl,
@@ -403,8 +422,8 @@ export async function POST(request: Request) {
           }
         })
         .then(async (media) => {
-          const defaultAlbum = await ensureDefaultAlbum(actorUserId);
-          const albums = await prisma.album.findMany({ where: { ownerId: actorUserId }, orderBy: { title: "asc" } });
+          const defaultAlbum = await ensureDefaultAlbum(actorUserId, actorTenantId);
+          const albums = await prisma.album.findMany({ where: { ...(actorTenantId ? { tenantId: actorTenantId } : {}), ownerId: actorUserId }, orderBy: { title: "asc" } });
           await logAction({
             actorId: actorUserId,
             action: "media_created_telegram",

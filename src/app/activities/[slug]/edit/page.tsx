@@ -6,7 +6,7 @@ import { SelfBondagePositionChoice } from "@/components/self-bondage-position-ch
 import { SelfBondageScheduleFields } from "@/components/self-bondage-schedule-fields";
 import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
 import { activityStatusOptions, type ActivityStatusValue } from "@/lib/activity-status";
-import { bondageSystemVisibilityScope, isAccessibleOwner, ownerScope } from "@/lib/access";
+import { bondageSystemVisibilityScope, contentTenantScope, isAccessibleOwner, ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { formatDateTimeLocal } from "@/lib/dates";
 import { hasFeature, requireFeature } from "@/lib/features";
@@ -53,7 +53,7 @@ async function updateActivity(formData: FormData) {
   const idea = activity.category === "IDEA_COLLECTION";
 
   const title = String(formData.get("title") || "").trim();
-  const slug = selfBondageOrder || idea ? activity.slug : await uniqueSlugForUpdate("activityPlan", normalizeSlug(String(formData.get("slug") || ""), title), activity.id);
+  const slug = selfBondageOrder || idea ? activity.slug : await uniqueSlugForUpdate("activityPlan", normalizeSlug(String(formData.get("slug") || ""), title), activity.id, user.tenantId);
   const plannedAtRaw = String(formData.get("plannedAt") || "");
   const withoutSchedule = selfBondageOrder && formData.get("noSchedule") === "on";
   if (selfBondageOrder) await requireFeature("selfBondage");
@@ -126,7 +126,7 @@ export default async function EditActivityPage({ params, searchParams }: { param
   const toolsEnabled = await hasFeature("toys");
   const positionsEnabled = await hasFeature("positions");
   const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
-  const activity = await prisma.activityPlan.findUnique({ where: { slug: params.slug }, include: { tools: toolsEnabled, bondageSystemItems: bondageSystemEnabled, positions: positionsEnabled } });
+  const activity = await prisma.activityPlan.findFirst({ where: { slug: params.slug, ...contentTenantScope(user) }, include: { tools: toolsEnabled, bondageSystemItems: bondageSystemEnabled, positions: positionsEnabled } });
   if (!activity || !(await isAccessibleOwner(user, activity.ownerId))) notFound();
   const scope = await ownerScope(user);
   const [toys, positions, bondageItems] = await Promise.all([

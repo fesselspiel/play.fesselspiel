@@ -9,55 +9,57 @@ export type AccessUser = {
 };
 
 function tenantWhere(user: AccessUser) {
-  return user.tenantId ? { OR: [{ tenantId: user.tenantId }, { tenantId: null }] } : {};
+  return user.tenantId ? { tenantId: user.tenantId } : {};
 }
 
 export async function accessibleOwnerIds(user: AccessUser) {
-  if (user.role === "SUPER_ADMIN") {
-    const users = await prisma.user.findMany({ where: { active: true }, select: { id: true } });
-    return users.map((entry) => entry.id);
+  if (user.tenantId && (user.role === "SUPER_ADMIN" || user.role === "ADMIN")) {
+    const memberships = await prisma.tenantMembership.findMany({
+      where: { tenantId: user.tenantId, active: true, user: { active: true } },
+      select: { userId: true }
+    });
+    return memberships.map((entry) => entry.userId);
   }
-  if (user.role === "ADMIN") {
-    const users = await prisma.user.findMany({ where: { active: true, ...tenantWhere(user) }, select: { id: true } });
-    return users.map((entry) => entry.id);
-  }
-  if (!user.circleId) return [user.id];
-  const users = await prisma.user.findMany({
-    where: { circleId: user.circleId, active: true, ...tenantWhere(user) },
-    select: { id: true }
+  if (!user.circleId || !user.tenantId) return [user.id];
+  const memberships = await prisma.tenantMembership.findMany({
+    where: { tenantId: user.tenantId, circleId: user.circleId, active: true, user: { active: true } },
+    select: { userId: true }
   });
-  const ids = users.map((entry) => entry.id);
+  const ids = memberships.map((entry) => entry.userId);
   return ids.length ? ids : [user.id];
 }
 
 export async function ownerScope(user: AccessUser) {
-  return { ownerId: { in: await accessibleOwnerIds(user) } };
+  return { ...tenantWhere(user), ownerId: { in: await accessibleOwnerIds(user) } };
 }
 
 export async function visibilityScope(user: AccessUser) {
-  if (user.role === "ADMIN") return { ownerId: { in: await accessibleOwnerIds(user) } };
+  const tenantScope = tenantWhere(user);
+  if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") return { ...tenantScope, ownerId: { in: await accessibleOwnerIds(user) } };
   const ownerIds = await accessibleOwnerIds(user);
   const circleVisibility: Visibility[] = ["PARTNER", "SHARED"];
   return {
     OR: [
-      { ownerId: user.id },
+      { ...tenantScope, ownerId: user.id },
       ...(user.circleId ? [{ ownerId: { in: ownerIds.filter((id) => id !== user.id) }, visibility: { in: circleVisibility } }] : []),
-      { visibility: "SHARED" as const }
+      { ...tenantScope, visibility: "SHARED" as const }
     ]
   };
 }
 
 export async function mediaVisibilityScope(user: AccessUser) {
-  if (user.role === "ADMIN") return { ownerId: { in: await accessibleOwnerIds(user) } };
+  const tenantScope = tenantWhere(user);
+  if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") return { ...tenantScope, ownerId: { in: await accessibleOwnerIds(user) } };
   const ownerIds = await accessibleOwnerIds(user);
   const circleVisibility: Visibility[] = ["PARTNER", "SHARED"];
   const otherOwnerIds = ownerIds.filter((id) => id !== user.id);
   return {
     OR: [
-      { ownerId: user.id },
+      { ...tenantScope, ownerId: user.id },
       ...(user.circleId
         ? [
             {
+              ...tenantScope,
               ownerId: { in: otherOwnerIds },
               OR: [
                 { visibility: { in: circleVisibility } },
@@ -66,8 +68,8 @@ export async function mediaVisibilityScope(user: AccessUser) {
             }
           ]
         : []),
-      { visibility: "SHARED" as const },
-      { visibility: null, album: { is: { visibility: "SHARED" as const } } }
+      { ...tenantScope, visibility: "SHARED" as const },
+      { ...tenantScope, visibility: null, album: { is: { visibility: "SHARED" as const } } }
     ]
   };
 }
@@ -85,4 +87,8 @@ export function bondageSystemVisibilityScope(user: AccessUser) {
 
 export async function isAccessibleOwner(user: AccessUser, ownerId: string) {
   return (await accessibleOwnerIds(user)).includes(ownerId);
+}
+
+export function contentTenantScope(user: AccessUser) {
+  return tenantWhere(user);
 }

@@ -25,6 +25,13 @@ type DialogueMessage = { role: "user" | "assistant"; content: string };
 
 const AGENT_MODEL = process.env.OPENAI_AGENT_MODEL || "gpt-4o-mini";
 
+async function tenantIdForUser(userId: string) {
+  const membership = await prisma.tenantMembership.findFirst({ where: { userId, active: true }, orderBy: { createdAt: "asc" }, select: { tenantId: true } });
+  if (membership?.tenantId) return membership.tenantId;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { tenantId: true } });
+  return user?.tenantId || undefined;
+}
+
 const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
@@ -201,10 +208,12 @@ function contains(value: string) {
 }
 
 async function matchingToys(userId: string, titles: unknown) {
+  const tenantId = await tenantIdForUser(userId);
   const values = Array.isArray(titles) ? titles.map(clean).filter(Boolean) : [];
   if (!values.length) return [];
   return prisma.toy.findMany({
     where: {
+      ...(tenantId ? { tenantId } : {}),
       ownerId: userId,
       OR: values.flatMap((title) => [{ title: contains(title) }, { slug: contains(title) }])
     },
@@ -213,10 +222,12 @@ async function matchingToys(userId: string, titles: unknown) {
 }
 
 async function matchingPositions(userId: string, names: unknown) {
+  const tenantId = await tenantIdForUser(userId);
   const values = Array.isArray(names) ? names.map(clean).filter(Boolean) : [];
   if (!values.length) return [];
   return prisma.position.findMany({
     where: {
+      ...(tenantId ? { tenantId } : {}),
       ownerId: userId,
       OR: values.flatMap((name) => [{ name: contains(name) }, { slug: contains(name) }])
     },
@@ -327,14 +338,16 @@ function formatToolResultHtml(result: ToolCallResult) {
 }
 
 async function getPortalStatus(userId: string): Promise<ToolCallResult> {
+  const tenantId = await tenantIdForUser(userId);
+  const tenantScope = tenantId ? { tenantId } : {};
   const now = new Date();
   const yearStart = new Date(now.getFullYear(), 0, 1);
   const [toys, positions, plannedActivities, sessions, openSession] = await Promise.all([
-    prisma.toy.count({ where: { ownerId: userId } }),
-    prisma.position.count({ where: { ownerId: userId } }),
-    prisma.activityPlan.count({ where: { ownerId: userId, category: { not: "IDEA_COLLECTION" }, status: { in: ["REQUESTED", "PLANNED"] } } }),
-    prisma.segufixSession.findMany({ where: { ownerId: userId, startTime: { gte: yearStart } } }),
-    prisma.segufixSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } })
+    prisma.toy.count({ where: { ...tenantScope, ownerId: userId } }),
+    prisma.position.count({ where: { ...tenantScope, ownerId: userId } }),
+    prisma.activityPlan.count({ where: { ...tenantScope, ownerId: userId, category: { not: "IDEA_COLLECTION" }, status: { in: ["REQUESTED", "PLANNED"] } } }),
+    prisma.segufixSession.findMany({ where: { ...tenantScope, ownerId: userId, startTime: { gte: yearStart } } }),
+    prisma.segufixSession.findFirst({ where: { ...tenantScope, ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } })
   ]);
   const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
   return {
@@ -352,6 +365,8 @@ async function getPortalStatus(userId: string): Promise<ToolCallResult> {
 }
 
 async function searchPortal(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
+  const tenantId = await tenantIdForUser(userId);
+  const tenantScope = tenantId ? { tenantId } : {};
   const query = clean(args.query);
   const area = clean(args.area) || "all";
   const whereText = query ? [{ title: contains(query) }, { slug: contains(query) }, { description: contains(query) }] : undefined;
@@ -360,7 +375,7 @@ async function searchPortal(userId: string, args: Record<string, unknown>): Prom
 
   if (area === "all" || area === "toys") {
     const toys = await prisma.toy.findMany({
-      where: { ownerId: userId, ...(whereText ? { OR: whereText } : {}) },
+      where: { ...tenantScope, ownerId: userId, ...(whereText ? { OR: whereText } : {}) },
       orderBy: { updatedAt: "desc" },
       take: 8
     });
@@ -368,7 +383,7 @@ async function searchPortal(userId: string, args: Record<string, unknown>): Prom
   }
   if (area === "all" || area === "positions") {
     const positions = await prisma.position.findMany({
-      where: { ownerId: userId, ...(whereName ? { OR: whereName } : {}) },
+      where: { ...tenantScope, ownerId: userId, ...(whereName ? { OR: whereName } : {}) },
       orderBy: { updatedAt: "desc" },
       take: 8
     });
@@ -376,7 +391,7 @@ async function searchPortal(userId: string, args: Record<string, unknown>): Prom
   }
   if (area === "all" || area === "activities") {
     const activities = await prisma.activityPlan.findMany({
-      where: { ownerId: userId, ...(whereText ? { OR: whereText } : {}) },
+      where: { ...tenantScope, ownerId: userId, ...(whereText ? { OR: whereText } : {}) },
       include: { tools: true, positions: true },
       orderBy: { updatedAt: "desc" },
       take: 8
@@ -392,7 +407,7 @@ async function searchPortal(userId: string, args: Record<string, unknown>): Prom
   }
   if (area === "all" || area === "sessions") {
     const sessions = await prisma.segufixSession.findMany({
-      where: { ownerId: userId, ...(query ? { notes: contains(query) } : {}) },
+      where: { ...tenantScope, ownerId: userId, ...(query ? { notes: contains(query) } : {}) },
       orderBy: { startTime: "desc" },
       take: 8
     });
@@ -407,14 +422,16 @@ async function searchPortal(userId: string, args: Record<string, unknown>): Prom
 }
 
 async function createToy(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
+  const tenantId = await tenantIdForUser(userId);
   const title = clean(args.title);
   if (!title) return { ok: false, message: "Titel fehlt." };
   if (!clean(args.description)) return { ok: false, message: "Beschreibung fehlt. Frage danach, bevor du das Spielzeug anlegst." };
   if (args.imageUrl === undefined) return { ok: false, message: "Bild-URL fehlt. Frage danach, bevor du das Spielzeug anlegst." };
-  const slug = await uniqueSlug("toy", clean(args.slug) || title);
+  const slug = await uniqueSlug("toy", clean(args.slug) || title, tenantId);
   const toy = await prisma.toy.create({
     data: {
       ownerId: userId,
+      tenantId,
       title,
       slug,
       description: clean(args.description),
@@ -425,15 +442,17 @@ async function createToy(userId: string, args: Record<string, unknown>): Promise
 }
 
 async function createPosition(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
+  const tenantId = await tenantIdForUser(userId);
   const name = clean(args.name);
   if (!name) return { ok: false, message: "Name fehlt." };
   if (!clean(args.description)) return { ok: false, message: "Beschreibung fehlt. Frage danach, bevor du die Szene anlegst." };
   if (args.imageUrl === undefined) return { ok: false, message: "Bild-URL fehlt. Frage danach, bevor du die Szene anlegst." };
-  const slug = await uniqueSlug("position", name);
+  const slug = await uniqueSlug("position", name, tenantId);
   const toys = await matchingToys(userId, args.toyTitles);
   const position = await prisma.position.create({
     data: {
       ownerId: userId,
+      tenantId,
       name,
       slug,
       description: clean(args.description),
@@ -450,16 +469,18 @@ async function createPosition(userId: string, args: Record<string, unknown>): Pr
 }
 
 async function createActivity(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
+  const tenantId = await tenantIdForUser(userId);
   const title = clean(args.title);
   if (!title) return { ok: false, message: "Aktivität fehlt." };
   const plannedAtRaw = clean(args.plannedAt);
   const plannedAt = plannedAtRaw ? new Date(plannedAtRaw) : null;
   if (plannedAtRaw && Number.isNaN(plannedAt?.getTime())) return { ok: false, message: "Datum/Uhrzeit konnte nicht gelesen werden." };
   const [toys, positions] = await Promise.all([matchingToys(userId, args.toyTitles), matchingPositions(userId, args.positionNames)]);
-  const slug = await uniqueSlug("activityPlan", title);
+  const slug = await uniqueSlug("activityPlan", title, tenantId);
   const activity = await prisma.activityPlan.create({
     data: {
       ownerId: userId,
+      tenantId,
       title,
       slug,
       category: clean(args.category),
@@ -485,11 +506,12 @@ async function createActivity(userId: string, args: Record<string, unknown>): Pr
 }
 
 async function setActivityStatus(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
+  const tenantId = await tenantIdForUser(userId);
   const titleOrSlug = clean(args.titleOrSlug);
   const status = clean(args.status) as "REQUESTED" | "PLANNED" | "DONE" | "DISCARDED";
   if (!titleOrSlug || !["REQUESTED", "PLANNED", "DONE", "DISCARDED"].includes(status)) return { ok: false, message: "Aktivität oder Status fehlt." };
   const activity = await prisma.activityPlan.findFirst({
-    where: { ownerId: userId, OR: [{ slug: titleOrSlug }, { title: contains(titleOrSlug) }] },
+    where: { ...(tenantId ? { tenantId } : {}), ownerId: userId, OR: [{ slug: titleOrSlug }, { title: contains(titleOrSlug) }] },
     orderBy: { updatedAt: "desc" }
   });
   if (!activity) return { ok: false, message: "Aktivität nicht gefunden." };
@@ -498,14 +520,16 @@ async function setActivityStatus(userId: string, args: Record<string, unknown>):
 }
 
 async function startSession(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
-  const open = await prisma.segufixSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
+  const tenantId = await tenantIdForUser(userId);
+  const open = await prisma.segufixSession.findFirst({ where: { ...(tenantId ? { tenantId } : {}), ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
   if (open) return { ok: false, message: `Es läuft bereits eine Session seit ${formatDateTime(open.startTime)}.` };
   const moodBefore = clean(args.moodBefore) || undefined;
   const startTime = new Date();
   const session = await prisma.segufixSession.create({
     data: {
       ownerId: userId,
-      slug: await uniqueSessionSlug(startTime),
+      tenantId,
+      slug: await uniqueSessionSlug(startTime, undefined, tenantId),
       startTime,
       notes: clean(args.note) || "Per Telegram-Agent gestartet",
       moodBefore: moodBefore as never,
@@ -516,7 +540,8 @@ async function startSession(userId: string, args: Record<string, unknown>): Prom
 }
 
 async function stopSession(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
-  const session = await prisma.segufixSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
+  const tenantId = await tenantIdForUser(userId);
+  const session = await prisma.segufixSession.findFirst({ where: { ...(tenantId ? { tenantId } : {}), ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
   if (!session) return { ok: false, message: "Keine laufende Session gefunden." };
   const endTime = new Date();
   const durationMinutes = minutesBetween(session.startTime, endTime);
@@ -535,7 +560,8 @@ async function stopSession(userId: string, args: Record<string, unknown>): Promi
 }
 
 async function startKgTracker(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
-  const open = await prisma.kgSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
+  const tenantId = await tenantIdForUser(userId);
+  const open = await prisma.kgSession.findFirst({ where: { ...(tenantId ? { tenantId } : {}), ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
   const startTime = new Date();
   if (open) {
     await prisma.kgSession.update({
@@ -550,6 +576,7 @@ async function startKgTracker(userId: string, args: Record<string, unknown>): Pr
   const session = await prisma.kgSession.create({
     data: {
       ownerId: userId,
+      tenantId,
       startTime,
       notes: clean(args.note) || "Per Telegram-Agent gestartet"
     }
@@ -558,7 +585,8 @@ async function startKgTracker(userId: string, args: Record<string, unknown>): Pr
 }
 
 async function stopKgTracker(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
-  const session = await prisma.kgSession.findFirst({ where: { ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
+  const tenantId = await tenantIdForUser(userId);
+  const session = await prisma.kgSession.findFirst({ where: { ...(tenantId ? { tenantId } : {}), ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
   if (!session) return { ok: false, message: "Kein laufender KG-Tracker gefunden." };
   const endTime = new Date();
   const durationMinutes = minutesBetween(session.startTime, endTime);
