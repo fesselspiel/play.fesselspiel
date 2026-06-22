@@ -123,6 +123,11 @@ export function telegramLink(url: string, label: string) {
   return `<a href="${telegramHtml(url)}">${telegramHtml(label)}</a>`;
 }
 
+function normalizeOutgoingTelegramText(text: string, parseMode?: "HTML") {
+  const normalized = text.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\t/g, "\t");
+  return parseMode === "HTML" ? normalized.replace(/<br\s*\/?>/gi, "\n") : normalized;
+}
+
 export async function sendTelegramMessage(
   tokenEnc: string,
   chatId: string,
@@ -131,7 +136,7 @@ export async function sendTelegramMessage(
   options: { parseMode?: "HTML"; disableWebPagePreview?: boolean } = {}
 ) {
   const token = decryptSecret(tokenEnc);
-  const body: Record<string, unknown> = { chat_id: chatId, text };
+  const body: Record<string, unknown> = { chat_id: chatId, text: normalizeOutgoingTelegramText(text, options.parseMode) };
   if (threadId) body.message_thread_id = Number(threadId);
   if (options.parseMode) body.parse_mode = options.parseMode;
   if (options.disableWebPagePreview !== undefined) body.disable_web_page_preview = options.disableWebPagePreview;

@@ -517,7 +517,14 @@ export async function POST(request: Request) {
       action: "telegram_answer_sent",
       entityType: "telegram",
       title: "Telegram-Antwort gesendet",
-      details: { answer: answer.slice(0, 500) }
+      details: {
+        answer: answer.slice(0, 1000),
+        chatId,
+        threadId,
+        chatTitle: chat.chatTitle || chat.title || null,
+        threadTitle: chat.threadTitle || null,
+        outputChatId: chat.id
+      }
     });
     await prisma.telegramChat.update({ where: { id: chat.id }, data: { lastMessageAt: new Date() } });
     return NextResponse.json({ ok: true });
@@ -554,7 +561,14 @@ export async function POST(request: Request) {
       action: "telegram_answer_sent",
       entityType: "telegram",
       title: "Telegram-Antwort gesendet",
-      details: { answer: answer.slice(0, 500) }
+      details: {
+        answer: answer.slice(0, 1000),
+        chatId,
+        threadId,
+        chatTitle: chat.chatTitle || chat.title || null,
+        threadTitle: chat.threadTitle || null,
+        outputChatId: chat.id
+      }
     });
   }
   await prisma.telegramChat.update({ where: { id: chat.id }, data: { lastMessageAt: new Date() } });

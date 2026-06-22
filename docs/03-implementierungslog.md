@@ -799,3 +799,6 @@ Details:
 - Der Ersteller sieht dort einen Wartehinweis; andere Benutzer im Kreis können die Anfrage direkt bestätigen.
 - Die Telegram-Aktionsbenachrichtigungen sind für Admins und Superadmins wieder sichtbar und editierbar.
 - Telegram-Versände über Aktionsregeln schreiben ein eigenes Versandprotokoll mit Erfolg, Fehler, Chat, Thread und Message-ID. Die letzten Einträge werden auf der Telegram-Einstellungsseite angezeigt.
+- Das Telegram-Versandprotokoll ist wie das normale Protokoll nach Tagen und Stunden gruppiert. Einzelne Sendungen lassen sich aufklappen und zeigen Auslöser, Benutzer, Ziel, Chatname, Threadname, Chat-/Thread-ID, Telegram-Nachrichten-ID, Nachrichtentext und Fehlerdetails.
+- Telegram-Aktionsregeln und Bot-Antworten schreiben für neue Logeinträge Chat- und Thread-Kontext mit, damit spätere Prüfungen nachvollziehbar bleiben.
+- Ausgehende Telegram-HTML-Nachrichten normalisieren gespeicherte Literal-Zeilenumbrüche wie `\n` vor dem Senden zu echten Zeilenumbrüchen. `<br>` wird ebenfalls in Telegram-kompatible Zeilenumbrüche umgesetzt.

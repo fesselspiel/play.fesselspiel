@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { BellRing, Check, Globe2, Save, Send, Trash2, UserRound } from "lucide-react";
+import { BellRing, Check, ChevronDown, Clock3, Globe2, MessageSquareText, Save, Send, Trash2, UserRound } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
@@ -8,7 +8,7 @@ import { NotificationMessageField } from "@/components/telegram/notification-mes
 import { NotificationTargetFields } from "@/components/telegram/notification-target-fields";
 import { currentSessionContext, currentUser } from "@/lib/auth";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
-import { formatDateTime } from "@/lib/dates";
+import { appTimeZone, formatDate, formatDateTime } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
 import { actionLabel, defaultNotificationTemplate, knownAuditActions } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
@@ -427,6 +427,60 @@ function detailText(details: unknown, key: string) {
   return value == null ? "" : String(value);
 }
 
+function actorLabel(user?: { profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null } | null) {
+  return user?.profile?.displayName || user?.name || user?.username || user?.email || "System";
+}
+
+function hourLabel(value: Date) {
+  return new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: appTimeZone }).format(value);
+}
+
+function hourGroupLabel(value: Date) {
+  return `${new Intl.DateTimeFormat("de-DE", { hour: "2-digit", timeZone: appTimeZone }).format(value)} Uhr`;
+}
+
+function dayKey(value: Date) {
+  return new Intl.DateTimeFormat("sv-SE", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: appTimeZone }).format(value);
+}
+
+function normalizeLoggedTelegramHtml(value: string) {
+  const escaped = value
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  let html = escaped;
+  for (const tag of ["b", "strong", "i", "em", "u", "s", "code", "pre"]) {
+    html = html.replace(new RegExp(`&lt;${tag}&gt;`, "gi"), `<${tag}>`);
+    html = html.replace(new RegExp(`&lt;/${tag}&gt;`, "gi"), `</${tag}>`);
+  }
+  html = html.replace(
+    /&lt;a href=&quot;(https?:\/\/[^"&<>\s]+|\/[^"&<>\s]*)&quot;&gt;([\s\S]*?)&lt;\/a&gt;/gi,
+    (_match, href: string, label: string) => `<a href="${href}" class="font-semibold text-redbrand underline decoration-redbrand/30 underline-offset-2">${label}</a>`
+  );
+  return html.replace(/\n/g, "<br />");
+}
+
+function telegramLogDayGroups<T extends { createdAt: Date }>(logs: T[]) {
+  const days = new Map<string, { label: string; logs: T[] }>();
+  for (const log of logs) {
+    const key = dayKey(log.createdAt);
+    const day = days.get(key) || { label: formatDate(log.createdAt), logs: [] };
+    day.logs.push(log);
+    days.set(key, day);
+  }
+  return Array.from(days.entries()).map(([key, day]) => {
+    const hours = new Map<string, T[]>();
+    for (const log of day.logs) {
+      const hour = hourGroupLabel(log.createdAt);
+      hours.set(hour, [...(hours.get(hour) || []), log]);
+    }
+    return { key, label: day.label, count: day.logs.length, hours: Array.from(hours.entries()) };
+  });
+}
+
 export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string; action?: string } }) {
   const user = await currentAdminUser();
   const { tenant } = await currentSessionContext();
@@ -470,7 +524,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
       where: { action: { in: ["telegram_notification_sent", "telegram_notification_failed", "telegram_answer_sent"] } },
       include: { actor: { include: { profile: true } } },
       orderBy: { createdAt: "desc" },
-      take: 30
+      take: 80
     })
   ]);
   const targetUsers = targetMemberships.map((membership) => membership.user);
@@ -485,6 +539,8 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
   const openAiKeySuffix = secretSuffix(settings?.openAiApiKeyEnc);
   const telegramBotName = await readTelegramBotName(settings?.telegramBotTokenEnc);
   const notificationTargetUsers = notificationUsers(targetUsers);
+  const chatById = new Map((settings?.telegramChats || []).map((chat) => [chat.id, chat]));
+  const telegramLogGroups = telegramLogDayGroups(telegramLogs);
   return (
     <AppShell>
       <PageHeader title="Telegram" />
@@ -763,23 +819,111 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
           ) : null}
           <Panel>
             <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><Send className="h-5 w-5 text-redbrand" /> Versandprotokoll</h2>
-            <div className="space-y-2">
-              {telegramLogs.map((log) => (
-                <div key={log.id} className="rounded-md border border-line bg-paper p-3 text-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <strong>{log.title}</strong>
-                    <Badge tone={log.action === "telegram_notification_failed" ? "red" : "green"}>
-                      {log.action === "telegram_notification_failed" ? "Fehler" : "gesendet"}
-                    </Badge>
+            <p className="mb-4 text-sm leading-6 text-graphite">
+              Hier stehen die letzten Telegram-Ausgänge aus Aktionsregeln und Bot-Antworten. Einträge sind nach Tag und Stunde gruppiert und zeigen Ziel, Thread, Benutzer, Nachricht und Fehlerdetails.
+            </p>
+            <div className="space-y-4">
+              {telegramLogGroups.map((day, dayIndex) => (
+                <details key={day.key} open={dayIndex === 0} className="overflow-hidden rounded-lg border border-line bg-surface">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 bg-paper px-4 py-3 font-semibold text-ink [&::-webkit-details-marker]:hidden">
+                    <span>{day.label}</span>
+                    <span className="flex items-center gap-2 text-sm font-medium text-graphite">
+                      {day.count} Einträge <ChevronDown className="h-4 w-4" />
+                    </span>
+                  </summary>
+                  <div className="divide-y divide-line">
+                    {day.hours.map(([hour, hourLogs], hourIndex) => (
+                      <details key={hour} open={dayIndex === 0 && hourIndex === 0} className="group">
+                        <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-graphite hover:bg-paper [&::-webkit-details-marker]:hidden">
+                          <Clock3 className="h-4 w-4 text-redbrand" />
+                          {hour}
+                          <span className="ml-auto flex items-center gap-2 text-xs font-medium">
+                            {hourLogs.length} <ChevronDown className="h-4 w-4" />
+                          </span>
+                        </summary>
+                        <div className="space-y-2 bg-canvas/40 px-3 pb-3">
+                          {hourLogs.map((log) => {
+                            const outputChat = detailText(log.details, "outputChatId") ? chatById.get(detailText(log.details, "outputChatId")) : null;
+                            const chatTitle = detailText(log.details, "chatTitle") || outputChat?.chatTitle || outputChat?.title || "Chat unbekannt";
+                            const threadTitle = detailText(log.details, "threadTitle") || outputChat?.threadTitle || (detailText(log.details, "threadId") ? "Thread ohne Namen" : "Hauptchat");
+                            const chatId = detailText(log.details, "chatId") || outputChat?.chatId || "";
+                            const threadId = detailText(log.details, "threadId") || outputChat?.threadId || "";
+                            const sourceAction = detailText(log.details, "sourceAction");
+                            const sourceLabel = detailText(log.details, "sourceActionLabel") || (sourceAction ? actionLabel(sourceAction) : "Bot-Antwort");
+                            const message = detailText(log.details, "message") || detailText(log.details, "answer");
+                            const sourceHref = detailText(log.details, "sourceHref");
+                            return (
+                              <details key={log.id} className="overflow-hidden rounded-md border border-line bg-surface">
+                                <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-3 py-3 hover:bg-paper [&::-webkit-details-marker]:hidden">
+                                  <span className="min-w-0">
+                                    <span className="flex flex-wrap items-center gap-2">
+                                      <strong className="text-sm text-ink">{log.title}</strong>
+                                      <Badge tone={log.action === "telegram_notification_failed" ? "red" : "green"}>
+                                        {log.action === "telegram_notification_failed" ? "Fehler" : "gesendet"}
+                                      </Badge>
+                                    </span>
+                                    <span className="mt-1 block text-xs text-graphite">
+                                      {actorLabel(log.actor)} · {hourLabel(log.createdAt)} · {sourceLabel}
+                                    </span>
+                                    <span className="mt-1 block text-xs text-graphite">
+                                      {threadTitle} · {chatTitle}
+                                    </span>
+                                  </span>
+                                  <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-graphite" />
+                                </summary>
+                                <div className="space-y-3 border-t border-line bg-paper p-3 text-sm">
+                                  <div className="grid gap-2 sm:grid-cols-2">
+                                    <div className="rounded-md bg-surface p-3">
+                                      <div className="text-xs font-semibold uppercase tracking-wide text-graphite">Empfänger</div>
+                                      <div className="mt-1 font-semibold text-ink">{detailText(log.details, "target") || "Automatisch"}</div>
+                                      <div className="mt-1 text-xs text-graphite">{chatTitle}</div>
+                                    </div>
+                                    <div className="rounded-md bg-surface p-3">
+                                      <div className="text-xs font-semibold uppercase tracking-wide text-graphite">Thread</div>
+                                      <div className="mt-1 font-semibold text-ink">{threadTitle}</div>
+                                      <div className="mt-1 text-xs text-graphite">
+                                        Chat-ID {chatId || "-"} · Thread-ID {threadId || "-"}
+                                      </div>
+                                    </div>
+                                    <div className="rounded-md bg-surface p-3">
+                                      <div className="text-xs font-semibold uppercase tracking-wide text-graphite">Auslöser</div>
+                                      <div className="mt-1 font-semibold text-ink">{sourceLabel}</div>
+                                      <div className="mt-1 text-xs text-graphite">{detailText(log.details, "sourceTitle") || log.title}</div>
+                                    </div>
+                                    <div className="rounded-md bg-surface p-3">
+                                      <div className="text-xs font-semibold uppercase tracking-wide text-graphite">Telegram</div>
+                                      <div className="mt-1 font-semibold text-ink">Nachricht {detailText(log.details, "messageId") || "-"}</div>
+                                      <div className="mt-1 text-xs text-graphite">{formatDateTime(log.createdAt)}</div>
+                                    </div>
+                                  </div>
+                                  {message ? (
+                                    <div className="rounded-md bg-surface p-3">
+                                      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-graphite">
+                                        <MessageSquareText className="h-4 w-4 text-redbrand" /> Nachricht
+                                      </div>
+                                      <div
+                                        className="leading-6 text-graphite [&_code]:rounded [&_code]:bg-paper [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_strong]:text-ink"
+                                        dangerouslySetInnerHTML={{ __html: normalizeLoggedTelegramHtml(message) }}
+                                      />
+                                    </div>
+                                  ) : null}
+                                  {sourceHref ? (
+                                    <a href={sourceHref} className="focus-ring inline-flex min-h-9 items-center rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-paper hover:text-redbrand">
+                                      Quelle öffnen
+                                    </a>
+                                  ) : null}
+                                  {detailText(log.details, "error") ? (
+                                    <pre className="whitespace-pre-wrap rounded-md bg-surface p-3 text-xs text-redbrand">{detailText(log.details, "error")}</pre>
+                                  ) : null}
+                                </div>
+                              </details>
+                            );
+                          })}
+                        </div>
+                      </details>
+                    ))}
                   </div>
-                  <div className="mt-1 text-xs text-graphite">
-                    {formatDateTime(log.createdAt)}
-                    {detailText(log.details, "chatId") ? ` · Chat ${detailText(log.details, "chatId")}` : ""}
-                    {detailText(log.details, "threadId") ? ` · Thread ${detailText(log.details, "threadId")}` : ""}
-                    {detailText(log.details, "messageId") ? ` · Nachricht ${detailText(log.details, "messageId")}` : ""}
-                  </div>
-                  {detailText(log.details, "error") ? <pre className="mt-2 whitespace-pre-wrap rounded-md bg-surface p-2 text-xs text-redbrand">{detailText(log.details, "error")}</pre> : null}
-                </div>
+                </details>
               ))}
               {!telegramLogs.length ? <p className="rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite">Noch keine Telegram-Sendungen protokolliert.</p> : null}
             </div>

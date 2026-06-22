@@ -18,6 +18,12 @@ function actorName(actor?: { profile?: { displayName?: string | null } | null; n
   return actor?.profile?.displayName || actor?.name || actor?.username || actor?.email || "System";
 }
 
+function targetLabel(rule: Pick<RuleForNotification, "targetUser" | "targetCircle">) {
+  if (rule.targetUser) return actorName(rule.targetUser);
+  if (rule.targetCircle) return `Kreis ${rule.targetCircle.name}`;
+  return "Automatisch";
+}
+
 function renderTemplate(template: string, audit: Pick<AuditForNotification, "action" | "title" | "href" | "entityType" | "entityId" | "details">, actor?: Parameters<typeof actorName>[0]) {
   const url = fullUrl(audit.href);
   const values: Record<string, string> = {
@@ -88,9 +94,18 @@ async function sendRule(rule: RuleForNotification, audit: Pick<AuditForNotificat
             href: "/settings/telegram#notifications",
             details: {
               sourceAction: audit.action,
+              sourceActionLabel: actionLabel(audit.action),
+              sourceTitle: audit.title,
+              sourceHref: audit.href || null,
+              target: targetLabel(rule),
+              targetUserId: rule.targetUserId,
+              targetCircleId: rule.targetCircleId,
               chatId: chat.chatId,
               threadId: chat.threadId,
+              chatTitle: chat.chatTitle || chat.title || null,
+              threadTitle: chat.threadTitle || null,
               outputChatId: chat.id,
+              message: message.slice(0, 1000),
               messageId: typeof result === "object" && result && "result" in result ? (result as { result?: { message_id?: number } }).result?.message_id : null
             }
           }
@@ -107,9 +122,18 @@ async function sendRule(rule: RuleForNotification, audit: Pick<AuditForNotificat
             href: "/settings/telegram#notifications",
             details: {
               sourceAction: audit.action,
+              sourceActionLabel: actionLabel(audit.action),
+              sourceTitle: audit.title,
+              sourceHref: audit.href || null,
+              target: targetLabel(rule),
+              targetUserId: rule.targetUserId,
+              targetCircleId: rule.targetCircleId,
               chatId: chat.chatId,
               threadId: chat.threadId,
+              chatTitle: chat.chatTitle || chat.title || null,
+              threadTitle: chat.threadTitle || null,
               outputChatId: chat.id,
+              message: message.slice(0, 1000),
               error: error instanceof Error ? error.message : String(error)
             }
           }
