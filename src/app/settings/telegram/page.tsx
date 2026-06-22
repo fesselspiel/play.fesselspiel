@@ -485,7 +485,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
   const user = await currentAdminUser();
   const { tenant } = await currentSessionContext();
   if (!tenant) redirect("/");
-  const [settings, targetMemberships, targetCircles, auditActions, telegramLogs] = await Promise.all([
+  const [settings, targetMemberships, targetCircles, auditActions, telegramLogs, incomingTelegramLogs] = await Promise.all([
     prisma.userSettings.findUnique({
       where: { userId: user.id },
       include: {
@@ -525,13 +525,31 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
       include: { actor: { include: { profile: true } } },
       orderBy: { createdAt: "desc" },
       take: 80
+    }),
+    prisma.auditLog.findMany({
+      where: { action: { in: ["telegram_message_received", "telegram_image_received"] } },
+      include: { actor: { include: { profile: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 120
     })
   ]);
   const targetUsers = targetMemberships.map((membership) => membership.user);
   const activeChats = settings?.telegramChats.filter((chat) => chat.status === "ACTIVE") || [];
   const pendingChats = settings?.telegramChats.filter((chat) => chat.status === "PENDING") || [];
   const mappings = settings?.telegramUserMappings || [];
-  const knownUsers = settings?.telegramKnownUsers || [];
+  const knownUsersFromLogs = incomingTelegramLogs
+    .map((log) => ({
+      id: `log-${log.id}`,
+      telegramUserId: detailText(log.details, "telegramUserId"),
+      telegramUsername: detailText(log.details, "telegramUsername") || null,
+      firstName: detailText(log.details, "telegramFirstName") || null,
+      lastName: detailText(log.details, "telegramLastName") || null,
+      lastMessageAt: log.createdAt,
+      fromProtocol: true
+    }))
+    .filter((entry) => entry.telegramUserId);
+  const knownUsers = [...(settings?.telegramKnownUsers || []).map((entry) => ({ ...entry, fromProtocol: false })), ...knownUsersFromLogs]
+    .filter((entry, index, list) => list.findIndex((candidate) => candidate.telegramUserId === entry.telegramUserId) === index);
   const notificationRules = settings?.telegramNotificationRules || [];
   const requestedAction = String(searchParams?.action || "").trim();
   const actionOptions = Array.from(new Set([...knownAuditActions.map(([action]) => action), ...auditActions.map((entry) => entry.action), requestedAction].filter(Boolean))).sort((a, b) => actionLabel(a).localeCompare(actionLabel(b)));
@@ -687,6 +705,9 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
             </form>
             <div className="mt-5">
               <h3 className="mb-3 text-sm font-semibold text-ink">Erkannte Telegram-Benutzer</h3>
+              <p className="mb-3 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
+                Neue Personen werden erkannt, sobald sie im aktiven Chat oder Thread eine Textnachricht, ein Bild oder eine Sprachnachricht schicken. Bei aktiviertem Webhook reicht danach ein Reload dieser Seite; `Chat einlesen` ist vor allem für neue Chats oder Threads gedacht. Protokolleinträge mit Telegram-ID erscheinen hier ebenfalls.
+              </p>
               <div className="space-y-2">
                 {knownUsers.map((known) => {
                   const display = known.telegramUsername ? `@${known.telegramUsername}` : `ID ${known.telegramUserId}`;
@@ -698,11 +719,15 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                       <input type="hidden" name="telegramUsername" value={known.telegramUsername || ""} />
                       <div>
                         <div className="font-semibold text-ink">{display}</div>
-                        <div className="text-xs text-graphite">{name || "Name unbekannt"} · ID {known.telegramUserId}</div>
+                        <div className="text-xs text-graphite">
+                          {name || "Name unbekannt"} · ID {known.telegramUserId}
+                          {known.fromProtocol ? " · aus dem Protokoll" : " · aktiv erkannt"}
+                        </div>
                         <div className="text-xs text-graphite">Zuletzt: {formatDateTime(known.lastMessageAt)}</div>
                       </div>
                       <Field label="App-Benutzer">
-                        <select className={selectClass} name="appUserId" defaultValue={mapped?.appUserId || targetUsers[0]?.id || ""} required>
+                        <select className={selectClass} name="appUserId" defaultValue={mapped?.appUserId || ""} required>
+                          <option value="">Bitte auswählen</option>
                           {targetUsers.map((entry) => <option key={entry.id} value={entry.id}>{userLabel(entry)}</option>)}
                         </select>
                       </Field>
@@ -750,7 +775,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                       {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
                     </select>
                   </Field>
-                  <NotificationTargetFields users={notificationTargetUsers} circles={targetCircles} targetType="circle" />
+                  <NotificationTargetFields users={notificationTargetUsers} circles={targetCircles} targetType="none" />
                   <Field label="Ausgabe-Thread">
                     <select className={selectClass} name="outputChatId" defaultValue="">
                       <option value="">Automatisch über Ziel</option>

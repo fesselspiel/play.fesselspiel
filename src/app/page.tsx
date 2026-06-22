@@ -20,6 +20,8 @@ const timeFormatter = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute
 const keyFormatter = new Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeZone: "Europe/Berlin" });
 const inputDateFormatter = new Intl.DateTimeFormat("sv-SE", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/Berlin" });
 
+export const dynamic = "force-dynamic";
+
 function dayKey(value: Date) {
   return keyFormatter.format(value);
 }
@@ -144,6 +146,23 @@ export default async function DashboardPage() {
   ]);
 
   const sessionSlugs = new Map(await Promise.all(sessions.map(async (session) => [session.id, await ensureSessionSlug(session)] as const)));
+  const orderStatusActors = new Map(
+    (openOrders.length
+      ? await prisma.auditLog.findMany({
+          where: {
+            entityType: "activity",
+            entityId: { in: openOrders.map((order) => order.id) },
+            action: { in: ["self_bondage_order_accepted", "self_bondage_order_completed", "self_bondage_order_discarded"] }
+          },
+          include: { actor: { include: { profile: true } } },
+          orderBy: { createdAt: "desc" }
+        })
+      : []
+    ).map((entry) => [
+      `${entry.entityId}:${entry.action}`,
+      entry.actor?.profile?.displayName || entry.actor?.name || entry.actor?.username || entry.actor?.email || "Unbekannt"
+    ])
+  );
   const openSessions = sessions.filter((session) => !session.endTime);
   const weekDays = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(todayStart);
@@ -244,9 +263,13 @@ export default async function DashboardPage() {
               <div>
                 <h2 className="flex items-center gap-2 text-xl font-semibold text-ink">
                   <ShieldCheck className="h-5 w-5 text-sky-700" />
-                  Offene Aufträge
+                  {openOrders.some((order) => order.status === "REQUESTED") && openOrders.some((order) => order.status === "PLANNED")
+                    ? "Aktive Aufträge"
+                    : openOrders.some((order) => order.status === "PLANNED")
+                      ? "Angenommene Aufträge"
+                      : "Offene Aufträge"}
                 </h2>
-                <p className="mt-1 text-sm text-graphite">Diese Aufträge warten gerade auf Annahme oder Umsetzung.</p>
+                <p className="mt-1 text-sm text-graphite">Beauftragte Aufträge warten auf Annahme, angenommene Aufträge auf Umsetzung.</p>
               </div>
               <Link href="/orders" className="inline-flex min-h-10 items-center rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">
                 Alle Aufträge öffnen
@@ -256,11 +279,14 @@ export default async function DashboardPage() {
               {openOrders.map((order) => {
                 const ownerName = order.owner.profile?.displayName || order.owner.name || order.owner.username || order.owner.email;
                 const canAccept = order.status === "REQUESTED" && order.ownerId !== user.id;
+                const acceptedBy = order.status === "PLANNED" ? orderStatusActors.get(`${order.id}:self_bondage_order_accepted`) : "";
                 return (
                   <article key={order.id} className="rounded-lg border border-line bg-surface p-4">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <Badge tone={activityStatusTone(order.status as never)}>{activityStatusDisplay(order.status as never, true)}</Badge>
-                      <span className="text-xs text-graphite">von {ownerName}</span>
+                      <span className="text-xs text-graphite">
+                        {order.status === "PLANNED" && acceptedBy ? `angenommen von ${acceptedBy}` : `erteilt von ${ownerName}`}
+                      </span>
                     </div>
                     <Link href={`/activities/${order.slug}`} className="block text-base font-semibold text-ink hover:text-redbrand">{order.title}</Link>
                     <p className="mt-1 text-xs text-graphite">{order.plannedAt ? formatDateTime(order.plannedAt) : "gilt beim Lesen"}</p>

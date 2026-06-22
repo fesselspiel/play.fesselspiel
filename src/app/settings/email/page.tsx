@@ -76,7 +76,7 @@ async function readTargetData(admin: Awaited<ReturnType<typeof requireAdmin>>, f
 function targetTypeFor(rule: { targetUserId: string | null; targetCircleId: string | null }) {
   if (rule.targetUserId) return "user";
   if (rule.targetCircleId) return "circle";
-  return "user";
+  return "none";
 }
 
 async function saveEmailSettings(formData: FormData) {
@@ -198,8 +198,8 @@ async function testEmailRule(formData: FormData) {
 }
 
 export default async function EmailSettingsPage({ searchParams }: { searchParams?: { saved?: string; test?: string; template?: string; error?: string; action?: string; ruleTestSent?: string; ruleTestFailed?: string } }) {
-  await requireFeature("email");
   const admin = await requireAdmin();
+  await requireFeature("email");
   const { tenant } = await currentSessionContext();
   if (!tenant) redirect("/");
   await ensureEmailSetup();
@@ -300,7 +300,7 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
                         {templates.map((template) => <option key={template.id} value={template.key}>{template.title}</option>)}
                       </select>
                     </Field>
-                    <NotificationTargetFields users={targetUsers} circles={circles} targetType="user" />
+                    <NotificationTargetFields users={targetUsers} circles={circles} targetType="none" />
                   </div>
                   <SubmitButton pendingLabel="Regel wird gespeichert..."><Save className="h-4 w-4" /> Regel anlegen</SubmitButton>
                 </form>

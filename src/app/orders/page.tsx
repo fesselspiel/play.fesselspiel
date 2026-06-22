@@ -13,6 +13,8 @@ import { prisma } from "@/lib/prisma";
 
 const statusOptions: ActivityStatusValue[] = ["REQUESTED", "PLANNED", "DONE", "DISCARDED"];
 
+export const dynamic = "force-dynamic";
+
 function statusHeadline(status: ActivityStatusValue) {
   if (status === "REQUESTED") return "Beauftragt";
   if (status === "PLANNED") return "Angenommen";
@@ -37,6 +39,23 @@ export default async function OrdersPage() {
     ]
   });
   const openOrders = orders.filter((order) => order.status === "REQUESTED" || order.status === "PLANNED");
+  const statusActors = new Map(
+    (orders.length
+      ? await prisma.auditLog.findMany({
+          where: {
+            entityType: "activity",
+            entityId: { in: orders.map((order) => order.id) },
+            action: { in: ["self_bondage_order_accepted", "self_bondage_order_completed", "self_bondage_order_discarded"] }
+          },
+          include: { actor: { include: { profile: true } } },
+          orderBy: { createdAt: "desc" }
+        })
+      : []
+    ).map((entry) => [
+      `${entry.entityId}:${entry.action}`,
+      entry.actor?.profile?.displayName || entry.actor?.name || entry.actor?.username || entry.actor?.email || "Unbekannt"
+    ])
+  );
 
   return (
     <AppShell>
@@ -55,9 +74,13 @@ export default async function OrdersPage() {
             <div>
               <h2 className="flex items-center gap-2 text-xl font-semibold text-ink">
                 <ShieldCheck className="h-5 w-5 text-sky-700" />
-                {openOrders.length === 1 ? "Ein offener Auftrag wartet" : `${openOrders.length} offene Aufträge warten`}
+                {openOrders.some((order) => order.status === "REQUESTED") && openOrders.some((order) => order.status === "PLANNED")
+                  ? `${openOrders.length} aktive Aufträge`
+                  : openOrders.some((order) => order.status === "PLANNED")
+                    ? openOrders.length === 1 ? "Ein angenommener Auftrag wartet" : `${openOrders.length} angenommene Aufträge warten`
+                    : openOrders.length === 1 ? "Ein offener Auftrag wartet" : `${openOrders.length} offene Aufträge warten`}
               </h2>
-              <p className="mt-1 text-sm text-graphite">Angenommene und beauftragte Einträge bleiben hier oben sichtbar, bis sie umgesetzt oder verworfen sind.</p>
+              <p className="mt-1 text-sm text-graphite">Beauftragte Aufträge warten auf Annahme, angenommene Aufträge auf Umsetzung.</p>
             </div>
             <Link href="#offen" className="inline-flex min-h-10 items-center justify-center rounded-md border border-sky-600 bg-surface px-4 py-2 text-sm font-semibold text-sky-700 hover:bg-paper">
               Offene ansehen
@@ -75,6 +98,8 @@ export default async function OrdersPage() {
             const status = order.status as ActivityStatusValue;
             const ownerName = order.owner.profile?.displayName || order.owner.name || order.owner.username || order.owner.email;
             const canAccept = status === "REQUESTED" && order.ownerId !== user.id;
+            const acceptedBy = status === "PLANNED" ? statusActors.get(`${order.id}:self_bondage_order_accepted`) : "";
+            const completedBy = status === "DONE" ? statusActors.get(`${order.id}:self_bondage_order_completed`) : "";
             return (
               <Panel key={order.id} id={`order-${order.id}`} className={status === "REQUESTED" || status === "PLANNED" ? "border-sky-600" : ""}>
                 <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
@@ -92,6 +117,11 @@ export default async function OrdersPage() {
                     <p className="mt-1 text-sm text-graphite">
                       Erteilt von {ownerName} · {order.plannedAt ? formatDateTime(order.plannedAt) : "gilt beim Lesen"}
                     </p>
+                    {acceptedBy || completedBy ? (
+                      <p className="mt-1 text-sm font-semibold text-graphite">
+                        {completedBy ? `Umgesetzt von ${completedBy}` : `Angenommen von ${acceptedBy}`}
+                      </p>
+                    ) : null}
                     {order.positions.length ? (
                       <div className="mt-3 flex flex-wrap gap-2">
                         {order.positions.map((position) => (

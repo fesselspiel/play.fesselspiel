@@ -797,8 +797,12 @@ Details:
 - Neue Spielpläne starten standardmäßig mit dem Status `angefragt`.
 - Angefragte Spielpläne erscheinen auf der Startseite in einem prominenten Bereich `Offene Spielplan-Anfragen` und landen erst nach Bestätigung in der Wochenplanung.
 - Der Ersteller sieht dort einen Wartehinweis; andere Benutzer im Kreis können die Anfrage direkt bestätigen.
+- Startseite und Auftragsseite werden dynamisch gerendert, damit bestätigte Spielplan-Anfragen nach Statuswechsel nicht als offene Anfrage stehen bleiben.
+- Self-Bondage-Aufträge unterscheiden auf der Startseite und in `/orders` zwischen offenen, aktiven und angenommenen Aufträgen. Bei angenommenen oder umgesetzten Aufträgen wird der ausführende Benutzer aus dem Protokoll angezeigt.
 - Die Telegram-Aktionsbenachrichtigungen sind für Admins und Superadmins wieder sichtbar und editierbar.
 - Telegram-Versände über Aktionsregeln schreiben ein eigenes Versandprotokoll mit Erfolg, Fehler, Chat, Thread und Message-ID. Die letzten Einträge werden auf der Telegram-Einstellungsseite angezeigt.
 - Das Telegram-Versandprotokoll ist wie das normale Protokoll nach Tagen und Stunden gruppiert. Einzelne Sendungen lassen sich aufklappen und zeigen Auslöser, Benutzer, Ziel, Chatname, Threadname, Chat-/Thread-ID, Telegram-Nachrichten-ID, Nachrichtentext und Fehlerdetails.
 - Telegram-Aktionsregeln und Bot-Antworten schreiben für neue Logeinträge Chat- und Thread-Kontext mit, damit spätere Prüfungen nachvollziehbar bleiben.
 - Ausgehende Telegram-HTML-Nachrichten normalisieren gespeicherte Literal-Zeilenumbrüche wie `\n` vor dem Senden zu echten Zeilenumbrüchen. `<br>` wird ebenfalls in Telegram-kompatible Zeilenumbrüche umgesetzt.
+- Eingehende Telegram-Texte und Bilder speichern künftig Telegram-User-ID, Username und Namen im Protokoll. Die Telegram-Benutzerzuordnung zeigt diese Protokollnutzer zusätzlich zu aktiv erkannten Nutzern an.
+- Neue Telegram- und E-Mail-Aktionsregeln wählen keinen Standardbenutzer mehr automatisch aus. Benutzer oder Kreis müssen bewusst gewählt werden.

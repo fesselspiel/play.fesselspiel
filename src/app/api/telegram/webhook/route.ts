@@ -406,6 +406,15 @@ function mappedTelegramUserId(
   return mapping?.appUserId || chat.settings.userId;
 }
 
+function telegramUserDetails(from?: TelegramMessageFrom) {
+  return {
+    telegramUserId: from?.id ? String(from.id) : null,
+    telegramUsername: from?.username ? from.username.toLowerCase() : null,
+    telegramFirstName: from?.first_name || null,
+    telegramLastName: from?.last_name || null
+  };
+}
+
 async function rememberTelegramKnownUser(chat: Awaited<ReturnType<typeof findActiveTelegramChat>>, from?: TelegramMessageFrom) {
   if (!chat || !from?.id) return;
   await prisma.telegramKnownUser.upsert({
@@ -466,7 +475,14 @@ export async function POST(request: Request) {
       action: "telegram_image_received",
       entityType: "telegram",
       title: "Telegram-Bild empfangen",
-      details: { caption: caption || null, chatTitle: chat.chatTitle || chat.title || null, threadTitle: chat.threadTitle || null },
+      details: {
+        caption: caption || null,
+        chatTitle: chat.chatTitle || chat.title || null,
+        threadTitle: chat.threadTitle || null,
+        chatId,
+        threadId,
+        ...telegramUserDetails(message.from)
+      },
       href: imageUrl
     });
 
@@ -541,7 +557,14 @@ export async function POST(request: Request) {
       action: "telegram_message_received",
       entityType: "telegram",
       title: "Telegram-Nachricht empfangen",
-      details: { text: body.slice(0, 500), chatTitle: chat.chatTitle || chat.title || null, threadTitle: chat.threadTitle || null }
+      details: {
+        text: body.slice(0, 500),
+        chatTitle: chat.chatTitle || chat.title || null,
+        threadTitle: chat.threadTitle || null,
+        chatId,
+        threadId,
+        ...telegramUserDetails(message.from)
+      }
     });
     const itemDialogueAnswer = commandOf(body) ? null : await handleItemCreationDialogue(actorUserId, body);
     const answer = commandOf(body)
