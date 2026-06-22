@@ -170,7 +170,7 @@ export function TelegramChatDiscovery() {
         </div>
       ) : null}
       <p className="rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
-        Neue Telegram-Benutzer werden nur erkannt, wenn Telegram dem Bot die Nachricht tatsächlich zustellt. In Gruppen mit Bot-Privacy muss die Person am zuverlässigsten einen Befehl wie <code>/id</code> oder <code>/help</code> im aktiven Thread schicken.
+        Für automatische Mitgliedserkennung muss der Bot Gruppenadmin sein und der Webhook einmal neu auf diese App gesetzt werden. Telegram liefert bestehende normale Gruppenmitglieder nicht vollständig nachträglich; Admins können in den Einstellungen synchronisiert werden.
       </p>
       {error ? <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-redbrand">{error}</p> : null}
       <div className="space-y-3">

@@ -9,7 +9,7 @@ import { logAction } from "@/lib/audit";
 import { createSessionHistoryForCompletedOrder, isSelfBondageOrder, selfBondageCategory } from "@/lib/activity-orders";
 import { fileAssetUrl, saveFileBuffer } from "@/lib/files";
 import { downloadTelegramFile, largestTelegramPhoto, sendTelegramMessage, telegramHtml, telegramLink, transcribeTelegramVoice } from "@/lib/telegram";
-import type { TelegramMessage, TelegramUpdate } from "@/lib/telegram";
+import type { TelegramChatMemberUpdate, TelegramMessage, TelegramUpdate, TelegramUser } from "@/lib/telegram";
 import { uniqueSessionSlug } from "@/lib/session-slug";
 import { uniqueSlug } from "@/lib/slug";
 
@@ -414,7 +414,7 @@ function mappedTelegramUserId(
   return mapping?.appUserId || chat.settings.userId;
 }
 
-function telegramUserDetails(from?: TelegramMessageFrom) {
+function telegramUserDetails(from?: TelegramMessageFrom | TelegramUser) {
   return {
     telegramUserId: from?.id ? String(from.id) : null,
     telegramUsername: from?.username ? from.username.toLowerCase() : null,
@@ -431,6 +431,10 @@ async function rememberTelegramKnownUser(chat: Awaited<ReturnType<typeof findAct
       telegramUsername: from.username ? from.username.toLowerCase() : null,
       firstName: from.first_name || null,
       lastName: from.last_name || null,
+      membershipStatus: "ACTIVE",
+      source: "MESSAGE",
+      lastChatId: chat.chatId,
+      lastChatTitle: chat.chatTitle || chat.title || null,
       lastMessageAt: new Date()
     },
     create: {
@@ -439,19 +443,33 @@ async function rememberTelegramKnownUser(chat: Awaited<ReturnType<typeof findAct
       telegramUsername: from.username ? from.username.toLowerCase() : null,
       firstName: from.first_name || null,
       lastName: from.last_name || null,
+      membershipStatus: "ACTIVE",
+      source: "MESSAGE",
+      lastChatId: chat.chatId,
+      lastChatTitle: chat.chatTitle || chat.title || null,
       lastMessageAt: new Date()
     }
   });
 }
 
-async function rememberTelegramKnownUserForSettings(settingsId: string, from?: TelegramMessageFrom) {
+async function rememberTelegramKnownUserForSettings(
+  settingsId: string,
+  from?: TelegramMessageFrom | TelegramUser,
+  options: { source?: string; membershipStatus?: string; chatId?: string | null; chatTitle?: string | null } = {}
+) {
   if (!from?.id) return;
+  const membershipStatus = options.membershipStatus || "ACTIVE";
+  const source = options.source || "MESSAGE";
   await prisma.telegramKnownUser.upsert({
     where: { settingsId_telegramUserId: { settingsId, telegramUserId: String(from.id) } },
     update: {
       telegramUsername: from.username ? from.username.toLowerCase() : null,
       firstName: from.first_name || null,
       lastName: from.last_name || null,
+      membershipStatus,
+      source,
+      lastChatId: options.chatId || null,
+      lastChatTitle: options.chatTitle || null,
       lastMessageAt: new Date()
     },
     create: {
@@ -460,13 +478,60 @@ async function rememberTelegramKnownUserForSettings(settingsId: string, from?: T
       telegramUsername: from.username ? from.username.toLowerCase() : null,
       firstName: from.first_name || null,
       lastName: from.last_name || null,
+      membershipStatus,
+      source,
+      lastChatId: options.chatId || null,
+      lastChatTitle: options.chatTitle || null,
       lastMessageAt: new Date()
     }
   });
 }
 
+function membershipStatusFromTelegram(status?: string) {
+  if (status === "left") return "LEFT";
+  if (status === "kicked") return "KICKED";
+  return "ACTIVE";
+}
+
+async function handleChatMemberUpdate(memberUpdate: TelegramChatMemberUpdate, updateType: "chat_member" | "my_chat_member") {
+  const chatId = String(memberUpdate.chat.id);
+  const knownGroupChat = await findKnownTelegramChatInGroup(chatId);
+  if (!knownGroupChat) return NextResponse.json({ ok: true, ignored: true });
+  const member = memberUpdate.new_chat_member?.user;
+  if (!member?.id || member.is_bot) return NextResponse.json({ ok: true });
+  const membershipStatus = membershipStatusFromTelegram(memberUpdate.new_chat_member?.status);
+  const source = updateType === "chat_member" ? "MEMBER_UPDATE" : "BOT_MEMBER_UPDATE";
+  await rememberTelegramKnownUserForSettings(knownGroupChat.settingsId, member, {
+    source,
+    membershipStatus,
+    chatId,
+    chatTitle: memberUpdate.chat.title || memberUpdate.chat.username || null
+  });
+  const action = membershipStatus === "ACTIVE" ? "telegram_member_detected" : "telegram_member_left";
+  await prisma.auditLog.create({
+    data: {
+      actorId: null,
+      action,
+      entityType: "telegram",
+      title: membershipStatus === "ACTIVE" ? "Telegram-Mitglied erkannt" : "Telegram-Mitglied nicht mehr aktiv",
+      details: {
+        updateType,
+        oldStatus: memberUpdate.old_chat_member?.status || null,
+        newStatus: memberUpdate.new_chat_member?.status || null,
+        membershipStatus,
+        chatId,
+        chatTitle: memberUpdate.chat.title || memberUpdate.chat.username || null,
+        ...telegramUserDetails(member)
+      }
+    }
+  });
+  return NextResponse.json({ ok: true });
+}
+
 export async function POST(request: Request) {
   const update = (await request.json()) as TelegramUpdate;
+  if (update.chat_member) return handleChatMemberUpdate(update.chat_member, "chat_member");
+  if (update.my_chat_member) return handleChatMemberUpdate(update.my_chat_member, "my_chat_member");
   const message = update.message || update.channel_post;
   if (!message) return NextResponse.json({ ok: true });
   const chatId = String(message.chat.id);

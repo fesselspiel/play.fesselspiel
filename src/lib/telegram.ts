@@ -17,6 +17,8 @@ export type TelegramUpdate = {
   message?: TelegramMessage;
   channel_post?: TelegramMessage;
   edited_message?: TelegramMessage;
+  chat_member?: TelegramChatMemberUpdate;
+  my_chat_member?: TelegramChatMemberUpdate;
 };
 
 export type TelegramMessage = {
@@ -32,6 +34,21 @@ export type TelegramMessage = {
     reply_to_message?: { forum_topic_created?: { name?: string } };
     chat: { id: number; title?: string; username?: string; type?: string };
     from?: { id?: number; first_name?: string; last_name?: string; username?: string };
+};
+
+export type TelegramUser = { id?: number; first_name?: string; last_name?: string; username?: string; is_bot?: boolean };
+
+export type TelegramChatMember = {
+  status: string;
+  user: TelegramUser;
+};
+
+export type TelegramChatMemberUpdate = {
+  chat: { id: number; title?: string; username?: string; type?: string };
+  from?: TelegramUser;
+  date?: number;
+  old_chat_member?: TelegramChatMember;
+  new_chat_member?: TelegramChatMember;
 };
 
 export type TelegramChatCandidate = {
@@ -78,10 +95,21 @@ export async function setTelegramWebhook(tokenEnc: string, url: string) {
   const response = await fetch(telegramUrl(token, "setWebhook"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, allowed_updates: ["message", "edited_message", "channel_post"] })
+    body: JSON.stringify({ url, allowed_updates: ["message", "edited_message", "channel_post", "chat_member", "my_chat_member"] })
   });
   if (!response.ok) throw new Error(await response.text());
   return response.json();
+}
+
+export async function getTelegramChatAdministrators(tokenEnc: string, chatId: string) {
+  const token = decryptSecret(tokenEnc);
+  const response = await fetch(telegramUrl(token, "getChatAdministrators"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, return_bots: false })
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return (await response.json()) as { ok: boolean; result?: TelegramChatMember[]; description?: string };
 }
 
 export async function deleteTelegramWebhook(tokenEnc: string) {

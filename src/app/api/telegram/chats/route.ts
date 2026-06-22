@@ -64,6 +64,10 @@ export async function POST(request: Request) {
         telegramUsername: parsed.data.fromUsername ? parsed.data.fromUsername.toLowerCase() : null,
         firstName: parsed.data.fromFirstName || null,
         lastName: parsed.data.fromLastName || null,
+        membershipStatus: "ACTIVE",
+        source: "CHAT_DISCOVERY",
+        lastChatId: parsed.data.chatId,
+        lastChatTitle: parsed.data.chatTitle || parsed.data.title || null,
         lastMessageAt: new Date()
       },
       create: {
@@ -72,6 +76,10 @@ export async function POST(request: Request) {
         telegramUsername: parsed.data.fromUsername ? parsed.data.fromUsername.toLowerCase() : null,
         firstName: parsed.data.fromFirstName || null,
         lastName: parsed.data.fromLastName || null,
+        membershipStatus: "ACTIVE",
+        source: "CHAT_DISCOVERY",
+        lastChatId: parsed.data.chatId,
+        lastChatTitle: parsed.data.chatTitle || parsed.data.title || null,
         lastMessageAt: new Date()
       }
     });

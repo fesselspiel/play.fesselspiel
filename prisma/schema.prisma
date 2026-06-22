@@ -769,6 +769,10 @@ model TelegramKnownUser {
   telegramUsername String?
   firstName        String?
   lastName         String?
+  membershipStatus String       @default("ACTIVE")
+  source           String       @default("MESSAGE")
+  lastChatId       String?
+  lastChatTitle    String?
   lastMessageAt    DateTime     @default(now())
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
@@ -776,6 +780,7 @@ model TelegramKnownUser {
 
   @@unique([settingsId, telegramUserId])
   @@index([settingsId, telegramUsername])
+  @@index([settingsId, membershipStatus])
 }
 
 model TelegramNotificationRule {

@@ -809,6 +809,9 @@ Details:
 - Die Telegram-Erkennung speichert Benutzer jetzt auch aus `Chat einlesen`, wenn Telegram `getUpdates` für die Testnachricht liefert.
 - Wenn der Webhook eine Nachricht aus einem bekannten Telegram-Gruppenchat, aber aus einem nicht aktivierten Thread erhält, wird sie weiterhin nicht beantwortet, aber als `telegram_message_ignored` protokolliert und der Telegram-Benutzer für die Zuordnung erfasst.
 - Die Telegram-Hilfe weist darauf hin, dass Gruppen mit Bot-Privacy am zuverlässigsten Befehle wie `/id` oder `/help` an den Bot zustellen.
+- Der Webhook abonniert zusätzlich `chat_member` und `my_chat_member`. Ist der Bot Gruppenadmin, werden neue oder entfernte Gruppenmitglieder ohne eigene Nachricht als Telegram-Benutzer erkannt.
+- Unter Telegram-Benutzerzuordnung gibt es einen Admin-Abgleich per `getChatAdministrators`. Telegram liefert Bots keine vollständige historische Liste normaler Gruppenmitglieder; bestehende Admins und künftige Mitgliedsänderungen werden erfasst.
+- Erkannte Telegram-Benutzer speichern Status, Quelle, letzte Chat-ID und letzten Chatnamen. Das hilft bei der Zuordnung und bei der Diagnose, warum eine Person sichtbar ist.
 
 ## E-Mail-Adminseite
 

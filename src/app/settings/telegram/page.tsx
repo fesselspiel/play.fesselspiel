@@ -12,6 +12,7 @@ import { appTimeZone, formatDate, formatDateTime } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
 import { actionLabel, defaultNotificationTemplate, knownAuditActions } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
+import { getTelegramChatAdministrators } from "@/lib/telegram";
 import { testTelegramNotificationRule } from "@/lib/telegram-notifications";
 
 type TelegramTargetUser = {
@@ -92,6 +93,21 @@ function secretSuffix(value?: string | null) {
   } catch {
     return "";
   }
+}
+
+function telegramKnownUserSourceLabel(source?: string | null) {
+  if (source === "ADMIN_SYNC") return "Admin-Abgleich";
+  if (source === "MEMBER_UPDATE") return "Mitgliedsänderung";
+  if (source === "BOT_MEMBER_UPDATE") return "Bot-Status";
+  if (source === "CHAT_DISCOVERY") return "Chat einlesen";
+  if (source === "PROTOCOL") return "Protokoll";
+  return "Nachricht";
+}
+
+function telegramMembershipStatusLabel(status?: string | null) {
+  if (status === "LEFT") return "nicht mehr in der Gruppe";
+  if (status === "KICKED") return "entfernt";
+  return "aktiv";
 }
 
 function readSecret(value?: string | null) {
@@ -220,6 +236,83 @@ async function deleteTelegramUserMapping(formData: FormData) {
     where: { id: String(formData.get("mappingId") || ""), settingsId: settings.id }
   });
   redirect("/settings/telegram#mappings");
+}
+
+async function syncTelegramAdministrators() {
+  "use server";
+  const user = await currentAdminUser();
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId: user.id },
+    include: { telegramChats: { where: { status: "ACTIVE" }, orderBy: { updatedAt: "desc" } } }
+  });
+  if (!settings?.telegramBotTokenEnc) redirect("/settings/telegram?adminSyncFailed=token#mappings");
+  const uniqueChats = Array.from(new Map(settings.telegramChats.map((chat) => [chat.chatId, chat])).values());
+  let synced = 0;
+  let failed = 0;
+  for (const chat of uniqueChats) {
+    try {
+      const response = await getTelegramChatAdministrators(settings.telegramBotTokenEnc, chat.chatId);
+      const admins = response.result || [];
+      for (const admin of admins) {
+        if (!admin.user.id || admin.user.is_bot) continue;
+        await prisma.telegramKnownUser.upsert({
+          where: { settingsId_telegramUserId: { settingsId: settings.id, telegramUserId: String(admin.user.id) } },
+          update: {
+            telegramUsername: admin.user.username ? admin.user.username.toLowerCase() : null,
+            firstName: admin.user.first_name || null,
+            lastName: admin.user.last_name || null,
+            membershipStatus: "ACTIVE",
+            source: "ADMIN_SYNC",
+            lastChatId: chat.chatId,
+            lastChatTitle: chat.chatTitle || chat.title || null,
+            lastMessageAt: new Date()
+          },
+          create: {
+            settingsId: settings.id,
+            telegramUserId: String(admin.user.id),
+            telegramUsername: admin.user.username ? admin.user.username.toLowerCase() : null,
+            firstName: admin.user.first_name || null,
+            lastName: admin.user.last_name || null,
+            membershipStatus: "ACTIVE",
+            source: "ADMIN_SYNC",
+            lastChatId: chat.chatId,
+            lastChatTitle: chat.chatTitle || chat.title || null,
+            lastMessageAt: new Date()
+          }
+        });
+        synced += 1;
+      }
+      await prisma.auditLog.create({
+        data: {
+          actorId: user.id,
+          action: "telegram_admins_synced",
+          entityType: "telegram",
+          title: "Telegram-Admins synchronisiert",
+          details: {
+            chatId: chat.chatId,
+            chatTitle: chat.chatTitle || chat.title || null,
+            count: admins.filter((admin) => !admin.user.is_bot).length
+          }
+        }
+      });
+    } catch (error) {
+      failed += 1;
+      await prisma.auditLog.create({
+        data: {
+          actorId: user.id,
+          action: "telegram_admin_sync_failed",
+          entityType: "telegram",
+          title: "Telegram-Admin-Abgleich fehlgeschlagen",
+          details: {
+            chatId: chat.chatId,
+            chatTitle: chat.chatTitle || chat.title || null,
+            error: error instanceof Error ? error.message.slice(0, 500) : "Unbekannter Fehler"
+          }
+        }
+      });
+    }
+  }
+  redirect(`/settings/telegram?adminSynced=${synced}&adminSyncFailed=${failed}#mappings`);
 }
 
 async function createNotificationRule(formData: FormData) {
@@ -481,7 +574,7 @@ function telegramLogDayGroups<T extends { createdAt: Date }>(logs: T[]) {
   });
 }
 
-export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string; action?: string } }) {
+export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string; action?: string; adminSynced?: string; adminSyncFailed?: string } }) {
   const user = await currentAdminUser();
   const { tenant } = await currentSessionContext();
   if (!tenant) redirect("/");
@@ -527,7 +620,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
       take: 80
     }),
     prisma.auditLog.findMany({
-      where: { action: { in: ["telegram_message_received", "telegram_image_received", "telegram_message_ignored"] } },
+      where: { action: { in: ["telegram_message_received", "telegram_image_received", "telegram_message_ignored", "telegram_member_detected", "telegram_member_left"] } },
       include: { actor: { include: { profile: true } } },
       orderBy: { createdAt: "desc" },
       take: 120
@@ -544,6 +637,10 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
       telegramUsername: detailText(log.details, "telegramUsername") || null,
       firstName: detailText(log.details, "telegramFirstName") || null,
       lastName: detailText(log.details, "telegramLastName") || null,
+      membershipStatus: detailText(log.details, "membershipStatus") || "ACTIVE",
+      source: "PROTOCOL",
+      lastChatId: detailText(log.details, "chatId") || null,
+      lastChatTitle: detailText(log.details, "chatTitle") || null,
       lastMessageAt: log.createdAt,
       fromProtocol: true
     }))
@@ -692,6 +789,12 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
           </Panel>
           <Panel>
             <h2 id="mappings" className="mb-4 flex items-center gap-2 text-lg font-semibold"><UserRound className="h-5 w-5 text-redbrand" /> Telegram-Benutzer zuordnen</h2>
+            {searchParams?.adminSynced || searchParams?.adminSyncFailed ? (
+              <p className="mb-4 rounded-md bg-paper p-3 text-sm text-graphite">
+                Admin-Abgleich: <strong className="text-ink">{searchParams.adminSynced || "0"}</strong> Benutzer erkannt
+                {Number(searchParams.adminSyncFailed || 0) ? <span className="ml-2 text-redbrand">Fehlerhafte Chats: {searchParams.adminSyncFailed}</span> : null}
+              </p>
+            ) : null}
             <form action={createTelegramUserMapping} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
               <Field label="Telegram Username">
                 <input className={inputClass} name="telegramUsername" placeholder="@telegramname" required />
@@ -706,8 +809,11 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
             <div className="mt-5">
               <h3 className="mb-3 text-sm font-semibold text-ink">Erkannte Telegram-Benutzer</h3>
               <p className="mb-3 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
-                Neue Personen werden erkannt, sobald sie im aktiven Chat oder Thread eine Textnachricht, ein Bild oder eine Sprachnachricht schicken. Bei aktiviertem Webhook reicht danach ein Reload dieser Seite; `Chat einlesen` ist vor allem für neue Chats oder Threads gedacht. Protokolleinträge mit Telegram-ID erscheinen hier ebenfalls.
+                Bestehende Gruppenadmins kannst du direkt synchronisieren. Neue normale Mitglieder werden danach automatisch erkannt, wenn der Bot Gruppenadmin ist und der Webhook neu gesetzt wurde. Telegram liefert Bots keine vollständige historische Liste aller normalen Gruppenmitglieder.
               </p>
+              <form action={syncTelegramAdministrators} className="mb-3">
+                <Button><UserRound className="h-4 w-4" /> Gruppenadmins synchronisieren</Button>
+              </form>
               <div className="space-y-2">
                 {knownUsers.map((known) => {
                   const display = known.telegramUsername ? `@${known.telegramUsername}` : `ID ${known.telegramUserId}`;
@@ -721,8 +827,10 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                         <div className="font-semibold text-ink">{display}</div>
                         <div className="text-xs text-graphite">
                           {name || "Name unbekannt"} · ID {known.telegramUserId}
-                          {known.fromProtocol ? " · aus dem Protokoll oder ignoriertem Thread" : " · aktiv erkannt"}
+                          {" · "}{telegramMembershipStatusLabel(known.membershipStatus)}
+                          {" · "}{telegramKnownUserSourceLabel(known.source)}
                         </div>
+                        {known.lastChatTitle || known.lastChatId ? <div className="text-xs text-graphite">Chat: {known.lastChatTitle || known.lastChatId}</div> : null}
                         <div className="text-xs text-graphite">Zuletzt: {formatDateTime(known.lastMessageAt)}</div>
                       </div>
                       <Field label="App-Benutzer">
@@ -735,7 +843,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                     </form>
                   );
                 })}
-                {!knownUsers.length ? <p className="rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite">Noch keine Telegram-Benutzer erkannt. Sobald jemand im aktiven Thread schreibt, erscheint der Benutzer hier.</p> : null}
+                {!knownUsers.length ? <p className="rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite">Noch keine Telegram-Benutzer erkannt. Synchronisiere Gruppenadmins oder setze den Webhook neu, damit neue Mitglieder automatisch erfasst werden.</p> : null}
               </div>
             </div>
             <div className="mt-4 space-y-2">
