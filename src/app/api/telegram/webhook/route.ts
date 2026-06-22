@@ -528,12 +528,74 @@ async function handleChatMemberUpdate(memberUpdate: TelegramChatMemberUpdate, up
   return NextResponse.json({ ok: true });
 }
 
+async function rememberTelegramServiceMembers(message: TelegramMessage) {
+  const chatId = String(message.chat.id);
+  const knownGroupChat = await findKnownTelegramChatInGroup(chatId);
+  if (!knownGroupChat) return false;
+  const chatTitle = message.chat.title || message.chat.username || null;
+  const addedMembers = message.new_chat_members?.filter((member) => member.id && !member.is_bot) || [];
+  const leftMember = message.left_chat_member && message.left_chat_member.id && !message.left_chat_member.is_bot ? message.left_chat_member : null;
+  for (const member of addedMembers) {
+    await rememberTelegramKnownUserForSettings(knownGroupChat.settingsId, member, {
+      source: "MEMBER_SERVICE_MESSAGE",
+      membershipStatus: "ACTIVE",
+      chatId,
+      chatTitle
+    });
+    await prisma.auditLog.create({
+      data: {
+        actorId: null,
+        action: "telegram_member_detected",
+        entityType: "telegram",
+        title: "Telegram-Mitglied erkannt",
+        details: {
+          updateType: "new_chat_members",
+          membershipStatus: "ACTIVE",
+          chatId,
+          chatTitle,
+          addedBy: telegramUserDetails(message.from),
+          ...telegramUserDetails(member)
+        }
+      }
+    });
+  }
+  if (leftMember) {
+    await rememberTelegramKnownUserForSettings(knownGroupChat.settingsId, leftMember, {
+      source: "MEMBER_SERVICE_MESSAGE",
+      membershipStatus: "LEFT",
+      chatId,
+      chatTitle
+    });
+    await prisma.auditLog.create({
+      data: {
+        actorId: null,
+        action: "telegram_member_left",
+        entityType: "telegram",
+        title: "Telegram-Mitglied nicht mehr aktiv",
+        details: {
+          updateType: "left_chat_member",
+          membershipStatus: "LEFT",
+          chatId,
+          chatTitle,
+          removedBy: telegramUserDetails(message.from),
+          ...telegramUserDetails(leftMember)
+        }
+      }
+    });
+  }
+  return addedMembers.length > 0 || Boolean(leftMember);
+}
+
 export async function POST(request: Request) {
   const update = (await request.json()) as TelegramUpdate;
   if (update.chat_member) return handleChatMemberUpdate(update.chat_member, "chat_member");
   if (update.my_chat_member) return handleChatMemberUpdate(update.my_chat_member, "my_chat_member");
   const message = update.message || update.channel_post;
   if (!message) return NextResponse.json({ ok: true });
+  if (message.new_chat_members?.length || message.left_chat_member) {
+    const handled = await rememberTelegramServiceMembers(message);
+    if (handled) return NextResponse.json({ ok: true });
+  }
   const chatId = String(message.chat.id);
   const threadId = message.message_thread_id ? String(message.message_thread_id) : null;
   const chat = await findActiveTelegramChat(chatId, threadId);

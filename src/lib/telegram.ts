@@ -32,6 +32,8 @@ export type TelegramMessage = {
     voice?: { file_id: string; mime_type?: string };
     forum_topic_created?: { name?: string };
     reply_to_message?: { forum_topic_created?: { name?: string } };
+    new_chat_members?: TelegramUser[];
+    left_chat_member?: TelegramUser;
     chat: { id: number; title?: string; username?: string; type?: string };
     from?: { id?: number; first_name?: string; last_name?: string; username?: string };
 };

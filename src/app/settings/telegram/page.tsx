@@ -98,6 +98,7 @@ function secretSuffix(value?: string | null) {
 function telegramKnownUserSourceLabel(source?: string | null) {
   if (source === "ADMIN_SYNC") return "Admin-Abgleich";
   if (source === "MEMBER_UPDATE") return "Mitgliedsänderung";
+  if (source === "MEMBER_SERVICE_MESSAGE") return "Mitglied hinzugefügt/entfernt";
   if (source === "BOT_MEMBER_UPDATE") return "Bot-Status";
   if (source === "CHAT_DISCOVERY") return "Chat einlesen";
   if (source === "PROTOCOL") return "Protokoll";
