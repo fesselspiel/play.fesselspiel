@@ -787,3 +787,15 @@ Details:
 - Telegram kennt `/orders`, `/order_accept_N` und `/order_done_N`. Die Befehle listen sichtbare Kreis-Aufträge und erlauben Annahme oder Umsetzung per Klickbefehl.
 - Neue Audit-Aktionen `self_bondage_order_created`, `self_bondage_order_accepted`, `self_bondage_order_completed` und `self_bondage_order_discarded` stehen für Telegram-/E-Mail-Regeln zur Verfügung.
 - Auf dem VPS wurden Standard-Telegram-Regeln für die Auftragsereignisse im aktiven Thread `Play` angelegt und ein Telegram-Testversand erfolgreich durchgeführt.
+- Aufträge können über die bestehende Aktivitäts-Bearbeitung geändert werden. Jede Änderung schreibt `self_bondage_order_updated`, schließt bei Status `umgesetzt` die Session-Historie an und kann Telegram-/E-Mail-Regeln auslösen.
+- Die Standard-Telegram-Regel `self_bondage_order_updated` wurde auf dem VPS für den aktiven Thread `Play` ergänzt.
+- Der Menüpunkt `Aufträge` steht in der Hauptnavigation jetzt in der Arbeitsgruppe nach `Bondage-System` und vor `Sessions`.
+
+## Spielplan-Anfragen und Telegram-Protokoll
+
+- Normale Spielpläne haben keine Kategorie mehr; das Feld wurde aus Anlegen und Bearbeiten entfernt und neue Einträge speichern `category = null`.
+- Neue Spielpläne starten standardmäßig mit dem Status `angefragt`.
+- Angefragte Spielpläne erscheinen auf der Startseite in einem prominenten Bereich `Offene Spielplan-Anfragen` und landen erst nach Bestätigung in der Wochenplanung.
+- Der Ersteller sieht dort einen Wartehinweis; andere Benutzer im Kreis können die Anfrage direkt bestätigen.
+- Die Telegram-Aktionsbenachrichtigungen sind für Admins und Superadmins wieder sichtbar und editierbar.
+- Telegram-Versände über Aktionsregeln schreiben ein eigenes Versandprotokoll mit Erfolg, Fehler, Chat, Thread und Message-ID. Die letzten Einträge werden auf der Telegram-Einstellungsseite angezeigt.

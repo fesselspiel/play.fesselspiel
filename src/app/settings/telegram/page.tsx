@@ -421,11 +421,17 @@ function chatLabel(chat: TelegramChatOption) {
   return `${threadNameLabel(chat)} · ${chatTitleLabel(chat)} · Chat ${chat.chatId} · Thread ${chat.threadId || "-"} · ${target}`;
 }
 
+function detailText(details: unknown, key: string) {
+  if (!details || typeof details !== "object" || Array.isArray(details)) return "";
+  const value = (details as Record<string, unknown>)[key];
+  return value == null ? "" : String(value);
+}
+
 export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string; action?: string } }) {
   const user = await currentAdminUser();
   const { tenant } = await currentSessionContext();
   if (!tenant) redirect("/");
-  const [settings, targetMemberships, targetCircles, auditActions] = await Promise.all([
+  const [settings, targetMemberships, targetCircles, auditActions, telegramLogs] = await Promise.all([
     prisma.userSettings.findUnique({
       where: { userId: user.id },
       include: {
@@ -459,6 +465,12 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
       distinct: ["action"],
       select: { action: true },
       orderBy: { action: "asc" }
+    }),
+    prisma.auditLog.findMany({
+      where: { action: { in: ["telegram_notification_sent", "telegram_notification_failed", "telegram_answer_sent"] } },
+      include: { actor: { include: { profile: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 30
     })
   ]);
   const targetUsers = targetMemberships.map((membership) => membership.user);
@@ -663,7 +675,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
               {!mappings.length ? <p className="text-sm text-graphite">Noch keine Telegram-Benutzer zugeordnet.</p> : null}
             </div>
           </Panel>
-          {user.role === "ADMIN" ? (
+          {user.role === "ADMIN" || user.role === "SUPER_ADMIN" ? (
             <Panel>
               <h2 id="notifications" className="mb-4 flex items-center gap-2 text-lg font-semibold"><BellRing className="h-5 w-5 text-redbrand" /> Aktions-Benachrichtigungen</h2>
               <p className="mb-4 text-sm leading-6 text-graphite">
@@ -749,6 +761,29 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
               </div>
             </Panel>
           ) : null}
+          <Panel>
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><Send className="h-5 w-5 text-redbrand" /> Versandprotokoll</h2>
+            <div className="space-y-2">
+              {telegramLogs.map((log) => (
+                <div key={log.id} className="rounded-md border border-line bg-paper p-3 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <strong>{log.title}</strong>
+                    <Badge tone={log.action === "telegram_notification_failed" ? "red" : "green"}>
+                      {log.action === "telegram_notification_failed" ? "Fehler" : "gesendet"}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 text-xs text-graphite">
+                    {formatDateTime(log.createdAt)}
+                    {detailText(log.details, "chatId") ? ` · Chat ${detailText(log.details, "chatId")}` : ""}
+                    {detailText(log.details, "threadId") ? ` · Thread ${detailText(log.details, "threadId")}` : ""}
+                    {detailText(log.details, "messageId") ? ` · Nachricht ${detailText(log.details, "messageId")}` : ""}
+                  </div>
+                  {detailText(log.details, "error") ? <pre className="mt-2 whitespace-pre-wrap rounded-md bg-surface p-2 text-xs text-redbrand">{detailText(log.details, "error")}</pre> : null}
+                </div>
+              ))}
+              {!telegramLogs.length ? <p className="rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite">Noch keine Telegram-Sendungen protokolliert.</p> : null}
+            </div>
+          </Panel>
           <Panel>
             <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold"><Send className="h-5 w-5 text-redbrand" /> Voice-Verarbeitung</h2>
             <p className="text-sm leading-6 text-graphite">Voice-Nachrichten werden nach Aktivierung des Telegram-Pollings heruntergeladen, mit dem gespeicherten OpenAI-Key transkribiert und danach wie normale Textnachrichten verarbeitet.</p>

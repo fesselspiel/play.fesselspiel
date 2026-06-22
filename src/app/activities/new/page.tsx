@@ -57,7 +57,7 @@ async function createActivity(formData: FormData) {
     bondageItemIds.length ? prisma.bondageSystemItem.findMany({ where: { tenantId: user.tenantId || undefined, id: { in: bondageItemIds }, visible: true, ...bondageSystemVisibilityScope(user) }, select: { id: true } }) : []
   ]);
   if (selfBondageTemplate && selfBondageChoice.startsWith("position:") && accessiblePositions.length !== 1) redirect("/activities/new?template=self-bondage&error=position");
-  const status = String(formData.get("status") || "PLANNED") as ActivityStatusValue;
+  const status = String(formData.get("status") || "REQUESTED") as ActivityStatusValue;
   const note = selfBondageTemplate
     ? appendSelfBondagePositionNote(String(formData.get("note") || "").trim(), selfBondageChoice, selfBondageCustomText)
     : String(formData.get("note") || "").trim();
@@ -67,7 +67,7 @@ async function createActivity(formData: FormData) {
       ownerId: user.id,
       title,
       slug,
-      category: selfBondageTemplate ? selfBondageCategory : ideaTemplate ? "IDEA_COLLECTION" : String(formData.get("category") || "").trim(),
+      category: selfBondageTemplate ? selfBondageCategory : ideaTemplate ? "IDEA_COLLECTION" : null,
       note,
       plannedAt,
       status,
@@ -134,10 +134,7 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
         <div className="space-y-4">
           <Field label={selfBondageTemplate ? "Auftrag" : ideaTemplate ? "Idee" : "Spieltermin"}><input className={inputClass} name="title" required placeholder={selfBondageTemplate ? "Self-Bondage-Auftrag" : ideaTemplate ? "Das wollen wir ausprobieren" : "Entspannungsabend"} defaultValue={defaultTitle} /></Field>
           {selfBondageTemplate || ideaTemplate ? null : (
-            <>
-              <Field label="Kategorie"><input className={inputClass} name="category" placeholder="Entspannung, Bondage, Foto-Session" /></Field>
-              <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" placeholder="entspannungsabend" /></Field>
-            </>
+            <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" placeholder="entspannungsabend" /></Field>
           )}
           {selfBondageTemplate ? (
             <SelfBondageScheduleFields
@@ -163,7 +160,7 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
                 </select>
               </Field>
               <Field label="Status">
-                <select className={selectClass} name="status" defaultValue="PLANNED">
+                <select className={selectClass} name="status" defaultValue="REQUESTED">
                   {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
               </Field>

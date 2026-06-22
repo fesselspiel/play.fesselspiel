@@ -72,12 +72,51 @@ async function sendRule(rule: RuleForNotification, audit: Pick<AuditForNotificat
       sent.add(key);
       return true;
     })
-    .map((chat) =>
-      sendTelegramMessage(rule.settings.telegramBotTokenEnc!, chat.chatId, chat.threadId, message, {
-        parseMode: "HTML",
-        disableWebPagePreview: true
-      })
-    );
+    .map(async (chat) => {
+      try {
+        const result = await sendTelegramMessage(rule.settings.telegramBotTokenEnc!, chat.chatId, chat.threadId, message, {
+          parseMode: "HTML",
+          disableWebPagePreview: true
+        });
+        await prisma.auditLog.create({
+          data: {
+            actorId: actorId || null,
+            action: "telegram_notification_sent",
+            entityType: "telegramNotificationRule",
+            entityId: rule.id,
+            title: `Telegram-Benachrichtigung gesendet: ${actionLabel(audit.action)}`,
+            href: "/settings/telegram#notifications",
+            details: {
+              sourceAction: audit.action,
+              chatId: chat.chatId,
+              threadId: chat.threadId,
+              outputChatId: chat.id,
+              messageId: typeof result === "object" && result && "result" in result ? (result as { result?: { message_id?: number } }).result?.message_id : null
+            }
+          }
+        });
+        return result;
+      } catch (error) {
+        await prisma.auditLog.create({
+          data: {
+            actorId: actorId || null,
+            action: "telegram_notification_failed",
+            entityType: "telegramNotificationRule",
+            entityId: rule.id,
+            title: `Telegram-Benachrichtigung fehlgeschlagen: ${actionLabel(audit.action)}`,
+            href: "/settings/telegram#notifications",
+            details: {
+              sourceAction: audit.action,
+              chatId: chat.chatId,
+              threadId: chat.threadId,
+              outputChatId: chat.id,
+              error: error instanceof Error ? error.message : String(error)
+            }
+          }
+        });
+        throw error;
+      }
+    });
 }
 
 async function settleTelegramTasks(tasks: Promise<unknown>[]) {

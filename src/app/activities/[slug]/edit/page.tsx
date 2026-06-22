@@ -7,7 +7,8 @@ import { SelfBondageScheduleFields } from "@/components/self-bondage-schedule-fi
 import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
 import { activityStatusOptions, type ActivityStatusValue } from "@/lib/activity-status";
 import { bondageSystemVisibilityScope, contentTenantScope, isAccessibleOwner, ownerScope } from "@/lib/access";
-import { isSelfBondageOrder as isSelfBondageActivity, selfBondageCategory } from "@/lib/activity-orders";
+import { createSessionHistoryForCompletedOrder, isSelfBondageOrder as isSelfBondageActivity, selfBondageCategory } from "@/lib/activity-orders";
+import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { formatDateTimeLocal } from "@/lib/dates";
 import { hasFeature, requireFeature } from "@/lib/features";
@@ -80,20 +81,38 @@ async function updateActivity(formData: FormData) {
     ? appendSelfBondagePositionNote(String(formData.get("note") || "").trim(), selfBondageChoice, selfBondageCustomText)
     : String(formData.get("note") || "").trim();
 
-  await prisma.activityPlan.update({
+  const nextStatus = String(formData.get("status") || "PLANNED") as ActivityStatusValue;
+  const updated = await prisma.activityPlan.update({
     where: { id: activity.id },
     data: {
       title,
       slug,
-      category: selfBondageOrder ? selfBondageCategory : idea ? "IDEA_COLLECTION" : String(formData.get("category") || "").trim(),
+      category: selfBondageOrder ? selfBondageCategory : idea ? "IDEA_COLLECTION" : null,
       note,
       plannedAt: !idea && !withoutSchedule && plannedAtRaw ? new Date(plannedAtRaw) : null,
-      status: String(formData.get("status") || "PLANNED") as ActivityStatusValue,
+      status: nextStatus,
       tools: { set: ownedTools.map((tool) => ({ id: tool.id })) },
       bondageSystemItems: { set: ownedBondageItems.map((item) => ({ id: item.id })) },
       positions: { set: ownedPositions.map((position) => ({ id: position.id })) }
     }
   });
+  if (selfBondageOrder) {
+    const session = nextStatus === "DONE" ? await createSessionHistoryForCompletedOrder(updated, user.id) : null;
+    await logAction({
+      actorId: user.id,
+      action: "self_bondage_order_updated",
+      entityType: "activity",
+      entityId: updated.id,
+      title: `Auftrag geändert: ${updated.title}`,
+      href: `/orders#order-${updated.id}`,
+      details: {
+        status: nextStatus,
+        orderUrl: `/activities/${updated.slug}`,
+        sessionUrl: session?.slug ? `/sessions/${session.slug}` : null,
+        excludeActorFromTargets: true
+      }
+    });
+  }
   redirect(selfBondageOrder ? `/orders#order-${activity.id}` : `/activities/${slug}`);
 }
 
@@ -168,10 +187,7 @@ export default async function EditActivityPage({ params, searchParams }: { param
           <div className="space-y-4">
             <Field label={isSelfBondageOrder ? "Auftrag" : isIdea ? "Idee" : "Spielidee"}><input className={inputClass} name="title" required defaultValue={activity.title} /></Field>
             {isSelfBondageOrder || isIdea ? null : (
-              <>
-                <Field label="Kategorie"><input className={inputClass} name="category" defaultValue={activity.category || ""} /></Field>
-                <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" defaultValue={activity.slug} /></Field>
-              </>
+              <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" defaultValue={activity.slug} /></Field>
             )}
             {isSelfBondageOrder ? (
               <SelfBondageScheduleFields

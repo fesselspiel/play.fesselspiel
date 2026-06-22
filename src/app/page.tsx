@@ -80,11 +80,11 @@ export default async function DashboardPage() {
     hasFeature("orders"),
     hasFeature("tracker.segufix")
   ]);
-  const [sessions, weekActivities, weekEvents, circleUsers, selfBondagePositions, ideas, openOrders] = await Promise.all([
+  const [sessions, weekActivities, weekEvents, circleUsers, selfBondagePositions, ideas, openOrders, requestedPlans] = await Promise.all([
     segufixEnabled ? prisma.segufixSession.findMany({ where: scope, orderBy: { startTime: "desc" }, take: 4 }) : Promise.resolve([]),
     activitiesEnabled
       ? prisma.activityPlan.findMany({
-          where: { ...scope, status: { in: ["REQUESTED", "PLANNED"] }, plannedAt: { gte: todayStart, lt: weekEnd } },
+          where: { ...scope, status: "PLANNED", plannedAt: { gte: todayStart, lt: weekEnd } },
           include: { tools: true, positions: true },
           orderBy: { plannedAt: "asc" }
         })
@@ -122,6 +122,21 @@ export default async function DashboardPage() {
       ? prisma.activityPlan.findMany({
           where: { ...scope, category: selfBondageCategory, status: { in: ["REQUESTED", "PLANNED"] } },
           include: { owner: { include: { profile: true } }, positions: true },
+          orderBy: [{ plannedAt: "asc" }, { createdAt: "desc" }],
+          take: 4
+        })
+      : Promise.resolve([]),
+    activitiesEnabled
+      ? prisma.activityPlan.findMany({
+          where: {
+            ...scope,
+            status: "REQUESTED",
+            OR: [
+              { category: null },
+              { category: { notIn: ["IDEA_COLLECTION", selfBondageCategory, "Self-Bondage"] } }
+            ]
+          },
+          include: { owner: { include: { profile: true } }, tools: true, positions: true },
           orderBy: [{ plannedAt: "asc" }, { createdAt: "desc" }],
           take: 4
         })
@@ -324,6 +339,47 @@ export default async function DashboardPage() {
             </Link>
           </Panel>
         </div>
+        ) : null}
+
+        {activitiesEnabled && requestedPlans.length ? (
+          <Panel className="border-redbrand bg-redbrand/10">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold text-ink">Offene Spielplan-Anfragen</h2>
+                <p className="mt-1 text-sm text-graphite">Diese Spielpläne sind angefragt und werden erst nach Bestätigung als geplant geführt.</p>
+              </div>
+              <Link href="/activities" className="inline-flex min-h-10 items-center rounded-md border border-redbrand bg-surface px-4 py-2 text-sm font-semibold text-redbrand hover:bg-paper">
+                Spielpläne öffnen
+              </Link>
+            </div>
+            <div className="grid gap-3 lg:grid-cols-2">
+              {requestedPlans.map((activity) => {
+                const ownerName = activity.owner.profile?.displayName || activity.owner.name || activity.owner.username || activity.owner.email;
+                const canConfirm = activity.ownerId !== user.id;
+                return (
+                  <article key={activity.id} className="rounded-lg border border-line bg-surface p-4">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <Badge tone="green">angefragt</Badge>
+                      <span className="text-xs text-graphite">von {ownerName}</span>
+                    </div>
+                    <Link href={`/activities/${activity.slug}`} className="block text-base font-semibold text-ink hover:text-redbrand">{activity.title}</Link>
+                    <p className="mt-1 text-xs text-graphite">{activity.plannedAt ? formatDateTime(activity.plannedAt) : "noch ohne Termin"}</p>
+                    <p className="mt-2 text-xs text-graphite">{activity.tools.length} Spielsachen · {activity.positions.length} Szenen</p>
+                    {canConfirm ? (
+                      <form action={confirmRequestedActivity} className="mt-3">
+                        <input type="hidden" name="id" value={activity.id} />
+                        <button className="focus-ring min-h-9 rounded-md bg-redbrand px-3 py-1.5 text-xs font-semibold text-white hover:bg-redbrandHover">
+                          Anfrage bestätigen
+                        </button>
+                      </form>
+                    ) : (
+                      <p className="mt-3 rounded-md bg-paper p-2 text-xs text-graphite">Wartet auf Bestätigung durch eine andere Person im Kreis.</p>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </Panel>
         ) : null}
 
         {activitiesEnabled ? (

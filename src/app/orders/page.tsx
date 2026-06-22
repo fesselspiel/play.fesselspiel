@@ -136,6 +136,9 @@ export default async function OrdersPage() {
                     <Link href={`/activities/${order.slug}`} className="mt-2 inline-flex min-h-10 w-full items-center justify-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
                       Detail öffnen
                     </Link>
+                    <Link href={`/activities/${order.slug}/edit`} className="mt-2 inline-flex min-h-10 w-full items-center justify-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
+                      Bearbeiten
+                    </Link>
                   </div>
                 </div>
               </Panel>
