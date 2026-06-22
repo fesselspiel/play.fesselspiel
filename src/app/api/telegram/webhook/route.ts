@@ -6,6 +6,7 @@ import { answerWithPortalAgent } from "@/lib/telegram-agent";
 import { handleItemCreationDialogue, handleItemCreationImage, startAlbumCreationDialogue, startToyCreationDialogue } from "@/lib/telegram-item-dialogue";
 import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
 import { logAction } from "@/lib/audit";
+import { createSessionHistoryForCompletedOrder, isSelfBondageOrder, selfBondageCategory } from "@/lib/activity-orders";
 import { fileAssetUrl, saveFileBuffer } from "@/lib/files";
 import { downloadTelegramFile, largestTelegramPhoto, sendTelegramMessage, telegramHtml, telegramLink, transcribeTelegramVoice } from "@/lib/telegram";
 import type { TelegramMessage, TelegramUpdate } from "@/lib/telegram";
@@ -34,8 +35,11 @@ const HELP_TEXT = `<b>Befehle</b>
 /toy_new Name - neues Spielzeug mit Dialog anlegen
 /positions - Szenen anzeigen
 /activities - geplante Aktivitäten anzeigen
+/orders - offene Self-Bondage-Aufträge anzeigen
 /activity_request Titel - Spielplan anfragen
 /activity_confirm_1 - angefragten Spielplan aus der Liste bestätigen
+/order_accept_1 - Auftrag aus der Liste annehmen
+/order_done_1 - Auftrag aus der Liste als umgesetzt speichern
 /sessions - Session-Auswertung aktuelles Jahr
 /session_start Notiz - Segufix-Session starten
 /session_stop Notiz - laufende Session beenden
@@ -59,6 +63,7 @@ function htmlList(title: string, rows: string[]) {
 }
 
 const activityStatusLabel = { REQUESTED: "angefragt", PLANNED: "geplant", DONE: "durchgeführt", DISCARDED: "verworfen" } as const;
+const orderStatusLabel = { REQUESTED: "beauftragt", PLANNED: "angenommen", DONE: "umgesetzt", DISCARDED: "verworfen" } as const;
 
 function commandOf(text: string) {
   const trimmed = text.trim();
@@ -73,6 +78,13 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   if (!parsed) return `Verstanden: ${text}`;
   const tenantId = await tenantIdForUser(userId);
   const tenantScope = tenantId ? { tenantId } : {};
+  const appUser = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, tenantId: true, circleId: true, role: true } });
+  const visibleOwnerIds = appUser?.tenantId && (appUser.role === "ADMIN" || appUser.role === "SUPER_ADMIN")
+    ? (await prisma.tenantMembership.findMany({ where: { tenantId: appUser.tenantId, active: true, user: { active: true } }, select: { userId: true } })).map((entry) => entry.userId)
+    : appUser?.tenantId && appUser.circleId
+      ? (await prisma.tenantMembership.findMany({ where: { tenantId: appUser.tenantId, circleId: appUser.circleId, active: true, user: { active: true } }, select: { userId: true } })).map((entry) => entry.userId)
+      : [userId];
+  const visibleOwnerScope = { ...tenantScope, ownerId: { in: visibleOwnerIds.length ? visibleOwnerIds : [userId] } };
 
   if (parsed.command === "/start" || parsed.command === "/help") return HELP_TEXT;
   if (parsed.command === "/id") return ["<b>Telegram-Verbindung</b>", htmlLine("Chat-ID", chatId), htmlLine("Thread-ID", threadId || "-"), htmlLine("Status", "aktiv")].join("\n");
@@ -141,7 +153,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
 
   if (parsed.command === "/activities") {
     const activities = await prisma.activityPlan.findMany({
-      where: { ...tenantScope, ownerId: userId, status: { in: ["REQUESTED", "PLANNED"] } },
+      where: { ...visibleOwnerScope, category: { notIn: ["IDEA_COLLECTION", selfBondageCategory] }, status: { in: ["REQUESTED", "PLANNED"] } },
       include: { tools: true, positions: true },
       orderBy: [{ status: "asc" }, { plannedAt: "asc" }],
       take: 8
@@ -159,6 +171,33 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
           activity.status === "REQUESTED" ? `/activity_confirm_${requested.findIndex((entry) => entry.id === activity.id) + 1}` : ""
         ].join("\n")
       )
+    );
+  }
+
+  if (parsed.command === "/orders") {
+    const orders = await prisma.activityPlan.findMany({
+      where: { ...visibleOwnerScope, category: selfBondageCategory, status: { in: ["REQUESTED", "PLANNED"] } },
+      include: { owner: { include: { profile: true } }, positions: true },
+      orderBy: [{ status: "asc" }, { plannedAt: "asc" }, { createdAt: "desc" }],
+      take: 12
+    });
+    const actionable = orders.filter((order) => order.ownerId !== userId);
+    return htmlList(
+      "Self-Bondage-Aufträge",
+      orders.map((order, index) => {
+        const actionIndex = actionable.findIndex((entry) => entry.id === order.id) + 1;
+        const ownerName = order.owner.profile?.displayName || order.owner.name || order.owner.username || order.owner.email;
+        return [
+          `<b>${index + 1}. ${telegramHtml(order.title)}</b>`,
+          htmlLine("Status", orderStatusLabel[order.status]),
+          htmlLine("Von", ownerName),
+          htmlLine("Termin", order.plannedAt ? formatDateTime(order.plannedAt) : "gilt beim Lesen"),
+          order.positions.length ? htmlLine("Szenen", order.positions.map((position) => position.name).join(", ")) : "",
+          telegramLink(`${env.appUrl}/activities/${order.slug}`, "öffnen"),
+          actionIndex > 0 && order.status === "REQUESTED" ? `/order_accept_${actionIndex}` : "",
+          actionIndex > 0 ? `/order_done_${actionIndex}` : ""
+        ].filter(Boolean).join("\n");
+      })
     );
   }
 
@@ -205,6 +244,32 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
       href: `/activities/${updated.slug}`
     });
     return [`<b>Spielplan bestätigt</b>`, telegramHtml(updated.title), telegramLink(`${env.appUrl}/activities/${updated.slug}`, "öffnen")].join("\n");
+  }
+
+  if (parsed.command.startsWith("/order_accept_") || parsed.command.startsWith("/order_done_")) {
+    const done = parsed.command.startsWith("/order_done_");
+    const index = Number(parsed.command.replace(done ? "/order_done_" : "/order_accept_", ""));
+    if (!Number.isInteger(index) || index < 1) return "Ungültige Auftragsnummer. Nutze /orders für die aktuelle Liste.";
+    const orders = await prisma.activityPlan.findMany({
+      where: { ...visibleOwnerScope, category: selfBondageCategory, status: { in: ["REQUESTED", "PLANNED"] }, ownerId: { not: userId } },
+      orderBy: [{ status: "asc" }, { plannedAt: "asc" }, { createdAt: "desc" }],
+      take: 20
+    });
+    const order = orders[index - 1];
+    if (!order || !isSelfBondageOrder(order)) return "Dieser Auftrag wurde nicht gefunden. Nutze /orders für die aktuelle Liste.";
+    const nextStatus = done ? "DONE" : "PLANNED";
+    const updated = await prisma.activityPlan.update({ where: { id: order.id }, data: { status: nextStatus } });
+    const session = done ? await createSessionHistoryForCompletedOrder(updated, userId) : null;
+    await logAction({
+      actorId: userId,
+      action: done ? "self_bondage_order_completed" : "self_bondage_order_accepted",
+      entityType: "activity",
+      entityId: updated.id,
+      title: `${done ? "Auftrag umgesetzt" : "Auftrag angenommen"}: ${updated.title}`,
+      href: `/orders#order-${updated.id}`,
+      details: { status: done ? "umgesetzt" : "angenommen", sessionUrl: session?.slug ? `/sessions/${session.slug}` : null, excludeActorFromTargets: true }
+    });
+    return [`<b>${done ? "Auftrag umgesetzt" : "Auftrag angenommen"}</b>`, telegramHtml(updated.title), telegramLink(`${env.appUrl}/orders#order-${updated.id}`, "Aufträge öffnen")].join("\n");
   }
 
   if (parsed.command === "/sessions") {

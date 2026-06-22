@@ -6,6 +6,7 @@ import {
   Images,
   KeyRound,
   LayoutDashboard,
+  ClipboardCheck,
   Mail,
   Menu,
   MessageCircle,
@@ -26,6 +27,7 @@ import { LogoutButton } from "@/components/logout-button";
 
 const mobileNav = [
   ["Start", "/", LayoutDashboard, null],
+  ["Aufträge", "/orders", ClipboardCheck, "orders"],
   ["Szenen", "/positions", ShieldCheck, "positions"],
   ["Spielsachen", "/toys", ToyBrick, "toys"],
   ["Bondage-System", "/bondage-system", PackageSearch, "shopifyBondageSystem"],
@@ -33,9 +35,9 @@ const mobileNav = [
   ["Bilder", "/media", Images, "media"]
 ] as const;
 
-const primaryMobileNav = mobileNav.slice(0, 1);
-const catalogMobileNav = mobileNav.slice(1, 5);
-const pictureMobileNav = mobileNav.slice(5);
+const primaryMobileNav = mobileNav.slice(0, 2);
+const catalogMobileNav = mobileNav.slice(2, 6);
+const pictureMobileNav = mobileNav.slice(6);
 
 const mobileSettingsNav = [["Profil", "/profile", UserRound]] as const;
 
@@ -58,6 +60,7 @@ function isVisible(feature: string | null, disabledFeatures: string[], enabledFe
   if (!feature) return true;
   if (disabledFeatures.includes(feature)) return false;
   if (feature === "trackers") return enabledFeatures.some((entry) => entry.startsWith("tracker.") && !disabledFeatures.includes(entry));
+  if (feature === "orders") return !disabledFeatures.includes("activities") && !disabledFeatures.includes("selfBondage") && !disabledFeatures.includes("positions");
   if (feature === "selfBondage") return !disabledFeatures.includes(feature) && !disabledFeatures.includes("positions");
   if (feature.startsWith("tracker.")) return !disabledFeatures.includes(feature) && !disabledFeatures.includes("trackers");
   return true;

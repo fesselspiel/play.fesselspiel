@@ -5,6 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { Badge, EmptyState, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status";
 import { ownerScope } from "@/lib/access";
+import { selfBondageCategory } from "@/lib/activity-orders";
 import { currentUser } from "@/lib/auth";
 import { hasFeature, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
@@ -15,6 +16,7 @@ export default async function ActivitiesPage() {
   const user = await currentUser();
   if (!user) redirect("/login");
   const selfBondageEnabled = await hasFeature("selfBondage");
+  const ordersEnabled = await hasFeature("orders");
   const toolsEnabled = await hasFeature("toys");
   const positionsEnabled = await hasFeature("positions");
   const activities = await prisma.activityPlan.findMany({
@@ -28,7 +30,7 @@ export default async function ActivitiesPage() {
     take: 6
   }) : [];
   const ideas = activities.filter((activity) => activity.category === "IDEA_COLLECTION");
-  const plans = activities.filter((activity) => activity.category !== "IDEA_COLLECTION");
+  const plans = activities.filter((activity) => activity.category !== "IDEA_COLLECTION" && activity.category !== selfBondageCategory && activity.category !== "Self-Bondage");
   return (
     <AppShell>
       <PageHeader title="Lass uns spielen" />
@@ -49,7 +51,7 @@ export default async function ActivitiesPage() {
             Neuen Spieltermin anlegen
           </Link>
         </Panel>
-        {selfBondageEnabled ? <Panel className="bg-paper text-center">
+        {ordersEnabled ? <Panel className="bg-paper text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-sky-600 text-white">
             <ShieldCheck className="h-6 w-6" />
           </div>
@@ -66,9 +68,9 @@ export default async function ActivitiesPage() {
           ) : (
             <p className="mt-4 rounded-md bg-surface p-3 text-sm text-graphite">Markiere bei Szenen das Feld „Self-Bondage-fähig“, damit sie hier als Vorbereitung auftauchen.</p>
           )}
-          <Link href="/activities/new?template=self-bondage" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-sky-600 bg-sky-600 px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-sky-700">
+          <Link href="/orders" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-sky-600 bg-sky-600 px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-sky-700">
             <ShieldCheck className="h-5 w-5" />
-            Self-Bondage-Auftrag erteilen
+            Aufträge öffnen
           </Link>
         </Panel> : null}
         <Panel className="bg-paper text-center">
@@ -106,7 +108,7 @@ export default async function ActivitiesPage() {
       {plans.length ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {plans.map((activity) => {
-            const isSelfBondageOrder = activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage";
+            const isSelfBondageOrder = activity.category === selfBondageCategory || activity.category === "Self-Bondage";
             return (
             <Link key={activity.id} href={`/activities/${activity.slug}`}>
               <SoftPanel className="h-full transition hover:bg-[#eeeeee]">

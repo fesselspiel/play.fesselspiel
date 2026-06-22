@@ -6,6 +6,7 @@ import { sendTelegramMessage, telegramHtml } from "@/lib/telegram";
 
 type AuditForNotification = AuditLog;
 type RuleForNotification = Awaited<ReturnType<typeof findRulesForAudit>>[number];
+type NotificationActor = Parameters<typeof actorName>[0] & { id?: string };
 
 function fullUrl(href?: string | null) {
   if (!href) return "";
@@ -44,8 +45,11 @@ async function findRulesForAudit(audit: Pick<AuditForNotification, "action">) {
   });
 }
 
-async function sendRule(rule: RuleForNotification, audit: Pick<AuditForNotification, "action" | "title" | "href" | "entityType" | "entityId" | "details">, actor: Parameters<typeof actorName>[0] | null, sent: Set<string>) {
+async function sendRule(rule: RuleForNotification, audit: Pick<AuditForNotification, "action" | "title" | "href" | "entityType" | "entityId" | "details">, actor: NotificationActor | null, sent: Set<string>) {
   if (!rule.settings.telegramBotTokenEnc) return [];
+  const details = audit.details && typeof audit.details === "object" && !Array.isArray(audit.details) ? audit.details as Record<string, unknown> : {};
+  const excludeActorFromTargets = details.excludeActorFromTargets === true;
+  const actorId = actor?.id ? String(actor.id) : "";
   const targetUserIds = rule.targetCircleId
     ? new Set((await prisma.tenantMembership.findMany({ where: { circleId: rule.targetCircleId, active: true, user: { active: true } }, select: { userId: true } })).map((member) => member.userId))
     : new Set<string>();
@@ -62,6 +66,7 @@ async function sendRule(rule: RuleForNotification, audit: Pick<AuditForNotificat
   const message = renderTemplate(rule.message, audit, actor);
   return chats
     .filter((chat) => {
+      if (excludeActorFromTargets && actorId && chat.targetUserId === actorId) return false;
       const key = `${rule.settings.telegramBotTokenEnc}:${chat.chatId}:${chat.threadId || ""}`;
       if (sent.has(key)) return false;
       sent.add(key);

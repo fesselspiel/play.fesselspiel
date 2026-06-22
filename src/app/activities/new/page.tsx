@@ -9,6 +9,7 @@ import { activityStatusOptions, type ActivityStatusValue, quarterHourOptions } f
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { hasFeature, requireFeature } from "@/lib/features";
+import { selfBondageCategory } from "@/lib/activity-orders";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
 
@@ -30,7 +31,7 @@ async function createActivity(formData: FormData) {
   await requireFeature("activities");
   const selfBondageTemplate = String(formData.get("template") || "") === "self-bondage";
   const ideaTemplate = String(formData.get("template") || "") === "idea";
-  if (selfBondageTemplate) await requireFeature("selfBondage");
+  if (selfBondageTemplate) await requireFeature("orders");
   const title = String(formData.get("title") || "").trim();
   const slug = await uniqueSlug("activityPlan", normalizeSlug(String(formData.get("slug") || ""), title), user.tenantId);
   const date = String(formData.get("date") || "");
@@ -66,7 +67,7 @@ async function createActivity(formData: FormData) {
       ownerId: user.id,
       title,
       slug,
-      category: selfBondageTemplate ? "SELF_BONDAGE_ORDER" : ideaTemplate ? "IDEA_COLLECTION" : String(formData.get("category") || "").trim(),
+      category: selfBondageTemplate ? selfBondageCategory : ideaTemplate ? "IDEA_COLLECTION" : String(formData.get("category") || "").trim(),
       note,
       plannedAt,
       status,
@@ -77,13 +78,14 @@ async function createActivity(formData: FormData) {
   });
   await logAction({
     actorId: user.id,
-    action: ideaTemplate ? "idea_created" : status === "REQUESTED" ? "activity_requested" : "activity_created",
+    action: selfBondageTemplate ? "self_bondage_order_created" : ideaTemplate ? "idea_created" : status === "REQUESTED" ? "activity_requested" : "activity_created",
     entityType: "activity",
     entityId: activity.id,
-    title: `${ideaTemplate ? "Idee festgehalten" : status === "REQUESTED" ? "Spielplan angefragt" : "Spielplan angelegt"}: ${activity.title}`,
-    href: `/activities/${activity.slug}`
+    title: `${selfBondageTemplate ? "Self-Bondage-Auftrag erteilt" : ideaTemplate ? "Idee festgehalten" : status === "REQUESTED" ? "Spielplan angefragt" : "Spielplan angelegt"}: ${activity.title}`,
+    details: selfBondageTemplate ? { status: "beauftragt", excludeActorFromTargets: true } : undefined,
+    href: selfBondageTemplate ? `/orders#order-${activity.id}` : `/activities/${activity.slug}`
   });
-  redirect(`/activities/${slug}`);
+  redirect(selfBondageTemplate ? "/orders" : `/activities/${slug}`);
 }
 
 export default async function NewActivityPage({ searchParams }: { searchParams?: { date?: string; template?: string; error?: string } }) {
@@ -91,7 +93,7 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
   const user = await currentUser();
   if (!user) redirect("/login");
   const selfBondageTemplate = searchParams?.template === "self-bondage";
-  if (selfBondageTemplate) await requireFeature("selfBondage");
+  if (selfBondageTemplate) await requireFeature("orders");
   const toolsEnabled = await hasFeature("toys");
   const positionsEnabled = await hasFeature("positions");
   const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");

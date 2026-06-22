@@ -8,6 +8,7 @@ export const featureCatalog = [
   { key: "shopifyBondageSystem", label: "Bondage-System" },
   { key: "media", label: "Bilder" },
   { key: "activities", label: "Spielplanung" },
+  { key: "orders", label: "Aufträge" },
   { key: "selfBondage", label: "Self-Bondage" },
   { key: "trackers", label: "Tracker" },
   { key: "tracker.segufix", label: "Segufix Time Tracker" },
@@ -26,6 +27,7 @@ export function featureEnabled(features: { key: string; enabled: boolean }[] | u
   const direct = feature?.enabled !== false;
   if (!direct) return false;
   if (key === "selfBondage") return direct && featureEnabled(features, "positions");
+  if (key === "orders") return direct && featureEnabled(features, "activities") && featureEnabled(features, "selfBondage");
   if (key.startsWith("tracker.")) return direct && featureEnabled(features, "trackers");
   return true;
 }

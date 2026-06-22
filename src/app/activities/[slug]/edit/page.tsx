@@ -7,6 +7,7 @@ import { SelfBondageScheduleFields } from "@/components/self-bondage-schedule-fi
 import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
 import { activityStatusOptions, type ActivityStatusValue } from "@/lib/activity-status";
 import { bondageSystemVisibilityScope, contentTenantScope, isAccessibleOwner, ownerScope } from "@/lib/access";
+import { isSelfBondageOrder as isSelfBondageActivity, selfBondageCategory } from "@/lib/activity-orders";
 import { currentUser } from "@/lib/auth";
 import { formatDateTimeLocal } from "@/lib/dates";
 import { hasFeature, requireFeature } from "@/lib/features";
@@ -49,14 +50,14 @@ async function updateActivity(formData: FormData) {
   const scope = await ownerScope(user);
   const activity = await prisma.activityPlan.findFirst({ where: { id, ...scope } });
   if (!activity) notFound();
-  const selfBondageOrder = activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage";
+  const selfBondageOrder = isSelfBondageActivity(activity);
   const idea = activity.category === "IDEA_COLLECTION";
 
   const title = String(formData.get("title") || "").trim();
   const slug = selfBondageOrder || idea ? activity.slug : await uniqueSlugForUpdate("activityPlan", normalizeSlug(String(formData.get("slug") || ""), title), activity.id, user.tenantId);
   const plannedAtRaw = String(formData.get("plannedAt") || "");
   const withoutSchedule = selfBondageOrder && formData.get("noSchedule") === "on";
-  if (selfBondageOrder) await requireFeature("selfBondage");
+  if (selfBondageOrder) await requireFeature("orders");
   const toolsEnabled = await hasFeature("toys");
   const positionsEnabled = await hasFeature("positions");
   const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
@@ -84,7 +85,7 @@ async function updateActivity(formData: FormData) {
     data: {
       title,
       slug,
-      category: selfBondageOrder ? "SELF_BONDAGE_ORDER" : idea ? "IDEA_COLLECTION" : String(formData.get("category") || "").trim(),
+      category: selfBondageOrder ? selfBondageCategory : idea ? "IDEA_COLLECTION" : String(formData.get("category") || "").trim(),
       note,
       plannedAt: !idea && !withoutSchedule && plannedAtRaw ? new Date(plannedAtRaw) : null,
       status: String(formData.get("status") || "PLANNED") as ActivityStatusValue,
@@ -93,7 +94,7 @@ async function updateActivity(formData: FormData) {
       positions: { set: ownedPositions.map((position) => ({ id: position.id })) }
     }
   });
-  redirect(`/activities/${slug}`);
+  redirect(selfBondageOrder ? `/orders#order-${activity.id}` : `/activities/${slug}`);
 }
 
 async function deleteActivity(formData: FormData) {
@@ -108,6 +109,7 @@ async function deleteActivity(formData: FormData) {
     prisma.activityImage.findMany({ where: { activityId: activity.id }, include: { file: true } }),
     prisma.media.findMany({ where: { activityId: activity.id } })
   ]);
+  const selfBondageOrder = isSelfBondageActivity(activity);
   await prisma.activityPlan.delete({ where: { id: activity.id } });
   for (const image of images) {
     await deleteOwnedFile(image.file.ownerId, image.file.id);
@@ -116,7 +118,7 @@ async function deleteActivity(formData: FormData) {
     const fileId = fileIdFromUrl(entry.url);
     if (fileId) await deleteOwnedFile(entry.ownerId, fileId);
   }
-  redirect("/activities");
+  redirect(selfBondageOrder ? "/orders" : "/activities");
 }
 
 export default async function EditActivityPage({ params, searchParams }: { params: { slug: string }; searchParams?: { error?: string } }) {
@@ -128,13 +130,14 @@ export default async function EditActivityPage({ params, searchParams }: { param
   const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
   const activity = await prisma.activityPlan.findFirst({ where: { slug: params.slug, ...contentTenantScope(user) }, include: { tools: toolsEnabled, bondageSystemItems: bondageSystemEnabled, positions: positionsEnabled } });
   if (!activity || !(await isAccessibleOwner(user, activity.ownerId))) notFound();
+  if (isSelfBondageActivity(activity)) await requireFeature("orders");
   const scope = await ownerScope(user);
   const [toys, positions, bondageItems] = await Promise.all([
     toolsEnabled ? prisma.toy.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }) : [],
-    positionsEnabled ? prisma.position.findMany({ where: { ...scope, ...(activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage" ? { selfBondageCapable: true } : {}) }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : [],
+    positionsEnabled ? prisma.position.findMany({ where: { ...scope, ...(isSelfBondageActivity(activity) ? { selfBondageCapable: true } : {}) }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : [],
     bondageSystemEnabled ? prisma.bondageSystemItem.findMany({ where: { tenantId: user.tenantId || undefined, visible: true, ...bondageSystemVisibilityScope(user) }, include: { product: true }, orderBy: [{ sortOrder: "asc" }, { product: { title: "asc" } }] }) : []
   ]);
-  const isSelfBondageOrder = activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage";
+  const isSelfBondageOrder = isSelfBondageActivity(activity);
   const isIdea = activity.category === "IDEA_COLLECTION";
   const selectedTools = new Set(((activity as { tools?: { id: string }[] }).tools || []).map((tool) => tool.id));
   const selectedBondageItems = new Set(((activity as { bondageSystemItems?: { id: string }[] }).bondageSystemItems || []).map((item) => item.id));

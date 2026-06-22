@@ -775,3 +775,15 @@ Details:
 - Spielsachen können jetzt wie Szenen über einen eingeklappten Bereich `Reihenfolge bearbeiten` sortiert werden.
 - Die Sortierung nutzt die vorhandene `sortOrder`-Spalte und speichert Änderungen über `/api/reorder`.
 - Nur Admins und Superadmins dürfen die Reihenfolge von Spielsachen, Szenen und Bondage-System-Einträgen ändern.
+
+## Self-Bondage-Aufträge
+
+- Self-Bondage-Aufträge haben jetzt den eigenen Menüpunkt `Aufträge`.
+- Offene Aufträge erscheinen prominent auf der Startseite direkt nach der Spielampel.
+- Aufträge nutzen die bestehenden Statuswerte mit auftragsbezogenem Wording: `beauftragt`, `angenommen`, `umgesetzt`, `verworfen`.
+- Der Auftraggeber kann den eigenen Auftrag nicht als `angenommen` markieren; das ist für andere Benutzer im Kreis gedacht.
+- Beim Status `umgesetzt` wird automatisch ein Segufix-Session-Eintrag als Session-Historie angelegt. Die Notizen enthalten Kategorie, Auftragstitel, Auftrag-ID und Link zum Auftrag.
+- Das Feature `orders` ist mandantenfähig und hängt an `activities`, `selfBondage` und `positions`.
+- Telegram kennt `/orders`, `/order_accept_N` und `/order_done_N`. Die Befehle listen sichtbare Kreis-Aufträge und erlauben Annahme oder Umsetzung per Klickbefehl.
+- Neue Audit-Aktionen `self_bondage_order_created`, `self_bondage_order_accepted`, `self_bondage_order_completed` und `self_bondage_order_discarded` stehen für Telegram-/E-Mail-Regeln zur Verfügung.
+- Auf dem VPS wurden Standard-Telegram-Regeln für die Auftragsereignisse im aktiven Thread `Play` angelegt und ein Telegram-Testversand erfolgreich durchgeführt.

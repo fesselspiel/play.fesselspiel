@@ -39,6 +39,7 @@ async function main() {
     "toys",
     "media",
     "activities",
+    "orders",
     "selfBondage",
     "trackers",
     "tracker.segufix",

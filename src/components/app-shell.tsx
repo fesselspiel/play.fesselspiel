@@ -5,6 +5,7 @@ import {
   Images,
   KeyRound,
   LayoutDashboard,
+  ClipboardCheck,
   Mail,
   MessageCircle,
   Network,
@@ -26,6 +27,7 @@ import { primaryTenantDomain } from "@/lib/tenancy";
 
 const nav = [
   ["Start", "/", LayoutDashboard, null],
+  ["Aufträge", "/orders", ClipboardCheck, "orders"],
   ["Szenen", "/positions", ShieldCheck, "positions"],
   ["Spielsachen", "/toys", ToyBrick, "toys"],
   ["Bondage-System", "/bondage-system", PackageSearch, "shopifyBondageSystem"],
@@ -33,9 +35,9 @@ const nav = [
   ["Bilder", "/media", Images, "media"]
 ] as const;
 
-const primaryNav = nav.slice(0, 1);
-const catalogNav = nav.slice(1, 5);
-const pictureNav = nav.slice(5);
+const primaryNav = nav.slice(0, 2);
+const catalogNav = nav.slice(2, 6);
+const pictureNav = nav.slice(6);
 
 const settingsNav = [["Profil", "/profile", UserRound]] as const;
 

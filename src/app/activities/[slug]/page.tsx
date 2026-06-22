@@ -5,6 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { CopySubtitle } from "@/components/copy-subtitle";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { confirmRequestedActivity } from "@/lib/activity-actions";
+import { isSelfBondageOrder as isSelfBondageActivity, updateSelfBondageOrderStatus } from "@/lib/activity-orders";
 import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status";
 import { isAccessibleOwner, ownerScope, contentTenantScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
@@ -98,8 +99,9 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
     include: { product: true },
     orderBy: [{ sortOrder: "asc" }, { product: { title: "asc" } }]
   }) : [];
-  const isSelfBondageOrder = activity.category === "SELF_BONDAGE_ORDER" || activity.category === "Self-Bondage";
+  const isSelfBondageOrder = isSelfBondageActivity(activity);
   const isIdea = activity.category === "IDEA_COLLECTION";
+  if (isSelfBondageOrder) await requireFeature("orders");
   const ideaImages = [
     ...activity.images.map((image) => ({
       key: `image:${image.id}`,
@@ -136,8 +138,9 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
         <Panel>
         <p className="text-sm text-graphite">{isSelfBondageOrder ? "Auftrag" : isIdea ? "Idee" : activity.category || "Spielidee"} · {isIdea ? "irgendwann ausprobieren" : isSelfBondageOrder && !activity.plannedAt ? "gilt sofort beim Lesen" : formatDateTime(activity.plannedAt)}</p>
           {activity.status === "REQUESTED" && activity.ownerId !== user.id ? (
-            <form action={confirmRequestedActivity} className="mt-4">
+            <form action={isSelfBondageOrder ? updateSelfBondageOrderStatus : confirmRequestedActivity} className="mt-4">
               <input type="hidden" name="id" value={activity.id} />
+              {isSelfBondageOrder ? <input type="hidden" name="status" value="PLANNED" /> : null}
               <Button>{isSelfBondageOrder ? "Auftrag annehmen" : "Spielplan bestätigen"}</Button>
             </form>
           ) : null}
@@ -215,6 +218,18 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
       <Panel className="mt-6">
         <h2 className="mb-2 text-lg font-semibold">Aktionen</h2>
         <p className="mb-4 text-sm text-graphite">{isSelfBondageOrder ? "Bearbeite diesen Auftrag, wenn Termin, Status, Anweisung oder Szenen geändert werden sollen." : "Bearbeite diesen Spielplan, wenn Termin, Status, Notiz oder Bausteine geändert werden sollen."}</p>
+        {isSelfBondageOrder ? (
+          <form action={updateSelfBondageOrderStatus} className="mb-4 grid max-w-md gap-3 sm:grid-cols-[1fr_auto]">
+            <input type="hidden" name="id" value={activity.id} />
+            <select className={inputClass} name="status" defaultValue={activity.status}>
+              <option value="REQUESTED">beauftragt</option>
+              <option value="PLANNED" disabled={activity.ownerId === user.id}>angenommen</option>
+              <option value="DONE">umgesetzt</option>
+              <option value="DISCARDED">verworfen</option>
+            </select>
+            <Button>Status speichern</Button>
+          </form>
+        ) : null}
         <Link href={`/activities/${activity.slug}/edit`} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
           <Pencil className="h-4 w-4" />
           Bearbeiten

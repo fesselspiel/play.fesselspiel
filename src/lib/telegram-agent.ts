@@ -345,7 +345,7 @@ async function getPortalStatus(userId: string): Promise<ToolCallResult> {
   const [toys, positions, plannedActivities, sessions, openSession] = await Promise.all([
     prisma.toy.count({ where: { ...tenantScope, ownerId: userId } }),
     prisma.position.count({ where: { ...tenantScope, ownerId: userId } }),
-    prisma.activityPlan.count({ where: { ...tenantScope, ownerId: userId, category: { not: "IDEA_COLLECTION" }, status: { in: ["REQUESTED", "PLANNED"] } } }),
+    prisma.activityPlan.count({ where: { ...tenantScope, ownerId: userId, category: { notIn: ["IDEA_COLLECTION", "SELF_BONDAGE_ORDER"] }, status: { in: ["REQUESTED", "PLANNED"] } } }),
     prisma.segufixSession.findMany({ where: { ...tenantScope, ownerId: userId, startTime: { gte: yearStart } } }),
     prisma.segufixSession.findFirst({ where: { ...tenantScope, ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } })
   ]);

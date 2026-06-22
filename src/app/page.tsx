@@ -5,6 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { Badge, PageGuide, Panel, PageHeader } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { confirmRequestedActivity } from "@/lib/activity-actions";
+import { updateSelfBondageOrderStatus, selfBondageCategory } from "@/lib/activity-orders";
 import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
@@ -73,12 +74,13 @@ export default async function DashboardPage() {
   const weekEnd = new Date(todayStart);
   weekEnd.setDate(todayStart.getDate() + 7);
   const scope = await ownerScope(user);
-  const [activitiesEnabled, selfBondageEnabled, segufixEnabled] = await Promise.all([
+  const [activitiesEnabled, selfBondageEnabled, ordersEnabled, segufixEnabled] = await Promise.all([
     hasFeature("activities"),
     hasFeature("selfBondage"),
+    hasFeature("orders"),
     hasFeature("tracker.segufix")
   ]);
-  const [sessions, weekActivities, weekEvents, circleUsers, selfBondagePositions, ideas] = await Promise.all([
+  const [sessions, weekActivities, weekEvents, circleUsers, selfBondagePositions, ideas, openOrders] = await Promise.all([
     segufixEnabled ? prisma.segufixSession.findMany({ where: scope, orderBy: { startTime: "desc" }, take: 4 }) : Promise.resolve([]),
     activitiesEnabled
       ? prisma.activityPlan.findMany({
@@ -114,6 +116,14 @@ export default async function DashboardPage() {
           where: { ...scope, category: "IDEA_COLLECTION", status: { in: ["REQUESTED", "PLANNED"] } },
           orderBy: { updatedAt: "desc" },
           take: 5
+        })
+      : Promise.resolve([]),
+    ordersEnabled
+      ? prisma.activityPlan.findMany({
+          where: { ...scope, category: selfBondageCategory, status: { in: ["REQUESTED", "PLANNED"] } },
+          include: { owner: { include: { profile: true } }, positions: true },
+          orderBy: [{ plannedAt: "asc" }, { createdAt: "desc" }],
+          take: 4
         })
       : Promise.resolve([])
   ]);
@@ -213,8 +223,56 @@ export default async function DashboardPage() {
           </div>
         </Panel>
 
+        {ordersEnabled && openOrders.length ? (
+          <Panel className="border-sky-600 bg-sky-600/10">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="flex items-center gap-2 text-xl font-semibold text-ink">
+                  <ShieldCheck className="h-5 w-5 text-sky-700" />
+                  Offene Aufträge
+                </h2>
+                <p className="mt-1 text-sm text-graphite">Diese Aufträge warten gerade auf Annahme oder Umsetzung.</p>
+              </div>
+              <Link href="/orders" className="inline-flex min-h-10 items-center rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">
+                Alle Aufträge öffnen
+              </Link>
+            </div>
+            <div className="grid gap-3 lg:grid-cols-2">
+              {openOrders.map((order) => {
+                const ownerName = order.owner.profile?.displayName || order.owner.name || order.owner.username || order.owner.email;
+                const canAccept = order.status === "REQUESTED" && order.ownerId !== user.id;
+                return (
+                  <article key={order.id} className="rounded-lg border border-line bg-surface p-4">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <Badge tone={activityStatusTone(order.status as never)}>{activityStatusDisplay(order.status as never, true)}</Badge>
+                      <span className="text-xs text-graphite">von {ownerName}</span>
+                    </div>
+                    <Link href={`/activities/${order.slug}`} className="block text-base font-semibold text-ink hover:text-redbrand">{order.title}</Link>
+                    <p className="mt-1 text-xs text-graphite">{order.plannedAt ? formatDateTime(order.plannedAt) : "gilt beim Lesen"}</p>
+                    {order.positions.length ? <p className="mt-2 text-xs text-graphite">{order.positions.map((position) => position.name).join(", ")}</p> : null}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {canAccept ? (
+                        <form action={updateSelfBondageOrderStatus}>
+                          <input type="hidden" name="id" value={order.id} />
+                          <input type="hidden" name="status" value="PLANNED" />
+                          <button className="focus-ring min-h-9 rounded-md bg-redbrand px-3 py-1.5 text-xs font-semibold text-white hover:bg-redbrandHover">
+                            Annehmen
+                          </button>
+                        </form>
+                      ) : null}
+                      <Link href={`/orders#order-${order.id}`} className="inline-flex min-h-9 items-center rounded-md border border-line bg-paper px-3 py-1.5 text-xs font-semibold hover:bg-surface">
+                        Bearbeiten
+                      </Link>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </Panel>
+        ) : null}
+
         {activitiesEnabled ? (
-        <div className={`grid gap-4 ${selfBondageEnabled ? "xl:grid-cols-3" : "xl:grid-cols-2"}`}>
+        <div className={`grid gap-4 ${ordersEnabled ? "xl:grid-cols-3" : "xl:grid-cols-2"}`}>
           <Panel className="text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-redbrand text-white">
               <Sparkles className="h-6 w-6" />
@@ -228,7 +286,7 @@ export default async function DashboardPage() {
               Neuen Spieltermin anlegen
             </Link>
           </Panel>
-          {selfBondageEnabled ? (
+          {ordersEnabled ? (
             <Panel className="bg-paper text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-sky-600 text-white">
                 <ShieldCheck className="h-6 w-6" />
@@ -246,9 +304,9 @@ export default async function DashboardPage() {
               ) : (
                 <p className="mt-4 rounded-md bg-surface p-3 text-sm text-graphite">Markiere bei Szenen das Feld „Self-Bondage-fähig“, damit sie hier auftauchen.</p>
               )}
-              <Link href="/activities/new?template=self-bondage" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-sky-600 bg-sky-600 px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-sky-700">
+              <Link href="/orders" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-sky-600 bg-sky-600 px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-sky-700">
                 <ShieldCheck className="h-5 w-5" />
-                Self-Bondage-Auftrag erteilen
+                Aufträge öffnen
               </Link>
             </Panel>
           ) : null}
