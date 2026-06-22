@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { ImagePlus, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { SelfBondagePositionChoice } from "@/components/self-bondage-position-choice";
 import { SelfBondageScheduleFields } from "@/components/self-bondage-schedule-fields";
@@ -97,7 +97,7 @@ async function createActivity(formData: FormData) {
         entityType: "activity",
         entityId: activity.id,
         title: `Bilder zur Idee hochgeladen: ${activity.title}`,
-        href: `/activities/${activity.slug}`
+        href: `/ideas/${activity.slug}`
       });
     }
   }
@@ -108,9 +108,9 @@ async function createActivity(formData: FormData) {
     entityId: activity.id,
     title: `${selfBondageTemplate ? "Self-Bondage-Auftrag erteilt" : ideaTemplate ? "Idee festgehalten" : status === "REQUESTED" ? "Spielplan angefragt" : "Spielplan angelegt"}: ${activity.title}`,
     details: selfBondageTemplate ? { status: "beauftragt", excludeActorFromTargets: true } : undefined,
-    href: selfBondageTemplate ? `/orders#order-${activity.id}` : `/activities/${activity.slug}`
+    href: selfBondageTemplate ? `/orders#order-${activity.id}` : ideaTemplate ? `/ideas/${activity.slug}` : `/activities/${activity.slug}`
   });
-  redirect(selfBondageTemplate ? "/orders" : `/activities/${slug}`);
+  redirect(selfBondageTemplate ? "/orders" : ideaTemplate ? `/ideas/${slug}` : `/activities/${slug}`);
 }
 
 export default async function NewActivityPage({ searchParams }: { searchParams?: { date?: string; template?: string; error?: string } }) {
@@ -150,7 +150,7 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
         {selfBondageTemplate
           ? "Erstelle hier einen Auftrag, bei dem eine Person sich selbst in eine passende Lage bringt. Es werden nur Szenen angeboten, die als Self-Bondage-fähig markiert sind."
           : ideaTemplate
-            ? "Halte hier eine Idee fest, die ihr irgendwann ausprobieren wollt. Bilder kannst du anschließend auf der Detailseite der Idee hinzufügen."
+            ? "Halte hier eine Idee fest, die ihr irgendwann ausprobieren wollt. Bilder kannst du direkt beim Anlegen auswählen und später auf der Detailseite ergänzen."
           : "Erstelle hier einen konkreten Spielplan. Vergib Titel und Kategorie, setze optional Datum und Uhrzeit, Wähle passende Spielsachen und Szenen aus und speichere den Plan mit dem gewünschten Status."}
       </PageGuide>
       <form action={createActivity} className="grid gap-6 xl:grid-cols-[1fr_420px]" encType="multipart/form-data">
@@ -194,12 +194,8 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
           <Field label={selfBondageTemplate ? "Anweisung" : ideaTemplate ? "Beschreibung" : "Notiz"}><textarea className={inputClass} name="note" rows={6} defaultValue={defaultNote} /></Field>
           {ideaTemplate ? (
             <Field label="Bilder zur Idee">
-              <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line bg-paper px-4 py-8 text-center hover:border-amber-500">
-                <ImagePlus className="h-7 w-7 text-amber-500" />
-                <span className="text-sm font-semibold text-ink">Bilder auswählen</span>
-                <span className="text-xs text-graphite">Mehrere Bilder möglich, sie bleiben nur an dieser Idee.</span>
-                <input className="sr-only" name="files" type="file" accept="image/*" multiple />
-              </label>
+              <input className={inputClass} name="files" type="file" accept="image/*" multiple />
+              <span className="mt-2 block text-xs text-graphite">Mehrere Bilder möglich, sie bleiben nur an dieser Idee.</span>
             </Field>
           ) : null}
           <Button><Save className="h-4 w-4" /> {selfBondageTemplate ? "Auftrag speichern" : ideaTemplate ? "Idee speichern" : "Plan speichern"}</Button>

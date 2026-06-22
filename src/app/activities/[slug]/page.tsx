@@ -43,10 +43,10 @@ async function addActivityImage(formData: FormData) {
       entityType: "activity",
       entityId: activity.id,
       title: `Bilder zur Idee hochgeladen: ${activity.title}`,
-      href: `/activities/${activity.slug}`
+      href: activity.category === "IDEA_COLLECTION" ? `/ideas/${activity.slug}` : `/activities/${activity.slug}`
     });
   }
-  redirect(`/activities/${activity.slug}`);
+  redirect(activity.category === "IDEA_COLLECTION" ? `/ideas/${activity.slug}` : `/activities/${activity.slug}`);
 }
 
 async function deleteActivityImage(formData: FormData) {
@@ -74,7 +74,7 @@ async function deleteActivityImage(formData: FormData) {
       if (fileId) await deleteOwnedFile(media.ownerId, fileId);
     }
   }
-  redirect(`/activities/${activity.slug}`);
+  redirect(activity.category === "IDEA_COLLECTION" ? `/ideas/${activity.slug}` : `/activities/${activity.slug}`);
 }
 
 export default async function ActivityDetailPage({ params }: { params: { slug: string } }) {
@@ -116,7 +116,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
       kind: media.kind
     }))
   ];
-  const path = `/activities/${activity.slug}`;
+  const path = isIdea ? `/ideas/${activity.slug}` : `/activities/${activity.slug}`;
   const url = `${env.appUrl}${path}`;
   return (
     <AppShell>

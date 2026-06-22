@@ -163,6 +163,25 @@ async function saveSettings(formData: FormData) {
   redirect("/settings/telegram?saved=secrets");
 }
 
+async function adoptExistingBotToken(formData: FormData) {
+  "use server";
+  const user = await currentAdminUser();
+  if (user.role !== "SUPER_ADMIN") redirect("/settings/telegram");
+  const tenant = await currentTenant();
+  const sourceId = String(formData.get("sourceId") || "");
+  const source = await prisma.tenantTelegramSettings.findFirst({
+    where: { id: sourceId, telegramBotTokenEnc: { not: null } },
+    select: { telegramBotTokenEnc: true }
+  });
+  if (!source?.telegramBotTokenEnc) redirect("/settings/telegram");
+  const target = await ensureTenantTelegramSettings(tenant.id);
+  await prisma.tenantTelegramSettings.update({
+    where: { id: target.id },
+    data: { telegramBotTokenEnc: source.telegramBotTokenEnc }
+  });
+  redirect("/settings/telegram?saved=adopted");
+}
+
 async function savePersonalBotSettings(formData: FormData) {
   "use server";
   const user = await currentAdminUser();
@@ -686,7 +705,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
     ensureTenantTelegramSettings(tenant.id),
     ensurePersonalTelegramSettings(tenant.id, user.id)
   ]);
-  const [settings, personalSettings, additionalBots, targetMemberships, targetCircles, auditActions, telegramLogs, incomingTelegramLogs] = await Promise.all([
+  const [settings, personalSettings, additionalBots, targetMemberships, targetCircles, auditActions, telegramLogs, incomingTelegramLogs, tokenSources] = await Promise.all([
     prisma.tenantTelegramSettings.findUnique({
       where: { tenantId_key: { tenantId: tenant.id, key: DEFAULT_TENANT_BOT_KEY } },
       include: {
@@ -750,7 +769,15 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
       include: { actor: { include: { profile: true } } },
       orderBy: { createdAt: "desc" },
       take: 120
-    })
+    }),
+    user.role === "SUPER_ADMIN"
+      ? prisma.tenantTelegramSettings.findMany({
+          where: { telegramBotTokenEnc: { not: null } },
+          include: { tenant: true, owner: { include: { profile: true } } },
+          orderBy: [{ updatedAt: "desc" }],
+          take: 20
+        })
+      : Promise.resolve([])
   ]);
   const targetUsers = targetMemberships.map((membership) => membership.user);
   const allChats = [
@@ -798,6 +825,13 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
     openAiSuffix: secretSuffix(bot.openAiApiKeyEnc),
     botName: await readTelegramBotName(bot.telegramBotTokenEnc)
   })));
+  const tokenSourceInfos = await Promise.all(tokenSources
+    .filter((source) => source.id !== settings?.id && secretSuffix(source.telegramBotTokenEnc))
+    .map(async (source) => ({
+      source,
+      tokenSuffix: secretSuffix(source.telegramBotTokenEnc),
+      botName: await readTelegramBotName(source.telegramBotTokenEnc)
+    })));
   const notificationTargetUsers = notificationUsers(targetUsers);
   const chatById = new Map(allChats.map((chat) => [chat.id, chat]));
   const telegramLogGroups = telegramLogDayGroups(telegramLogs);
@@ -811,6 +845,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
         <Panel>
           <h2 className="mb-4 text-lg font-semibold">Zugangsdaten</h2>
           {searchParams?.saved === "secrets" ? <p className="mb-4 rounded-md bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">Zugangsdaten gespeichert.</p> : null}
+          {searchParams?.saved === "adopted" ? <p className="mb-4 rounded-md bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">Bot-Token wurde übernommen.</p> : null}
           {!telegramTokenSuffix ? (
             <p className="mb-4 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
               Diese Seite braucht einen eigenen Telegram-Bot-Token. Der Token gilt nur für <strong className="text-ink">{tenant.name}</strong> und nicht mehr global für deinen Benutzer.
@@ -835,6 +870,31 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
             </Field>
             <SubmitButton pendingLabel="Speichert..."><Save className="h-4 w-4" /> Sicher speichern</SubmitButton>
           </form>
+          {user.role === "SUPER_ADMIN" && tokenSourceInfos.length ? (
+            <details className="mt-5 rounded-md border border-line bg-paper p-3">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-ink hover:text-redbrand [&::-webkit-details-marker]:hidden">
+                Vorhandenen Bot-Token übernehmen
+              </summary>
+              <div className="mt-3 space-y-3">
+                {tokenSourceInfos.map(({ source, tokenSuffix, botName }) => {
+                  const ownerName = source.owner?.profile?.displayName || source.owner?.name || source.owner?.username || source.owner?.email || "";
+                  const scopeLabel = source.scope === "USER" ? `persönlicher Bot${ownerName ? ` von ${ownerName}` : ""}` : source.isDefault ? "Standardbot der Seite" : "zusätzlicher Seitenbot";
+                  return (
+                    <form key={source.id} action={adoptExistingBotToken} className="rounded-md border border-line bg-surface p-3 text-sm">
+                      <input type="hidden" name="sourceId" value={source.id} />
+                      <div className="font-semibold text-ink">{botName || source.name || "Telegram-Bot"}</div>
+                      <div className="mt-1 text-graphite">
+                        Herkunft: <strong className="text-ink">{source.tenant.name}</strong> · {scopeLabel} · Token endet auf <strong className="text-ink">...{tokenSuffix}</strong>
+                      </div>
+                      <SubmitButton pendingLabel="Wird übernommen..." className="mt-3 bg-surface text-redbrand ring-1 ring-line hover:bg-redbrand hover:text-white">
+                        Token übernehmen
+                      </SubmitButton>
+                    </form>
+                  );
+                })}
+              </div>
+            </details>
+          ) : null}
           <div id="personal-bot" className="mt-6 border-t border-line pt-5">
             <h3 className="mb-3 text-base font-semibold">Persönlicher Bot</h3>
             {searchParams?.saved === "personal" ? <p className="mb-4 rounded-md bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">Persönlicher Bot gespeichert.</p> : null}

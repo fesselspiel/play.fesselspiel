@@ -4,6 +4,7 @@ import {
   DatabaseBackup,
   Images,
   KeyRound,
+  Lightbulb,
   LayoutDashboard,
   ClipboardCheck,
   Mail,
@@ -30,14 +31,17 @@ const nav = [
   ["Szenen", "/positions", ShieldCheck, "positions"],
   ["Spielsachen", "/toys", ToyBrick, "toys"],
   ["Bondage-System", "/bondage-system", PackageSearch, "shopifyBondageSystem"],
+  ["Ideensammlung", "/ideas", Lightbulb, "activities"],
   ["Aufträge", "/orders", ClipboardCheck, "orders"],
   ["Sessions", "/sessions", Timer, "trackers"],
   ["Bilder", "/media", Images, "media"]
 ] as const;
 
 const primaryNav = nav.slice(0, 1);
-const catalogNav = nav.slice(1, 6);
-const pictureNav = nav.slice(6);
+const catalogNav = nav.slice(1, 4);
+const ideasNav = nav.slice(4, 5);
+const workNav = nav.slice(5, 7);
+const pictureNav = nav.slice(7);
 
 const settingsNav = [["Profil", "/profile", UserRound]] as const;
 
@@ -69,6 +73,8 @@ export async function AppShell({ children }: { children: ReactNode }) {
   const navFeatureVisible = (feature: string | null) => !feature || (feature === "trackers" ? hasVisibleTrackerFeature(features) : featureEnabled(features, feature));
   const visiblePrimaryNav = primaryNav.filter(([, , , feature]) => navFeatureVisible(feature));
   const visibleCatalogNav = catalogNav.filter(([, , , feature]) => navFeatureVisible(feature));
+  const visibleIdeasNav = ideasNav.filter(([, , , feature]) => navFeatureVisible(feature));
+  const visibleWorkNav = workNav.filter(([, , , feature]) => navFeatureVisible(feature));
   const visiblePictureNav = pictureNav.filter(([, , , feature]) => navFeatureVisible(feature));
   return (
     <div className="min-h-screen bg-canvas">
@@ -86,6 +92,20 @@ export async function AppShell({ children }: { children: ReactNode }) {
           ))}
           <div className="my-3 border-t border-line" />
           {visibleCatalogNav.map(([label, href, Icon]) => (
+            <Link key={href} href={href} className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
+              <Icon className="h-4 w-4" />
+              {label}
+            </Link>
+          ))}
+          <div className="my-3 border-t border-line" />
+          {visibleIdeasNav.map(([label, href, Icon]) => (
+            <Link key={href} href={href} className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
+              <Icon className="h-4 w-4" />
+              {label}
+            </Link>
+          ))}
+          <div className="my-3 border-t border-line" />
+          {visibleWorkNav.map(([label, href, Icon]) => (
             <Link key={href} href={href} className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
               <Icon className="h-4 w-4" />
               {label}

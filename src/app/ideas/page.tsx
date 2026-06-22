@@ -1,0 +1,109 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { ChevronDown, Lightbulb, Plus } from "lucide-react";
+import { AppShell } from "@/components/app-shell";
+import { Badge, EmptyState, PageGuide, PageHeader } from "@/components/ui";
+import { ownerScope } from "@/lib/access";
+import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status";
+import { currentUser } from "@/lib/auth";
+import { hasFeature, requireFeature } from "@/lib/features";
+import { fileAssetUrl } from "@/lib/files";
+import { prisma } from "@/lib/prisma";
+
+export default async function IdeasPage() {
+  await requireFeature("activities");
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const toolsEnabled = await hasFeature("toys");
+  const positionsEnabled = await hasFeature("positions");
+  const ideas = await prisma.activityPlan.findMany({
+    where: { ...(await ownerScope(user)), category: "IDEA_COLLECTION" },
+    include: {
+      tools: toolsEnabled,
+      positions: positionsEnabled,
+      images: { include: { file: true }, orderBy: { createdAt: "desc" }, take: 1 }
+    },
+    orderBy: [{ updatedAt: "desc" }, { title: "asc" }]
+  });
+
+  return (
+    <AppShell>
+      <PageHeader
+        title="Ideensammlung"
+        action={
+          <Link href="/activities/new?template=idea" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
+            <Plus className="h-4 w-4" />
+            Idee
+          </Link>
+        }
+      />
+      <PageGuide title="Dinge, die ihr irgendwann ausprobieren wollt">
+        Die Ideensammlung ist für noch offene Vorhaben gedacht. Eine Idee kann Beschreibung, Bilder und Bausteine enthalten, ohne schon ein konkreter Spieltermin oder Auftrag zu sein.
+      </PageGuide>
+      {ideas.length ? (
+        <div className="space-y-3">
+          {ideas.map((idea) => {
+            const imageUrl = idea.images[0] ? fileAssetUrl(idea.images[0].fileId) : "";
+            return (
+              <details key={idea.id} className="group/idea-card overflow-hidden rounded-lg border border-line bg-surface">
+                <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 px-3 py-3 hover:bg-paper [&::-webkit-details-marker]:hidden">
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-paper sm:h-16 sm:w-16">
+                    {imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center bg-amber-500/10 text-amber-600">
+                        <Lightbulb className="h-6 w-6" />
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate text-base font-semibold text-ink">{idea.title}</h2>
+                    <p className="mt-1 truncate text-xs text-graphite">
+                      {toolsEnabled ? `${idea.tools.length} Spielsachen · ` : ""}
+                      {positionsEnabled ? `${idea.positions.length} Szenen · ` : ""}
+                      {idea.images.length} Bilder
+                    </p>
+                  </div>
+                  <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open/idea-card:rotate-180" />
+                </summary>
+                <div className="border-t border-line bg-paper p-4">
+                  <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+                    <div className="aspect-[4/3] overflow-hidden rounded-md bg-surface">
+                      {imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center bg-amber-500/10 text-amber-600">
+                          <Lightbulb className="h-10 w-10" />
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-graphite">
+                        <Badge tone={activityStatusTone(idea.status)}>{activityStatusDisplay(idea.status, false, true)}</Badge>
+                        {toolsEnabled ? <span className="rounded-md bg-surface px-2 py-1">{idea.tools.length} Spielsachen</span> : null}
+                        {positionsEnabled ? <span className="rounded-md bg-surface px-2 py-1">{idea.positions.length} Szenen</span> : null}
+                      </div>
+                      <p className="mt-4 text-sm leading-6 text-graphite">{idea.note || "Keine Beschreibung hinterlegt."}</p>
+                      <div className="mt-4 flex flex-wrap items-center gap-3">
+                        <Link href={`/ideas/${idea.slug}`} className="inline-flex min-h-10 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
+                          Detail öffnen
+                        </Link>
+                        <span className="text-xs text-graphite">Detailseite mit Bildern und Bearbeitung.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            );
+          })}
+        </div>
+      ) : (
+        <EmptyState title="Noch keine Ideen festgehalten">
+          <Link href="/activities/new?template=idea" className="font-semibold text-redbrand">Erste Idee anlegen</Link>
+        </EmptyState>
+      )}
+    </AppShell>
+  );
+}

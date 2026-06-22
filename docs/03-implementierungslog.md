@@ -841,3 +841,11 @@ Details:
 - Externe Push-Regeln stehen im Protokoll unter `Externe Push-Regeln`. Sie senden Protokollereignisse per HTTP-Webhooks an ioBroker, Node-RED, Home Assistant oder eine MQTT-Bridge.
 - Externe Pushes schreiben ein eigenes Versandprotokoll und zusätzlich normale Protokolleinträge `external_push_sent` oder `external_push_failed` mit Ziel-URL, Statuscode und gekürztem Payload zur Fehlersuche.
 - Test-Pushes schreiben ebenfalls normale Protokolleinträge mit URL, Methode, Statuscode, gekürztem Payload und Fehlertext, damit Webhook-/MQTT-/ioBroker-Probleme direkt im Protokoll nachvollziehbar sind.
+
+## Eigene Ideensammlung
+
+- Ideen sind aus der Startseite und aus `Lass uns spielen` herausgelöst.
+- Die Ideensammlung hat jetzt eigene Routen: `/ideas` als Übersicht und `/ideas/[slug]` als Detailendpunkt.
+- Die Übersicht ist wie Szenen und Spielsachen aufgebaut: kompakte, aufklappbare Liste mit Thumbnail, Titel, Beschreibung, Status und Bausteinzahlen.
+- Der Bild-Upload beim Anlegen einer Idee nutzt wieder einen sichtbaren Dateiinput, damit die Bildauswahl auf iPhone/iPad zuverlässig öffnet.
+- Super-Admins sehen in der Telegram-Konfiguration vorhandene Bot-Tokens aus anderen Seiten/Bots mit Herkunftskontext und können diese als Standardbot der aktuellen Seite übernehmen.

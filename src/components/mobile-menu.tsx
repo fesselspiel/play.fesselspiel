@@ -5,6 +5,7 @@ import {
   DatabaseBackup,
   Images,
   KeyRound,
+  Lightbulb,
   LayoutDashboard,
   ClipboardCheck,
   Mail,
@@ -30,14 +31,17 @@ const mobileNav = [
   ["Szenen", "/positions", ShieldCheck, "positions"],
   ["Spielsachen", "/toys", ToyBrick, "toys"],
   ["Bondage-System", "/bondage-system", PackageSearch, "shopifyBondageSystem"],
+  ["Ideensammlung", "/ideas", Lightbulb, "activities"],
   ["Aufträge", "/orders", ClipboardCheck, "orders"],
   ["Sessions", "/sessions", Timer, "trackers"],
   ["Bilder", "/media", Images, "media"]
 ] as const;
 
 const primaryMobileNav = mobileNav.slice(0, 1);
-const catalogMobileNav = mobileNav.slice(1, 6);
-const pictureMobileNav = mobileNav.slice(6);
+const catalogMobileNav = mobileNav.slice(1, 4);
+const ideasMobileNav = mobileNav.slice(4, 5);
+const workMobileNav = mobileNav.slice(5, 7);
+const pictureMobileNav = mobileNav.slice(7);
 
 const mobileSettingsNav = [["Profil", "/profile", UserRound]] as const;
 
@@ -96,6 +100,8 @@ export function MobileMenu({
   const [open, setOpen] = useState(false);
   const visiblePrimaryNav = primaryMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
   const visibleCatalogNav = catalogMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
+  const visibleIdeasNav = ideasMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
+  const visibleWorkNav = workMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
   const visiblePictureNav = pictureMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
 
   useEffect(() => {
@@ -171,6 +177,20 @@ export function MobileMenu({
                 ))}
                 <div className="h-3 border-b border-line bg-paper" />
                 {visibleCatalogNav.map(([label, href, Icon]) => (
+                  <Link key={href} href={href} onClick={closeMenu} className={linkClass}>
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </Link>
+                ))}
+                <div className="h-3 border-b border-line bg-paper" />
+                {visibleIdeasNav.map(([label, href, Icon]) => (
+                  <Link key={href} href={href} onClick={closeMenu} className={linkClass}>
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </Link>
+                ))}
+                <div className="h-3 border-b border-line bg-paper" />
+                {visibleWorkNav.map(([label, href, Icon]) => (
                   <Link key={href} href={href} onClick={closeMenu} className={linkClass}>
                     <Icon className="h-4 w-4" />
                     {label}

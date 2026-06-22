@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Lightbulb, Plus, ShieldCheck, Sparkles } from "lucide-react";
+import { Plus, ShieldCheck, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, EmptyState, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status";
@@ -29,7 +29,6 @@ export default async function ActivitiesPage() {
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     take: 6
   }) : [];
-  const ideas = activities.filter((activity) => activity.category === "IDEA_COLLECTION");
   const plans = activities.filter((activity) => activity.category !== "IDEA_COLLECTION" && activity.category !== selfBondageCategory && activity.category !== "Self-Bondage");
   return (
     <AppShell>
@@ -73,38 +72,7 @@ export default async function ActivitiesPage() {
             Aufträge öffnen
           </Link>
         </Panel> : null}
-        <Panel className="bg-paper text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500 text-white">
-            <Lightbulb className="h-6 w-6" />
-          </div>
-          <h2 className="text-2xl font-semibold text-ink">Ideensammlung</h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-graphite">
-            Sammle Dinge, die ihr irgendwann ausprobieren wollt. Bilder und Bausteine bleiben direkt an der Idee hängen.
-          </p>
-          <Link href="/activities/new?template=idea" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-amber-500 bg-amber-500 px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-amber-600">
-            <Lightbulb className="h-5 w-5" />
-            Idee festhalten
-          </Link>
-        </Panel>
       </div>
-      {ideas.length ? (
-        <Panel className="mb-6">
-          <h2 className="mb-3 text-lg font-semibold">Ideensammlung</h2>
-          <div className="grid gap-3 lg:grid-cols-2">
-            {ideas.map((idea) => (
-              <Link key={idea.id} href={`/activities/${idea.slug}`} className="block rounded-md border border-line bg-paper p-3 hover:border-amber-500">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold text-ink">{idea.title}</h3>
-                    <p className="mt-1 line-clamp-2 text-sm text-graphite">{idea.note || "Noch keine Beschreibung."}</p>
-                  </div>
-                  <Badge tone={activityStatusTone(idea.status)}>{activityStatusDisplay(idea.status, false, true)}</Badge>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </Panel>
-      ) : null}
       {plans.length ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {plans.map((activity) => {
@@ -133,7 +101,7 @@ export default async function ActivitiesPage() {
           })}
         </div>
       ) : (
-        !ideas.length ? <EmptyState title="Noch nichts geplant" /> : null
+        <EmptyState title="Noch nichts geplant" />
       )}
     </AppShell>
   );

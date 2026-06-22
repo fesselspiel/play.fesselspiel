@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarDays, Lightbulb, MessageCircle, Newspaper, Plus, ShieldCheck, Sparkles } from "lucide-react";
+import { CalendarDays, MessageCircle, Newspaper, Plus, ShieldCheck, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, PageGuide, Panel, PageHeader } from "@/components/ui";
 import { accessibleOwnerIds, ownerScope } from "@/lib/access";
@@ -10,7 +10,6 @@ import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { hasFeature } from "@/lib/features";
-import { fileAssetUrl } from "@/lib/files";
 import { feedDetailsText, renderFeedTemplate } from "@/lib/feed";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
@@ -140,7 +139,7 @@ export default async function DashboardPage() {
     hasFeature("trackers"),
     hasFeature("auditLog")
   ]);
-  const [trackerEntries, weekActivities, weekEvents, circleUsers, selfBondagePositions, ideas, openOrders, requestedPlans, feedRules] = await Promise.all([
+  const [trackerEntries, weekActivities, weekEvents, circleUsers, selfBondagePositions, openOrders, requestedPlans, feedRules] = await Promise.all([
     trackersEnabled ? prisma.trackerEntry.findMany({ where: scope, include: { trackerType: true }, orderBy: { startTime: "desc" }, take: 8 }) : Promise.resolve([]),
     activitiesEnabled
       ? prisma.activityPlan.findMany({
@@ -168,14 +167,6 @@ export default async function DashboardPage() {
       ? prisma.position.findMany({
           where: { ...scope, selfBondageCapable: true },
           orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-          take: 6
-        })
-      : Promise.resolve([]),
-    activitiesEnabled
-      ? prisma.activityPlan.findMany({
-          where: { ...scope, category: "IDEA_COLLECTION", status: { in: ["REQUESTED", "PLANNED"] } },
-          include: { images: { include: { file: true }, orderBy: { createdAt: "desc" }, take: 1 } },
-          orderBy: { updatedAt: "desc" },
           take: 6
         })
       : Promise.resolve([]),
@@ -531,19 +522,6 @@ export default async function DashboardPage() {
               </Link>
             </Panel>
           ) : null}
-          <Panel className="bg-paper text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500 text-white">
-              <Lightbulb className="h-6 w-6" />
-            </div>
-            <h2 className="text-2xl font-semibold text-ink">Ideensammlung</h2>
-            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-graphite">
-              Sammle Dinge, die ihr irgendwann ausprobieren wollt. Bilder und Bausteine bleiben direkt an der Idee hängen.
-            </p>
-            <Link href="/activities/new?template=idea" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-amber-500 bg-amber-500 px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-amber-600">
-              <Lightbulb className="h-5 w-5" />
-              Idee festhalten
-            </Link>
-          </Panel>
         </div>
         ) : null}
 
@@ -586,44 +564,6 @@ export default async function DashboardPage() {
               })}
             </div>
           </Panel>
-        ) : null}
-
-        {activitiesEnabled ? (
-        <Panel>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="flex items-center gap-2 text-lg font-semibold"><Lightbulb className="h-5 w-5 text-amber-500" /> Ideensammlung</h2>
-              <p className="mt-1 text-sm text-graphite">Dinge, die ihr irgendwann ausprobieren wollt.</p>
-            </div>
-            <Link href="/activities" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
-              Öffnen
-            </Link>
-          </div>
-          {ideas.length ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {ideas.map((idea) => (
-                <Link key={idea.id} href={`/activities/${idea.slug}`} className="overflow-hidden rounded-lg border border-line bg-paper hover:border-amber-500">
-                  {idea.images[0] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={fileAssetUrl(idea.images[0].fileId)} alt="" className="aspect-[5/3] w-full object-cover" />
-                  ) : (
-                    <span className="flex aspect-[5/3] w-full items-center justify-center bg-amber-500/10 text-amber-600">
-                      <Lightbulb className="h-8 w-8" />
-                    </span>
-                  )}
-                  <span className="block p-3">
-                    <strong className="block truncate text-ink">{idea.title}</strong>
-                    <span className="mt-1 block text-xs text-graphite">{activityStatusDisplay(idea.status, false, true)}</span>
-                  </span>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <Link href="/activities/new?template=idea" className="block rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite hover:border-amber-500 hover:text-ink">
-              Noch keine Ideen festgehalten.
-            </Link>
-          )}
-        </Panel>
         ) : null}
 
         {trackersEnabled && openTrackerEntries.length ? (
