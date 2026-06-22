@@ -9,10 +9,11 @@ import { NotificationTargetFields } from "@/components/telegram/notification-tar
 import { currentSessionContext, currentUser } from "@/lib/auth";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { appTimeZone, formatDate, formatDateTime } from "@/lib/dates";
+import { env } from "@/lib/env";
 import { requireFeature } from "@/lib/features";
 import { actionLabel, defaultNotificationTemplate, knownAuditActions } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
-import { getTelegramChatAdministrators } from "@/lib/telegram";
+import { getTelegramChatAdministrators, setTelegramWebhook } from "@/lib/telegram";
 import { testTelegramNotificationRule } from "@/lib/telegram-notifications";
 
 type TelegramTargetUser = {
@@ -316,6 +317,40 @@ async function syncTelegramAdministrators() {
   redirect(`/settings/telegram?adminSynced=${synced}&adminSyncFailed=${failed}#mappings`);
 }
 
+async function activateTelegramMemberDiscovery() {
+  "use server";
+  const user = await currentAdminUser();
+  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
+  if (!settings?.telegramBotTokenEnc) redirect("/settings/telegram?memberDiscovery=missing-token#mappings");
+  try {
+    await setTelegramWebhook(settings.telegramBotTokenEnc, `${env.appUrl}/api/telegram/webhook`);
+    await prisma.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: "telegram_member_discovery_enabled",
+        entityType: "telegram",
+        title: "Telegram-Mitgliedserkennung aktiviert",
+        details: {
+          webhookUrl: `${env.appUrl}/api/telegram/webhook`,
+          allowedUpdates: ["message", "edited_message", "channel_post", "chat_member", "my_chat_member"]
+        }
+      }
+    });
+    redirect("/settings/telegram?memberDiscovery=enabled#mappings");
+  } catch (error) {
+    await prisma.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: "telegram_member_discovery_failed",
+        entityType: "telegram",
+        title: "Telegram-Mitgliedserkennung fehlgeschlagen",
+        details: { error: error instanceof Error ? error.message.slice(0, 500) : "Unbekannter Fehler" }
+      }
+    });
+    redirect("/settings/telegram?memberDiscovery=failed#mappings");
+  }
+}
+
 async function createNotificationRule(formData: FormData) {
   "use server";
   const user = await currentAdminUser();
@@ -575,7 +610,7 @@ function telegramLogDayGroups<T extends { createdAt: Date }>(logs: T[]) {
   });
 }
 
-export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string; action?: string; adminSynced?: string; adminSyncFailed?: string } }) {
+export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string; action?: string; adminSynced?: string; adminSyncFailed?: string; memberDiscovery?: string } }) {
   const user = await currentAdminUser();
   const { tenant } = await currentSessionContext();
   if (!tenant) redirect("/");
@@ -796,6 +831,11 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                 {Number(searchParams.adminSyncFailed || 0) ? <span className="ml-2 text-redbrand">Fehlerhafte Chats: {searchParams.adminSyncFailed}</span> : null}
               </p>
             ) : null}
+            {searchParams?.memberDiscovery ? (
+              <p className={`mb-4 rounded-md p-3 text-sm font-semibold ${searchParams.memberDiscovery === "enabled" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-redbrand"}`}>
+                {searchParams.memberDiscovery === "enabled" ? "Mitgliedserkennung aktiviert. Neue hinzugefügte Gruppenmitglieder werden jetzt automatisch erkannt." : "Mitgliedserkennung konnte nicht aktiviert werden. Prüfe Bot-Token und Gruppenrechte."}
+              </p>
+            ) : null}
             <form action={createTelegramUserMapping} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
               <Field label="Telegram Username">
                 <input className={inputClass} name="telegramUsername" placeholder="@telegramname" required />
@@ -810,11 +850,16 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
             <div className="mt-5">
               <h3 className="mb-3 text-sm font-semibold text-ink">Erkannte Telegram-Benutzer</h3>
               <p className="mb-3 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
-                Bestehende Gruppenadmins kannst du direkt synchronisieren. Neue normale Mitglieder werden danach automatisch erkannt, wenn der Bot Gruppenadmin ist und der Webhook neu gesetzt wurde. Telegram liefert Bots keine vollständige historische Liste aller normalen Gruppenmitglieder.
+                Aktiviere die Mitgliedserkennung, damit neu hinzugefügte normale Gruppenmitglieder ohne eigene Nachricht erscheinen. Telegram liefert Bots keine vollständige historische Liste aller normalen Gruppenmitglieder.
               </p>
-              <form action={syncTelegramAdministrators} className="mb-3">
-                <Button><UserRound className="h-4 w-4" /> Gruppenadmins synchronisieren</Button>
-              </form>
+              <div className="mb-3 flex flex-wrap gap-2">
+                <form action={activateTelegramMemberDiscovery}>
+                  <Button><UserRound className="h-4 w-4" /> Mitgliedserkennung aktivieren</Button>
+                </form>
+                <form action={syncTelegramAdministrators}>
+                  <Button variant="secondary"><UserRound className="h-4 w-4" /> Gruppenadmins ergänzen</Button>
+                </form>
+              </div>
               <div className="space-y-2">
                 {knownUsers.map((known) => {
                   const display = known.telegramUsername ? `@${known.telegramUsername}` : `ID ${known.telegramUserId}`;

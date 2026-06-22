@@ -42,6 +42,8 @@ export const knownAuditActions = [
   ["telegram_admins_synced", "Telegram-Admins synchronisiert"],
   ["telegram_image_received", "Telegram-Bild empfangen"],
   ["telegram_member_detected", "Telegram-Mitglied erkannt"],
+  ["telegram_member_discovery_enabled", "Telegram-Mitgliedserkennung aktiviert"],
+  ["telegram_member_discovery_failed", "Telegram-Mitgliedserkennung fehlgeschlagen"],
   ["telegram_member_left", "Telegram-Mitglied nicht mehr aktiv"],
   ["telegram_message_ignored", "Telegram-Nachricht ignoriert"],
   ["telegram_message_received", "Telegram-Nachricht empfangen"],

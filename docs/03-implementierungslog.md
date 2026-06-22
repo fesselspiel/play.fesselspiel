@@ -813,6 +813,7 @@ Details:
 - Unter Telegram-Benutzerzuordnung gibt es einen Admin-Abgleich per `getChatAdministrators`. Telegram liefert Bots keine vollständige historische Liste normaler Gruppenmitglieder; bestehende Admins und künftige Mitgliedsänderungen werden erfasst.
 - Erkannte Telegram-Benutzer speichern Status, Quelle, letzte Chat-ID und letzten Chatnamen. Das hilft bei der Zuordnung und bei der Diagnose, warum eine Person sichtbar ist.
 - Telegram-Service-Nachrichten wie `new_chat_members` und `left_chat_member` werden ebenfalls verarbeitet. Damit erscheinen neu hinzugefügte normale Gruppenmitglieder auch dann in der Zuordnung, wenn sie selbst noch keine Nachricht geschrieben haben.
+- Die Telegram-Benutzerzuordnung hat einen Button `Mitgliedserkennung aktivieren`, der den Webhook mit `chat_member`/`my_chat_member` direkt aus der Oberfläche neu setzt.
 
 ## E-Mail-Adminseite
 
