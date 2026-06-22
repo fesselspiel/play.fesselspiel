@@ -1,14 +1,19 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BellRing, ChevronRight, Clock3, ExternalLink, History, Mail } from "lucide-react";
+import { BellRing, ChevronRight, Clock3, ExternalLink, History, Mail, Newspaper, Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ProtocolSearch } from "@/components/protocol-search";
-import { Badge, EmptyState, PageGuide, PageHeader, Panel } from "@/components/ui";
+import { TemplateVariableTextarea } from "@/components/template-variable-textarea";
+import { Badge, Button, EmptyState, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { appTimeZone, formatDate } from "@/lib/dates";
+import { defaultFeedBodyTemplate, defaultFeedTitleTemplate, feedTemplateVariables } from "@/lib/feed";
 import { requireFeature } from "@/lib/features";
+import { actionLabel, knownAuditActions } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
+import { currentTenant } from "@/lib/tenancy";
+import { testExternalPushRule } from "@/lib/external-push-notifications";
 
 const pageSize = 120;
 const legacyMessageLimit = 60;
@@ -89,16 +94,112 @@ function groupEntries(entries: ProtocolEntry[]) {
   });
 }
 
-export default async function MessagesPage({ searchParams }: { searchParams?: { page?: string } }) {
+async function currentAdminForProtocol() {
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  await requireFeature("auditLog");
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");
+  return user;
+}
+
+async function saveFeedRule(formData: FormData) {
+  "use server";
+  await currentAdminForProtocol();
+  const tenant = await currentTenant();
+  const action = String(formData.get("action") || "").trim();
+  if (!action) redirect("/messages#feed-rules");
+  await prisma.feedRule.upsert({
+    where: { tenantId_action: { tenantId: tenant.id, action } },
+    update: {
+      active: formData.get("active") === "on",
+      titleTemplate: String(formData.get("titleTemplate") || "").trim() || defaultFeedTitleTemplate(),
+      bodyTemplate: String(formData.get("bodyTemplate") || "").trim() || defaultFeedBodyTemplate()
+    },
+    create: {
+      tenantId: tenant.id,
+      action,
+      active: formData.get("active") === "on",
+      titleTemplate: String(formData.get("titleTemplate") || "").trim() || defaultFeedTitleTemplate(),
+      bodyTemplate: String(formData.get("bodyTemplate") || "").trim() || defaultFeedBodyTemplate()
+    }
+  });
+  redirect(`/messages?action=${encodeURIComponent(action)}#feed-rules`);
+}
+
+async function deleteFeedRule(formData: FormData) {
+  "use server";
+  await currentAdminForProtocol();
+  const tenant = await currentTenant();
+  await prisma.feedRule.deleteMany({
+    where: { id: String(formData.get("ruleId") || ""), tenantId: tenant.id }
+  });
+  redirect("/messages#feed-rules");
+}
+
+function defaultExternalPayloadTemplate() {
+  return "{\"title\":\"{title}\",\"event\":\"{event}\",\"actor\":\"{actor}\",\"url\":\"{url}\",\"details\":{detailsJson}}";
+}
+
+async function saveExternalPushRule(formData: FormData) {
+  "use server";
+  await currentAdminForProtocol();
+  const tenant = await currentTenant();
+  const id = String(formData.get("ruleId") || "");
+  const action = String(formData.get("action") || "").trim();
+  const url = String(formData.get("url") || "").trim();
+  if (!action || !url) redirect("/messages#external-push");
+  let headersJson = {};
+  try {
+    headersJson = JSON.parse(String(formData.get("headersJson") || "{}"));
+  } catch {
+    headersJson = {};
+  }
+  const data = {
+    tenantId: tenant.id,
+    action,
+    name: String(formData.get("name") || "").trim() || actionLabel(action),
+    url,
+    method: String(formData.get("method") || "POST"),
+    headersJson,
+    payloadTemplate: String(formData.get("payloadTemplate") || "").trim() || defaultExternalPayloadTemplate(),
+    active: formData.get("active") === "on"
+  };
+  if (id) {
+    await prisma.externalPushRule.updateMany({ where: { id, tenantId: tenant.id }, data });
+  } else {
+    await prisma.externalPushRule.create({ data });
+  }
+  redirect(`/messages?action=${encodeURIComponent(action)}#external-push`);
+}
+
+async function deleteExternalPushRule(formData: FormData) {
+  "use server";
+  await currentAdminForProtocol();
+  const tenant = await currentTenant();
+  await prisma.externalPushRule.deleteMany({
+    where: { id: String(formData.get("ruleId") || ""), tenantId: tenant.id }
+  });
+  redirect("/messages#external-push");
+}
+
+async function testExternalRule(formData: FormData) {
+  "use server";
+  const user = await currentAdminForProtocol();
+  const result = await testExternalPushRule(String(formData.get("ruleId") || ""), user.id);
+  redirect(`/messages?externalSent=${result.sent}&externalFailed=${result.failed}#external-push`);
+}
+
+export default async function MessagesPage({ searchParams }: { searchParams?: { page?: string; action?: string; externalSent?: string; externalFailed?: string } }) {
   await requireFeature("auditLog");
   const user = await currentUser();
   if (!user) redirect("/login");
   if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");
+  const tenant = await currentTenant();
   const accessIds = await accessibleOwnerIds(user);
   const page = Math.max(1, Number(searchParams?.page || 1) || 1);
   const skip = (page - 1) * pageSize;
 
-  const [auditLogs, legacyMessages, totalAuditLogs] = await Promise.all([
+  const [auditLogs, legacyMessages, totalAuditLogs, distinctActions, feedRules, externalPushRules, externalPushLogs] = await Promise.all([
     prisma.auditLog.findMany({
       where: { OR: [{ actorId: { in: accessIds } }, { actorId: null }] },
       include: { actor: { include: { profile: true } } },
@@ -114,7 +215,25 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
           take: legacyMessageLimit
         })
       : Promise.resolve([]),
-    prisma.auditLog.count({ where: { OR: [{ actorId: { in: accessIds } }, { actorId: null }] } })
+    prisma.auditLog.count({ where: { OR: [{ actorId: { in: accessIds } }, { actorId: null }] } }),
+    prisma.auditLog.findMany({
+      distinct: ["action"],
+      select: { action: true },
+      orderBy: { action: "asc" }
+    }),
+    prisma.feedRule.findMany({
+      where: { tenantId: tenant.id },
+      orderBy: [{ active: "desc" }, { action: "asc" }]
+    }),
+    prisma.externalPushRule.findMany({
+      where: { tenantId: tenant.id },
+      orderBy: [{ active: "desc" }, { action: "asc" }]
+    }),
+    prisma.externalPushLog.findMany({
+      where: { tenantId: tenant.id },
+      orderBy: { createdAt: "desc" },
+      take: 20
+    })
   ]);
 
   const auditEntries: ProtocolEntry[] = auditLogs.map((entry) => ({
@@ -149,6 +268,8 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
 
   const groups = groupEntries(entries);
   const hasNext = skip + pageSize < totalAuditLogs;
+  const requestedAction = String(searchParams?.action || "").trim();
+  const actionOptions = Array.from(new Set([...knownAuditActions.map(([action]) => action), ...distinctActions.map((entry) => entry.action), requestedAction].filter(Boolean))).sort((a, b) => actionLabel(a).localeCompare(actionLabel(b)));
 
   return (
     <AppShell>
@@ -206,6 +327,12 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
                               {entry.action ? (
                                 <>
                                   <Link
+                                    href={`/messages?action=${encodeURIComponent(entry.action)}#feed-rules`}
+                                    className="focus-ring inline-flex min-h-9 items-center gap-1 rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-paper hover:text-redbrand"
+                                  >
+                                    In Feed <Newspaper className="h-3.5 w-3.5" />
+                                  </Link>
+                                  <Link
                                     href={`/settings/telegram?action=${encodeURIComponent(entry.action)}#notifications`}
                                     className="focus-ring inline-flex min-h-9 items-center gap-1 rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-paper hover:text-redbrand"
                                   >
@@ -240,6 +367,180 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
             Sobald Aktionen in der App oder im Telegram-Bot passieren, erscheinen sie hier.
           </EmptyState>
         )}
+
+        <Panel id="feed-rules">
+          <div className="mb-4 flex items-start gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-paper text-redbrand">
+              <Newspaper className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="font-semibold text-ink">Startseiten-Feed</h2>
+              <p className="mt-1 text-sm leading-6 text-graphite">
+                Wähle Protokollaktionen aus, die im Feed auf der Startseite erscheinen sollen. Die Darstellung kannst du mit Variablen steuern.
+              </p>
+            </div>
+          </div>
+          <form action={saveFeedRule} className="space-y-4 rounded-lg border border-line bg-paper p-4">
+            <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+              <Field label="Aktion">
+                <select className={selectClass} name="action" defaultValue={requestedAction || actionOptions[0] || ""} required>
+                  {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
+                </select>
+              </Field>
+              <label className="flex min-h-10 items-center gap-2 text-sm font-semibold text-graphite">
+                <input name="active" type="checkbox" defaultChecked className="h-4 w-4 accent-redbrand" />
+                aktiv
+              </label>
+            </div>
+            <TemplateVariableTextarea label="Feed-Titel" name="titleTemplate" rows={2} defaultValue={defaultFeedTitleTemplate()} variables={feedTemplateVariables} required />
+            <TemplateVariableTextarea label="Feed-Text" name="bodyTemplate" rows={3} defaultValue={defaultFeedBodyTemplate()} variables={feedTemplateVariables} required />
+            <Button><Save className="h-4 w-4" /> Feed-Regel speichern</Button>
+          </form>
+          <div className="mt-5 space-y-3">
+            {feedRules.map((rule) => (
+              <details key={rule.id} className="rounded-md border border-line bg-paper p-3">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                  <span>
+                    <strong className="block text-ink">{actionLabel(rule.action)}</strong>
+                    <span className="text-sm text-graphite">{rule.active ? "aktiv" : "inaktiv"}</span>
+                  </span>
+                  <Badge tone={rule.active ? "green" : "neutral"}>{rule.active ? "Feed" : "aus"}</Badge>
+                </summary>
+                <form action={saveFeedRule} className="mt-4 space-y-4 border-t border-line pt-4">
+                  <Field label="Aktion">
+                    <select className={selectClass} name="action" defaultValue={rule.action} required>
+                      {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
+                    </select>
+                  </Field>
+                  <TemplateVariableTextarea label="Feed-Titel" name="titleTemplate" rows={2} defaultValue={rule.titleTemplate} variables={feedTemplateVariables} required />
+                  <TemplateVariableTextarea label="Feed-Text" name="bodyTemplate" rows={3} defaultValue={rule.bodyTemplate} variables={feedTemplateVariables} required />
+                  <label className="flex items-center gap-2 text-sm font-semibold text-graphite">
+                    <input name="active" type="checkbox" defaultChecked={rule.active} className="h-4 w-4 accent-redbrand" />
+                    aktiv
+                  </label>
+                  <Button><Save className="h-4 w-4" /> Regel speichern</Button>
+                </form>
+                <form action={deleteFeedRule} className="mt-3">
+                  <input type="hidden" name="ruleId" value={rule.id} />
+                  <Button variant="danger"><Trash2 className="h-4 w-4" /> Feed-Regel löschen</Button>
+                </form>
+              </details>
+            ))}
+            {!feedRules.length ? <p className="rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite">Noch keine Feed-Regel angelegt.</p> : null}
+          </div>
+        </Panel>
+
+        <Panel id="external-push">
+          <div className="mb-4 flex items-start gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-paper text-redbrand">
+              <ExternalLink className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="font-semibold text-ink">Externe Push-Regeln</h2>
+              <p className="mt-1 text-sm leading-6 text-graphite">
+                Sende Ereignisse als HTTP-Webhook an ioBroker, Node-RED, Home Assistant oder eine MQTT-Bridge. So können Alexa-Ansagen, Lichtschalter oder andere IoT-Aktionen ausgelöst werden.
+              </p>
+            </div>
+          </div>
+          {searchParams?.externalSent ? (
+            <div className="mb-4 rounded-md border border-line bg-paper p-3 text-sm text-graphite">
+              Test gesendet: <strong className="text-ink">{searchParams.externalSent}</strong>
+              {Number(searchParams.externalFailed || 0) ? <span className="ml-2 text-redbrand">Fehler: {searchParams.externalFailed}</span> : null}
+            </div>
+          ) : null}
+          <form action={saveExternalPushRule} className="space-y-4 rounded-lg border border-line bg-paper p-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Name"><input className={inputClass} name="name" placeholder="ioBroker Alexa Ansage" /></Field>
+              <Field label="Aktion">
+                <select className={selectClass} name="action" defaultValue={requestedAction || actionOptions[0] || ""} required>
+                  {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
+                </select>
+              </Field>
+              <Field label="URL"><input className={inputClass} name="url" type="url" placeholder="https://iobroker.example/webhook/playplaner" required /></Field>
+              <Field label="Methode">
+                <select className={selectClass} name="method" defaultValue="POST">
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                  <option value="GET">GET</option>
+                </select>
+              </Field>
+            </div>
+            <TemplateVariableTextarea label="JSON-Payload" name="payloadTemplate" rows={5} defaultValue={defaultExternalPayloadTemplate()} variables={[...feedTemplateVariables, { token: "{detailsJson}", label: "Details JSON" }]} required />
+            <Field label="Header als JSON optional">
+              <textarea className={inputClass} name="headersJson" rows={3} defaultValue={"{}"} />
+            </Field>
+            <label className="flex items-center gap-2 text-sm font-semibold text-graphite">
+              <input name="active" type="checkbox" defaultChecked className="h-4 w-4 accent-redbrand" />
+              aktiv
+            </label>
+            <Button><Save className="h-4 w-4" /> Push-Regel speichern</Button>
+          </form>
+          <div className="mt-5 space-y-3">
+            {externalPushRules.map((rule) => (
+              <details key={rule.id} className="rounded-md border border-line bg-paper p-3">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                  <span>
+                    <strong className="block text-ink">{rule.name}</strong>
+                    <span className="text-sm text-graphite">{actionLabel(rule.action)} · {rule.url}</span>
+                  </span>
+                  <Badge tone={rule.active ? "green" : "neutral"}>{rule.active ? "aktiv" : "aus"}</Badge>
+                </summary>
+                <form action={saveExternalPushRule} className="mt-4 space-y-4 border-t border-line pt-4">
+                  <input type="hidden" name="ruleId" value={rule.id} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Name"><input className={inputClass} name="name" defaultValue={rule.name} required /></Field>
+                    <Field label="Aktion">
+                      <select className={selectClass} name="action" defaultValue={rule.action} required>
+                        {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="URL"><input className={inputClass} name="url" type="url" defaultValue={rule.url} required /></Field>
+                    <Field label="Methode">
+                      <select className={selectClass} name="method" defaultValue={rule.method || "POST"}>
+                        <option value="POST">POST</option>
+                        <option value="PUT">PUT</option>
+                        <option value="GET">GET</option>
+                      </select>
+                    </Field>
+                  </div>
+                  <TemplateVariableTextarea label="JSON-Payload" name="payloadTemplate" rows={5} defaultValue={rule.payloadTemplate} variables={[...feedTemplateVariables, { token: "{detailsJson}", label: "Details JSON" }]} required />
+                  <Field label="Header als JSON optional">
+                    <textarea className={inputClass} name="headersJson" rows={3} defaultValue={JSON.stringify(rule.headersJson || {}, null, 2)} />
+                  </Field>
+                  <label className="flex items-center gap-2 text-sm font-semibold text-graphite">
+                    <input name="active" type="checkbox" defaultChecked={rule.active} className="h-4 w-4 accent-redbrand" />
+                    aktiv
+                  </label>
+                  <Button><Save className="h-4 w-4" /> Regel speichern</Button>
+                </form>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <form action={testExternalRule}>
+                    <input type="hidden" name="ruleId" value={rule.id} />
+                    <Button>Test senden</Button>
+                  </form>
+                  <form action={deleteExternalPushRule}>
+                    <input type="hidden" name="ruleId" value={rule.id} />
+                    <Button variant="danger"><Trash2 className="h-4 w-4" /> Regel löschen</Button>
+                  </form>
+                </div>
+              </details>
+            ))}
+            {!externalPushRules.length ? <p className="rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite">Noch keine externe Push-Regel angelegt.</p> : null}
+          </div>
+          {externalPushLogs.length ? (
+            <div className="mt-5 rounded-lg border border-line bg-paper p-4">
+              <h3 className="mb-3 font-semibold text-ink">Letzte externen Pushes</h3>
+              <div className="space-y-2 text-sm">
+                {externalPushLogs.map((log) => (
+                  <div key={log.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface p-2">
+                    <span className="truncate">{actionLabel(log.action)} · {log.url}</span>
+                    <Badge tone={log.status === "SENT" ? "green" : "red"}>{log.statusCode || log.status}</Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </Panel>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           {page > 1 ? (

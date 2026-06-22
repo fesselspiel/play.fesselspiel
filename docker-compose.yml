@@ -26,6 +26,7 @@ services:
       STARTUP_LOG_DIR: /app/logs
       EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-postfix}
       EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-25}
+      CRON_SECRET: ${CRON_SECRET:-bitte_aendern_cron_secret}
     volumes:
       - uploads_data:/app/uploads
       - ./runtime-logs:/app/logs
@@ -62,6 +63,22 @@ services:
       POSTFIX_myhostname: ${EMAIL_POSTFIX_HOSTNAME:-playplaner.com}
       POSTFIX_myorigin: ${EMAIL_POSTFIX_HOSTNAME:-playplaner.com}
       POSTFIX_mynetworks: ${EMAIL_POSTFIX_NETWORKS:-127.0.0.0/8 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16}
+
+  cron:
+    image: alpine:3.20
+    container_name: kink_social_cron
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+    environment:
+      CRON_SECRET: ${CRON_SECRET:-bitte_aendern_cron_secret}
+    command: >
+      sh -c "apk add --no-cache curl >/dev/null
+      && while true; do
+        curl -fsS -H \"Authorization: Bearer $$CRON_SECRET\" http://app:8097/api/cron/trackers >/dev/null || true;
+        sleep 900;
+      done"
 
 volumes:
   postgres_data:

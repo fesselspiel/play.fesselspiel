@@ -1,444 +1,210 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Eye, Pencil, Save, Square } from "lucide-react";
+import { redirect } from "next/navigation";
+import { ChevronLeft, ChevronRight, Save, Square } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass, SoftPanel } from "@/components/ui";
-import { logAction } from "@/lib/audit";
+import { Button, Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
+import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
-import { featureEnabled, hasFeature, requireFeature } from "@/lib/features";
+import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
+import { featureEnabled, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
-import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
-import { moodAfter, moodBefore, moodScore, neutralMood } from "@/lib/moods";
-import { ensureSessionSlug, uniqueSessionSlug } from "@/lib/session-slug";
-import { stopKgSession, stopSegufixSession } from "@/lib/session-actions";
-import { startTrackerEntry } from "@/lib/tracker-core";
+import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
+import { findTrackerTypeForUser, stopTrackerEntry, uniqueTrackerSlug } from "@/lib/tracker-core";
 
-type MoodBeforeValue = keyof typeof moodBefore;
-type MoodAfterValue = keyof typeof moodAfter;
-
-async function createSession(formData: FormData) {
-  "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
-  await requireFeature("tracker.segufix");
-  const startTime = new Date(String(formData.get("startTime")));
-  const endRaw = String(formData.get("endTime") || "");
-  const endTime = endRaw ? new Date(endRaw) : null;
-  const slug = await uniqueSessionSlug(startTime, undefined, user.tenantId);
-  const session = await prisma.segufixSession.create({
-    data: {
-      tenantId: user.tenantId || undefined,
-      ownerId: user.id,
-      slug,
-      startTime,
-      endTime,
-      durationMinutes: minutesBetween(startTime, endTime),
-      notes: String(formData.get("notes") || "").trim(),
-      moodBefore: String(formData.get("moodBefore") || "NEUTRAL") as MoodBeforeValue,
-      moodAfter: String(formData.get("moodAfter") || "RELAXED") as MoodAfterValue,
-      moodBeforeText: "",
-      moodAfterText: ""
-    }
-  });
-  await logAction({
-    actorId: user.id,
-    action: "session_created",
-    entityType: "session",
-    entityId: session.id,
-    title: "Session angelegt",
-    href: `/sessions/${session.slug}`
-  });
-  redirect("/sessions");
-}
-
-async function createKgSession(formData: FormData) {
-  "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
-  await requireFeature("tracker.kg");
-  const startTime = new Date(String(formData.get("startTime")));
-  const endRaw = String(formData.get("endTime") || "");
-  const endTime = endRaw ? new Date(endRaw) : null;
-  const session = await prisma.kgSession.create({
-    data: {
-      tenantId: user.tenantId || undefined,
-      ownerId: user.id,
-      startTime,
-      endTime,
-      durationMinutes: minutesBetween(startTime, endTime),
-      notes: String(formData.get("notes") || "").trim()
-    }
-  });
-  await logAction({
-    actorId: user.id,
-    action: "kg_created",
-    entityType: "kgSession",
-    entityId: session.id,
-    title: "KG-Tracker-Eintrag angelegt",
-    href: "/sessions?tracker=kg"
-  });
-  redirect("/sessions?tracker=kg");
-}
-
-async function startGenericTracker(formData: FormData) {
+async function createTrackerEntry(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
   const key = String(formData.get("trackerKey") || "");
   await requireFeature(`tracker.${key}`);
-  const entry = await startTrackerEntry({
-    key,
-    user,
-    notes: String(formData.get("notes") || "").trim()
+  const trackerType = await findTrackerTypeForUser(key, user);
+  if (!trackerType) redirect("/sessions?error=tracker");
+  const startRaw = String(formData.get("startTime") || "");
+  const endRaw = String(formData.get("endTime") || "");
+  const startTime = startRaw ? new Date(startRaw) : new Date();
+  const endTime = endRaw ? new Date(endRaw) : null;
+  const entry = await prisma.trackerEntry.create({
+    data: {
+      tenantId: user.tenantId || trackerType.tenantId,
+      ownerId: user.id,
+      trackerTypeId: trackerType.id,
+      slug: await uniqueTrackerSlug(trackerType.id, trackerType.key, startTime),
+      title: trackerType.title,
+      startTime,
+      endTime,
+      durationMinutes: minutesBetween(startTime, endTime),
+      notes: String(formData.get("notes") || "").trim(),
+      fieldValues: {}
+    }
   });
-  if (!entry) redirect("/sessions?error=tracker");
   await logAction({
     actorId: user.id,
-    action: "tracker_started",
+    action: `tracker_${trackerType.key}_created`,
     entityType: "trackerEntry",
     entityId: entry.id,
-    title: `${entry.title || key}-Tracker gestartet`,
+    title: `${trackerType.title} angelegt`,
+    href: `/trackers/${trackerType.key}/${entry.slug || entry.id}`
+  });
+  redirect(`/trackers/${trackerType.key}/${entry.slug || entry.id}`);
+}
+
+async function stopEntry(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const key = String(formData.get("trackerKey") || "");
+  await requireFeature(`tracker.${key}`);
+  const entry = await stopTrackerEntry({ key, user });
+  if (!entry) redirect("/sessions");
+  await logAction({
+    actorId: user.id,
+    action: `tracker_${key}_stopped`,
+    entityType: "trackerEntry",
+    entityId: entry.id,
+    title: `${entry.title || key} beendet`,
     href: `/trackers/${key}/${entry.slug || entry.id}`
   });
   redirect(`/trackers/${key}/${entry.slug || entry.id}`);
 }
 
-const months = ["Januar", "Februar", "Maerz", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+const months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
 export default async function SessionsPage({ searchParams }: { searchParams: { year?: string; tracker?: string } }) {
   await requireFeature("trackers");
   const user = await currentUser();
   if (!user) redirect("/login");
   const tenant = await currentTenant();
-  const [segufixEnabled, kgEnabled] = await Promise.all([hasFeature("tracker.segufix"), hasFeature("tracker.kg")]);
   const year = Number(searchParams.year || new Date().getFullYear());
   const yearStart = new Date(year, 0, 1);
   const yearEnd = new Date(year + 1, 0, 1);
   const scope = await ownerScope(user);
-  const tracker = searchParams.tracker === "kg" ? "kg" : "segufix";
-  const genericTrackers = await prisma.trackerType.findMany({
+  const trackers = await prisma.trackerType.findMany({
     where: {
-      tenantId: user.tenantId || tenant.id,
       enabled: true,
-      key: { notIn: ["segufix", "kg"] }
+      ...(user.tenantId ? { OR: [{ tenantId: user.tenantId }, { tenantId: null }] } : { tenantId: null })
     },
     include: {
       entries: {
-        where: { ...scope },
-        orderBy: { startTime: "desc" },
-        take: 5
+        where: { ...scope, startTime: { gte: yearStart, lt: yearEnd } },
+        orderBy: { startTime: "desc" }
       }
     },
     orderBy: { title: "asc" }
   });
-  const visibleGenericTrackers = genericTrackers.filter((entry) => featureEnabled(tenant.features, `tracker.${entry.key}`));
-  if (tracker === "kg" && !kgEnabled) {
-    if (segufixEnabled) redirect(`/sessions?year=${year}`);
-    if (visibleGenericTrackers.length) redirect(`/sessions?tracker=${visibleGenericTrackers[0].key}&year=${year}`);
-    redirect("/feature-disabled?feature=tracker.kg");
-  }
-  if (tracker === "segufix" && !segufixEnabled) {
-    if (kgEnabled) redirect(`/sessions?tracker=kg&year=${year}`);
-    if (visibleGenericTrackers.length) {
-      return (
-        <AppShell>
-          <PageHeader title="Tracker" />
-          <PageGuide title="Konfigurierbare Tracker">
-            Diese Seite zeigt die für diese Seite aktivierten Tracker. Segufix und KG sind hier ausgeschaltet; zusätzliche Tracker können Admins unter Einstellungen konfigurieren.
-          </PageGuide>
-          <div className="space-y-4">
-            {visibleGenericTrackers.map((generic) => {
-              const open = generic.entries.find((entry) => !entry.endTime);
-              return (
-                <Panel key={generic.id}>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-semibold text-ink">{generic.title}</h2>
-                      <p className="mt-1 text-sm text-graphite">{generic.description || `Allgemeiner Tracker ${generic.key}`}</p>
-                    </div>
-                    <span className="rounded-md bg-paper px-3 py-1 text-xs font-semibold text-graphite">tracker.{generic.key}</span>
-                  </div>
-                  {open ? (
-                    <Link href={`/trackers/${generic.key}/${open.slug || open.id}`} className="mt-4 block rounded-md border border-line bg-paper p-3 text-sm hover:border-redbrand">
-                      Läuft seit {formatDateTime(open.startTime)}
-                    </Link>
-                  ) : (
-                    <form action={startGenericTracker} className="mt-4 flex flex-col gap-3 sm:flex-row">
-                      <input type="hidden" name="trackerKey" value={generic.key} />
-                      <input className={inputClass} name="notes" placeholder="Optionaler Kommentar" />
-                      <Button><Save className="h-4 w-4" /> Starten</Button>
-                    </form>
-                  )}
-                  {generic.entries.length ? (
-                    <div className="mt-4 space-y-2">
-                      {generic.entries.map((entry) => (
-                        <Link key={entry.id} href={`/trackers/${generic.key}/${entry.slug || entry.id}`} className="block rounded-md border border-line p-3 text-sm hover:bg-paper">
-                          <strong>{formatDateTime(entry.startTime)}</strong>
-                          <span className="ml-2 text-graphite">{entry.endTime ? formatMinutes(entry.durationMinutes) : "läuft"}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  ) : null}
-                </Panel>
-              );
-            })}
-          </div>
-        </AppShell>
-      );
-    }
-    redirect("/feature-disabled?feature=tracker.segufix");
-  }
-  if (tracker === "kg") {
-    const kgSessions = await prisma.kgSession.findMany({ where: { ...scope, startTime: { gte: yearStart, lt: yearEnd } }, orderBy: { startTime: "desc" } });
-    const totalMinutes = kgSessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
-    const avgDuration = kgSessions.length ? Math.round(totalMinutes / kgSessions.length) : 0;
-    const openSessions = kgSessions.filter((session) => !session.endTime);
-    const byDay = new Map<string, typeof kgSessions>();
-    for (const session of kgSessions) {
-      const key = `${session.startTime.getMonth()}-${session.startTime.getDate()}`;
-      byDay.set(key, [...(byDay.get(key) || []), session]);
-    }
-    return (
-      <AppShell>
-        <PageHeader title="KG Time Tracker" />
-        <nav className="mb-5 flex border-b border-line" aria-label="Tracker">
-          {segufixEnabled ? <Link href={`/sessions?year=${year}`} className="-mb-px rounded-t-md border border-transparent px-3 py-2 text-sm font-semibold text-graphite hover:bg-paper hover:text-ink">Segufix Time Tracker</Link> : null}
-          <Link href={`/sessions?tracker=kg&year=${year}`} aria-current="page" className="-mb-px rounded-t-md border border-line border-b-surface bg-surface px-3 py-2 text-sm font-semibold text-sky-700">KG Time Tracker</Link>
-        </nav>
-        <PageGuide title="KG-Tragezeiten minutengenau dokumentieren">
-          Der KG Time Tracker erfasst Tragezeiten mit Startminute, Endminute, Dauer und Sessionbeschreibung. Die Jahresübersicht nutzt Blau, damit sie klar vom roten Segufix-Kalender unterscheidbar ist.
-        </PageGuide>
-        <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
-          <Panel>
-            <h2 className="mb-4 text-lg font-semibold">KG-Zeit erfassen</h2>
-            <form action={createKgSession} className="space-y-4">
-              <Field label="Startzeit"><input className={inputClass} name="startTime" type="datetime-local" step={60} required /></Field>
-              <Field label="Endzeit"><input className={inputClass} name="endTime" type="datetime-local" step={60} /></Field>
-              <Field label="Sessionbeschreibung"><textarea className={inputClass} name="notes" rows={4} /></Field>
-              <Button><Save className="h-4 w-4" /> KG-Zeit speichern</Button>
-            </form>
-          </Panel>
-          <div className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <SoftPanel><div className="text-sm text-graphite">Einträge</div><div className="mt-2 text-2xl font-semibold">{kgSessions.length}</div></SoftPanel>
-              <SoftPanel><div className="text-sm text-graphite">Gesamtzeit</div><div className="mt-2 text-2xl font-semibold">{formatMinutes(totalMinutes)}</div></SoftPanel>
-              <SoftPanel><div className="text-sm text-graphite">Durchschnitt</div><div className="mt-2 text-2xl font-semibold">{formatMinutes(avgDuration)}</div></SoftPanel>
-            </div>
-            {openSessions.length ? (
-              <Panel>
-                <h2 className="mb-3 text-lg font-semibold">Laufender KG-Tracker</h2>
-                <div className="space-y-2">
-                  {openSessions.map((session) => (
-                    <div key={session.id} className="rounded-md border border-sky-600 bg-sky-600/10 p-3 text-sm">
-                      <Link href={`/sessions/kg/${session.id}`} className="block hover:text-sky-700">
-                        <strong>{session.notes?.split("\n")[0] || "KG-Tracker"}</strong>
-                        <span className="ml-2 text-graphite">seit {formatDateTime(session.startTime)}</span>
-                      </Link>
-                      {session.ownerId === user.id ? (
-                        <form action={stopKgSession} className="mt-3">
-                          <input type="hidden" name="id" value={session.id} />
-                          <Button><Square className="h-4 w-4" /> KG-Tracker beenden</Button>
-                        </form>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              </Panel>
-            ) : null}
-            <Panel>
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <a href={`/sessions?tracker=kg&year=${year - 1}`} className="rounded-md border border-line px-3 py-2 text-sm">Zurück</a>
-                <h2 className="text-lg font-semibold">{year}</h2>
-                <a href={`/sessions?tracker=kg&year=${year + 1}`} className="rounded-md border border-line px-3 py-2 text-sm">Weiter</a>
-              </div>
-              <div className="grid calendar-grid gap-1 text-xs">
-                <div />
-                {Array.from({ length: 31 }, (_, i) => <div key={i} className="calendar-day-number text-center text-graphite">{i + 1}</div>)}
-                {months.map((month, monthIndex) => (
-                  <div key={month} className="contents">
-                    <div key={`${month}-label`} className="calendar-month-label py-1 font-medium text-graphite">{month}</div>
-                    {Array.from({ length: 31 }, (_, dayIndex) => {
-                      const day = dayIndex + 1;
-                      const date = new Date(year, monthIndex, day);
-                      const valid = date.getMonth() === monthIndex;
-                      const daySessions = byDay.get(`${monthIndex}-${day}`) || [];
-                      const minutes = daySessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
-                      const className = `calendar-cell h-5 rounded-sm ${!valid ? "bg-transparent" : daySessions.length ? "bg-sky-600" : "bg-paper"}`;
-                      if (!daySessions.length) return <span key={`${month}-${day}`} className={className} />;
-                      return <a key={`${month}-${day}`} href={`/sessions/kg/${daySessions[0].id}`} title={`${daySessions.length} KG-Einträge, ${formatMinutes(minutes)}`} className={className} />;
-                    })}
-                  </div>
-                ))}
-              </div>
-            </Panel>
-            <Panel>
-              <h2 className="mb-4 text-lg font-semibold">Historie</h2>
-              <div className="space-y-3">
-                {kgSessions.map((session) => (
-                  <div key={session.id} className="rounded-md border border-line p-3 hover:bg-paper">
-                    <Link href={`/sessions/kg/${session.id}`} className="block">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <strong>{formatDateTime(session.startTime)}</strong>
-                      <span className="text-sm text-graphite">{formatMinutes(session.durationMinutes)}</span>
-                    </div>
-                    <p className="mt-1 text-sm text-graphite">Ende: {formatDateTime(session.endTime)}</p>
-                    {session.notes ? <p className="mt-2 text-sm text-graphite">{session.notes}</p> : null}
-                    </Link>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Link href={`/sessions/kg/${session.id}`} className="focus-ring inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-paper">
-                        <Eye className="h-4 w-4" /> Details
-                      </Link>
-                      <Link href={`/sessions/kg/${session.id}/edit`} className="focus-ring inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-paper">
-                        <Pencil className="h-4 w-4" /> Bearbeiten
-                      </Link>
-                      {!session.endTime && session.ownerId === user.id ? (
-                        <form action={stopKgSession}>
-                          <input type="hidden" name="id" value={session.id} />
-                          <Button className="min-h-9 px-3 py-2"><Square className="h-4 w-4" /> Beenden</Button>
-                        </form>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Panel>
-          </div>
-        </div>
-      </AppShell>
-    );
-  }
-  const sessions = await prisma.segufixSession.findMany({ where: { ...scope, startTime: { gte: yearStart, lt: yearEnd } }, orderBy: { startTime: "desc" } });
-  const sessionSlugs = new Map(await Promise.all(sessions.map(async (session) => [session.id, await ensureSessionSlug(session)] as const)));
-  const totalMinutes = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
-  const avgDuration = sessions.length ? Math.round(totalMinutes / sessions.length) : 0;
-  const afterScores: number[] = sessions.map((s) => (s.moodAfter ? moodScore[s.moodAfter] : 0)).filter(Boolean);
-  const avgAfter = afterScores.length ? (afterScores.reduce((a, b) => a + b, 0) / afterScores.length).toFixed(1) : "-";
-  const openSessions = sessions.filter((session) => !session.endTime);
-  const byDay = new Map<string, typeof sessions>();
-  for (const session of sessions) {
-    const key = `${session.startTime.getMonth()}-${session.startTime.getDate()}`;
-    byDay.set(key, [...(byDay.get(key) || []), session]);
+  const visibleTrackers = trackers.filter((tracker) => featureEnabled(tenant.features, `tracker.${tracker.key}`));
+  const quotaStatus = await trackerQuotaStatusForUser(user);
+  const quotaByKey = new Map(quotaStatus.map((entry) => [entry.tracker.key, entry]));
+
+  if (!visibleTrackers.length) redirect("/feature-disabled?feature=trackers");
+  const activeTracker = visibleTrackers.find((tracker) => tracker.key === searchParams.tracker) || visibleTrackers[0];
+  const totalMinutes = activeTracker.entries.reduce((sum, entry) => sum + (entry.durationMinutes || 0), 0);
+  const open = activeTracker.entries.find((entry) => !entry.endTime);
+  const quota = quotaByKey.get(activeTracker.key);
+  const byDay = new Map<string, typeof activeTracker.entries>();
+  for (const entry of activeTracker.entries) {
+    const key = `${entry.startTime.getMonth()}-${entry.startTime.getDate()}`;
+    byDay.set(key, [...(byDay.get(key) || []), entry]);
   }
 
   return (
     <AppShell>
-      <PageHeader title="Segufix-Timetracker" />
-      <nav className="mb-5 flex border-b border-line" aria-label="Tracker">
-        <Link href={`/sessions?year=${year}`} aria-current="page" className="-mb-px rounded-t-md border border-line border-b-surface bg-surface px-3 py-2 text-sm font-semibold text-redbrand">Segufix Time Tracker</Link>
-        {kgEnabled ? <Link href={`/sessions?tracker=kg&year=${year}`} className="-mb-px rounded-t-md border border-transparent px-3 py-2 text-sm font-semibold text-graphite hover:bg-paper hover:text-ink">KG Time Tracker</Link> : null}
-      </nav>
-      <PageGuide title="Session-Erfassung, Jahresübersicht und Auswertung">
-        Der Timetracker dokumentiert Sessions mit Start, Ende, Dauer, Stimmung und Kommentar. Erfasse links neue Einträge, nutze den Jahreskalender zur Orientierung und bearbeite bestehende Sessions in der Historie.
+      <PageHeader title="Tracker" />
+      <PageGuide title="Einheitliche Tracker-Zentrale">
+        Segufix, KG und weitere Tracker sind hier dieselbe Datenstruktur. Jeder Tracker kann Einträge, laufende Zeiten, Kontingente und eine eigene Farbe haben.
       </PageGuide>
-      <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
-        <Panel>
-          <h2 className="mb-4 text-lg font-semibold">Session erfassen</h2>
-          <form action={createSession} className="space-y-4">
-            <Field label="Startzeit"><input className={inputClass} name="startTime" type="datetime-local" required /></Field>
-            <Field label="Endzeit"><input className={inputClass} name="endTime" type="datetime-local" /></Field>
-            <Field label="Stimmung vorher">
-              <select className={selectClass} name="moodBefore" defaultValue="NEUTRAL">
-                {Object.entries(moodBefore).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
-            </Field>
-            <Field label="Stimmung nachher">
-              <select className={selectClass} name="moodAfter" defaultValue="RELAXED">
-                {Object.entries(moodAfter).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
-            </Field>
-            <Field label="Sessionkommentar"><textarea className={inputClass} name="notes" rows={5} /></Field>
-            <Button><Save className="h-4 w-4" /> Session speichern</Button>
-          </form>
-        </Panel>
-        <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <SoftPanel><div className="text-sm text-graphite">Sessions</div><div className="mt-2 text-2xl font-semibold">{sessions.length}</div></SoftPanel>
-            <SoftPanel><div className="text-sm text-graphite">Durchschnitt</div><div className="mt-2 text-2xl font-semibold">{formatMinutes(avgDuration)}</div></SoftPanel>
-            <SoftPanel><div className="text-sm text-graphite">Stimmung nachher</div><div className="mt-2 text-2xl font-semibold">{avgAfter}/5</div></SoftPanel>
-          </div>
-          {openSessions.length ? (
-            <Panel>
-              <h2 className="mb-3 text-lg font-semibold">Laufende Sessions</h2>
-              <div className="space-y-2">
-                {openSessions.map((session) => (
-                  <div key={session.id} className="rounded-md border border-redbrand bg-redbrand/10 p-3 text-sm">
-                    <Link href={`/sessions/${sessionSlugs.get(session.id)}`} className="block hover:text-redbrand">
-                      <strong>{session.notes?.split("\n")[0] || "Segufix-Session"}</strong>
-                      <span className="ml-2 text-graphite">seit {formatDateTime(session.startTime)}</span>
-                    </Link>
-                    {session.ownerId === user.id ? (
-                      <form action={stopSegufixSession} className="mt-3">
-                        <input type="hidden" name="id" value={session.id} />
-                        <Button>Session beenden</Button>
-                      </form>
-                    ) : null}
+      <div className="space-y-4">
+        <div className="flex gap-2 overflow-x-auto rounded-lg border border-line bg-paper p-2">
+          {visibleTrackers.map((tracker) => {
+            const active = tracker.id === activeTracker.id;
+            return (
+              <Link
+                key={tracker.id}
+                href={`/sessions?tracker=${tracker.key}&year=${year}`}
+                className={`focus-ring inline-flex min-h-10 shrink-0 items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition ${active ? "bg-redbrand text-white" : "bg-surface text-ink hover:bg-canvas"}`}
+              >
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: active ? "#fff" : tracker.color }} />
+                {tracker.title}
+              </Link>
+            );
+          })}
+        </div>
+        <Panel key={activeTracker.id}>
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold text-ink">{activeTracker.title}</h2>
+                  <p className="mt-1 text-sm text-graphite">{activeTracker.description || `Tracker ${activeTracker.key}`}</p>
+                  {quota?.hasQuota ? <p className="mt-2 text-xs font-semibold text-graphite">{quotaSummaryText(quota)}</p> : null}
+                </div>
+                <span className="rounded-md border border-line bg-paper px-3 py-1 text-xs font-semibold text-graphite">tracker.{activeTracker.key}</span>
+              </div>
+              <div className="mb-5 grid gap-3 sm:grid-cols-3">
+                <SoftPanel><div className="text-sm text-graphite">Einträge</div><div className="mt-2 text-2xl font-semibold">{activeTracker.entries.length}</div></SoftPanel>
+                <SoftPanel><div className="text-sm text-graphite">Gesamtzeit</div><div className="mt-2 text-2xl font-semibold">{formatMinutes(totalMinutes)}</div></SoftPanel>
+                <SoftPanel><div className="text-sm text-graphite">Status</div><div className="mt-2 text-2xl font-semibold">{open ? "läuft" : quota?.complete === false ? "Todo" : "ok"}</div></SoftPanel>
+              </div>
+              {open ? (
+                <div className="mb-5 rounded-md border border-line bg-paper p-3 text-sm">
+                  <Link href={`/trackers/${activeTracker.key}/${open.slug || open.id}`} className="font-semibold text-ink hover:text-redbrand">Läuft seit {formatDateTime(open.startTime)}</Link>
+                  {open.ownerId === user.id ? (
+                    <form action={stopEntry} className="mt-3">
+                      <input type="hidden" name="trackerKey" value={activeTracker.key} />
+                      <Button><Square className="h-4 w-4" /> Tracker beenden</Button>
+                    </form>
+                  ) : null}
+                </div>
+              ) : null}
+              <form action={createTrackerEntry} className="mb-5 grid gap-3 lg:grid-cols-[1fr_1fr_1.5fr_auto] lg:items-end">
+                <input type="hidden" name="trackerKey" value={activeTracker.key} />
+                <Field label="Start"><input className={inputClass} name="startTime" type="datetime-local" /></Field>
+                <Field label="Ende"><input className={inputClass} name="endTime" type="datetime-local" /></Field>
+                <Field label="Beschreibung"><input className={inputClass} name="notes" placeholder="Optionaler Kommentar" /></Field>
+                <Button><Save className="h-4 w-4" /> Eintrag speichern</Button>
+              </form>
+              <div className="mb-5 overflow-x-auto">
+                <div className="min-w-[760px]">
+                  <div className="grid grid-cols-[110px_repeat(31,minmax(16px,1fr))] gap-1 text-xs">
+                    <div />
+                    {Array.from({ length: 31 }, (_, day) => <div key={day} className="text-center text-graphite">{day + 1}</div>)}
+                    {months.map((month, monthIndex) => (
+                      <div key={month} className="contents">
+                        <div className="pr-2 text-right font-medium text-graphite">{month}</div>
+                        {Array.from({ length: 31 }, (_, day) => {
+                          const entries = byDay.get(`${monthIndex}-${day + 1}`) || [];
+                          return (
+                            <div
+                              key={`${month}-${day}`}
+                              className="h-5 rounded-sm border border-line"
+                              title={entries.length ? `${entries.length} Einträge` : ""}
+                              style={{ backgroundColor: entries.length ? activeTracker.color : "transparent", opacity: entries.length ? 0.85 : 1 }}
+                            />
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {activeTracker.entries.slice(0, 8).map((entry) => (
+                  <Link key={entry.id} href={`/trackers/${activeTracker.key}/${entry.slug || entry.id}`} className="block rounded-md border border-line bg-paper p-3 text-sm hover:border-redbrand">
+                    <strong>{formatDateTime(entry.startTime)}</strong>
+                    <span className="ml-2 text-graphite">{entry.endTime ? formatMinutes(entry.durationMinutes) : "läuft"}</span>
+                    {entry.notes ? <span className="ml-2 text-graphite">{entry.notes}</span> : null}
+                  </Link>
                 ))}
               </div>
-            </Panel>
-          ) : null}
-          <Panel>
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <a href={`/sessions?year=${year - 1}`} className="rounded-md border border-line px-3 py-2 text-sm">Zurück</a>
-              <h2 className="text-lg font-semibold">{year}</h2>
-              <a href={`/sessions?year=${year + 1}`} className="rounded-md border border-line px-3 py-2 text-sm">Weiter</a>
-            </div>
-            <div className="grid calendar-grid gap-1 text-xs">
-              <div />
-              {Array.from({ length: 31 }, (_, i) => <div key={i} className="calendar-day-number text-center text-graphite">{i + 1}</div>)}
-              {months.map((month, monthIndex) => (
-                <div key={month} className="contents">
-                  <div key={`${month}-label`} className="calendar-month-label py-1 font-medium text-graphite">{month}</div>
-                  {Array.from({ length: 31 }, (_, dayIndex) => {
-                    const day = dayIndex + 1;
-                    const date = new Date(year, monthIndex, day);
-                    const valid = date.getMonth() === monthIndex;
-                    const daySessions = byDay.get(`${monthIndex}-${day}`) || [];
-                    const minutes = daySessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
-                    const className = `calendar-cell h-5 rounded-sm ${!valid ? "bg-transparent" : daySessions.length ? "bg-redbrand" : "bg-paper"}`;
-                    if (!daySessions.length) return <span key={`${month}-${day}`} className={className} />;
-                    return (
-                      <a
-                        key={`${month}-${day}`}
-                        href={`/sessions/${sessionSlugs.get(daySessions[0].id)}`}
-                        title={daySessions.length ? `${daySessions.length} Sessions, ${formatMinutes(minutes)}` : ""}
-                        className={className}
-                      />
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          </Panel>
-          <Panel>
-            <h2 className="mb-4 text-lg font-semibold">Historie</h2>
-            <div className="space-y-3">
-              {sessions.map((session) => (
-                <article key={session.id} id={`session-${session.id}`} className="rounded-md border border-line p-3 hover:bg-paper">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <Link href={`/sessions/${sessionSlugs.get(session.id)}`} className="min-w-0 flex-1">
-                      <strong className="block">{formatDateTime(session.startTime)}</strong>
-                      <p className="mt-2 text-sm text-graphite">Vorher: {session.moodBefore ? moodBefore[session.moodBefore] : neutralMood} · Nachher: {session.moodAfter ? moodAfter[session.moodAfter] : neutralMood}</p>
-                      {session.notes ? <p className="mt-2 text-sm text-graphite">{session.notes}</p> : null}
-                    </Link>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm text-graphite">{formatMinutes(session.durationMinutes)}</span>
-                      <Link href={`/sessions/${sessionSlugs.get(session.id)}`} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-line px-3 py-1.5 text-sm font-semibold hover:bg-paper">
-                        Details
-                      </Link>
-                      <Link href={`/sessions/${sessionSlugs.get(session.id)}/edit`} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-line px-3 py-1.5 text-sm font-semibold hover:bg-paper">
-                        <Pencil className="h-4 w-4" />
-                        Bearbeiten
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </Panel>
-        </div>
+              <div className="mt-6 flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4 text-sm">
+                <span className="mr-auto text-xs font-semibold text-graphite">Jahresansicht {year}</span>
+                <Link href={`/sessions?tracker=${activeTracker.key}&year=${year - 1}`} className="inline-flex min-h-9 items-center gap-1 rounded-md border border-line bg-surface px-3 py-2 font-semibold hover:bg-paper">
+                  <ChevronLeft className="h-4 w-4" /> {year - 1}
+                </Link>
+                <Link href={`/sessions?tracker=${activeTracker.key}&year=${year + 1}`} className="inline-flex min-h-9 items-center gap-1 rounded-md border border-line bg-surface px-3 py-2 font-semibold hover:bg-paper">
+                  {year + 1} <ChevronRight className="h-4 w-4" />
+                </Link>
+              </div>
+        </Panel>
       </div>
     </AppShell>
   );

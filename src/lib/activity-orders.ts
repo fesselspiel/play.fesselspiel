@@ -7,7 +7,7 @@ import { currentUser } from "@/lib/auth";
 import { minutesBetween } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
-import { uniqueSessionSlug } from "@/lib/session-slug";
+import { uniqueTrackerSlug } from "@/lib/tracker-core";
 
 export const selfBondageCategory = "SELF_BONDAGE_ORDER";
 
@@ -37,9 +37,17 @@ export async function createSessionHistoryForCompletedOrder(activity: {
   note: string | null;
   plannedAt: Date | null;
 }, userId: string) {
-  const existing = await prisma.segufixSession.findFirst({
+  const trackerType = await prisma.trackerType.findFirst({
     where: {
-      tenantId: activity.tenantId || undefined,
+      key: "segufix",
+      enabled: true,
+      ...(activity.tenantId ? { OR: [{ tenantId: activity.tenantId }, { tenantId: null }] } : {})
+    }
+  });
+  if (!trackerType) return null;
+  const existing = await prisma.trackerEntry.findFirst({
+    where: {
+      trackerTypeId: trackerType.id,
       ownerId: userId,
       notes: { contains: `Auftrag-ID: ${activity.id}` }
     },
@@ -49,25 +57,28 @@ export async function createSessionHistoryForCompletedOrder(activity: {
 
   const endTime = new Date();
   const startTime = activity.plannedAt && activity.plannedAt < endTime ? activity.plannedAt : endTime;
-  return prisma.segufixSession.create({
+  return prisma.trackerEntry.create({
     data: {
       tenantId: activity.tenantId || undefined,
       ownerId: userId,
-      slug: await uniqueSessionSlug(startTime, undefined, activity.tenantId),
+      trackerTypeId: trackerType.id,
+      slug: await uniqueTrackerSlug(trackerType.id, trackerType.key, startTime),
+      title: activity.title,
       startTime,
       endTime,
       durationMinutes: minutesBetween(startTime, endTime),
-      moodBefore: "NEUTRAL",
-      moodAfter: "RELAXED",
-      moodBeforeText: "",
-      moodAfterText: "",
       notes: [
         `Kategorie: Self-Bondage-Auftrag`,
         `Auftrag: ${activity.title}`,
         `Auftrag-ID: ${activity.id}`,
         `Auftrag-Link: /activities/${activity.slug}`,
         activity.note ? `Anweisung:\n${activity.note}` : ""
-      ].filter(Boolean).join("\n\n")
+      ].filter(Boolean).join("\n\n"),
+      fieldValues: {
+        moodBefore: "NEUTRAL",
+        moodAfter: "RELAXED",
+        source: "self_bondage_order"
+      }
     }
   });
 }

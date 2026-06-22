@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { minutesBetween } from "@/lib/dates";
 import { apiFeatureGate, dateFromValue, requestValues, requireApiUser } from "@/lib/external-api";
 import { prisma } from "@/lib/prisma";
-import { uniqueSessionSlug } from "@/lib/session-slug";
+import { startTrackerEntry, stopTrackerEntry } from "@/lib/tracker-core";
 
 export const runtime = "nodejs";
 
@@ -12,31 +11,21 @@ async function toggleSession(request: NextRequest) {
   const blocked = apiFeatureGate(auth.user, "externalApi", "tracker.segufix");
   if (blocked) return blocked;
   const values = await requestValues(request);
-  const open = await prisma.segufixSession.findFirst({ where: { tenantId: auth.user.tenantId || undefined, ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } });
-  if (!open) {
-    const startTime = dateFromValue(values.get("startTime")) || new Date();
-    const session = await prisma.segufixSession.create({
-      data: {
-        ownerId: auth.user.id,
-        tenantId: auth.user.tenantId || undefined,
-        slug: await uniqueSessionSlug(startTime, undefined, auth.user.tenantId),
-        startTime,
-        notes: values.get("note") || values.get("notes") || "Per API gestartet"
-      }
-    });
-    return NextResponse.json({ ok: true, action: "started", session });
-  }
-  const endTime = dateFromValue(values.get("endTime")) || new Date();
-  const note = values.get("note") || values.get("notes") || "";
-  const session = await prisma.segufixSession.update({
-    where: { id: open.id },
-    data: {
-      endTime,
-      durationMinutes: minutesBetween(open.startTime, endTime),
-      notes: [open.notes, note].filter(Boolean).join("\n")
-    }
+  const open = await prisma.trackerEntry.findFirst({
+    where: { ownerId: auth.user.id, trackerType: { key: "segufix" }, endTime: null },
+    orderBy: { startTime: "desc" }
   });
-  return NextResponse.json({ ok: true, action: "stopped", session });
+  if (open) {
+    const entry = await stopTrackerEntry({ key: "segufix", user: auth.user, notes: values.get("note") || values.get("notes") || "" });
+    return NextResponse.json({ ok: true, action: "stopped", entry });
+  }
+  const entry = await startTrackerEntry({
+    key: "segufix",
+    user: auth.user,
+    startTime: dateFromValue(values.get("startTime")) || undefined,
+    notes: values.get("note") || values.get("notes") || "Per API gestartet"
+  });
+  return NextResponse.json({ ok: true, action: "started", entry });
 }
 
 export async function GET(request: NextRequest) {

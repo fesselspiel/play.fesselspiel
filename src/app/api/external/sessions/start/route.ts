@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logAction } from "@/lib/audit";
-import { minutesBetween } from "@/lib/dates";
-import { apiFeatureGate, dateFromValue, oneOf, requestValues, requireApiUser } from "@/lib/external-api";
-import { prisma } from "@/lib/prisma";
-import { uniqueSessionSlug } from "@/lib/session-slug";
+import { apiFeatureGate, dateFromValue, requestValues, requireApiUser } from "@/lib/external-api";
+import { startTrackerEntry } from "@/lib/tracker-core";
 
 export const runtime = "nodejs";
 
@@ -13,52 +11,23 @@ async function startSession(request: NextRequest) {
   const blocked = apiFeatureGate(auth.user, "externalApi", "tracker.segufix");
   if (blocked) return blocked;
   const values = await requestValues(request);
-  const open = await prisma.segufixSession.findFirst({ where: { tenantId: auth.user.tenantId || undefined, ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } });
-  const autoClosedAt = new Date();
-  const closedSession = open
-    ? await prisma.segufixSession.update({
-        where: { id: open.id },
-        data: {
-          endTime: autoClosedAt,
-          durationMinutes: minutesBetween(open.startTime, autoClosedAt),
-          notes: [open.notes, "Automatisch beendet, weil per API eine neue Session gestartet wurde."].filter(Boolean).join("\n")
-        }
-      })
-    : null;
-  if (closedSession) {
-    await logAction({
-      actorId: auth.user.id,
-      action: "session_auto_closed",
-      entityType: "session",
-      entityId: closedSession.id,
-      title: "Offene Session automatisch beendet",
-      href: closedSession.slug ? `/sessions/${closedSession.slug}` : null,
-      details: { reason: "Neue Session per API gestartet" }
-    });
-  }
-  const startTime = dateFromValue(values.get("startTime")) || new Date();
-  const moodBefore = oneOf(values.get("moodBefore"), ["NEEDS_WORK", "OKAY", "NEUTRAL", "PLEASANT", "VERY_PLEASANT"] as const);
-  const notes = [values.get("note") || values.get("notes") || "Per API gestartet", values.get("moodBeforeText") ? `Vorher: ${values.get("moodBeforeText")}` : ""].filter(Boolean).join("\n");
-  const session = await prisma.segufixSession.create({
-    data: {
-      ownerId: auth.user.id,
-      tenantId: auth.user.tenantId || undefined,
-      slug: await uniqueSessionSlug(startTime, undefined, auth.user.tenantId),
-      startTime,
-      notes,
-      moodBefore,
-      moodBeforeText: null
-    }
+  const entry = await startTrackerEntry({
+    key: "segufix",
+    user: auth.user,
+    startTime: dateFromValue(values.get("startTime")) || undefined,
+    notes: values.get("note") || values.get("notes") || "Per API gestartet",
+    fieldValues: { moodBefore: values.get("moodBefore") || null }
   });
+  if (!entry) return NextResponse.json({ ok: false, error: "Tracker nicht gefunden" }, { status: 404 });
   await logAction({
     actorId: auth.user.id,
-    action: "session_started_api",
-    entityType: "session",
-    entityId: session.id,
-    title: "Session per API gestartet",
-    href: session.slug ? `/sessions/${session.slug}` : null
+    action: "tracker_segufix_started_api",
+    entityType: "trackerEntry",
+    entityId: entry.id,
+    title: "Segufix per API gestartet",
+    href: `/trackers/segufix/${entry.slug || entry.id}`
   });
-  return NextResponse.json({ ok: true, action: closedSession ? "closed_and_started" : "started", closedSession, session });
+  return NextResponse.json({ ok: true, action: "started", entry });
 }
 
 export async function GET(request: NextRequest) {

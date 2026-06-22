@@ -819,3 +819,25 @@ Details:
 
 - Für Admin-Seiten gibt es einen Redirect-Helper, der bei fehlendem Login zur Loginseite und bei fehlender Adminrolle zur Startseite weiterleitet.
 - Die E-Mail-Einstellungsseite nutzt diesen Helper im Page-Render, damit nicht angemeldete Aufrufe keinen Server-Digest mehr erzeugen.
+
+## Telegram-Bots pro Seite und Benutzer
+
+- Telegram-Konfigurationen hängen jetzt an der aktuellen Seite statt nur am Benutzer.
+- Jede Seite hat einen Standard-Bot mit eigenem Token, eigenem OpenAI-Key, eigenen aktiven Chats, eigenen bekannten Telegram-Benutzern und eigenen Aktionsregeln.
+- Zusätzlich können Admins weitere Seitenbots anlegen, aktivieren/deaktivieren, löschen und jeweils mit eigenem Webhook betreiben.
+- Jeder Benutzer kann in derselben Seite zusätzlich einen persönlichen Bot mit eigenem Token, Webhook und Chat-Erkennung speichern.
+- Webhooks zeigen auf `/api/telegram/webhook?tenantTelegramSettingsId=<bot-id>`, damit eingehende Telegram-Updates eindeutig dem richtigen Seiten- oder Benutzerbot zugeordnet werden.
+- Aktive Kanäle und Telegram-Aktionsregeln können Chats aus Standardbot, persönlichen Bots und zusätzlichen Seitenbots verwenden.
+- Die alte benutzerbasierte Telegram-Konfiguration bleibt als Kompatibilitätsschicht für bestehende Daten erhalten, neue Token sollen aber pro Seite bzw. pro persönlichem Bot eingetragen werden.
+
+## Tracker-Kontingente, Chronik und externe Pushes
+
+- Segufix und KG werden für neue Start-/Stop-/API-/Telegram-Aktionen als normale `TrackerEntry`-Datensätze unter den Tracker-Typen `segufix` und `kg` gespeichert.
+- Die Tracker-Zentrale `/sessions` rendert alle sichtbaren Tracker generisch mit Jahresübersicht, laufenden Einträgen, Historie und Erfassungsformular.
+- Tracker-Typen haben Kontingente: täglich und wöchentlich in Minuten, monatlich in Tagen und Minuten.
+- Die Startseite zeigt offene Tracker-Kontingente als `Tracker-Todos` mit Fortschritt, Restwert und Link zur Tracker-Zentrale.
+- `GET /api/external/trackers/quotas` liefert Kontingentstatus per Bearer-Token für Alexa/ioBroker/andere externe Systeme.
+- Der Docker-Service `cron` ruft alle 15 Minuten `/api/cron/trackers` auf. Der Endpoint erzeugt `tracker_quota_reminder`-Protokolleinträge, wenn Kontingente offen sind.
+- Externe Push-Regeln stehen im Protokoll unter `Externe Push-Regeln`. Sie senden Protokollereignisse per HTTP-Webhooks an ioBroker, Node-RED, Home Assistant oder eine MQTT-Bridge.
+- Externe Pushes schreiben ein eigenes Versandprotokoll und zusätzlich normale Protokolleinträge `external_push_sent` oder `external_push_failed` mit Ziel-URL, Statuscode und gekürztem Payload zur Fehlersuche.
+- Test-Pushes schreiben ebenfalls normale Protokolleinträge mit URL, Methode, Statuscode, gekürztem Payload und Fehlertext, damit Webhook-/MQTT-/ioBroker-Probleme direkt im Protokoll nachvollziehbar sind.

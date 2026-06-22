@@ -1,11 +1,11 @@
 import OpenAI from "openai";
 import { env } from "@/lib/env";
 import { decryptSecret } from "@/lib/crypto";
-import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
+import { formatDateTime, formatMinutes } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
-import { uniqueSessionSlug } from "@/lib/session-slug";
 import { telegramHtml, telegramLink } from "@/lib/telegram";
+import { startTrackerEntry, stopTrackerEntry } from "@/lib/tracker-core";
 
 type PortalAgentInput = {
   userId: string;
@@ -346,8 +346,8 @@ async function getPortalStatus(userId: string): Promise<ToolCallResult> {
     prisma.toy.count({ where: { ...tenantScope, ownerId: userId } }),
     prisma.position.count({ where: { ...tenantScope, ownerId: userId } }),
     prisma.activityPlan.count({ where: { ...tenantScope, ownerId: userId, category: { notIn: ["IDEA_COLLECTION", "SELF_BONDAGE_ORDER"] }, status: { in: ["REQUESTED", "PLANNED"] } } }),
-    prisma.segufixSession.findMany({ where: { ...tenantScope, ownerId: userId, startTime: { gte: yearStart } } }),
-    prisma.segufixSession.findFirst({ where: { ...tenantScope, ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } })
+    prisma.trackerEntry.findMany({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, startTime: { gte: yearStart } } }),
+    prisma.trackerEntry.findFirst({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, endTime: null }, orderBy: { startTime: "desc" } })
   ]);
   const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
   return {
@@ -406,8 +406,8 @@ async function searchPortal(userId: string, args: Record<string, unknown>): Prom
     }));
   }
   if (area === "all" || area === "sessions") {
-    const sessions = await prisma.segufixSession.findMany({
-      where: { ...tenantScope, ownerId: userId, ...(query ? { notes: contains(query) } : {}) },
+    const sessions = await prisma.trackerEntry.findMany({
+      where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, ...(query ? { notes: contains(query) } : {}) },
       orderBy: { startTime: "desc" },
       take: 8
     });
@@ -521,84 +521,47 @@ async function setActivityStatus(userId: string, args: Record<string, unknown>):
 
 async function startSession(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   const tenantId = await tenantIdForUser(userId);
-  const open = await prisma.segufixSession.findFirst({ where: { ...(tenantId ? { tenantId } : {}), ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
+  const open = await prisma.trackerEntry.findFirst({ where: { ...(tenantId ? { tenantId } : {}), ownerId: userId, trackerType: { key: "segufix" }, endTime: null }, orderBy: { startTime: "desc" } });
   if (open) return { ok: false, message: `Es läuft bereits eine Session seit ${formatDateTime(open.startTime)}.` };
   const moodBefore = clean(args.moodBefore) || undefined;
-  const startTime = new Date();
-  const session = await prisma.segufixSession.create({
-    data: {
-      ownerId: userId,
-      tenantId,
-      slug: await uniqueSessionSlug(startTime, undefined, tenantId),
-      startTime,
-      notes: clean(args.note) || "Per Telegram-Agent gestartet",
-      moodBefore: moodBefore as never,
-      moodBeforeText: ""
-    }
+  const session = await startTrackerEntry({
+    key: "segufix",
+    user: { id: userId, tenantId },
+    notes: clean(args.note) || "Per Telegram-Agent gestartet",
+    fieldValues: { moodBefore }
   });
-  return { ok: true, message: `Session gestartet: ${formatDateTime(session.startTime)}`, data: { url: link(`/sessions/${session.slug}`) } };
+  if (!session) return { ok: false, message: "Segufix-Tracker ist nicht aktiv." };
+  return { ok: true, message: `Session gestartet: ${formatDateTime(session.startTime)}`, data: { url: link(`/trackers/segufix/${session.slug || session.id}`) } };
 }
 
 async function stopSession(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   const tenantId = await tenantIdForUser(userId);
-  const session = await prisma.segufixSession.findFirst({ where: { ...(tenantId ? { tenantId } : {}), ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
-  if (!session) return { ok: false, message: "Keine laufende Session gefunden." };
-  const endTime = new Date();
-  const durationMinutes = minutesBetween(session.startTime, endTime);
   const moodAfter = clean(args.moodAfter) || undefined;
-  const updated = await prisma.segufixSession.update({
-    where: { id: session.id },
-    data: {
-      endTime,
-      durationMinutes,
-      notes: [session.notes, clean(args.note)].filter(Boolean).join("\n"),
-      moodAfter: moodAfter as never,
-      moodAfterText: ""
-    }
+  const updated = await stopTrackerEntry({
+    key: "segufix",
+    user: { id: userId, tenantId },
+    notes: [clean(args.note), moodAfter ? `Stimmung nachher: ${moodAfter}` : ""].filter(Boolean).join("\n")
   });
+  if (!updated) return { ok: false, message: "Keine laufende Session gefunden." };
   return { ok: true, message: `Session beendet: ${formatMinutes(updated.durationMinutes)}` };
 }
 
 async function startKgTracker(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   const tenantId = await tenantIdForUser(userId);
-  const open = await prisma.kgSession.findFirst({ where: { ...(tenantId ? { tenantId } : {}), ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
-  const startTime = new Date();
-  if (open) {
-    await prisma.kgSession.update({
-      where: { id: open.id },
-      data: {
-        endTime: startTime,
-        durationMinutes: minutesBetween(open.startTime, startTime),
-        notes: [open.notes, "Automatisch beendet, weil ein neuer KG-Tracker gestartet wurde."].filter(Boolean).join("\n")
-      }
-    });
-  }
-  const session = await prisma.kgSession.create({
-    data: {
-      ownerId: userId,
-      tenantId,
-      startTime,
-      notes: clean(args.note) || "Per Telegram-Agent gestartet"
-    }
+  const session = await startTrackerEntry({
+    key: "kg",
+    user: { id: userId, tenantId },
+    notes: clean(args.note) || "Per Telegram-Agent gestartet"
   });
-  return { ok: true, message: `KG-Tracker gestartet: ${formatDateTime(session.startTime)}`, data: { url: link("/sessions?tracker=kg") } };
+  if (!session) return { ok: false, message: "KG-Tracker ist nicht aktiv." };
+  return { ok: true, message: `KG-Tracker gestartet: ${formatDateTime(session.startTime)}`, data: { url: link(`/trackers/kg/${session.slug || session.id}`) } };
 }
 
 async function stopKgTracker(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   const tenantId = await tenantIdForUser(userId);
-  const session = await prisma.kgSession.findFirst({ where: { ...(tenantId ? { tenantId } : {}), ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
-  if (!session) return { ok: false, message: "Kein laufender KG-Tracker gefunden." };
-  const endTime = new Date();
-  const durationMinutes = minutesBetween(session.startTime, endTime);
-  const updated = await prisma.kgSession.update({
-    where: { id: session.id },
-    data: {
-      endTime,
-      durationMinutes,
-      notes: [session.notes, clean(args.note)].filter(Boolean).join("\n")
-    }
-  });
-  return { ok: true, message: `KG-Tracker beendet: ${formatMinutes(updated.durationMinutes)}`, data: { url: link("/sessions?tracker=kg") } };
+  const updated = await stopTrackerEntry({ key: "kg", user: { id: userId, tenantId }, notes: clean(args.note) });
+  if (!updated) return { ok: false, message: "Kein laufender KG-Tracker gefunden." };
+  return { ok: true, message: `KG-Tracker beendet: ${formatMinutes(updated.durationMinutes)}`, data: { url: link(`/trackers/kg/${updated.slug || updated.id}`) } };
 }
 
 async function runTool(userId: string, name: string, args: Record<string, unknown>): Promise<ToolCallResult> {

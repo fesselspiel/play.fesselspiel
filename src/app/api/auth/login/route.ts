@@ -5,6 +5,7 @@ import { logAction, userDisplayName } from "@/lib/audit";
 import { formatDateTime } from "@/lib/dates";
 import { sendTemplateEmail } from "@/lib/email";
 import { env } from "@/lib/env";
+import { prisma } from "@/lib/prisma";
 
 const LoginSchema = z.object({
   identifier: z.string().min(1),
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ error: "Login fehlgeschlagen" }, { status: 401 });
   }
+  await prisma.user.update({ where: { id: result.user.id }, data: { lastLoginAt: new Date() } });
   await logAction({
     actorId: result.user.id,
     action: "login",

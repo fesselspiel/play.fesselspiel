@@ -4,14 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { answerWithPortalAgent } from "@/lib/telegram-agent";
 import { handleItemCreationDialogue, handleItemCreationImage, startAlbumCreationDialogue, startToyCreationDialogue } from "@/lib/telegram-item-dialogue";
-import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
+import { formatDateTime, formatMinutes } from "@/lib/dates";
 import { logAction } from "@/lib/audit";
 import { createSessionHistoryForCompletedOrder, isSelfBondageOrder, selfBondageCategory } from "@/lib/activity-orders";
 import { fileAssetUrl, saveFileBuffer } from "@/lib/files";
 import { downloadTelegramFile, largestTelegramPhoto, sendTelegramMessage, telegramHtml, telegramLink, transcribeTelegramVoice } from "@/lib/telegram";
 import type { TelegramChatMemberUpdate, TelegramMessage, TelegramUpdate, TelegramUser } from "@/lib/telegram";
-import { uniqueSessionSlug } from "@/lib/session-slug";
 import { uniqueSlug } from "@/lib/slug";
+import { startTrackerEntry, stopTrackerEntry } from "@/lib/tracker-core";
 
 type TelegramMessageFrom = TelegramMessage["from"];
 
@@ -94,8 +94,8 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
       prisma.toy.count({ where: { ...tenantScope, ownerId: userId } }),
       prisma.position.count({ where: { ...tenantScope, ownerId: userId } }),
       prisma.activityPlan.count({ where: { ...tenantScope, ownerId: userId, category: { not: "IDEA_COLLECTION" }, status: { in: ["REQUESTED", "PLANNED"] } } }),
-      prisma.segufixSession.count({ where: { ...tenantScope, ownerId: userId } }),
-      prisma.kgSession.count({ where: { ...tenantScope, ownerId: userId } })
+      prisma.trackerEntry.count({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" } } }),
+      prisma.trackerEntry.count({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "kg" } } })
     ]);
     return ["<b>Portalstatus</b>", htmlLine("Spielzeuge", toys), htmlLine("Szenen", positions), htmlLine("Geplante Aktivitäten", activities), htmlLine("Segufix-Sessions", sessions), htmlLine("KG-Einträge", kgSessions)].join("\n");
   }
@@ -275,19 +275,19 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   if (parsed.command === "/sessions") {
     const now = new Date();
     const yearStart = new Date(now.getFullYear(), 0, 1);
-    const sessions = await prisma.segufixSession.findMany({ where: { ...tenantScope, ownerId: userId, startTime: { gte: yearStart } } });
+    const sessions = await prisma.trackerEntry.findMany({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, startTime: { gte: yearStart } } });
     const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
     const open = sessions.filter((session) => !session.endTime).length;
-    return [`<b>Sessions ${now.getFullYear()}</b>`, htmlLine("Anzahl", sessions.length), htmlLine("Gesamtdauer", formatMinutes(total)), htmlLine("Offen", open)].join("\n");
+    return [`<b>Segufix ${now.getFullYear()}</b>`, htmlLine("Anzahl", sessions.length), htmlLine("Gesamtdauer", formatMinutes(total)), htmlLine("Offen", open), telegramLink(`${env.appUrl}/sessions`, "Tracker öffnen")].join("\n");
   }
 
   if (parsed.command === "/kg") {
     const now = new Date();
     const yearStart = new Date(now.getFullYear(), 0, 1);
-    const sessions = await prisma.kgSession.findMany({ where: { ...tenantScope, ownerId: userId, startTime: { gte: yearStart } } });
+    const sessions = await prisma.trackerEntry.findMany({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "kg" }, startTime: { gte: yearStart } } });
     const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
     const open = sessions.filter((session) => !session.endTime).length;
-    return [`<b>KG Time Tracker ${now.getFullYear()}</b>`, htmlLine("Einträge", sessions.length), htmlLine("Gesamtzeit", formatMinutes(total)), htmlLine("Offen", open), telegramLink(`${env.appUrl}/sessions?tracker=kg`, "KG Tracker öffnen")].join("\n");
+    return [`<b>KG Time Tracker ${now.getFullYear()}</b>`, htmlLine("Einträge", sessions.length), htmlLine("Gesamtzeit", formatMinutes(total)), htmlLine("Offen", open), telegramLink(`${env.appUrl}/sessions`, "Tracker öffnen")].join("\n");
   }
 
   if (parsed.command === "/album_new" || parsed.command === "/album") {
@@ -295,110 +295,114 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   }
 
   if (parsed.command === "/session_start") {
-    const open = await prisma.segufixSession.findFirst({ where: { ...tenantScope, ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
+    const open = await prisma.trackerEntry.findFirst({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, endTime: null }, orderBy: { startTime: "desc" } });
     if (open) return `Es läuft bereits eine Session seit ${formatDateTime(open.startTime)}. Beende sie mit /session_stop.`;
-    const startTime = new Date();
-    const session = await prisma.segufixSession.create({
-      data: {
-        ownerId: userId,
-        tenantId,
-        slug: await uniqueSessionSlug(startTime, undefined, tenantId),
-        startTime,
-        notes: parsed.args || "Per Telegram gestartet"
-      }
+    const session = await startTrackerEntry({
+      key: "segufix",
+      user: { id: userId, tenantId },
+      notes: parsed.args || "Per Telegram gestartet"
     });
-    return [`Session gestartet: ${formatDateTime(session.startTime)}`, telegramLink(`${env.appUrl}/sessions/${session.slug}`, "Session öffnen")].join("\n");
+    if (!session) return "Segufix-Tracker ist nicht aktiv.";
+    await logAction({
+      actorId: userId,
+      action: "tracker_segufix_started_telegram",
+      entityType: "trackerEntry",
+      entityId: session.id,
+      title: "Segufix per Telegram gestartet",
+      href: `/trackers/segufix/${session.slug || session.id}`
+    });
+    return [`Session gestartet: ${formatDateTime(session.startTime)}`, telegramLink(`${env.appUrl}/trackers/segufix/${session.slug || session.id}`, "Session öffnen")].join("\n");
   }
 
   if (parsed.command === "/session_stop") {
-    const session = await prisma.segufixSession.findFirst({ where: { ...tenantScope, ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
-    if (!session) return "Keine laufende Session gefunden.";
-    const endTime = new Date();
-    const durationMinutes = minutesBetween(session.startTime, endTime);
-    await prisma.segufixSession.update({
-      where: { id: session.id },
-      data: {
-        endTime,
-        durationMinutes,
-        notes: [session.notes, parsed.args].filter(Boolean).join("\n")
-      }
+    const updated = await stopTrackerEntry({ key: "segufix", user: { id: userId, tenantId }, notes: parsed.args });
+    if (!updated) return "Keine laufende Session gefunden.";
+    await logAction({
+      actorId: userId,
+      action: "tracker_segufix_stopped_telegram",
+      entityType: "trackerEntry",
+      entityId: updated.id,
+      title: "Segufix per Telegram beendet",
+      href: `/trackers/segufix/${updated.slug || updated.id}`
     });
-    return `Session beendet: ${formatMinutes(durationMinutes)}`;
+    return `Session beendet: ${formatMinutes(updated.durationMinutes)}`;
   }
 
   if (parsed.command === "/kg_start") {
-    const open = await prisma.kgSession.findFirst({ where: { ...tenantScope, ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
-    const startTime = new Date();
-    if (open) {
-      await prisma.kgSession.update({
-        where: { id: open.id },
-        data: {
-          endTime: startTime,
-          durationMinutes: minutesBetween(open.startTime, startTime),
-          notes: [open.notes, "Automatisch beendet, weil ein neuer KG-Tracker gestartet wurde."].filter(Boolean).join("\n")
-        }
-      });
-    }
-    const session = await prisma.kgSession.create({
-      data: {
-        ownerId: userId,
-        tenantId,
-        startTime,
-        notes: parsed.args || "Per Telegram gestartet"
-      }
+    const session = await startTrackerEntry({
+      key: "kg",
+      user: { id: userId, tenantId },
+      notes: parsed.args || "Per Telegram gestartet"
     });
+    if (!session) return "KG-Tracker ist nicht aktiv.";
     await logAction({
       actorId: userId,
-      action: "kg_started_telegram",
-      entityType: "kgSession",
+      action: "tracker_kg_started_telegram",
+      entityType: "trackerEntry",
       entityId: session.id,
-      title: "KG-Tracker per Telegram gestartet",
-      href: "/sessions?tracker=kg"
+      title: "KG per Telegram gestartet",
+      href: `/trackers/kg/${session.slug || session.id}`
     });
-    return [`<b>KG-Tracker gestartet</b>`, htmlLine("Start", formatDateTime(session.startTime)), telegramLink(`${env.appUrl}/sessions?tracker=kg`, "KG Tracker öffnen")].join("\n");
+    return [`<b>KG-Tracker gestartet</b>`, htmlLine("Start", formatDateTime(session.startTime)), telegramLink(`${env.appUrl}/trackers/kg/${session.slug || session.id}`, "KG Tracker öffnen")].join("\n");
   }
 
   if (parsed.command === "/kg_stop") {
-    const session = await prisma.kgSession.findFirst({ where: { ...tenantScope, ownerId: userId, endTime: null }, orderBy: { startTime: "desc" } });
-    if (!session) return "Kein laufender KG-Tracker gefunden.";
-    const endTime = new Date();
-    const durationMinutes = minutesBetween(session.startTime, endTime);
-    const updated = await prisma.kgSession.update({
-      where: { id: session.id },
-      data: {
-        endTime,
-        durationMinutes,
-        notes: [session.notes, parsed.args].filter(Boolean).join("\n")
-      }
-    });
+    const updated = await stopTrackerEntry({ key: "kg", user: { id: userId, tenantId }, notes: parsed.args });
+    if (!updated) return "Kein laufender KG-Tracker gefunden.";
     await logAction({
       actorId: userId,
-      action: "kg_stopped_telegram",
-      entityType: "kgSession",
+      action: "tracker_kg_stopped_telegram",
+      entityType: "trackerEntry",
       entityId: updated.id,
-      title: "KG-Tracker per Telegram beendet",
-      href: "/sessions?tracker=kg"
+      title: "KG per Telegram beendet",
+      href: `/trackers/kg/${updated.slug || updated.id}`
     });
-    return [`<b>KG-Tracker beendet</b>`, htmlLine("Dauer", formatMinutes(durationMinutes)), telegramLink(`${env.appUrl}/sessions?tracker=kg`, "KG Tracker öffnen")].join("\n");
+    return [`<b>KG-Tracker beendet</b>`, htmlLine("Dauer", formatMinutes(updated.durationMinutes)), telegramLink(`${env.appUrl}/trackers/kg/${updated.slug || updated.id}`, "KG Tracker öffnen")].join("\n");
   }
 
   return `Unbekannter Befehl: ${parsed.command}\n\n${HELP_TEXT}`;
 }
 
-async function findActiveTelegramChat(chatId: string, threadId: string | null) {
-  const include = { settings: { include: { user: true, telegramUserMappings: { include: { appUser: true } } } } } as const;
+async function findActiveTelegramChat(chatId: string, threadId: string | null, hints: { userSettingsId?: string | null; tenantTelegramSettingsId?: string | null } = {}) {
+  const include = {
+    settings: { include: { user: true, telegramUserMappings: { include: { appUser: true } } } },
+    telegramSettings: { include: { telegramUserMappings: { include: { appUser: true } } } }
+  } as const;
   return prisma.telegramChat.findFirst({
-    where: { chatId, threadId, status: "ACTIVE" },
+    where: {
+      chatId,
+      threadId,
+      status: "ACTIVE",
+      ...(hints.tenantTelegramSettingsId ? { telegramSettingsId: hints.tenantTelegramSettingsId } : {}),
+      ...(hints.userSettingsId ? { settingsId: hints.userSettingsId, telegramSettingsId: null } : {})
+    },
     include
   });
 }
 
-async function findKnownTelegramChatInGroup(chatId: string) {
+async function findKnownTelegramChatInGroup(chatId: string, hints: { userSettingsId?: string | null; tenantTelegramSettingsId?: string | null } = {}) {
   return prisma.telegramChat.findFirst({
-    where: { chatId, status: { in: ["ACTIVE", "PENDING"] } },
-    include: { settings: true },
+    where: {
+      chatId,
+      status: { in: ["ACTIVE", "PENDING"] },
+      ...(hints.tenantTelegramSettingsId ? { telegramSettingsId: hints.tenantTelegramSettingsId } : {}),
+      ...(hints.userSettingsId ? { settingsId: hints.userSettingsId, telegramSettingsId: null } : {})
+    },
+    include: { settings: true, telegramSettings: true },
     orderBy: [{ status: "asc" }, { updatedAt: "desc" }]
   });
+}
+
+function chatBotTokenEnc(chat: Awaited<ReturnType<typeof findActiveTelegramChat>>) {
+  return chat?.telegramSettings?.telegramBotTokenEnc || chat?.settings.telegramBotTokenEnc || "";
+}
+
+function chatOpenAiKeyEnc(chat: Awaited<ReturnType<typeof findActiveTelegramChat>>) {
+  return chat?.telegramSettings?.openAiApiKeyEnc || chat?.settings.openAiApiKeyEnc || "";
+}
+
+function chatTelegramMappings(chat: Awaited<ReturnType<typeof findActiveTelegramChat>>) {
+  return chat?.telegramSettings?.telegramUserMappings || chat?.settings.telegramUserMappings || [];
 }
 
 function mappedTelegramUserId(
@@ -407,11 +411,11 @@ function mappedTelegramUserId(
 ) {
   const normalized = String(from?.username || "").trim().replace(/^@+/, "").toLowerCase();
   const telegramUserId = from?.id ? String(from.id) : "";
-  if (!chat || (!normalized && !telegramUserId)) return chat?.settings.userId || "";
-  const mapping = chat.settings.telegramUserMappings.find((entry) =>
+  if (!chat || (!normalized && !telegramUserId)) return chat?.targetUserId || chat?.settings.userId || "";
+  const mapping = chatTelegramMappings(chat).find((entry) =>
     entry.appUser.active && ((telegramUserId && entry.telegramUserId === telegramUserId) || (normalized && entry.telegramUsername === normalized))
   );
-  return mapping?.appUserId || chat.settings.userId;
+  return mapping?.appUserId || chat.targetUserId || chat.settings.userId;
 }
 
 function telegramUserDetails(from?: TelegramMessageFrom | TelegramUser) {
@@ -426,7 +430,9 @@ function telegramUserDetails(from?: TelegramMessageFrom | TelegramUser) {
 async function rememberTelegramKnownUser(chat: Awaited<ReturnType<typeof findActiveTelegramChat>>, from?: TelegramMessageFrom) {
   if (!chat || !from?.id) return;
   await prisma.telegramKnownUser.upsert({
-    where: { settingsId_telegramUserId: { settingsId: chat.settingsId, telegramUserId: String(from.id) } },
+    where: chat.telegramSettingsId
+      ? { telegramSettingsId_telegramUserId: { telegramSettingsId: chat.telegramSettingsId, telegramUserId: String(from.id) } }
+      : { settingsId_telegramUserId: { settingsId: chat.settingsId, telegramUserId: String(from.id) } },
     update: {
       telegramUsername: from.username ? from.username.toLowerCase() : null,
       firstName: from.first_name || null,
@@ -439,6 +445,7 @@ async function rememberTelegramKnownUser(chat: Awaited<ReturnType<typeof findAct
     },
     create: {
       settingsId: chat.settingsId,
+      telegramSettingsId: chat.telegramSettingsId,
       telegramUserId: String(from.id),
       telegramUsername: from.username ? from.username.toLowerCase() : null,
       firstName: from.first_name || null,
@@ -455,13 +462,15 @@ async function rememberTelegramKnownUser(chat: Awaited<ReturnType<typeof findAct
 async function rememberTelegramKnownUserForSettings(
   settingsId: string,
   from?: TelegramMessageFrom | TelegramUser,
-  options: { source?: string; membershipStatus?: string; chatId?: string | null; chatTitle?: string | null } = {}
+  options: { source?: string; membershipStatus?: string; chatId?: string | null; chatTitle?: string | null; telegramSettingsId?: string | null } = {}
 ) {
   if (!from?.id) return;
   const membershipStatus = options.membershipStatus || "ACTIVE";
   const source = options.source || "MESSAGE";
   await prisma.telegramKnownUser.upsert({
-    where: { settingsId_telegramUserId: { settingsId, telegramUserId: String(from.id) } },
+    where: options.telegramSettingsId
+      ? { telegramSettingsId_telegramUserId: { telegramSettingsId: options.telegramSettingsId, telegramUserId: String(from.id) } }
+      : { settingsId_telegramUserId: { settingsId, telegramUserId: String(from.id) } },
     update: {
       telegramUsername: from.username ? from.username.toLowerCase() : null,
       firstName: from.first_name || null,
@@ -474,6 +483,7 @@ async function rememberTelegramKnownUserForSettings(
     },
     create: {
       settingsId,
+      telegramSettingsId: options.telegramSettingsId || null,
       telegramUserId: String(from.id),
       telegramUsername: from.username ? from.username.toLowerCase() : null,
       firstName: from.first_name || null,
@@ -493,9 +503,9 @@ function membershipStatusFromTelegram(status?: string) {
   return "ACTIVE";
 }
 
-async function handleChatMemberUpdate(memberUpdate: TelegramChatMemberUpdate, updateType: "chat_member" | "my_chat_member") {
+async function handleChatMemberUpdate(memberUpdate: TelegramChatMemberUpdate, updateType: "chat_member" | "my_chat_member", hints: { userSettingsId?: string | null; tenantTelegramSettingsId?: string | null } = {}) {
   const chatId = String(memberUpdate.chat.id);
-  const knownGroupChat = await findKnownTelegramChatInGroup(chatId);
+  const knownGroupChat = await findKnownTelegramChatInGroup(chatId, hints);
   if (!knownGroupChat) return NextResponse.json({ ok: true, ignored: true });
   const member = memberUpdate.new_chat_member?.user;
   if (!member?.id || member.is_bot) return NextResponse.json({ ok: true });
@@ -505,7 +515,8 @@ async function handleChatMemberUpdate(memberUpdate: TelegramChatMemberUpdate, up
     source,
     membershipStatus,
     chatId,
-    chatTitle: memberUpdate.chat.title || memberUpdate.chat.username || null
+    chatTitle: memberUpdate.chat.title || memberUpdate.chat.username || null,
+    telegramSettingsId: knownGroupChat.telegramSettingsId
   });
   const action = membershipStatus === "ACTIVE" ? "telegram_member_detected" : "telegram_member_left";
   await prisma.auditLog.create({
@@ -528,9 +539,9 @@ async function handleChatMemberUpdate(memberUpdate: TelegramChatMemberUpdate, up
   return NextResponse.json({ ok: true });
 }
 
-async function rememberTelegramServiceMembers(message: TelegramMessage) {
+async function rememberTelegramServiceMembers(message: TelegramMessage, hints: { userSettingsId?: string | null; tenantTelegramSettingsId?: string | null } = {}) {
   const chatId = String(message.chat.id);
-  const knownGroupChat = await findKnownTelegramChatInGroup(chatId);
+  const knownGroupChat = await findKnownTelegramChatInGroup(chatId, hints);
   if (!knownGroupChat) return false;
   const chatTitle = message.chat.title || message.chat.username || null;
   const addedMembers = message.new_chat_members?.filter((member) => member.id && !member.is_bot) || [];
@@ -540,7 +551,8 @@ async function rememberTelegramServiceMembers(message: TelegramMessage) {
       source: "MEMBER_SERVICE_MESSAGE",
       membershipStatus: "ACTIVE",
       chatId,
-      chatTitle
+      chatTitle,
+      telegramSettingsId: knownGroupChat.telegramSettingsId
     });
     await prisma.auditLog.create({
       data: {
@@ -564,7 +576,8 @@ async function rememberTelegramServiceMembers(message: TelegramMessage) {
       source: "MEMBER_SERVICE_MESSAGE",
       membershipStatus: "LEFT",
       chatId,
-      chatTitle
+      chatTitle,
+      telegramSettingsId: knownGroupChat.telegramSettingsId
     });
     await prisma.auditLog.create({
       data: {
@@ -587,22 +600,28 @@ async function rememberTelegramServiceMembers(message: TelegramMessage) {
 }
 
 export async function POST(request: Request) {
+  const webhookUrl = new URL(request.url);
+  const hints = {
+    userSettingsId: webhookUrl.searchParams.get("userSettingsId"),
+    tenantTelegramSettingsId: webhookUrl.searchParams.get("tenantTelegramSettingsId")
+  };
   const update = (await request.json()) as TelegramUpdate;
-  if (update.chat_member) return handleChatMemberUpdate(update.chat_member, "chat_member");
-  if (update.my_chat_member) return handleChatMemberUpdate(update.my_chat_member, "my_chat_member");
+  if (update.chat_member) return handleChatMemberUpdate(update.chat_member, "chat_member", hints);
+  if (update.my_chat_member) return handleChatMemberUpdate(update.my_chat_member, "my_chat_member", hints);
   const message = update.message || update.channel_post;
   if (!message) return NextResponse.json({ ok: true });
   if (message.new_chat_members?.length || message.left_chat_member) {
-    const handled = await rememberTelegramServiceMembers(message);
+    const handled = await rememberTelegramServiceMembers(message, hints);
     if (handled) return NextResponse.json({ ok: true });
   }
   const chatId = String(message.chat.id);
   const threadId = message.message_thread_id ? String(message.message_thread_id) : null;
-  const chat = await findActiveTelegramChat(chatId, threadId);
-  if (!chat?.settings.telegramBotTokenEnc) {
-    const knownGroupChat = await findKnownTelegramChatInGroup(chatId);
+  const chat = await findActiveTelegramChat(chatId, threadId, hints);
+  const tokenEnc = chatBotTokenEnc(chat);
+  if (!chat || !tokenEnc) {
+    const knownGroupChat = await findKnownTelegramChatInGroup(chatId, hints);
     if (knownGroupChat) {
-      await rememberTelegramKnownUserForSettings(knownGroupChat.settingsId, message.from);
+      await rememberTelegramKnownUserForSettings(knownGroupChat.settingsId, message.from, { telegramSettingsId: knownGroupChat.telegramSettingsId });
       await prisma.auditLog.create({
         data: {
           actorId: null,
@@ -630,7 +649,7 @@ export async function POST(request: Request) {
   const imageFileId = photo?.file_id || imageDocument?.file_id;
   if (imageFileId) {
     const downloaded = await downloadTelegramFile(
-      chat.settings.telegramBotTokenEnc,
+      tokenEnc,
       imageFileId,
       imageDocument?.file_name || `telegram-bild-${message.message_id}.jpg`,
       imageDocument?.mime_type || "image/jpeg"
@@ -702,7 +721,7 @@ export async function POST(request: Request) {
           ].join("\n");
         }));
 
-    await sendTelegramMessage(chat.settings.telegramBotTokenEnc, chatId, threadId, answer, { parseMode: "HTML", disableWebPagePreview: true });
+    await sendTelegramMessage(tokenEnc, chatId, threadId, answer, { parseMode: "HTML", disableWebPagePreview: true });
     await prisma.message.create({ data: { senderId: actorUserId, body: `Telegram-Agent: ${answer}` } });
     await logAction({
       actorId: actorUserId,
@@ -724,7 +743,7 @@ export async function POST(request: Request) {
 
   let body = message.text || message.caption || "";
   if (!body && message.voice?.file_id) {
-    body = await transcribeTelegramVoice(chat.settings.telegramBotTokenEnc, chat.settings.openAiApiKeyEnc, message.voice.file_id);
+    body = await transcribeTelegramVoice(tokenEnc, chatOpenAiKeyEnc(chat), message.voice.file_id);
   }
   if (body) {
     await prisma.message.create({ data: { senderId: actorUserId, body: `Telegram: ${body}` } });
@@ -751,9 +770,9 @@ export async function POST(request: Request) {
           text: body,
           chatId,
           threadId,
-          openAiKeyEnc: chat.settings.openAiApiKeyEnc
+          openAiKeyEnc: chatOpenAiKeyEnc(chat)
         }));
-    await sendTelegramMessage(chat.settings.telegramBotTokenEnc, chatId, threadId, answer, { parseMode: "HTML", disableWebPagePreview: true });
+    await sendTelegramMessage(tokenEnc, chatId, threadId, answer, { parseMode: "HTML", disableWebPagePreview: true });
     await prisma.message.create({ data: { senderId: actorUserId, body: `Telegram-Agent: ${answer}` } });
     await logAction({
       actorId: actorUserId,

@@ -6,6 +6,9 @@ export const knownAuditActions = [
   ["activity_requested_telegram", "Spielplan per Telegram angefragt"],
   ["idea_created", "Idee festgehalten"],
   ["idea_media_uploaded", "Bilder zur Idee hochgeladen"],
+  ["external_push_failed", "Externer Push fehlgeschlagen"],
+  ["external_push_sent", "Externer Push gesendet"],
+  ["feed_comment_created", "Feed kommentiert"],
   ["kg_auto_closed", "KG-Tracker automatisch geschlossen"],
   ["kg_created", "KG-Tracker angelegt"],
   ["kg_deleted", "KG-Tracker gelöscht"],
@@ -48,7 +51,21 @@ export const knownAuditActions = [
   ["telegram_message_ignored", "Telegram-Nachricht ignoriert"],
   ["telegram_message_received", "Telegram-Nachricht empfangen"],
   ["telegram_notification_failed", "Telegram-Benachrichtigung fehlgeschlagen"],
-  ["telegram_notification_sent", "Telegram-Benachrichtigung gesendet"]
+  ["telegram_notification_sent", "Telegram-Benachrichtigung gesendet"],
+  ["tracker_kg_started_api", "KG per API gestartet"],
+  ["tracker_kg_started_telegram", "KG per Telegram gestartet"],
+  ["tracker_kg_stopped", "KG beendet"],
+  ["tracker_kg_stopped_api", "KG per API beendet"],
+  ["tracker_kg_stopped_telegram", "KG per Telegram beendet"],
+  ["tracker_quota_reminder", "Tracker-Kontingent Erinnerung"],
+  ["tracker_segufix_created", "Segufix angelegt"],
+  ["tracker_segufix_started_api", "Segufix per API gestartet"],
+  ["tracker_segufix_started_telegram", "Segufix per Telegram gestartet"],
+  ["tracker_segufix_stopped", "Segufix beendet"],
+  ["tracker_segufix_stopped_api", "Segufix per API beendet"],
+  ["tracker_segufix_stopped_telegram", "Segufix per Telegram beendet"],
+  ["tracker_type_created", "Tracker angelegt"],
+  ["tracker_type_updated", "Tracker bearbeitet"]
 ] as const;
 
 export function actionLabel(action: string) {
@@ -93,6 +110,7 @@ export function actionLabel(action: string) {
     sync: "Sync",
     telegram: "Telegram",
     token: "Token",
+    tracker: "Tracker",
     updated: "bearbeitet",
     uploaded: "hochgeladen",
     user: "Benutzer",

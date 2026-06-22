@@ -6,6 +6,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { ThemePicker } from "@/components/theme-picker";
 import { Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
 import { currentUser } from "@/lib/auth";
+import { formatDateTime } from "@/lib/dates";
 import { sendEmailConfirmation } from "@/lib/email-confirmation";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
@@ -125,6 +126,9 @@ export default async function ProfilePage({ searchParams }: { searchParams?: { e
           <Field label="E-Mail-Adresse"><input className={inputClass} name="email" type="email" defaultValue={user.email || ""} required /></Field>
           <p className="rounded-md bg-paper px-3 py-2 text-sm text-graphite">
             {user.emailVerifiedAt ? `E-Mail bestätigt: ${user.email}` : "E-Mail noch nicht bestätigt. Wenn du die Adresse änderst, senden wir automatisch einen neuen Bestätigungslink."}
+          </p>
+          <p className="rounded-md bg-paper px-3 py-2 text-sm text-graphite">
+            {user.lastLoginAt ? `Letzter Login: ${formatDateTime(user.lastLoginAt)}` : "Noch kein Login gespeichert."}
           </p>
           {!user.emailVerifiedAt && user.email && !user.email.endsWith("@local.fesselspiel") ? (
             <SubmitButton formAction={resendOwnEmailConfirmation} formNoValidate pendingLabel="E-Mail wird gesendet..." className="bg-surface text-redbrand ring-1 ring-line hover:bg-redbrand hover:text-white">

@@ -31,7 +31,7 @@ type WebhookInfo = {
   };
 };
 
-export function TelegramChatDiscovery() {
+export function TelegramChatDiscovery({ scope = "tenant", botId }: { scope?: "tenant" | "user"; botId?: string }) {
   const [loading, setLoading] = useState(false);
   const [savingKey, setSavingKey] = useState("");
   const [error, setError] = useState("");
@@ -48,7 +48,9 @@ export function TelegramChatDiscovery() {
 
   async function loadWebhookInfo() {
     setError("");
-    const response = await fetch("/api/telegram/webhook-info", { cache: "no-store" });
+    const query = new URLSearchParams({ scope });
+    if (botId) query.set("botId", botId);
+    const response = await fetch(`/api/telegram/webhook-info?${query.toString()}`, { cache: "no-store" });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || "Webhook-Status konnte nicht gelesen werden.");
     setWebhookInfo(payload);
@@ -63,7 +65,7 @@ export function TelegramChatDiscovery() {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action })
+        body: JSON.stringify({ action, scope, botId })
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Webhook konnte nicht geändert werden.");
@@ -82,7 +84,9 @@ export function TelegramChatDiscovery() {
     setSaved("");
     try {
       await loadWebhookInfo();
-      const response = await fetch("/api/telegram/updates", { cache: "no-store" });
+      const query = new URLSearchParams({ scope });
+      if (botId) query.set("botId", botId);
+      const response = await fetch(`/api/telegram/updates?${query.toString()}`, { cache: "no-store" });
       const payload = await response.json();
       if (!response.ok) {
         const message = String(payload.error || "Telegram konnte nicht gelesen werden.");
@@ -121,7 +125,9 @@ export function TelegramChatDiscovery() {
           fromId: candidate.fromId,
           fromUsername: candidate.fromUsername,
           fromFirstName: candidate.fromFirstName,
-          fromLastName: candidate.fromLastName
+          fromLastName: candidate.fromLastName,
+          scope,
+          botId
         })
       });
       const payload = await response.json();

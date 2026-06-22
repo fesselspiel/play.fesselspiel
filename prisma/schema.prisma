@@ -86,6 +86,10 @@ model Tenant {
   shopifyIntegration ShopifyIntegration?
   shopifyProducts ShopifyProduct[]
   bondageSystemItems BondageSystemItem[]
+  telegramSettings TenantTelegramSettings[]
+  feedRules FeedRule[]
+  externalPushRules ExternalPushRule[]
+  externalPushLogs ExternalPushLog[]
 
   @@index([status])
 }
@@ -128,6 +132,7 @@ model User {
   role              Role            @default(USER)
   active            Boolean         @default(true)
   emailVerifiedAt   DateTime?
+  lastLoginAt       DateTime?
   rememberTokenHash String?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
@@ -154,7 +159,9 @@ model User {
   telegramMappings  TelegramUserMapping[] @relation("TelegramMappedAppUser")
   telegramNotificationTargets TelegramNotificationRule[] @relation("TelegramNotificationTargetUser")
   emailNotificationTargets EmailNotificationRule[] @relation("EmailNotificationTargetUser")
+  tenantTelegramBots TenantTelegramSettings[] @relation("TenantTelegramBotOwner")
   auditLogs         AuditLog[]
+  feedComments      FeedComment[]
   trackerEntries    TrackerEntry[]
   bondageSystemTargets BondageSystemItem[] @relation("BondageSystemTargetUser")
   emailConfirmationTokens EmailConfirmationToken[]
@@ -277,6 +284,31 @@ model UserSettings {
   user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model TenantTelegramSettings {
+  id                  String         @id @default(cuid())
+  tenantId            String
+  ownerId             String?
+  key                 String         @default("default")
+  name                String         @default("Standard-Bot")
+  scope               String         @default("TENANT")
+  active              Boolean        @default(true)
+  isDefault           Boolean        @default(false)
+  telegramBotTokenEnc String?
+  openAiApiKeyEnc     String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  tenant              Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner               User?          @relation("TenantTelegramBotOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  telegramChats       TelegramChat[]
+  telegramUserMappings TelegramUserMapping[]
+  telegramKnownUsers  TelegramKnownUser[]
+  telegramNotificationRules TelegramNotificationRule[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId, scope, active])
+  @@index([ownerId])
+}
+
 model ApiToken {
   id           String    @id @default(cuid())
   tenantId     String?
@@ -306,10 +338,74 @@ model AuditLog {
   href       String?
   createdAt  DateTime @default(now())
   actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  feedComments FeedComment[]
 
   @@index([actorId, createdAt])
   @@index([createdAt])
   @@index([entityType, entityId])
+}
+
+model FeedComment {
+  id        String   @id @default(cuid())
+  auditLogId String
+  authorId  String?
+  body      String
+  createdAt DateTime @default(now())
+  auditLog  AuditLog @relation(fields: [auditLogId], references: [id], onDelete: Cascade)
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([auditLogId, createdAt])
+  @@index([authorId, createdAt])
+}
+
+model FeedRule {
+  id            String   @id @default(cuid())
+  tenantId      String
+  action        String
+  titleTemplate String   @default("{title}")
+  bodyTemplate  String   @default("{actor} · {event}")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, action])
+  @@index([tenantId, active])
+  @@index([action])
+}
+
+model ExternalPushRule {
+  id             String   @id @default(cuid())
+  tenantId       String
+  action         String
+  name           String
+  url            String
+  method         String   @default("POST")
+  headersJson    Json     @default("{}")
+  payloadTemplate String  @default("{\"title\":\"{title}\",\"event\":\"{event}\",\"actor\":\"{actor}\",\"url\":\"{url}\",\"details\":{detailsJson}}")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, action, active])
+}
+
+model ExternalPushLog {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  ruleId     String?
+  action     String
+  url        String
+  status     String
+  statusCode Int?
+  error      String?
+  createdAt  DateTime @default(now())
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([action, createdAt])
+  @@index([status, createdAt])
 }
 
 model EmailSettings {
@@ -560,6 +656,11 @@ model TrackerType {
   enabled               Boolean        @default(true)
   allowOpenSession      Boolean        @default(true)
   autoCloseOpenSession  Boolean        @default(true)
+  quotaDailyMinutes     Int?
+  quotaWeeklyMinutes    Int?
+  quotaMonthlyDays      Int?
+  quotaMonthlyMinutes   Int?
+  quotaReminderEnabled  Boolean        @default(false)
   fields                Json           @default("[]")
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
@@ -723,6 +824,7 @@ model Message {
 model TelegramChat {
   id              String             @id @default(cuid())
   settingsId      String
+  telegramSettingsId String?
   targetUserId    String?
   targetCircleId  String?
   chatId          String
@@ -737,11 +839,14 @@ model TelegramChat {
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   settings        UserSettings       @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  telegramSettings TenantTelegramSettings? @relation(fields: [telegramSettingsId], references: [id], onDelete: Cascade)
   targetUser      User?              @relation("TelegramChatTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
   targetCircle    Circle?            @relation("TelegramChatTargetCircle", fields: [targetCircleId], references: [id], onDelete: SetNull)
   notificationRules TelegramNotificationRule[] @relation("TelegramNotificationOutputChat")
 
   @@unique([settingsId, chatId, threadId])
+  @@unique([telegramSettingsId, chatId, threadId])
+  @@index([telegramSettingsId])
   @@index([targetUserId])
   @@index([targetCircleId])
 }
@@ -749,15 +854,19 @@ model TelegramChat {
 model TelegramUserMapping {
   id               String       @id @default(cuid())
   settingsId       String
+  telegramSettingsId String?
   telegramUsername String
   telegramUserId   String?
   appUserId        String
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   settings         UserSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  telegramSettings TenantTelegramSettings? @relation(fields: [telegramSettingsId], references: [id], onDelete: Cascade)
   appUser          User         @relation("TelegramMappedAppUser", fields: [appUserId], references: [id], onDelete: Cascade)
 
   @@unique([settingsId, telegramUsername])
+  @@unique([telegramSettingsId, telegramUsername])
+  @@index([telegramSettingsId, telegramUserId])
   @@index([settingsId, telegramUserId])
   @@index([appUserId])
 }
@@ -765,6 +874,7 @@ model TelegramUserMapping {
 model TelegramKnownUser {
   id               String       @id @default(cuid())
   settingsId       String
+  telegramSettingsId String?
   telegramUserId   String
   telegramUsername String?
   firstName        String?
@@ -777,8 +887,12 @@ model TelegramKnownUser {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   settings         UserSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  telegramSettings TenantTelegramSettings? @relation(fields: [telegramSettingsId], references: [id], onDelete: Cascade)
 
   @@unique([settingsId, telegramUserId])
+  @@unique([telegramSettingsId, telegramUserId])
+  @@index([telegramSettingsId, telegramUsername])
+  @@index([telegramSettingsId, membershipStatus])
   @@index([settingsId, telegramUsername])
   @@index([settingsId, membershipStatus])
 }
@@ -786,6 +900,7 @@ model TelegramKnownUser {
 model TelegramNotificationRule {
   id             String       @id @default(cuid())
   settingsId     String
+  telegramSettingsId String?
   action         String
   targetUserId   String?
   targetCircleId String?
@@ -795,11 +910,13 @@ model TelegramNotificationRule {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   settings       UserSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  telegramSettings TenantTelegramSettings? @relation(fields: [telegramSettingsId], references: [id], onDelete: Cascade)
   targetUser     User?        @relation("TelegramNotificationTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
   targetCircle   Circle?      @relation("TelegramNotificationTargetCircle", fields: [targetCircleId], references: [id], onDelete: SetNull)
   outputChat     TelegramChat? @relation("TelegramNotificationOutputChat", fields: [outputChatId], references: [id], onDelete: SetNull)
 
   @@index([settingsId, action, active])
+  @@index([telegramSettingsId, action, active])
   @@index([targetUserId])
   @@index([targetCircleId])
   @@index([outputChatId])

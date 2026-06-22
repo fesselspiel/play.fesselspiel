@@ -7,5 +7,6 @@ export const env = {
   openAiApiKey: process.env.OPENAI_API_KEY || "",
   openAiTranscriptionModel: process.env.OPENAI_TRANSCRIPTION_MODEL || "whisper-1",
   emailSmtpHost: process.env.EMAIL_SMTP_HOST || "postfix",
-  emailSmtpPort: Number(process.env.EMAIL_SMTP_PORT || 25)
+  emailSmtpPort: Number(process.env.EMAIL_SMTP_PORT || 25),
+  cronSecret: process.env.CRON_SECRET || ""
 };

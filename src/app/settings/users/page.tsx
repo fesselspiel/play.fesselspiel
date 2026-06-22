@@ -503,6 +503,7 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
                     <span className="min-w-0">
                       <strong className="block truncate">{entry.profile?.displayName || entry.name || entry.email}</strong>
                       <span className="block truncate text-xs text-graphite">{entry.email}</span>
+                      <span className="block truncate text-xs text-graphite">{entry.lastLoginAt ? `Letzter Login: ${formatDateTime(entry.lastLoginAt)}` : "Noch kein Login"}</span>
                     </span>
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1">
@@ -525,6 +526,7 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
                       <p className="truncate text-sm text-graphite">{entry.email}</p>
                       <p className="truncate text-xs text-graphite">{entry.circle?.name || "Kein Kreis"}</p>
                       <p className="truncate text-xs text-graphite">{entry.emailVerifiedAt ? `E-Mail bestätigt: ${formatDateTime(entry.emailVerifiedAt)}` : "E-Mail noch nicht bestätigt"}</p>
+                      <p className="truncate text-xs text-graphite">{entry.lastLoginAt ? `Letzter Login: ${formatDateTime(entry.lastLoginAt)}` : "Noch kein Login"}</p>
                     </div>
                   </div>
                   <input className={inputClass} name="email" type="email" defaultValue={entry.email} required />

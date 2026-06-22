@@ -1,22 +1,25 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarDays, Lightbulb, Plus, ShieldCheck, Sparkles } from "lucide-react";
+import { CalendarDays, Lightbulb, MessageCircle, Newspaper, Plus, ShieldCheck, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, PageGuide, Panel, PageHeader } from "@/components/ui";
-import { ownerScope } from "@/lib/access";
+import { accessibleOwnerIds, ownerScope } from "@/lib/access";
 import { confirmRequestedActivity } from "@/lib/activity-actions";
 import { updateSelfBondageOrderStatus, selfBondageCategory } from "@/lib/activity-orders";
 import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { hasFeature } from "@/lib/features";
+import { fileAssetUrl } from "@/lib/files";
+import { feedDetailsText, renderFeedTemplate } from "@/lib/feed";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
-import { ensureSessionSlug } from "@/lib/session-slug";
-import { stopSegufixSession } from "@/lib/session-actions";
+import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
+import { stopTrackerEntry } from "@/lib/tracker-core";
 
 const dayFormatter = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "Europe/Berlin" });
 const timeFormatter = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
+const feedDateFormatter = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
 const keyFormatter = new Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeZone: "Europe/Berlin" });
 const inputDateFormatter = new Intl.DateTimeFormat("sv-SE", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/Berlin" });
 
@@ -66,6 +69,59 @@ async function togglePlayReady() {
   redirect("/");
 }
 
+async function stopDashboardTracker(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const key = String(formData.get("trackerKey") || "");
+  const entry = await stopTrackerEntry({ key, user });
+  if (!entry) redirect("/");
+  await logAction({
+    actorId: user.id,
+    action: `tracker_${key}_stopped`,
+    entityType: "trackerEntry",
+    entityId: entry.id,
+    title: `${entry.title || key} beendet`,
+    href: `/trackers/${key}/${entry.slug || entry.id}`
+  });
+  redirect(`/trackers/${key}/${entry.slug || entry.id}`);
+}
+
+async function commentFeedEntry(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const auditLogId = String(formData.get("auditLogId") || "");
+  const body = String(formData.get("body") || "").trim();
+  if (!auditLogId || !body) redirect("/");
+  const accessIds = await accessibleOwnerIds(user);
+  const auditLog = await prisma.auditLog.findFirst({
+    where: {
+      id: auditLogId,
+      OR: [{ actorId: { in: accessIds } }, { actorId: null }]
+    },
+    select: { id: true, title: true, href: true }
+  });
+  if (!auditLog) redirect("/");
+  const comment = await prisma.feedComment.create({
+    data: {
+      auditLogId: auditLog.id,
+      authorId: user.id,
+      body
+    }
+  });
+  await logAction({
+    actorId: user.id,
+    action: "feed_comment_created",
+    entityType: "auditLog",
+    entityId: auditLog.id,
+    title: `Feed kommentiert: ${auditLog.title}`,
+    href: auditLog.href || "/",
+    details: { commentId: comment.id, comment: body.slice(0, 500) }
+  });
+  redirect("/");
+}
+
 export default async function DashboardPage() {
   const user = await currentUser();
   if (!user) redirect("/login");
@@ -76,14 +132,16 @@ export default async function DashboardPage() {
   const weekEnd = new Date(todayStart);
   weekEnd.setDate(todayStart.getDate() + 7);
   const scope = await ownerScope(user);
-  const [activitiesEnabled, selfBondageEnabled, ordersEnabled, segufixEnabled] = await Promise.all([
+  const auditAccessIds = await accessibleOwnerIds(user);
+  const [activitiesEnabled, selfBondageEnabled, ordersEnabled, trackersEnabled, auditLogEnabled] = await Promise.all([
     hasFeature("activities"),
     hasFeature("selfBondage"),
     hasFeature("orders"),
-    hasFeature("tracker.segufix")
+    hasFeature("trackers"),
+    hasFeature("auditLog")
   ]);
-  const [sessions, weekActivities, weekEvents, circleUsers, selfBondagePositions, ideas, openOrders, requestedPlans] = await Promise.all([
-    segufixEnabled ? prisma.segufixSession.findMany({ where: scope, orderBy: { startTime: "desc" }, take: 4 }) : Promise.resolve([]),
+  const [trackerEntries, weekActivities, weekEvents, circleUsers, selfBondagePositions, ideas, openOrders, requestedPlans, feedRules] = await Promise.all([
+    trackersEnabled ? prisma.trackerEntry.findMany({ where: scope, include: { trackerType: true }, orderBy: { startTime: "desc" }, take: 8 }) : Promise.resolve([]),
     activitiesEnabled
       ? prisma.activityPlan.findMany({
           where: { ...scope, status: "PLANNED", plannedAt: { gte: todayStart, lt: weekEnd } },
@@ -116,8 +174,9 @@ export default async function DashboardPage() {
     activitiesEnabled
       ? prisma.activityPlan.findMany({
           where: { ...scope, category: "IDEA_COLLECTION", status: { in: ["REQUESTED", "PLANNED"] } },
+          include: { images: { include: { file: true }, orderBy: { createdAt: "desc" }, take: 1 } },
           orderBy: { updatedAt: "desc" },
-          take: 5
+          take: 6
         })
       : Promise.resolve([]),
     ordersEnabled
@@ -142,10 +201,32 @@ export default async function DashboardPage() {
           orderBy: [{ plannedAt: "asc" }, { createdAt: "desc" }],
           take: 4
         })
+      : Promise.resolve([]),
+    auditLogEnabled && user.tenantId
+      ? prisma.feedRule.findMany({ where: { tenantId: user.tenantId, active: true }, orderBy: { updatedAt: "desc" } })
       : Promise.resolve([])
   ]);
+  const feedRuleByAction = new Map(feedRules.map((rule) => [rule.action, rule]));
+  const feedEntries = feedRules.length
+    ? await prisma.auditLog.findMany({
+        where: {
+          action: { in: feedRules.map((rule) => rule.action) },
+          OR: [{ actorId: { in: auditAccessIds } }, { actorId: null }]
+        },
+        include: {
+          actor: { include: { profile: true } },
+          feedComments: {
+            include: { author: { include: { profile: true } } },
+            orderBy: { createdAt: "asc" },
+            take: 3
+          }
+        },
+        orderBy: { createdAt: "desc" },
+        take: 8
+      })
+    : [];
+  const quotaTodos = (await trackerQuotaStatusForUser(user)).filter((status) => status.hasQuota);
 
-  const sessionSlugs = new Map(await Promise.all(sessions.map(async (session) => [session.id, await ensureSessionSlug(session)] as const)));
   const orderStatusActors = new Map(
     (openOrders.length
       ? await prisma.auditLog.findMany({
@@ -163,7 +244,7 @@ export default async function DashboardPage() {
       entry.actor?.profile?.displayName || entry.actor?.name || entry.actor?.username || entry.actor?.email || "Unbekannt"
     ])
   );
-  const openSessions = sessions.filter((session) => !session.endTime);
+  const openTrackerEntries = trackerEntries.filter((entry) => !entry.endTime);
   const weekDays = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(todayStart);
     date.setDate(todayStart.getDate() + index);
@@ -256,6 +337,105 @@ export default async function DashboardPage() {
             })}
           </div>
         </Panel>
+
+        {quotaTodos.length ? (
+          <Panel>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-ink">Tracker-Todos</h2>
+                <p className="mt-1 text-sm text-graphite">Kontingente, die du durch Tracker-Zeit abarbeitest.</p>
+              </div>
+              <Link href="/sessions" className="inline-flex min-h-10 items-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
+                Tracker öffnen
+              </Link>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {quotaTodos.map((todo) => {
+                const main = todo.daily.required ? todo.daily : todo.weekly.required ? todo.weekly : todo.monthlyMinutes.required ? todo.monthlyMinutes : todo.monthlyDays;
+                return (
+                  <article key={todo.tracker.id} className="rounded-lg border border-line bg-paper p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="font-semibold text-ink">{todo.tracker.title}</h3>
+                        <p className="mt-1 text-xs text-graphite">{quotaSummaryText(todo)}</p>
+                      </div>
+                      <span className="h-4 w-4 shrink-0 rounded-full border border-line" style={{ backgroundColor: todo.tracker.color }} />
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-surface">
+                      <div className="h-full rounded-full" style={{ width: `${main.percent}%`, backgroundColor: todo.tracker.color }} />
+                    </div>
+                    <div className="mt-2 text-xs font-semibold text-graphite">
+                      {todo.complete ? "erfüllt" : `noch ${main.remaining} ${todo.monthlyDays.required && main === todo.monthlyDays ? "Tage" : "Min."}`}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </Panel>
+        ) : null}
+
+        {feedEntries.length ? (
+          <Panel>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="flex items-center gap-2 text-lg font-semibold">
+                  <Newspaper className="h-5 w-5 text-redbrand" />
+                  Feed
+                </h2>
+                <p className="mt-1 text-sm text-graphite">Ausgewählte Aktionen aus dem Protokoll.</p>
+              </div>
+              <Link href="/messages#feed-rules" className="inline-flex min-h-10 items-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
+                Feed steuern
+              </Link>
+            </div>
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {feedEntries.map((entry) => {
+                const rule = feedRuleByAction.get(entry.action);
+                const title = rule ? renderFeedTemplate(rule.titleTemplate, entry, entry.actor) : entry.title;
+                const body = rule ? renderFeedTemplate(rule.bodyTemplate, entry, entry.actor) : feedDetailsText(entry.details);
+                const actorName = entry.actor?.profile?.displayName || entry.actor?.name || entry.actor?.username || entry.actor?.email || "System";
+                return (
+                  <article key={entry.id} className="rounded-md border border-line bg-paper p-3">
+                    <div className="mb-2 flex items-center gap-2">
+                      {entry.actor?.profile?.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={entry.actor.profile.imageUrl} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
+                      ) : (
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface text-xs font-semibold text-graphite">{actorName.slice(0, 1).toUpperCase()}</span>
+                      )}
+                      <div className="min-w-0">
+                        <div className="truncate text-xs font-semibold text-ink">{actorName}</div>
+                        <div className="text-[11px] text-graphite">{feedDateFormatter.format(entry.createdAt)}</div>
+                      </div>
+                    </div>
+                    {entry.href ? (
+                      <Link href={entry.href} className="block text-sm font-semibold text-ink hover:text-redbrand">{title}</Link>
+                    ) : (
+                      <h3 className="text-sm font-semibold text-ink">{title}</h3>
+                    )}
+                    {body ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-graphite">{body}</p> : null}
+                    {entry.feedComments.length ? (
+                      <div className="mt-3 space-y-1 border-t border-line pt-2">
+                        {entry.feedComments.map((comment) => (
+                          <p key={comment.id} className="text-xs leading-5 text-graphite">
+                            <span className="font-semibold text-ink">{comment.author?.profile?.displayName || comment.author?.name || comment.author?.username || "Kommentar"}:</span> {comment.body}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null}
+                    <form action={commentFeedEntry} className="mt-3 flex gap-2">
+                      <input type="hidden" name="auditLogId" value={entry.id} />
+                      <input name="body" className="min-h-9 flex-1 rounded-md border border-line bg-surface px-3 py-2 text-xs text-ink placeholder:text-graphite/60" placeholder="Kommentieren" />
+                      <button type="submit" className="focus-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-redbrand text-white hover:bg-redbrandHover" aria-label="Kommentar senden">
+                        <MessageCircle className="h-4 w-4" />
+                      </button>
+                    </form>
+                  </article>
+                );
+              })}
+            </div>
+          </Panel>
+        ) : null}
 
         {ordersEnabled && openOrders.length ? (
           <Panel className="border-sky-600 bg-sky-600/10">
@@ -420,11 +600,21 @@ export default async function DashboardPage() {
             </Link>
           </div>
           {ideas.length ? (
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {ideas.map((idea) => (
-                <Link key={idea.id} href={`/activities/${idea.slug}`} className="rounded-md border border-line bg-paper p-3 hover:border-amber-500">
-                  <strong className="block truncate text-ink">{idea.title}</strong>
-                  <span className="mt-1 block text-xs text-graphite">{activityStatusDisplay(idea.status, false, true)}</span>
+                <Link key={idea.id} href={`/activities/${idea.slug}`} className="overflow-hidden rounded-lg border border-line bg-paper hover:border-amber-500">
+                  {idea.images[0] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={fileAssetUrl(idea.images[0].fileId)} alt="" className="aspect-[5/3] w-full object-cover" />
+                  ) : (
+                    <span className="flex aspect-[5/3] w-full items-center justify-center bg-amber-500/10 text-amber-600">
+                      <Lightbulb className="h-8 w-8" />
+                    </span>
+                  )}
+                  <span className="block p-3">
+                    <strong className="block truncate text-ink">{idea.title}</strong>
+                    <span className="mt-1 block text-xs text-graphite">{activityStatusDisplay(idea.status, false, true)}</span>
+                  </span>
                 </Link>
               ))}
             </div>
@@ -436,21 +626,21 @@ export default async function DashboardPage() {
         </Panel>
         ) : null}
 
-        {segufixEnabled && openSessions.length ? (
+        {trackersEnabled && openTrackerEntries.length ? (
           <Panel>
-            <h2 className="mb-3 text-lg font-semibold">Laufende Session</h2>
+            <h2 className="mb-3 text-lg font-semibold">Laufende Tracker</h2>
             <div className="space-y-2">
-              {openSessions.map((session) => (
-                <div key={session.id} className="rounded-md border border-redbrand bg-redbrand/10 p-3 text-sm">
-                  <Link href={`/sessions/${sessionSlugs.get(session.id)}`} className="block hover:text-redbrand">
-                    <strong>{session.notes?.split("\n")[0] || "Segufix-Session"}</strong>
-                    <span className="ml-2 text-graphite">seit {formatDateTime(session.startTime)}</span>
+              {openTrackerEntries.map((entry) => (
+                <div key={entry.id} className="rounded-md border border-line bg-paper p-3 text-sm">
+                  <Link href={`/trackers/${entry.trackerType.key}/${entry.slug || entry.id}`} className="block hover:text-redbrand">
+                    <strong>{entry.title || entry.trackerType.title}</strong>
+                    <span className="ml-2 text-graphite">seit {formatDateTime(entry.startTime)}</span>
                   </Link>
-                  {session.ownerId === user.id ? (
-                    <form action={stopSegufixSession} className="mt-3">
-                      <input type="hidden" name="id" value={session.id} />
+                  {entry.ownerId === user.id ? (
+                    <form action={stopDashboardTracker} className="mt-3">
+                      <input type="hidden" name="trackerKey" value={entry.trackerType.key} />
                       <button className="focus-ring min-h-9 rounded-md bg-redbrand px-3 py-1.5 text-xs font-semibold text-white hover:bg-redbrandHover">
-                        Session beenden
+                        Tracker beenden
                       </button>
                     </form>
                   ) : null}
@@ -519,18 +709,19 @@ export default async function DashboardPage() {
         </Panel>
         ) : null}
 
-        {segufixEnabled ? (
+        {trackersEnabled ? (
         <div className="grid gap-6 xl:grid-cols-2">
           <Panel>
-            <h2 className="mb-4 text-lg font-semibold">Letzte Segufix-Sessions</h2>
+            <h2 className="mb-4 text-lg font-semibold">Letzte Tracker-Einträge</h2>
             <div className="space-y-3">
-              {sessions.map((session) => (
-                <Link key={session.id} href={`/sessions/${sessionSlugs.get(session.id)}`} className="block rounded-md border border-line p-3 hover:border-redbrand hover:bg-paper">
+              {trackerEntries.map((entry) => (
+                <Link key={entry.id} href={`/trackers/${entry.trackerType.key}/${entry.slug || entry.id}`} className="block rounded-md border border-line p-3 hover:border-redbrand hover:bg-paper">
                   <div className="flex items-center justify-between gap-3">
-                    <strong>{formatDateTime(session.startTime)}</strong>
-                    <span className="text-sm text-graphite">{formatMinutes(session.durationMinutes)}</span>
+                    <strong>{entry.title || entry.trackerType.title}</strong>
+                    <span className="text-sm text-graphite">{formatMinutes(entry.durationMinutes)}</span>
                   </div>
-                  {session.notes ? <p className="mt-2 text-sm text-graphite">{session.notes}</p> : null}
+                  <p className="mt-1 text-xs text-graphite">{formatDateTime(entry.startTime)}</p>
+                  {entry.notes ? <p className="mt-2 text-sm text-graphite">{entry.notes}</p> : null}
                 </Link>
               ))}
             </div>

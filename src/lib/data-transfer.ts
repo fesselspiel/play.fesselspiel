@@ -27,6 +27,7 @@ type TransferData = {
   mediaComments: ExportRecord[];
   events: ExportRecord[];
   checkIns: ExportRecord[];
+  feedRules: ExportRecord[];
 };
 
 function withoutOwner<T extends { ownerId?: string }>(entry: T) {
@@ -91,7 +92,8 @@ export async function buildDataExport(user: AccessUser) {
     media,
     mediaComments,
     events,
-    checkIns
+    checkIns,
+    feedRules
   ] = await Promise.all([
     prisma.fileAsset.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
     prisma.toy.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
@@ -105,7 +107,10 @@ export async function buildDataExport(user: AccessUser) {
     prisma.media.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
     prisma.mediaComment.findMany({ where: { ownerId: { in: ownerIds } }, orderBy: { createdAt: "asc" } }),
     prisma.event.findMany({ where: ownerScope, orderBy: { startsAt: "asc" } }),
-    prisma.checkIn.findMany({ where: { userId: { in: ownerIds } }, orderBy: { createdAt: "asc" } })
+    prisma.checkIn.findMany({ where: { userId: { in: ownerIds } }, orderBy: { createdAt: "asc" } }),
+    user.tenantId && (user.role === "ADMIN" || user.role === "SUPER_ADMIN")
+      ? prisma.feedRule.findMany({ where: { tenantId: user.tenantId }, orderBy: { createdAt: "asc" } })
+      : Promise.resolve([])
   ]);
 
   const data: TransferData = {
@@ -147,7 +152,8 @@ export async function buildDataExport(user: AccessUser) {
     media: media.map(withoutOwner),
     mediaComments: mediaComments.map(({ ownerId: _ownerId, ...entry }) => entry),
     events: events.map(withoutOwner),
-    checkIns: checkIns.map(({ userId: _userId, ...entry }) => entry)
+    checkIns: checkIns.map(({ userId: _userId, ...entry }) => entry),
+    feedRules: feedRules.map(({ tenantId: _tenantId, ...entry }) => entry)
   };
 
   const zip = new JSZip();
@@ -266,6 +272,28 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
   }
 
   const legacyActivityImageIds = new Set<string>();
+  if (user.tenantId && (user.role === "ADMIN" || user.role === "SUPER_ADMIN")) {
+    for (const entry of records(data.feedRules)) {
+      const action = String(entry.action || "").trim();
+      if (!action) continue;
+      await prisma.feedRule.upsert({
+        where: { tenantId_action: { tenantId: user.tenantId, action } },
+        update: {
+          titleTemplate: String(entry.titleTemplate || "{title}"),
+          bodyTemplate: String(entry.bodyTemplate || "{actor} · {event}"),
+          active: entry.active !== false
+        },
+        create: {
+          tenantId: user.tenantId,
+          action,
+          titleTemplate: String(entry.titleTemplate || "{title}"),
+          bodyTemplate: String(entry.bodyTemplate || "{actor} · {event}"),
+          active: entry.active !== false
+        }
+      });
+    }
+  }
+
   for (const entry of records(data.sessions)) {
     const startTime = toDate(entry.startTime);
     if (!startTime) continue;

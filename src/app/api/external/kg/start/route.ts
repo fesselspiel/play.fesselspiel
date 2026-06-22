@@ -1,63 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logAction } from "@/lib/audit";
-import { minutesBetween } from "@/lib/dates";
 import { apiFeatureGate, dateFromValue, requestValues, requireApiUser } from "@/lib/external-api";
-import { prisma } from "@/lib/prisma";
+import { startTrackerEntry } from "@/lib/tracker-core";
 
 export const runtime = "nodejs";
 
-async function startKgSession(request: NextRequest) {
+async function startKg(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "tracker.kg");
   if (blocked) return blocked;
   const values = await requestValues(request);
-  const open = await prisma.kgSession.findFirst({ where: { tenantId: auth.user.tenantId || undefined, ownerId: auth.user.id, endTime: null }, orderBy: { startTime: "desc" } });
-  const autoClosedAt = new Date();
-  const closedSession = open
-    ? await prisma.kgSession.update({
-        where: { id: open.id },
-        data: {
-          endTime: autoClosedAt,
-          durationMinutes: minutesBetween(open.startTime, autoClosedAt),
-          notes: [open.notes, "Automatisch beendet, weil per API ein neuer KG-Tracker gestartet wurde."].filter(Boolean).join("\n")
-        }
-      })
-    : null;
-  if (closedSession) {
-    await logAction({
-      actorId: auth.user.id,
-      action: "kg_auto_closed",
-      entityType: "kgSession",
-      entityId: closedSession.id,
-      title: "Offener KG-Tracker automatisch beendet",
-      href: "/sessions?tracker=kg"
-    });
-  }
-  const startTime = dateFromValue(values.get("startTime")) || new Date();
-  const session = await prisma.kgSession.create({
-    data: {
-      ownerId: auth.user.id,
-      tenantId: auth.user.tenantId || undefined,
-      startTime,
-      notes: values.get("note") || values.get("notes") || "Per API gestartet"
-    }
+  const entry = await startTrackerEntry({
+    key: "kg",
+    user: auth.user,
+    startTime: dateFromValue(values.get("startTime")) || undefined,
+    notes: values.get("note") || values.get("notes") || "Per API gestartet"
   });
+  if (!entry) return NextResponse.json({ ok: false, error: "Tracker nicht gefunden" }, { status: 404 });
   await logAction({
     actorId: auth.user.id,
-    action: "kg_started_api",
-    entityType: "kgSession",
-    entityId: session.id,
-    title: "KG-Tracker per API gestartet",
-    href: "/sessions?tracker=kg"
+    action: "tracker_kg_started_api",
+    entityType: "trackerEntry",
+    entityId: entry.id,
+    title: "KG per API gestartet",
+    href: `/trackers/kg/${entry.slug || entry.id}`
   });
-  return NextResponse.json({ ok: true, action: closedSession ? "closed_and_started" : "started", closedSession, session });
+  return NextResponse.json({ ok: true, action: "started", entry });
 }
 
 export async function GET(request: NextRequest) {
-  return startKgSession(request);
+  return startKg(request);
 }
 
 export async function POST(request: NextRequest) {
-  return startKgSession(request);
+  return startKg(request);
 }

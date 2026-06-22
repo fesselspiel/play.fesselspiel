@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Save } from "lucide-react";
+import { ImagePlus, Save } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { SelfBondagePositionChoice } from "@/components/self-bondage-position-choice";
 import { SelfBondageScheduleFields } from "@/components/self-bondage-schedule-fields";
@@ -9,6 +9,7 @@ import { activityStatusOptions, type ActivityStatusValue, quarterHourOptions } f
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { hasFeature, requireFeature } from "@/lib/features";
+import { saveUploadedFile } from "@/lib/files";
 import { selfBondageCategory } from "@/lib/activity-orders";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
@@ -76,6 +77,30 @@ async function createActivity(formData: FormData) {
       positions: { connect: accessiblePositions.map(({ id }) => ({ id })) }
     }
   });
+  if (ideaTemplate) {
+    const files = formData.getAll("files").filter((file): file is File => file instanceof File && file.size > 0);
+    for (const file of files) {
+      const asset = await saveUploadedFile(user.id, file);
+      if (!asset) continue;
+      await prisma.activityImage.create({
+        data: {
+          activityId: activity.id,
+          fileId: asset.id,
+          title: asset.originalName || "Ideenbild"
+        }
+      });
+    }
+    if (files.length) {
+      await logAction({
+        actorId: user.id,
+        action: "idea_media_uploaded",
+        entityType: "activity",
+        entityId: activity.id,
+        title: `Bilder zur Idee hochgeladen: ${activity.title}`,
+        href: `/activities/${activity.slug}`
+      });
+    }
+  }
   await logAction({
     actorId: user.id,
     action: selfBondageTemplate ? "self_bondage_order_created" : ideaTemplate ? "idea_created" : status === "REQUESTED" ? "activity_requested" : "activity_created",
@@ -128,7 +153,7 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
             ? "Halte hier eine Idee fest, die ihr irgendwann ausprobieren wollt. Bilder kannst du anschließend auf der Detailseite der Idee hinzufügen."
           : "Erstelle hier einen konkreten Spielplan. Vergib Titel und Kategorie, setze optional Datum und Uhrzeit, Wähle passende Spielsachen und Szenen aus und speichere den Plan mit dem gewünschten Status."}
       </PageGuide>
-      <form action={createActivity} className="grid gap-6 xl:grid-cols-[1fr_420px]">
+      <form action={createActivity} className="grid gap-6 xl:grid-cols-[1fr_420px]" encType="multipart/form-data">
         {selfBondageTemplate ? <input type="hidden" name="template" value="self-bondage" /> : null}
         {ideaTemplate ? <input type="hidden" name="template" value="idea" /> : null}
         <div className="space-y-4">
@@ -167,6 +192,16 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
             </div>
           )}
           <Field label={selfBondageTemplate ? "Anweisung" : ideaTemplate ? "Beschreibung" : "Notiz"}><textarea className={inputClass} name="note" rows={6} defaultValue={defaultNote} /></Field>
+          {ideaTemplate ? (
+            <Field label="Bilder zur Idee">
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line bg-paper px-4 py-8 text-center hover:border-amber-500">
+                <ImagePlus className="h-7 w-7 text-amber-500" />
+                <span className="text-sm font-semibold text-ink">Bilder auswählen</span>
+                <span className="text-xs text-graphite">Mehrere Bilder möglich, sie bleiben nur an dieser Idee.</span>
+                <input className="sr-only" name="files" type="file" accept="image/*" multiple />
+              </label>
+            </Field>
+          ) : null}
           <Button><Save className="h-4 w-4" /> {selfBondageTemplate ? "Auftrag speichern" : ideaTemplate ? "Idee speichern" : "Plan speichern"}</Button>
         </div>
         <div className="space-y-5">

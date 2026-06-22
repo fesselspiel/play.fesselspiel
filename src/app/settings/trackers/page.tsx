@@ -32,6 +32,11 @@ async function createTracker(formData: FormData) {
       enabled: formData.get("enabled") === "on",
       allowOpenSession: formData.get("allowOpenSession") === "on",
       autoCloseOpenSession: formData.get("autoCloseOpenSession") === "on",
+      quotaDailyMinutes: Number(formData.get("quotaDailyMinutes") || 0) || null,
+      quotaWeeklyMinutes: Number(formData.get("quotaWeeklyMinutes") || 0) || null,
+      quotaMonthlyDays: Number(formData.get("quotaMonthlyDays") || 0) || null,
+      quotaMonthlyMinutes: Number(formData.get("quotaMonthlyMinutes") || 0) || null,
+      quotaReminderEnabled: formData.get("quotaReminderEnabled") === "on",
       fields: []
     }
   });
@@ -68,7 +73,12 @@ async function saveTracker(formData: FormData) {
       color: String(formData.get("color") || tracker.color).trim() || tracker.color,
       enabled: formData.get("enabled") === "on",
       allowOpenSession: formData.get("allowOpenSession") === "on",
-      autoCloseOpenSession: formData.get("autoCloseOpenSession") === "on"
+      autoCloseOpenSession: formData.get("autoCloseOpenSession") === "on",
+      quotaDailyMinutes: Number(formData.get("quotaDailyMinutes") || 0) || null,
+      quotaWeeklyMinutes: Number(formData.get("quotaWeeklyMinutes") || 0) || null,
+      quotaMonthlyDays: Number(formData.get("quotaMonthlyDays") || 0) || null,
+      quotaMonthlyMinutes: Number(formData.get("quotaMonthlyMinutes") || 0) || null,
+      quotaReminderEnabled: formData.get("quotaReminderEnabled") === "on"
     }
   });
   await prisma.tenantFeature.upsert({
@@ -131,6 +141,16 @@ export default async function TrackerSettingsPage({ searchParams }: { searchPara
                   <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="featureEnabled" type="checkbox" defaultChecked className="h-4 w-4 accent-redbrand" /> Auf Seite sichtbar</label>
                   <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="autoCloseOpenSession" type="checkbox" defaultChecked className="h-4 w-4 accent-redbrand" /> Offene automatisch schließen</label>
                 </div>
+                <div className="rounded-lg border border-line bg-paper p-4">
+                  <h3 className="mb-3 text-sm font-semibold text-ink">Kontingent / Todo</h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Täglich Minuten"><input className={inputClass} name="quotaDailyMinutes" type="number" min={0} step={1} placeholder="0" /></Field>
+                    <Field label="Wöchentlich Minuten"><input className={inputClass} name="quotaWeeklyMinutes" type="number" min={0} step={1} placeholder="0" /></Field>
+                    <Field label="Monatlich Tage"><input className={inputClass} name="quotaMonthlyDays" type="number" min={0} step={1} placeholder="0" /></Field>
+                    <Field label="Monatlich Minuten"><input className={inputClass} name="quotaMonthlyMinutes" type="number" min={0} step={1} placeholder="0" /></Field>
+                  </div>
+                  <label className="mt-3 flex items-center gap-2 rounded-md border border-line bg-surface p-3 text-sm"><input name="quotaReminderEnabled" type="checkbox" className="h-4 w-4 accent-redbrand" /> Chronik-Erinnerung aktivieren</label>
+                </div>
                 <input type="hidden" name="allowOpenSession" value="on" />
                 <SubmitButton pendingLabel="Tracker wird angelegt..."><Plus className="h-4 w-4" /> Tracker anlegen</SubmitButton>
               </form>
@@ -170,6 +190,16 @@ export default async function TrackerSettingsPage({ searchParams }: { searchPara
                         <label className="flex items-center gap-2 rounded-md border border-line bg-surface p-3 text-sm"><input name="enabled" type="checkbox" defaultChecked={tracker.enabled} className="h-4 w-4 accent-redbrand" /> Tracker aktiv</label>
                         <label className="flex items-center gap-2 rounded-md border border-line bg-surface p-3 text-sm"><input name="featureEnabled" type="checkbox" defaultChecked={featureEnabled.has(`tracker.${tracker.key}`) || !featureKnown.has(`tracker.${tracker.key}`)} className="h-4 w-4 accent-redbrand" /> Auf Seite sichtbar</label>
                         <label className="flex items-center gap-2 rounded-md border border-line bg-surface p-3 text-sm"><input name="autoCloseOpenSession" type="checkbox" defaultChecked={tracker.autoCloseOpenSession} className="h-4 w-4 accent-redbrand" /> Offene automatisch schließen</label>
+                      </div>
+                      <div className="rounded-lg border border-line bg-surface p-4">
+                        <h3 className="mb-3 text-sm font-semibold text-ink">Kontingent / Todo</h3>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Field label="Täglich Minuten"><input className={inputClass} name="quotaDailyMinutes" type="number" min={0} step={1} defaultValue={tracker.quotaDailyMinutes || ""} /></Field>
+                          <Field label="Wöchentlich Minuten"><input className={inputClass} name="quotaWeeklyMinutes" type="number" min={0} step={1} defaultValue={tracker.quotaWeeklyMinutes || ""} /></Field>
+                          <Field label="Monatlich Tage"><input className={inputClass} name="quotaMonthlyDays" type="number" min={0} step={1} defaultValue={tracker.quotaMonthlyDays || ""} /></Field>
+                          <Field label="Monatlich Minuten"><input className={inputClass} name="quotaMonthlyMinutes" type="number" min={0} step={1} defaultValue={tracker.quotaMonthlyMinutes || ""} /></Field>
+                        </div>
+                        <label className="mt-3 flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="quotaReminderEnabled" type="checkbox" defaultChecked={tracker.quotaReminderEnabled} className="h-4 w-4 accent-redbrand" /> Chronik-Erinnerung aktivieren</label>
                       </div>
                       <input type="hidden" name="allowOpenSession" value="on" />
                       <SubmitButton pendingLabel="Tracker wird gespeichert..."><Save className="h-4 w-4" /> Tracker speichern</SubmitButton>

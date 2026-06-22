@@ -13,6 +13,8 @@ import { env } from "@/lib/env";
 import { requireFeature } from "@/lib/features";
 import { actionLabel, defaultNotificationTemplate, knownAuditActions } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
+import { currentTenant } from "@/lib/tenancy";
+import { DEFAULT_TENANT_BOT_KEY, ensureLegacyUserSettings, ensurePersonalTelegramSettings, ensureTenantTelegramSettings, extraBotKey, tenantTelegramSettingsForUser } from "@/lib/tenant-telegram";
 import { getTelegramChatAdministrators, setTelegramWebhook } from "@/lib/telegram";
 import { testTelegramNotificationRule } from "@/lib/telegram-notifications";
 
@@ -66,14 +68,13 @@ async function readTargetData(user: Awaited<ReturnType<typeof currentUser>>, for
   return { targetUserId: null, targetCircleId: null };
 }
 
-async function readOutputChatId(settingsId: string, formData: FormData) {
+async function readOutputChat(tenantId: string, formData: FormData) {
   const outputChatId = String(formData.get("outputChatId") || "").trim();
   if (!outputChatId) return null;
-  const chat = await prisma.telegramChat.findFirst({
-    where: { id: outputChatId, settingsId, status: "ACTIVE" },
-    select: { id: true }
+  return prisma.telegramChat.findFirst({
+    where: { id: outputChatId, status: "ACTIVE", telegramSettings: { tenantId } },
+    select: { id: true, settingsId: true, telegramSettingsId: true }
   });
-  return chat?.id || null;
 }
 
 function targetTypeFor(chat: { targetUserId: string | null; targetCircleId: string | null }) {
@@ -150,28 +151,83 @@ async function readTelegramBotName(value?: string | null) {
 async function saveSettings(formData: FormData) {
   "use server";
   const user = await currentAdminUser();
-  await prisma.userSettings.upsert({
-    where: { userId: user.id },
-    update: {
+  const tenant = await currentTenant();
+  const settings = await ensureTenantTelegramSettings(tenant.id);
+  await prisma.tenantTelegramSettings.update({
+    where: { id: settings.id },
+    data: {
       telegramBotTokenEnc: encryptSecret(String(formData.get("telegramBotToken") || "")) || undefined,
       openAiApiKeyEnc: encryptSecret(String(formData.get("openAiApiKey") || "")) || undefined
-    },
-    create: {
-      userId: user.id,
-      telegramBotTokenEnc: encryptSecret(String(formData.get("telegramBotToken") || "")),
-      openAiApiKeyEnc: encryptSecret(String(formData.get("openAiApiKey") || ""))
     }
   });
   redirect("/settings/telegram?saved=secrets");
 }
 
+async function savePersonalBotSettings(formData: FormData) {
+  "use server";
+  const user = await currentAdminUser();
+  const tenant = await currentTenant();
+  const settings = await ensurePersonalTelegramSettings(tenant.id, user.id);
+  await prisma.tenantTelegramSettings.update({
+    where: { id: settings.id },
+    data: {
+      telegramBotTokenEnc: encryptSecret(String(formData.get("telegramBotToken") || "")) || undefined,
+      openAiApiKeyEnc: encryptSecret(String(formData.get("openAiApiKey") || "")) || undefined
+    }
+  });
+  redirect("/settings/telegram?saved=personal#personal-bot");
+}
+
+async function createTenantBot(formData: FormData) {
+  "use server";
+  const user = await currentAdminUser();
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/settings/telegram");
+  const tenant = await currentTenant();
+  const name = String(formData.get("name") || "").trim() || "Weiterer Bot";
+  await prisma.tenantTelegramSettings.create({
+    data: { tenantId: tenant.id, key: extraBotKey(), name, scope: "TENANT", active: true, isDefault: false }
+  });
+  redirect("/settings/telegram#additional-bots");
+}
+
+async function saveTenantBot(formData: FormData) {
+  "use server";
+  const user = await currentAdminUser();
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/settings/telegram");
+  const tenant = await currentTenant();
+  const id = String(formData.get("botId") || "");
+  const bot = await prisma.tenantTelegramSettings.findFirst({ where: { id, tenantId: tenant.id } });
+  if (!bot || bot.key === DEFAULT_TENANT_BOT_KEY || bot.scope === "USER") redirect("/settings/telegram#additional-bots");
+  await prisma.tenantTelegramSettings.update({
+    where: { id: bot.id },
+    data: {
+      name: String(formData.get("name") || "").trim() || bot.name,
+      active: formData.get("active") === "on",
+      telegramBotTokenEnc: encryptSecret(String(formData.get("telegramBotToken") || "")) || undefined,
+      openAiApiKeyEnc: encryptSecret(String(formData.get("openAiApiKey") || "")) || undefined
+    }
+  });
+  redirect("/settings/telegram#additional-bots");
+}
+
+async function deleteTenantBot(formData: FormData) {
+  "use server";
+  const user = await currentAdminUser();
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/settings/telegram");
+  const tenant = await currentTenant();
+  const id = String(formData.get("botId") || "");
+  const bot = await prisma.tenantTelegramSettings.findFirst({ where: { id, tenantId: tenant.id } });
+  if (!bot || bot.key === DEFAULT_TENANT_BOT_KEY || bot.scope === "USER") redirect("/settings/telegram#additional-bots");
+  await prisma.tenantTelegramSettings.delete({ where: { id: bot.id } });
+  redirect("/settings/telegram#additional-bots");
+}
+
 async function updateChat(formData: FormData) {
   "use server";
   const user = await currentAdminUser();
-  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
-  if (!settings) redirect("/settings/telegram");
+  const tenant = await currentTenant();
   const chat = await prisma.telegramChat.findFirst({
-    where: { id: String(formData.get("chatIdInternal") || ""), settingsId: settings.id }
+    where: { id: String(formData.get("chatIdInternal") || ""), telegramSettings: { tenantId: tenant.id } }
   });
   if (!chat) redirect("/settings/telegram");
   const targetData = await readTargetData(user, formData);
@@ -193,10 +249,9 @@ async function updateChat(formData: FormData) {
 async function deleteChat(formData: FormData) {
   "use server";
   const user = await currentAdminUser();
-  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
-  if (!settings) redirect("/settings/telegram");
+  const tenant = await currentTenant();
   const chat = await prisma.telegramChat.findFirst({
-    where: { id: String(formData.get("chatIdInternal") || ""), settingsId: settings.id }
+    where: { id: String(formData.get("chatIdInternal") || ""), telegramSettings: { tenantId: tenant.id } }
   });
   if (chat) await prisma.telegramChat.delete({ where: { id: chat.id } });
   redirect("/settings/telegram");
@@ -205,8 +260,8 @@ async function deleteChat(formData: FormData) {
 async function createTelegramUserMapping(formData: FormData) {
   "use server";
   const user = await currentAdminUser();
-  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
-  if (!settings) redirect("/settings/telegram");
+  const tenant = await currentTenant();
+  const { telegramSettings, legacySettings } = await tenantTelegramSettingsForUser(tenant.id, user.id);
   const telegramUserId = String(formData.get("telegramUserId") || "").trim() || null;
   const telegramUsernameRaw = normalizeTelegramUsername(String(formData.get("telegramUsername") || ""));
   const telegramUsername = telegramUsernameRaw || (telegramUserId ? `id:${telegramUserId}` : "");
@@ -222,9 +277,9 @@ async function createTelegramUserMapping(formData: FormData) {
   });
   if (!appUser) redirect("/settings/telegram");
   await prisma.telegramUserMapping.upsert({
-    where: { settingsId_telegramUsername: { settingsId: settings.id, telegramUsername } },
+    where: { telegramSettingsId_telegramUsername: { telegramSettingsId: telegramSettings.id, telegramUsername } },
     update: { appUserId: appUser.id, telegramUserId },
-    create: { settingsId: settings.id, telegramUsername, telegramUserId, appUserId: appUser.id }
+    create: { settingsId: legacySettings.id, telegramSettingsId: telegramSettings.id, telegramUsername, telegramUserId, appUserId: appUser.id }
   });
   redirect("/settings/telegram#mappings");
 }
@@ -232,10 +287,10 @@ async function createTelegramUserMapping(formData: FormData) {
 async function deleteTelegramUserMapping(formData: FormData) {
   "use server";
   const user = await currentAdminUser();
-  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
-  if (!settings) redirect("/settings/telegram");
+  const tenant = await currentTenant();
+  const { telegramSettings } = await tenantTelegramSettingsForUser(tenant.id, user.id);
   await prisma.telegramUserMapping.deleteMany({
-    where: { id: String(formData.get("mappingId") || ""), settingsId: settings.id }
+    where: { id: String(formData.get("mappingId") || ""), telegramSettingsId: telegramSettings.id }
   });
   redirect("/settings/telegram#mappings");
 }
@@ -243,8 +298,9 @@ async function deleteTelegramUserMapping(formData: FormData) {
 async function syncTelegramAdministrators() {
   "use server";
   const user = await currentAdminUser();
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId: user.id },
+  const tenant = await currentTenant();
+  const settings = await prisma.tenantTelegramSettings.findUnique({
+    where: { tenantId_key: { tenantId: tenant.id, key: DEFAULT_TENANT_BOT_KEY } },
     include: { telegramChats: { where: { status: "ACTIVE" }, orderBy: { updatedAt: "desc" } } }
   });
   if (!settings?.telegramBotTokenEnc) redirect("/settings/telegram?adminSyncFailed=token#mappings");
@@ -258,7 +314,7 @@ async function syncTelegramAdministrators() {
       for (const admin of admins) {
         if (!admin.user.id || admin.user.is_bot) continue;
         await prisma.telegramKnownUser.upsert({
-          where: { settingsId_telegramUserId: { settingsId: settings.id, telegramUserId: String(admin.user.id) } },
+          where: { telegramSettingsId_telegramUserId: { telegramSettingsId: settings.id, telegramUserId: String(admin.user.id) } },
           update: {
             telegramUsername: admin.user.username ? admin.user.username.toLowerCase() : null,
             firstName: admin.user.first_name || null,
@@ -270,7 +326,8 @@ async function syncTelegramAdministrators() {
             lastMessageAt: new Date()
           },
           create: {
-            settingsId: settings.id,
+            settingsId: (await ensureLegacyUserSettings(user.id)).id,
+            telegramSettingsId: settings.id,
             telegramUserId: String(admin.user.id),
             telegramUsername: admin.user.username ? admin.user.username.toLowerCase() : null,
             firstName: admin.user.first_name || null,
@@ -320,10 +377,12 @@ async function syncTelegramAdministrators() {
 async function activateTelegramMemberDiscovery() {
   "use server";
   const user = await currentAdminUser();
-  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
+  const tenant = await currentTenant();
+  const settings = await ensureTenantTelegramSettings(tenant.id);
   if (!settings?.telegramBotTokenEnc) redirect("/settings/telegram?memberDiscovery=missing-token#mappings");
+  const webhookUrl = `${env.appUrl}/api/telegram/webhook?tenantTelegramSettingsId=${settings.id}`;
   try {
-    await setTelegramWebhook(settings.telegramBotTokenEnc, `${env.appUrl}/api/telegram/webhook`);
+    await setTelegramWebhook(settings.telegramBotTokenEnc, webhookUrl);
     await prisma.auditLog.create({
       data: {
         actorId: user.id,
@@ -331,7 +390,7 @@ async function activateTelegramMemberDiscovery() {
         entityType: "telegram",
         title: "Telegram-Mitgliedserkennung aktiviert",
         details: {
-          webhookUrl: `${env.appUrl}/api/telegram/webhook`,
+          webhookUrl,
           allowedUpdates: ["message", "edited_message", "channel_post", "chat_member", "my_chat_member"]
         }
       }
@@ -355,22 +414,20 @@ async function createNotificationRule(formData: FormData) {
   "use server";
   const user = await currentAdminUser();
   if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/settings/telegram");
-  const settings = await prisma.userSettings.upsert({
-    where: { userId: user.id },
-    update: {},
-    create: { userId: user.id }
-  });
+  const tenant = await currentTenant();
+  const { telegramSettings, legacySettings } = await tenantTelegramSettingsForUser(tenant.id, user.id);
   const action = String(formData.get("action") || "").trim();
   const message = String(formData.get("message") || "").trim();
   const targetData = await readTargetData(user, formData);
-  const outputChatId = await readOutputChatId(settings.id, formData);
-  if (!action || !message || (!targetData.targetUserId && !targetData.targetCircleId && !outputChatId)) redirect("/settings/telegram#notifications");
+  const outputChat = await readOutputChat(tenant.id, formData);
+  if (!action || !message || (!targetData.targetUserId && !targetData.targetCircleId && !outputChat)) redirect("/settings/telegram#notifications");
   await prisma.telegramNotificationRule.create({
     data: {
-      settingsId: settings.id,
+      settingsId: outputChat?.settingsId || legacySettings.id,
+      telegramSettingsId: outputChat?.telegramSettingsId || telegramSettings.id,
       action,
       message,
-      outputChatId,
+      outputChatId: outputChat?.id || null,
       ...targetData
     }
   });
@@ -381,21 +438,23 @@ async function updateNotificationRule(formData: FormData) {
   "use server";
   const user = await currentAdminUser();
   if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/settings/telegram");
-  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
-  if (!settings) redirect("/settings/telegram#notifications");
+  const tenant = await currentTenant();
   const id = String(formData.get("ruleId") || "");
   const action = String(formData.get("action") || "").trim();
   const message = String(formData.get("message") || "").trim();
   const targetData = await readTargetData(user, formData);
-  const outputChatId = await readOutputChatId(settings.id, formData);
-  if (!id || !action || !message || (!targetData.targetUserId && !targetData.targetCircleId && !outputChatId)) redirect("/settings/telegram#notifications");
-  await prisma.telegramNotificationRule.updateMany({
-    where: { id, settingsId: settings.id },
+  const outputChat = await readOutputChat(tenant.id, formData);
+  if (!id || !action || !message || (!targetData.targetUserId && !targetData.targetCircleId && !outputChat)) redirect("/settings/telegram#notifications");
+  const existingRule = await prisma.telegramNotificationRule.findFirst({ where: { id, telegramSettings: { tenantId: tenant.id } }, select: { id: true } });
+  if (!existingRule) redirect("/settings/telegram#notifications");
+  await prisma.telegramNotificationRule.update({
+    where: { id: existingRule.id },
     data: {
       action,
       message,
       active: formData.get("active") === "on",
-      outputChatId,
+      outputChatId: outputChat?.id || null,
+      ...(outputChat?.telegramSettingsId ? { telegramSettingsId: outputChat.telegramSettingsId, settingsId: outputChat.settingsId } : {}),
       ...targetData
     }
   });
@@ -406,10 +465,12 @@ async function deleteNotificationRule(formData: FormData) {
   "use server";
   const user = await currentAdminUser();
   if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/settings/telegram");
-  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
-  if (!settings) redirect("/settings/telegram#notifications");
+  const tenant = await currentTenant();
+  const id = String(formData.get("ruleId") || "");
+  const existingRule = await prisma.telegramNotificationRule.findFirst({ where: { id, telegramSettings: { tenantId: tenant.id } }, select: { id: true } });
+  if (!existingRule) redirect("/settings/telegram#notifications");
   await prisma.telegramNotificationRule.deleteMany({
-    where: { id: String(formData.get("ruleId") || ""), settingsId: settings.id }
+    where: { id: existingRule.id }
   });
   redirect("/settings/telegram#notifications");
 }
@@ -418,29 +479,35 @@ async function testNotificationRule(formData: FormData) {
   "use server";
   const user = await currentAdminUser();
   if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/settings/telegram");
-  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
-  if (!settings) redirect("/settings/telegram#notifications");
-  const result = await testTelegramNotificationRule(String(formData.get("ruleId") || ""), settings.id, user.id);
+  const tenant = await currentTenant();
+  const rule = await prisma.telegramNotificationRule.findFirst({
+    where: { id: String(formData.get("ruleId") || ""), telegramSettings: { tenantId: tenant.id } },
+    select: { telegramSettingsId: true, settingsId: true }
+  });
+  if (!rule) redirect("/settings/telegram#notifications");
+  const result = await testTelegramNotificationRule(String(formData.get("ruleId") || ""), rule.telegramSettingsId || rule.settingsId, user.id);
   redirect(`/settings/telegram?testSent=${result.sent}&testFailed=${result.failed}#notifications`);
 }
 
 async function activateDetectedChat(formData: FormData) {
   "use server";
   const user = await currentAdminUser();
-  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
-  if (!settings) redirect("/settings/telegram");
+  const tenant = await currentTenant();
+  const legacySettings = await ensureLegacyUserSettings(user.id);
   const chat = await prisma.telegramChat.findFirst({
     where: {
       id: String(formData.get("chatId") || ""),
-      settingsId: settings.id
+      telegramSettings: { tenantId: tenant.id }
     }
   });
   if (!chat) redirect("/settings/telegram");
+  const telegramSettingsId = chat.telegramSettingsId || (await ensureTenantTelegramSettings(tenant.id)).id;
+  const settingsId = chat.settingsId || legacySettings.id;
   const scope = String(formData.get("scope") || "thread");
   const targetData = await readTargetData(user, formData);
   if (scope === "chat") {
     const existingWholeChat = await prisma.telegramChat.findFirst({
-      where: { settingsId: settings.id, chatId: chat.chatId, threadId: null }
+      where: { telegramSettingsId, chatId: chat.chatId, threadId: null }
     });
     if (existingWholeChat) {
       await prisma.telegramChat.update({
@@ -457,7 +524,8 @@ async function activateDetectedChat(formData: FormData) {
     } else {
       await prisma.telegramChat.create({
         data: {
-          settingsId: settings.id,
+          settingsId,
+          telegramSettingsId,
           ...targetData,
           chatId: chat.chatId,
           threadId: null,
@@ -614,9 +682,13 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
   const user = await currentAdminUser();
   const { tenant } = await currentSessionContext();
   if (!tenant) redirect("/");
-  const [settings, targetMemberships, targetCircles, auditActions, telegramLogs, incomingTelegramLogs] = await Promise.all([
-    prisma.userSettings.findUnique({
-      where: { userId: user.id },
+  await Promise.all([
+    ensureTenantTelegramSettings(tenant.id),
+    ensurePersonalTelegramSettings(tenant.id, user.id)
+  ]);
+  const [settings, personalSettings, additionalBots, targetMemberships, targetCircles, auditActions, telegramLogs, incomingTelegramLogs] = await Promise.all([
+    prisma.tenantTelegramSettings.findUnique({
+      where: { tenantId_key: { tenantId: tenant.id, key: DEFAULT_TENANT_BOT_KEY } },
       include: {
         telegramChats: {
           include: { targetUser: { include: { profile: true } }, targetCircle: true },
@@ -632,6 +704,24 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
           orderBy: [{ active: "desc" }, { action: "asc" }]
         }
       }
+    }),
+    prisma.tenantTelegramSettings.findUnique({
+      where: { tenantId_key: { tenantId: tenant.id, key: `user:${user.id}` } },
+      include: {
+        telegramChats: {
+          include: { targetUser: { include: { profile: true } }, targetCircle: true },
+          orderBy: [{ status: "asc" }, { updatedAt: "desc" }]
+        },
+        telegramKnownUsers: { orderBy: { lastMessageAt: "desc" } }
+      }
+    }),
+    prisma.tenantTelegramSettings.findMany({
+      where: { tenantId: tenant.id, scope: "TENANT", key: { not: DEFAULT_TENANT_BOT_KEY } },
+      include: {
+        telegramChats: { include: { targetUser: { include: { profile: true } }, targetCircle: true }, orderBy: [{ status: "asc" }, { updatedAt: "desc" }] },
+        telegramKnownUsers: { orderBy: { lastMessageAt: "desc" } }
+      },
+      orderBy: { createdAt: "asc" }
     }),
     prisma.tenantMembership.findMany({
       where: user.role === "ADMIN" || user.role === "SUPER_ADMIN"
@@ -663,8 +753,13 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
     })
   ]);
   const targetUsers = targetMemberships.map((membership) => membership.user);
-  const activeChats = settings?.telegramChats.filter((chat) => chat.status === "ACTIVE") || [];
-  const pendingChats = settings?.telegramChats.filter((chat) => chat.status === "PENDING") || [];
+  const allChats = [
+    ...(settings?.telegramChats || []),
+    ...(personalSettings?.telegramChats || []),
+    ...additionalBots.flatMap((bot) => bot.telegramChats)
+  ];
+  const activeChats = allChats.filter((chat) => chat.status === "ACTIVE");
+  const pendingChats = allChats.filter((chat) => chat.status === "PENDING");
   const mappings = settings?.telegramUserMappings || [];
   const knownUsersFromLogs = incomingTelegramLogs
     .map((log) => ({
@@ -683,14 +778,28 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
     .filter((entry) => entry.telegramUserId);
   const knownUsers = [...(settings?.telegramKnownUsers || []).map((entry) => ({ ...entry, fromProtocol: false })), ...knownUsersFromLogs]
     .filter((entry, index, list) => list.findIndex((candidate) => candidate.telegramUserId === entry.telegramUserId) === index);
-  const notificationRules = settings?.telegramNotificationRules || [];
+  const notificationRules = await prisma.telegramNotificationRule.findMany({
+    where: { telegramSettings: { tenantId: tenant.id } },
+    include: { targetUser: { include: { profile: true } }, targetCircle: true, outputChat: { include: { targetUser: { include: { profile: true } }, targetCircle: true } } },
+    orderBy: [{ active: "desc" }, { action: "asc" }]
+  });
+  const allActiveChats = activeChats;
   const requestedAction = String(searchParams?.action || "").trim();
   const actionOptions = Array.from(new Set([...knownAuditActions.map(([action]) => action), ...auditActions.map((entry) => entry.action), requestedAction].filter(Boolean))).sort((a, b) => actionLabel(a).localeCompare(actionLabel(b)));
   const telegramTokenSuffix = secretSuffix(settings?.telegramBotTokenEnc);
   const openAiKeySuffix = secretSuffix(settings?.openAiApiKeyEnc);
   const telegramBotName = await readTelegramBotName(settings?.telegramBotTokenEnc);
+  const personalTelegramTokenSuffix = secretSuffix(personalSettings?.telegramBotTokenEnc);
+  const personalOpenAiKeySuffix = secretSuffix(personalSettings?.openAiApiKeyEnc);
+  const personalTelegramBotName = await readTelegramBotName(personalSettings?.telegramBotTokenEnc);
+  const additionalBotInfos = await Promise.all(additionalBots.map(async (bot) => ({
+    bot,
+    tokenSuffix: secretSuffix(bot.telegramBotTokenEnc),
+    openAiSuffix: secretSuffix(bot.openAiApiKeyEnc),
+    botName: await readTelegramBotName(bot.telegramBotTokenEnc)
+  })));
   const notificationTargetUsers = notificationUsers(targetUsers);
-  const chatById = new Map((settings?.telegramChats || []).map((chat) => [chat.id, chat]));
+  const chatById = new Map(allChats.map((chat) => [chat.id, chat]));
   const telegramLogGroups = telegramLogDayGroups(telegramLogs);
   return (
     <AppShell>
@@ -702,6 +811,11 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
         <Panel>
           <h2 className="mb-4 text-lg font-semibold">Zugangsdaten</h2>
           {searchParams?.saved === "secrets" ? <p className="mb-4 rounded-md bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">Zugangsdaten gespeichert.</p> : null}
+          {!telegramTokenSuffix ? (
+            <p className="mb-4 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
+              Diese Seite braucht einen eigenen Telegram-Bot-Token. Der Token gilt nur für <strong className="text-ink">{tenant.name}</strong> und nicht mehr global für deinen Benutzer.
+            </p>
+          ) : null}
           <form action={saveSettings} className="space-y-4">
             <Field label="Telegram Bot API-Key">
               <input className={inputClass} name="telegramBotToken" type="password" placeholder={telegramTokenSuffix ? `Gespeichert ...${telegramTokenSuffix}` : ""} />
@@ -721,12 +835,68 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
             </Field>
             <SubmitButton pendingLabel="Speichert..."><Save className="h-4 w-4" /> Sicher speichern</SubmitButton>
           </form>
+          <div id="personal-bot" className="mt-6 border-t border-line pt-5">
+            <h3 className="mb-3 text-base font-semibold">Persönlicher Bot</h3>
+            {searchParams?.saved === "personal" ? <p className="mb-4 rounded-md bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">Persönlicher Bot gespeichert.</p> : null}
+            <p className="mb-4 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
+              Dieser Bot gehört nur zu deinem Benutzer in dieser Seite. Er kann eigene Chats und einen eigenen Webhook haben.
+            </p>
+            <form action={savePersonalBotSettings} className="space-y-4">
+              <Field label="Persönlicher Telegram Bot API-Key">
+                <input className={inputClass} name="telegramBotToken" type="password" placeholder={personalTelegramTokenSuffix ? `Gespeichert ...${personalTelegramTokenSuffix}` : ""} />
+                {personalTelegramTokenSuffix ? (
+                  <p className="mt-2 rounded-md bg-surface px-3 py-2 text-sm text-graphite">
+                    Aktiver Bot: <strong className="text-ink">{personalTelegramBotName || "Token gespeichert, Bot-Name nicht abrufbar"}</strong> · endet auf <strong className="text-ink">...{personalTelegramTokenSuffix}</strong>
+                  </p>
+                ) : null}
+              </Field>
+              <Field label="Persönlicher OpenAI API-Key optional">
+                <input className={inputClass} name="openAiApiKey" type="password" placeholder={personalOpenAiKeySuffix ? `Gespeichert ...${personalOpenAiKeySuffix}` : ""} />
+              </Field>
+              <SubmitButton pendingLabel="Speichert..."><Save className="h-4 w-4" /> Persönlichen Bot speichern</SubmitButton>
+            </form>
+            <div className="mt-4">
+              <TelegramChatDiscovery scope="user" botId={personalSettings?.id} />
+            </div>
+          </div>
         </Panel>
         <div className="space-y-6">
           <Panel>
             <h2 className="mb-4 text-lg font-semibold">Chat bestätigen</h2>
             <p className="mb-4 text-sm leading-6 text-graphite">Schreibe dem Bot eine Testnachricht im gewünschten Chat oder Thread. Danach liest der Button die letzten Telegram-Updates aus und zeigt Chat-ID sowie Thread-ID an.</p>
-            <TelegramChatDiscovery />
+            <TelegramChatDiscovery scope="tenant" botId={settings?.id} />
+          </Panel>
+          <Panel id="additional-bots">
+            <h2 className="mb-4 text-lg font-semibold">Weitere Seitenbots</h2>
+            <p className="mb-4 text-sm leading-6 text-graphite">Zusätzliche Bots gehören zu dieser Seite, haben eigene Tokens, eigene Webhooks und eigene Chat-Erkennung.</p>
+            <form action={createTenantBot} className="mb-5 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+              <Field label="Neuer Bot-Name"><input className={inputClass} name="name" placeholder="z.B. Bilder-Bot oder Aufgaben-Bot" /></Field>
+              <Button><Save className="h-4 w-4" /> Bot anlegen</Button>
+            </form>
+            <div className="space-y-4">
+              {additionalBotInfos.map(({ bot, tokenSuffix, openAiSuffix, botName }) => (
+                <details key={bot.id} className="rounded-md border border-line bg-paper p-3">
+                  <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">{bot.name} {tokenSuffix ? <span className="text-sm font-normal text-graphite">· ...{tokenSuffix}</span> : null}</summary>
+                  <form action={saveTenantBot} className="mt-4 grid gap-3">
+                    <input type="hidden" name="botId" value={bot.id} />
+                    <Field label="Name"><input className={inputClass} name="name" defaultValue={bot.name} /></Field>
+                    <Field label="Telegram Bot API-Key"><input className={inputClass} name="telegramBotToken" type="password" placeholder={tokenSuffix ? `Gespeichert ...${tokenSuffix}` : ""} /></Field>
+                    {tokenSuffix ? <p className="rounded-md bg-surface px-3 py-2 text-sm text-graphite">Aktiver Bot: <strong className="text-ink">{botName || "Token gespeichert"}</strong> · endet auf <strong className="text-ink">...{tokenSuffix}</strong></p> : null}
+                    <Field label="OpenAI API-Key optional"><input className={inputClass} name="openAiApiKey" type="password" placeholder={openAiSuffix ? `Gespeichert ...${openAiSuffix}` : ""} /></Field>
+                    <label className="flex items-center gap-2 text-sm text-graphite"><input type="checkbox" name="active" defaultChecked={bot.active} /> aktiv</label>
+                    <Button><Save className="h-4 w-4" /> Bot speichern</Button>
+                  </form>
+                  <div className="mt-4 border-t border-line pt-4">
+                    <TelegramChatDiscovery scope="tenant" botId={bot.id} />
+                  </div>
+                  <form action={deleteTenantBot} className="mt-4">
+                    <input type="hidden" name="botId" value={bot.id} />
+                    <Button variant="danger"><Trash2 className="h-4 w-4" /> Bot löschen</Button>
+                  </form>
+                </details>
+              ))}
+              {!additionalBotInfos.length ? <p className="rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite">Noch keine weiteren Seitenbots angelegt.</p> : null}
+            </div>
           </Panel>
           <Panel>
             <h2 className="mb-4 text-lg font-semibold">Erkannte Chats</h2>
@@ -933,7 +1103,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                   <Field label="Ausgabe-Thread">
                     <select className={selectClass} name="outputChatId" defaultValue="">
                       <option value="">Automatisch über Ziel</option>
-                      {activeChats.map((chat) => <option key={chat.id} value={chat.id}>{chatLabel(chat)}</option>)}
+                      {allActiveChats.map((chat) => <option key={chat.id} value={chat.id}>{chatLabel(chat)}</option>)}
                     </select>
                   </Field>
                 </div>
@@ -967,7 +1137,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                         <Field label="Ausgabe-Thread">
                           <select className={selectClass} name="outputChatId" defaultValue={rule.outputChatId || ""}>
                             <option value="">Automatisch über Ziel</option>
-                            {activeChats.map((chat) => <option key={chat.id} value={chat.id}>{chatLabel(chat)}</option>)}
+                            {allActiveChats.map((chat) => <option key={chat.id} value={chat.id}>{chatLabel(chat)}</option>)}
                           </select>
                         </Field>
                       </div>

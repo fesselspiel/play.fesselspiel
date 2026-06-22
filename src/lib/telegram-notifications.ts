@@ -44,6 +44,7 @@ async function findRulesForAudit(audit: Pick<AuditForNotification, "action">) {
     where: { action: audit.action, active: true },
     include: {
       settings: { include: { telegramChats: { where: { status: "ACTIVE" } } } },
+      telegramSettings: { include: { telegramChats: { where: { status: "ACTIVE" } } } },
       targetUser: { include: { profile: true } },
       targetCircle: true,
       outputChat: true
@@ -52,7 +53,8 @@ async function findRulesForAudit(audit: Pick<AuditForNotification, "action">) {
 }
 
 async function sendRule(rule: RuleForNotification, audit: Pick<AuditForNotification, "action" | "title" | "href" | "entityType" | "entityId" | "details">, actor: NotificationActor | null, sent: Set<string>) {
-  if (!rule.settings.telegramBotTokenEnc) return [];
+  const tokenEnc = rule.telegramSettings?.telegramBotTokenEnc || rule.settings.telegramBotTokenEnc;
+  if (!tokenEnc) return [];
   const details = audit.details && typeof audit.details === "object" && !Array.isArray(audit.details) ? audit.details as Record<string, unknown> : {};
   const excludeActorFromTargets = details.excludeActorFromTargets === true;
   const actorId = actor?.id ? String(actor.id) : "";
@@ -64,7 +66,7 @@ async function sendRule(rule: RuleForNotification, audit: Pick<AuditForNotificat
     : null;
   const chats = rule.outputChatId
     ? rule.outputChat?.status === "ACTIVE" ? [rule.outputChat] : []
-    : rule.settings.telegramChats.filter((chat) => {
+    : (rule.telegramSettings?.telegramChats || rule.settings.telegramChats).filter((chat) => {
         if (rule.targetUserId) return chat.targetUserId === rule.targetUserId || Boolean(targetUserCircleId && chat.targetCircleId === targetUserCircleId);
         if (rule.targetCircleId) return chat.targetCircleId === rule.targetCircleId || Boolean(chat.targetUserId && targetUserIds.has(chat.targetUserId));
         return false;
@@ -73,14 +75,14 @@ async function sendRule(rule: RuleForNotification, audit: Pick<AuditForNotificat
   return chats
     .filter((chat) => {
       if (excludeActorFromTargets && actorId && chat.targetUserId === actorId) return false;
-      const key = `${rule.settings.telegramBotTokenEnc}:${chat.chatId}:${chat.threadId || ""}`;
+      const key = `${tokenEnc}:${chat.chatId}:${chat.threadId || ""}`;
       if (sent.has(key)) return false;
       sent.add(key);
       return true;
     })
     .map(async (chat) => {
       try {
-        const result = await sendTelegramMessage(rule.settings.telegramBotTokenEnc!, chat.chatId, chat.threadId, message, {
+        const result = await sendTelegramMessage(tokenEnc, chat.chatId, chat.threadId, message, {
           parseMode: "HTML",
           disableWebPagePreview: true
         });
@@ -167,9 +169,10 @@ export async function dispatchAuditNotifications(audit: AuditForNotification) {
 
 export async function testTelegramNotificationRule(ruleId: string, settingsId: string, actorId: string) {
   const rule = await prisma.telegramNotificationRule.findFirst({
-    where: { id: ruleId, settingsId },
+    where: { id: ruleId, OR: [{ settingsId }, { telegramSettingsId: settingsId }] },
     include: {
       settings: { include: { telegramChats: { where: { status: "ACTIVE" } } } },
+      telegramSettings: { include: { telegramChats: { where: { status: "ACTIVE" } } } },
       targetUser: { include: { profile: true } },
       targetCircle: true,
       outputChat: true
