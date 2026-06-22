@@ -14,7 +14,11 @@ export default async function ToysPage() {
   if (!user) redirect("/login");
   await requireFeature("toys");
   const positionsEnabled = await hasFeature("positions");
-  const toys = await prisma.toy.findMany({ where: await ownerScope(user), include: { positions: positionsEnabled, activities: true }, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] });
+  const toys = await prisma.toy.findMany({
+    where: await ownerScope(user),
+    include: { positions: positionsEnabled, activities: true, favorites: true },
+    orderBy: [{ sortOrder: "asc" }, { title: "asc" }]
+  });
 
   return (
     <AppShell>
@@ -38,7 +42,9 @@ export default async function ToysPage() {
           description: toy.description,
           imageUrl: toy.imageUrl,
           positionCount: positionsEnabled ? toy.positions.length : 0,
-          activityCount: toy.activities.length
+          activityCount: toy.activities.length,
+          favoriteCount: toy.favorites.length,
+          isFavorite: toy.favorites.some((favorite) => favorite.userId === user.id)
         }))} />
       ) : (
         <EmptyState title="Noch keine Spielzeuge angelegt">

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ImagePlus, Pencil, Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { CopySubtitle } from "@/components/copy-subtitle";
+import { FileUploadField } from "@/components/file-upload-field";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { confirmRequestedActivity } from "@/lib/activity-actions";
 import { isSelfBondageOrder as isSelfBondageActivity, updateSelfBondageOrderStatus } from "@/lib/activity-orders";
@@ -24,6 +25,20 @@ async function addActivityImage(formData: FormData) {
   const activityId = String(formData.get("activityId") || "");
   const activity = await prisma.activityPlan.findFirst({ where: { id: activityId, ...(await ownerScope(user)) } });
   if (!activity) notFound();
+  const uploadedImageUrl = String(formData.get("ideaImageUploadedUrl") || "");
+  const uploadedFileId = fileIdFromUrl(uploadedImageUrl);
+  if (uploadedImageUrl && uploadedFileId) {
+    const asset = await prisma.fileAsset.findFirst({ where: { id: uploadedFileId, ownerId: user.id } });
+    if (asset) {
+      await prisma.activityImage.create({
+        data: {
+          activityId: activity.id,
+          fileId: asset.id,
+          title: asset.originalName || "Ideenbild"
+        }
+      });
+    }
+  }
   const files = formData.getAll("files").filter((file): file is File => file instanceof File && file.size > 0);
   for (const file of files) {
     const asset = await saveUploadedFile(user.id, file);
@@ -36,7 +51,7 @@ async function addActivityImage(formData: FormData) {
       }
     });
   }
-  if (files.length) {
+  if (files.length || uploadedFileId) {
     await logAction({
       actorId: user.id,
       action: "idea_media_uploaded",
@@ -147,7 +162,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
           <p className="mt-5 leading-7 text-graphite">{activity.note || "Keine Notiz hinterlegt."}</p>
         </Panel>
         <div className="space-y-6">
-          {!isSelfBondageOrder && toolsEnabled ? <SoftPanel>
+          {!isSelfBondageOrder && toolsEnabled && (!isIdea || ((activity as { tools?: unknown[] }).tools || []).length) ? <SoftPanel>
             <h2 className="mb-3 text-lg font-semibold">Spielsachen</h2>
             <div className="space-y-2">
               {((activity as { tools?: { id: string; slug: string; title: string }[] }).tools || []).map((toy) => <Link key={toy.id} href={`/toys/${toy.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{toy.title}</Link>)}
@@ -165,7 +180,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
               </div>
             </SoftPanel>
           ) : null}
-          {positionsEnabled ? <SoftPanel>
+          {positionsEnabled && (!isIdea || ((activity as { positions?: unknown[] }).positions || []).length) ? <SoftPanel>
             <h2 className="mb-3 text-lg font-semibold">{isSelfBondageOrder ? "Self-Bondage-fähige Szenen" : "Szenen"}</h2>
             <div className="space-y-2">
               {((activity as { positions?: { id: string; slug: string; name: string }[] }).positions || []).map((position) => <Link key={position.id} href={`/positions/${position.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{position.name}</Link>)}
@@ -180,7 +195,15 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
           {activity.ownerId === user.id ? (
             <form action={addActivityImage} className="mb-5 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end" encType="multipart/form-data">
               <input type="hidden" name="activityId" value={activity.id} />
-              <Field label="Bilder"><input className={inputClass} name="files" type="file" accept="image/*" multiple required /></Field>
+              <FileUploadField
+                name="files"
+                uploadedUrlName="ideaImageUploadedUrl"
+                label="Bild hochladen"
+                accept="image/*"
+                required
+                help="Bild auswählen, Ausschnitt festlegen und hochladen."
+                imageCropAspect="landscape"
+              />
               <Button><Save className="h-4 w-4" /> Hochladen</Button>
             </form>
           ) : null}

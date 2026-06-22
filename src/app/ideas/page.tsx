@@ -60,8 +60,8 @@ export default async function IdeasPage() {
                   <div className="min-w-0 flex-1">
                     <h2 className="truncate text-base font-semibold text-ink">{idea.title}</h2>
                     <p className="mt-1 truncate text-xs text-graphite">
-                      {toolsEnabled ? `${idea.tools.length} Spielsachen · ` : ""}
-                      {positionsEnabled ? `${idea.positions.length} Szenen · ` : ""}
+                      {toolsEnabled && idea.tools.length ? `${idea.tools.length} Spielsachen · ` : ""}
+                      {positionsEnabled && idea.positions.length ? `${idea.positions.length} Szenen · ` : ""}
                       {idea.images.length} Bilder
                     </p>
                   </div>
@@ -82,8 +82,8 @@ export default async function IdeasPage() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-graphite">
                         <Badge tone={activityStatusTone(idea.status)}>{activityStatusDisplay(idea.status, false, true)}</Badge>
-                        {toolsEnabled ? <span className="rounded-md bg-surface px-2 py-1">{idea.tools.length} Spielsachen</span> : null}
-                        {positionsEnabled ? <span className="rounded-md bg-surface px-2 py-1">{idea.positions.length} Szenen</span> : null}
+                        {toolsEnabled && idea.tools.length ? <span className="rounded-md bg-surface px-2 py-1">{idea.tools.length} Spielsachen</span> : null}
+                        {positionsEnabled && idea.positions.length ? <span className="rounded-md bg-surface px-2 py-1">{idea.positions.length} Szenen</span> : null}
                       </div>
                       <p className="mt-4 text-sm leading-6 text-graphite">{idea.note || "Keine Beschreibung hinterlegt."}</p>
                       <div className="mt-4 flex flex-wrap items-center gap-3">

@@ -1,12 +1,38 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { Pencil, Star } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { isAccessibleOwner, contentTenantScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { hasFeature, requireFeature } from "@/lib/features";
+import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
+
+async function togglePositionFavorite(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  await requireFeature("positions");
+  const positionId = String(formData.get("positionId") || "");
+  const position = await prisma.position.findFirst({ where: { id: positionId, ...contentTenantScope(user) }, select: { id: true, ownerId: true, name: true, slug: true } });
+  if (!position || !(await isAccessibleOwner(user, position.ownerId))) notFound();
+  const existing = await prisma.positionFavorite.findUnique({ where: { positionId_userId: { positionId: position.id, userId: user.id } } });
+  if (existing) {
+    await prisma.positionFavorite.delete({ where: { id: existing.id } });
+  } else {
+    await prisma.positionFavorite.create({ data: { positionId: position.id, userId: user.id } });
+    await logAction({
+      actorId: user.id,
+      action: "position_favorited",
+      entityType: "position",
+      entityId: position.id,
+      title: `Szene favorisiert: ${position.name}`,
+      href: `/positions/${position.slug}`
+    });
+  }
+  redirect(`/positions/${position.slug}`);
+}
 
 export default async function PositionDetailPage({ params }: { params: { slug: string } }) {
   const user = await currentUser();
@@ -16,9 +42,10 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
   const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
   const position = await prisma.position.findFirst({
     where: { slug: params.slug, ...contentTenantScope(user) },
-    include: { tools: toysEnabled, activities: true }
+    include: { tools: toysEnabled, activities: true, favorites: true }
   });
   if (!position || !(await isAccessibleOwner(user, position.ownerId))) notFound();
+  const isFavorite = position.favorites.some((favorite) => favorite.userId === user.id);
   const positionBondageItems = bondageSystemEnabled ? await prisma.bondageSystemItem.findMany({
     where: { positions: { some: { id: position.id } } },
     include: { product: true },
@@ -77,10 +104,20 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
       <Panel className="mt-6">
         <h2 className="mb-2 text-lg font-semibold">Aktionen</h2>
         <p className="mb-4 text-sm text-graphite">Bearbeite diese Szene, wenn Bild, Beschreibung oder die verknüpften Spielzeuge angepasst werden sollen.</p>
-        <Link href={`/positions/${position.slug}/edit`} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
-          <Pencil className="h-4 w-4" />
-          Bearbeiten
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <form action={togglePositionFavorite}>
+            <input type="hidden" name="positionId" value={position.id} />
+            <button className={`inline-flex min-h-10 items-center gap-2 rounded-md border border-line px-4 py-2 text-sm font-semibold hover:bg-paper ${isFavorite ? "bg-redbrand text-white hover:bg-redbrandHover" : "bg-surface text-ink"}`}>
+              <Star className="h-4 w-4" />
+              {isFavorite ? "Favorit" : "Als Favorit markieren"}
+            </button>
+          </form>
+          <Link href={`/positions/${position.slug}/edit`} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
+            <Pencil className="h-4 w-4" />
+            Bearbeiten
+          </Link>
+        </div>
+        {position.favorites.length ? <p className="mt-3 text-xs text-graphite">{position.favorites.length} Favorit{position.favorites.length === 1 ? "" : "en"}</p> : null}
       </Panel>
     </AppShell>
   );

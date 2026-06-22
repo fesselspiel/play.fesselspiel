@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Save } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { FileUploadField } from "@/components/file-upload-field";
 import { SelfBondagePositionChoice } from "@/components/self-bondage-position-choice";
 import { SelfBondageScheduleFields } from "@/components/self-bondage-schedule-fields";
 import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
@@ -9,7 +10,7 @@ import { activityStatusOptions, type ActivityStatusValue, quarterHourOptions } f
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { hasFeature, requireFeature } from "@/lib/features";
-import { saveUploadedFile } from "@/lib/files";
+import { fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { selfBondageCategory } from "@/lib/activity-orders";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
@@ -78,6 +79,20 @@ async function createActivity(formData: FormData) {
     }
   });
   if (ideaTemplate) {
+    const uploadedImageUrl = String(formData.get("ideaImageUploadedUrl") || "");
+    const uploadedFileId = fileIdFromUrl(uploadedImageUrl);
+    if (uploadedImageUrl && uploadedFileId) {
+      const asset = await prisma.fileAsset.findFirst({ where: { id: uploadedFileId, ownerId: user.id } });
+      if (asset) {
+        await prisma.activityImage.create({
+          data: {
+            activityId: activity.id,
+            fileId: asset.id,
+            title: asset.originalName || "Ideenbild"
+          }
+        });
+      }
+    }
     const files = formData.getAll("files").filter((file): file is File => file instanceof File && file.size > 0);
     for (const file of files) {
       const asset = await saveUploadedFile(user.id, file);
@@ -97,6 +112,16 @@ async function createActivity(formData: FormData) {
         entityType: "activity",
         entityId: activity.id,
         title: `Bilder zur Idee hochgeladen: ${activity.title}`,
+        href: `/ideas/${activity.slug}`
+      });
+    }
+    if (uploadedFileId) {
+      await logAction({
+        actorId: user.id,
+        action: "idea_media_uploaded",
+        entityType: "activity",
+        entityId: activity.id,
+        title: `Bild zur Idee hochgeladen: ${activity.title}`,
         href: `/ideas/${activity.slug}`
       });
     }
@@ -193,10 +218,14 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
           )}
           <Field label={selfBondageTemplate ? "Anweisung" : ideaTemplate ? "Beschreibung" : "Notiz"}><textarea className={inputClass} name="note" rows={6} defaultValue={defaultNote} /></Field>
           {ideaTemplate ? (
-            <Field label="Bilder zur Idee">
-              <input className={inputClass} name="files" type="file" accept="image/*" multiple />
-              <span className="mt-2 block text-xs text-graphite">Mehrere Bilder möglich, sie bleiben nur an dieser Idee.</span>
-            </Field>
+            <FileUploadField
+              name="files"
+              uploadedUrlName="ideaImageUploadedUrl"
+              label="Bild zur Idee"
+              accept="image/*"
+              help="Bild auswählen, Ausschnitt festlegen und Idee speichern."
+              imageCropAspect="landscape"
+            />
           ) : null}
           <Button><Save className="h-4 w-4" /> {selfBondageTemplate ? "Auftrag speichern" : ideaTemplate ? "Idee speichern" : "Plan speichern"}</Button>
         </div>

@@ -24,7 +24,7 @@ export default async function PositionsPage({ searchParams }: { searchParams: { 
         ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
         ...(toy ? { tools: { some: { id: toy } } } : {})
       },
-      include: { tools: toysEnabled, activities: true },
+      include: { tools: toysEnabled, activities: true, favorites: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
     }),
     toysEnabled ? prisma.toy.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }) : Promise.resolve([])
@@ -65,7 +65,9 @@ export default async function PositionsPage({ searchParams }: { searchParams: { 
             selfBondageCapable: position.selfBondageCapable,
             toolCount: toysEnabled ? position.tools.length : 0,
             activityCount: position.activities.length,
-            tools: toysEnabled ? position.tools.map((tool) => ({ id: tool.id, title: tool.title, slug: tool.slug })) : []
+            tools: toysEnabled ? position.tools.map((tool) => ({ id: tool.id, title: tool.title, slug: tool.slug })) : [],
+            favoriteCount: position.favorites.length,
+            isFavorite: position.favorites.some((favorite) => favorite.userId === user.id)
           }))} showTools={toysEnabled} />
         </div>
       ) : (

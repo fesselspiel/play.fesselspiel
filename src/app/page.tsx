@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarDays, MessageCircle, Newspaper, Plus, ShieldCheck, Sparkles } from "lucide-react";
+import { CalendarDays, MessageCircle, Newspaper, Plus, ShieldCheck, Sparkles, Star, ThumbsUp } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, PageGuide, Panel, PageHeader } from "@/components/ui";
 import { accessibleOwnerIds, ownerScope } from "@/lib/access";
@@ -121,6 +121,37 @@ async function commentFeedEntry(formData: FormData) {
   redirect("/");
 }
 
+async function likeFeedEntry(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const auditLogId = String(formData.get("auditLogId") || "");
+  if (!auditLogId) redirect("/");
+  const accessIds = await accessibleOwnerIds(user);
+  const auditLog = await prisma.auditLog.findFirst({
+    where: {
+      id: auditLogId,
+      OR: [{ actorId: { in: accessIds } }, { actorId: null }]
+    },
+    select: { id: true, title: true, href: true }
+  });
+  if (!auditLog) redirect("/");
+  const existing = await prisma.feedLike.findUnique({ where: { auditLogId_userId: { auditLogId: auditLog.id, userId: user.id } } });
+  if (!existing) {
+    await prisma.feedLike.create({ data: { auditLogId: auditLog.id, userId: user.id } });
+    await logAction({
+      actorId: user.id,
+      action: "feed_liked",
+      entityType: "auditLog",
+      entityId: auditLog.id,
+      title: `Feed geliked: ${auditLog.title}`,
+      href: auditLog.href || "/",
+      details: { auditLogId: auditLog.id }
+    });
+  }
+  redirect("/");
+}
+
 export default async function DashboardPage() {
   const user = await currentUser();
   if (!user) redirect("/login");
@@ -132,14 +163,16 @@ export default async function DashboardPage() {
   weekEnd.setDate(todayStart.getDate() + 7);
   const scope = await ownerScope(user);
   const auditAccessIds = await accessibleOwnerIds(user);
-  const [activitiesEnabled, selfBondageEnabled, ordersEnabled, trackersEnabled, auditLogEnabled] = await Promise.all([
+  const [activitiesEnabled, selfBondageEnabled, ordersEnabled, trackersEnabled, auditLogEnabled, toysEnabled, positionsEnabled] = await Promise.all([
     hasFeature("activities"),
     hasFeature("selfBondage"),
     hasFeature("orders"),
     hasFeature("trackers"),
-    hasFeature("auditLog")
+    hasFeature("auditLog"),
+    hasFeature("toys"),
+    hasFeature("positions")
   ]);
-  const [trackerEntries, weekActivities, weekEvents, circleUsers, selfBondagePositions, openOrders, requestedPlans, feedRules] = await Promise.all([
+  const [trackerEntries, weekActivities, weekEvents, circleUsers, selfBondagePositions, favoriteToys, favoritePositions, openOrders, requestedPlans, feedRules] = await Promise.all([
     trackersEnabled ? prisma.trackerEntry.findMany({ where: scope, include: { trackerType: true }, orderBy: { startTime: "desc" }, take: 8 }) : Promise.resolve([]),
     activitiesEnabled
       ? prisma.activityPlan.findMany({
@@ -169,6 +202,12 @@ export default async function DashboardPage() {
           orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
           take: 6
         })
+      : Promise.resolve([]),
+    toysEnabled
+      ? prisma.toyFavorite.findMany({ where: { userId: user.id, toy: scope }, include: { toy: true }, orderBy: { createdAt: "desc" }, take: 4 })
+      : Promise.resolve([]),
+    positionsEnabled
+      ? prisma.positionFavorite.findMany({ where: { userId: user.id, position: scope }, include: { position: true }, orderBy: { createdAt: "desc" }, take: 4 })
       : Promise.resolve([]),
     ordersEnabled
       ? prisma.activityPlan.findMany({
@@ -210,7 +249,8 @@ export default async function DashboardPage() {
             include: { author: { include: { profile: true } } },
             orderBy: { createdAt: "asc" },
             take: 3
-          }
+          },
+          feedLikes: { include: { user: { include: { profile: true } } }, orderBy: { createdAt: "asc" } }
         },
         orderBy: { createdAt: "desc" },
         take: 8
@@ -329,6 +369,29 @@ export default async function DashboardPage() {
           </div>
         </Panel>
 
+        {favoriteToys.length || favoritePositions.length ? (
+          <Panel>
+            <div className="mb-4 flex items-center gap-2">
+              <Star className="h-5 w-5 text-redbrand" />
+              <h2 className="text-lg font-semibold text-ink">Favoriten</h2>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {favoriteToys.map(({ toy }) => (
+                <Link key={`toy-${toy.id}`} href={`/toys/${toy.slug}`} className="rounded-md border border-line bg-paper p-3 text-sm hover:border-redbrand">
+                  <span className="block font-semibold text-ink">{toy.title}</span>
+                  <span className="mt-1 block text-xs text-graphite">Spielzeug</span>
+                </Link>
+              ))}
+              {favoritePositions.map(({ position }) => (
+                <Link key={`position-${position.id}`} href={`/positions/${position.slug}`} className="rounded-md border border-line bg-paper p-3 text-sm hover:border-redbrand">
+                  <span className="block font-semibold text-ink">{position.name}</span>
+                  <span className="mt-1 block text-xs text-graphite">Szene</span>
+                </Link>
+              ))}
+            </div>
+          </Panel>
+        ) : null}
+
         {quotaTodos.length ? (
           <Panel>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -385,6 +448,7 @@ export default async function DashboardPage() {
                 const title = rule ? renderFeedTemplate(rule.titleTemplate, entry, entry.actor) : entry.title;
                 const body = rule ? renderFeedTemplate(rule.bodyTemplate, entry, entry.actor) : feedDetailsText(entry.details);
                 const actorName = entry.actor?.profile?.displayName || entry.actor?.name || entry.actor?.username || entry.actor?.email || "System";
+                const likedByCurrentUser = entry.feedLikes.some((like) => like.userId === user.id);
                 return (
                   <article key={entry.id} className="rounded-md border border-line bg-paper p-3">
                     <div className="mb-2 flex items-center gap-2">
@@ -405,6 +469,13 @@ export default async function DashboardPage() {
                       <h3 className="text-sm font-semibold text-ink">{title}</h3>
                     )}
                     {body ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-graphite">{body}</p> : null}
+                    {entry.feedLikes.length ? (
+                      <p className="mt-2 text-[11px] font-medium text-graphite">
+                        👍 {entry.feedLikes.length === 1
+                          ? `${entry.feedLikes[0].user?.profile?.displayName || entry.feedLikes[0].user?.name || entry.feedLikes[0].user?.username || "Jemand"} gefällt das.`
+                          : `${entry.feedLikes.length} Personen gefällt das.`}
+                      </p>
+                    ) : null}
                     {entry.feedComments.length ? (
                       <div className="mt-3 space-y-1 border-t border-line pt-2">
                         {entry.feedComments.map((comment) => (
@@ -419,6 +490,13 @@ export default async function DashboardPage() {
                       <input name="body" className="min-h-9 flex-1 rounded-md border border-line bg-surface px-3 py-2 text-xs text-ink placeholder:text-graphite/60" placeholder="Kommentieren" />
                       <button type="submit" className="focus-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-redbrand text-white hover:bg-redbrandHover" aria-label="Kommentar senden">
                         <MessageCircle className="h-4 w-4" />
+                      </button>
+                    </form>
+                    <form action={likeFeedEntry} className="mt-2">
+                      <input type="hidden" name="auditLogId" value={entry.id} />
+                      <button type="submit" disabled={likedByCurrentUser} className={`focus-ring inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold ${likedByCurrentUser ? "bg-surface text-redbrand" : "bg-surface text-graphite hover:text-redbrand"}`}>
+                        <ThumbsUp className="h-3.5 w-3.5" />
+                        {likedByCurrentUser ? "Gefällt dir" : "Gefällt mir"}
                       </button>
                     </form>
                   </article>

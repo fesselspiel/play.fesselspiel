@@ -12,6 +12,8 @@ type ToyItem = {
   imageUrl: string | null;
   positionCount: number;
   activityCount: number;
+  favoriteCount?: number;
+  isFavorite?: boolean;
 };
 
 type PositionItem = {
@@ -24,6 +26,8 @@ type PositionItem = {
   toolCount: number;
   activityCount: number;
   tools: { id: string; title: string; slug: string }[];
+  favoriteCount?: number;
+  isFavorite?: boolean;
 };
 
 type BondageSystemItem = {
@@ -104,6 +108,7 @@ export function SortableToyList({ items, canSort = false }: { items: ToyItem[]; 
                 <h2 className="truncate text-base font-semibold text-ink">{toy.title}</h2>
                 <p className="mt-1 truncate text-xs text-graphite">
                   {toy.positionCount} Szenen · {toy.activityCount} Spielpläne
+                  {toy.favoriteCount ? ` · ${toy.favoriteCount} Favorit${toy.favoriteCount === 1 ? "" : "en"}` : ""}
                 </p>
               </div>
               <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open/toy-card:rotate-180" />
@@ -118,6 +123,8 @@ export function SortableToyList({ items, canSort = false }: { items: ToyItem[]; 
                   <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-graphite">
                     <span className="rounded-md bg-surface px-2 py-1">{toy.positionCount} Szenen</span>
                     <span className="rounded-md bg-surface px-2 py-1">{toy.activityCount} Spielpläne</span>
+                    {toy.isFavorite ? <span className="rounded-md bg-redbrand px-2 py-1 text-white">Favorit</span> : null}
+                    {toy.favoriteCount ? <span className="rounded-md bg-surface px-2 py-1">{toy.favoriteCount} Favorit{toy.favoriteCount === 1 ? "" : "en"}</span> : null}
                   </div>
                   <p className="mt-4 text-sm leading-6 text-graphite">{toy.description || "Keine Beschreibung hinterlegt."}</p>
                   <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -183,6 +190,7 @@ export function SortablePositionList({ items, canSort = false, showTools = true 
                 <p className="mt-1 truncate text-xs text-graphite">
                   {showTools ? `${position.toolCount} Spielzeuge · ` : ""}{position.activityCount} Spielpläne
                   {position.selfBondageCapable ? " · Self-Bondage" : ""}
+                  {position.favoriteCount ? ` · ${position.favoriteCount} Favorit${position.favoriteCount === 1 ? "" : "en"}` : ""}
                 </p>
               </div>
               <ChevronDown className="h-5 w-5 shrink-0 text-graphite transition group-open/position-card:rotate-180" />
@@ -198,6 +206,8 @@ export function SortablePositionList({ items, canSort = false, showTools = true 
                     <span className="rounded-md bg-surface px-2 py-1">/positions/{position.slug}</span>
                     {showTools ? <span className="rounded-md bg-surface px-2 py-1">{position.toolCount} Spielzeuge</span> : null}
                     <span className="rounded-md bg-surface px-2 py-1">{position.activityCount} Spielpläne</span>
+                    {position.isFavorite ? <span className="rounded-md bg-redbrand px-2 py-1 text-white">Favorit</span> : null}
+                    {position.favoriteCount ? <span className="rounded-md bg-surface px-2 py-1">{position.favoriteCount} Favorit{position.favoriteCount === 1 ? "" : "en"}</span> : null}
                     <span className={`rounded-md px-2 py-1 ${position.selfBondageCapable ? "bg-redbrand text-white" : "bg-surface text-graphite"}`}>
                       {position.selfBondageCapable ? "Self-Bondage-fähig" : "Nicht als Self-Bondage-fähig markiert"}
                     </span>

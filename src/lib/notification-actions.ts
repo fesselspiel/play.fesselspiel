@@ -9,6 +9,7 @@ export const knownAuditActions = [
   ["external_push_failed", "Externer Push fehlgeschlagen"],
   ["external_push_sent", "Externer Push gesendet"],
   ["feed_comment_created", "Feed kommentiert"],
+  ["feed_liked", "Feed geliked"],
   ["kg_auto_closed", "KG-Tracker automatisch geschlossen"],
   ["kg_created", "KG-Tracker angelegt"],
   ["kg_deleted", "KG-Tracker gelöscht"],
@@ -24,6 +25,7 @@ export const knownAuditActions = [
   ["media_album_changed_telegram", "Bild per Telegram in Album verschoben"],
   ["media_created_telegram", "Bild per Telegram erstellt"],
   ["play_ready_changed", "Spielampel geändert"],
+  ["position_favorited", "Szene favorisiert"],
   ["self_bondage_order_accepted", "Self-Bondage-Auftrag angenommen"],
   ["self_bondage_order_completed", "Self-Bondage-Auftrag umgesetzt"],
   ["self_bondage_order_created", "Self-Bondage-Auftrag erteilt"],
@@ -65,7 +67,8 @@ export const knownAuditActions = [
   ["tracker_segufix_stopped_api", "Segufix per API beendet"],
   ["tracker_segufix_stopped_telegram", "Segufix per Telegram beendet"],
   ["tracker_type_created", "Tracker angelegt"],
-  ["tracker_type_updated", "Tracker bearbeitet"]
+  ["tracker_type_updated", "Tracker bearbeitet"],
+  ["toy_favorited", "Spielzeug favorisiert"]
 ] as const;
 
 export function actionLabel(action: string) {

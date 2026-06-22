@@ -849,3 +849,11 @@ Details:
 - Die Übersicht ist wie Szenen und Spielsachen aufgebaut: kompakte, aufklappbare Liste mit Thumbnail, Titel, Beschreibung, Status und Bausteinzahlen.
 - Der Bild-Upload beim Anlegen einer Idee nutzt wieder einen sichtbaren Dateiinput, damit die Bildauswahl auf iPhone/iPad zuverlässig öffnet.
 - Super-Admins sehen in der Telegram-Konfiguration vorhandene Bot-Tokens aus anderen Seiten/Bots mit Herkunftskontext und können diese als Standardbot der aktuellen Seite übernehmen.
+- Der Ideen-Bildupload nutzt jetzt denselben Crop-/Ausschnitt-Dialog wie andere Bilder. Die daraus entstehende geschützte Datei wird als `ActivityImage` an die Idee gehängt.
+- Leere Ideen-Bausteinbereiche werden nicht angezeigt: Sind keine Spielsachen oder Szenen verknüpft, erscheint das jeweilige Feld weder in Übersicht noch Detailseite.
+
+## Likes und Favoriten
+
+- Feed-Einträge können pro Benutzer mit Daumen hoch geliked werden. Likes werden klein am Feed-Eintrag angezeigt und erzeugen das Protokollereignis `feed_liked`.
+- Spielsachen und Szenen haben benutzerbezogene Favoriten (`ToyFavorite`, `PositionFavorite`).
+- Favorisieren erzeugt eigene Protokollereignisse (`toy_favorited`, `position_favorited`), wird auf Detailseiten angezeigt und taucht auf der Startseite im Bereich Favoriten auf.

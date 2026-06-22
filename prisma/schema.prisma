@@ -162,7 +162,10 @@ model User {
   tenantTelegramBots TenantTelegramSettings[] @relation("TenantTelegramBotOwner")
   auditLogs         AuditLog[]
   feedComments      FeedComment[]
+  feedLikes         FeedLike[]
   trackerEntries    TrackerEntry[]
+  favoriteToys      ToyFavorite[]
+  favoritePositions PositionFavorite[]
   bondageSystemTargets BondageSystemItem[] @relation("BondageSystemTargetUser")
   emailConfirmationTokens EmailConfirmationToken[]
   passwordResetTokens PasswordResetToken[]
@@ -339,6 +342,7 @@ model AuditLog {
   createdAt  DateTime @default(now())
   actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
   feedComments FeedComment[]
+  feedLikes     FeedLike[]
 
   @@index([actorId, createdAt])
   @@index([createdAt])
@@ -356,6 +360,19 @@ model FeedComment {
 
   @@index([auditLogId, createdAt])
   @@index([authorId, createdAt])
+}
+
+model FeedLike {
+  id        String   @id @default(cuid())
+  auditLogId String
+  userId    String?
+  createdAt DateTime @default(now())
+  auditLog  AuditLog @relation(fields: [auditLogId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([auditLogId, userId])
+  @@index([auditLogId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model FeedRule {
@@ -482,10 +499,24 @@ model Toy {
   owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   positions   Position[]     @relation("PositionTools")
   activities  ActivityPlan[] @relation("ActivityTools")
+  favorites   ToyFavorite[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, sortOrder, title])
   @@index([ownerId, sortOrder, title])
+}
+
+model ToyFavorite {
+  id        String   @id @default(cuid())
+  toyId     String
+  userId    String
+  createdAt DateTime @default(now())
+  toy       Toy      @relation(fields: [toyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([toyId, userId])
+  @@index([userId, createdAt])
+  @@index([toyId, createdAt])
 }
 
 model Position {
@@ -505,10 +536,24 @@ model Position {
   tools       Toy[]          @relation("PositionTools")
   bondageSystemItems BondageSystemItem[] @relation("PositionBondageSystemItems")
   activities  ActivityPlan[] @relation("ActivityPositions")
+  favorites   PositionFavorite[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, sortOrder, name])
   @@index([ownerId, sortOrder, name])
+}
+
+model PositionFavorite {
+  id         String   @id @default(cuid())
+  positionId String
+  userId     String
+  createdAt  DateTime @default(now())
+  position   Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([positionId, userId])
+  @@index([userId, createdAt])
+  @@index([positionId, createdAt])
 }
 
 model ActivityPlan {

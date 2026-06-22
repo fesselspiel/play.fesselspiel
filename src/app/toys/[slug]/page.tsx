@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Download, Pencil, Printer } from "lucide-react";
+import { Download, Pencil, Printer, Star } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { CopyLink } from "@/components/copy-link";
 import { PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
@@ -8,18 +8,45 @@ import { isAccessibleOwner, contentTenantScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { hasFeature, requireFeature } from "@/lib/features";
+import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
+
+async function toggleToyFavorite(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  await requireFeature("toys");
+  const toyId = String(formData.get("toyId") || "");
+  const toy = await prisma.toy.findFirst({ where: { id: toyId, ...contentTenantScope(user) }, select: { id: true, ownerId: true, title: true, slug: true } });
+  if (!toy || !(await isAccessibleOwner(user, toy.ownerId))) notFound();
+  const existing = await prisma.toyFavorite.findUnique({ where: { toyId_userId: { toyId: toy.id, userId: user.id } } });
+  if (existing) {
+    await prisma.toyFavorite.delete({ where: { id: existing.id } });
+  } else {
+    await prisma.toyFavorite.create({ data: { toyId: toy.id, userId: user.id } });
+    await logAction({
+      actorId: user.id,
+      action: "toy_favorited",
+      entityType: "toy",
+      entityId: toy.id,
+      title: `Spielzeug favorisiert: ${toy.title}`,
+      href: `/toys/${toy.slug}`
+    });
+  }
+  redirect(`/toys/${toy.slug}`);
+}
 
 export default async function ToyDetailPage({ params }: { params: { slug: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("toys");
   const positionsEnabled = await hasFeature("positions");
-  const toy = await prisma.toy.findFirst({ where: { slug: params.slug, ...contentTenantScope(user) }, include: { positions: positionsEnabled, activities: true } });
+  const toy = await prisma.toy.findFirst({ where: { slug: params.slug, ...contentTenantScope(user) }, include: { positions: positionsEnabled, activities: true, favorites: true } });
   if (!toy || !(await isAccessibleOwner(user, toy.ownerId))) notFound();
   const url = `${env.appUrl}/toys/${toy.slug}`;
   const displayUrl = url.replace(/^https?:\/\//, "");
+  const isFavorite = toy.favorites.some((favorite) => favorite.userId === user.id);
 
   return (
     <AppShell>
@@ -76,12 +103,20 @@ export default async function ToyDetailPage({ params }: { params: { slug: string
         <h2 className="mb-2 text-lg font-semibold">Aktionen</h2>
         <p className="mb-4 text-sm text-graphite">Ändere diesen Eintrag nur, wenn Bild, Text, Slug oder Beschreibung aktualisiert werden sollen.</p>
         <div className="flex flex-wrap items-center gap-3">
+          <form action={toggleToyFavorite}>
+            <input type="hidden" name="toyId" value={toy.id} />
+            <button className={`inline-flex min-h-10 items-center gap-2 rounded-md border border-line px-4 py-2 text-sm font-semibold hover:bg-paper ${isFavorite ? "bg-redbrand text-white hover:bg-redbrandHover" : "bg-surface text-ink"}`}>
+              <Star className="h-4 w-4" />
+              {isFavorite ? "Favorit" : "Als Favorit markieren"}
+            </button>
+          </form>
           <Link href={`/toys/${toy.slug}/edit`} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
             <Pencil className="h-4 w-4" />
             Bearbeiten
           </Link>
           <CopyLink value={displayUrl} label={displayUrl} />
         </div>
+        {toy.favorites.length ? <p className="mt-3 text-xs text-graphite">{toy.favorites.length} Favorit{toy.favorites.length === 1 ? "" : "en"}</p> : null}
       </Panel>
     </AppShell>
   );
