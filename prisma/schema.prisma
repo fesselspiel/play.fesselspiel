@@ -90,6 +90,7 @@ model Tenant {
   feedRules FeedRule[]
   externalPushRules ExternalPushRule[]
   externalPushLogs ExternalPushLog[]
+  playReadyLikes PlayReadyLike[]
 
   @@index([status])
 }
@@ -166,6 +167,8 @@ model User {
   trackerEntries    TrackerEntry[]
   favoriteToys      ToyFavorite[]
   favoritePositions PositionFavorite[]
+  playReadyLikesGiven PlayReadyLike[] @relation("PlayReadyLikeActor")
+  playReadyLikesReceived PlayReadyLike[] @relation("PlayReadyLikeTarget")
   bondageSystemTargets BondageSystemItem[] @relation("BondageSystemTargetUser")
   emailConfirmationTokens EmailConfirmationToken[]
   passwordResetTokens PasswordResetToken[]
@@ -389,6 +392,21 @@ model FeedRule {
   @@unique([tenantId, action])
   @@index([tenantId, active])
   @@index([action])
+}
+
+model PlayReadyLike {
+  id           String   @id @default(cuid())
+  tenantId     String?
+  actorId      String
+  targetUserId String
+  createdAt    DateTime @default(now())
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor        User     @relation("PlayReadyLikeActor", fields: [actorId], references: [id], onDelete: Cascade)
+  targetUser   User     @relation("PlayReadyLikeTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, actorId, targetUserId])
+  @@index([targetUserId, createdAt])
+  @@index([actorId, createdAt])
 }
 
 model ExternalPushRule {

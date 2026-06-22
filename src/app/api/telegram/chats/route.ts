@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { currentUser } from "@/lib/auth";
+import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
 import { ensureLegacyUserSettings, resolveTelegramSettingsForScope } from "@/lib/tenant-telegram";
@@ -28,16 +29,29 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Ungültige Eingabe" }, { status: 400 });
   const scope = parsed.data.scope === "user" ? "user" : "tenant";
   const tenant = await currentTenant();
+  try {
   const [telegramSettings, legacySettings] = await Promise.all([
     resolveTelegramSettingsForScope(tenant.id, user.id, { scope, botId: parsed.data.botId }),
     ensureLegacyUserSettings(user.id)
   ]);
+  const membership = await prisma.tenantMembership.findUnique({
+    where: { tenantId_userId: { tenantId: tenant.id, userId: user.id } },
+    select: { userId: true, active: true }
+  });
+  const targetUserId = membership?.active ? user.id : null;
   const activeTelegramSettingsId = telegramSettings.id;
   const threadId = parsed.data.threadId || null;
   const chatTitle = parsed.data.chatTitle || parsed.data.title || parsed.data.chatId;
   const threadTitle = parsed.data.threadTitle || null;
   const existing = await prisma.telegramChat.findFirst({
-    where: { telegramSettingsId: telegramSettings.id, chatId: parsed.data.chatId, threadId }
+    where: {
+      chatId: parsed.data.chatId,
+      threadId,
+      OR: [
+        { telegramSettingsId: telegramSettings.id },
+        { settingsId: legacySettings.id }
+      ]
+    }
   });
   const detectedMessage = {
     lastMessageText: parsed.data.lastMessageText || null,
@@ -52,7 +66,8 @@ export async function POST(request: Request) {
           chatTitle: chatTitle || existing.chatTitle,
           threadTitle: threadTitle || existing.threadTitle,
           status: "ACTIVE",
-          targetUserId: existing.targetUserId || user.id,
+          targetUserId: existing.targetUserId || targetUserId,
+          settingsId: legacySettings.id,
           telegramSettingsId: activeTelegramSettingsId,
           ...detectedMessage
         }
@@ -61,7 +76,7 @@ export async function POST(request: Request) {
         data: {
           settingsId: legacySettings.id,
           telegramSettingsId: activeTelegramSettingsId,
-          targetUserId: user.id,
+          targetUserId,
           chatId: parsed.data.chatId,
           threadId,
           title: threadTitle || null,
@@ -100,4 +115,22 @@ export async function POST(request: Request) {
     });
   }
   return NextResponse.json({ ok: true, chat });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unbekannter Fehler";
+    await logAction({
+      actorId: user.id,
+      action: "telegram_chat_save_failed",
+      entityType: "telegramChat",
+      title: "Telegram-Chat konnte nicht gespeichert werden",
+      details: {
+        chatId: parsed.data.chatId,
+        threadId: parsed.data.threadId || null,
+        scope,
+        botId: parsed.data.botId || null,
+        error: message.slice(0, 1000)
+      },
+      href: "/settings/telegram"
+    });
+    return NextResponse.json({ error: `Chat konnte nicht gespeichert werden: ${message}` }, { status: 500 });
+  }
 }

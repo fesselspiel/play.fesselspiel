@@ -68,6 +68,40 @@ async function togglePlayReady() {
   redirect("/");
 }
 
+async function likePlayReady(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const targetUserId = String(formData.get("targetUserId") || "");
+  if (!targetUserId || targetUserId === user.id) redirect("/");
+  const target = await prisma.user.findFirst({
+    where: {
+      id: targetUserId,
+      active: true,
+      ...(user.tenantId ? { memberships: { some: { tenantId: user.tenantId, active: true } } } : {})
+    },
+    include: { profile: true }
+  });
+  if (!target) redirect("/");
+  const existing = await prisma.playReadyLike.findFirst({
+    where: { tenantId: user.tenantId || null, actorId: user.id, targetUserId: target.id }
+  });
+  if (!existing) {
+    await prisma.playReadyLike.create({ data: { tenantId: user.tenantId || undefined, actorId: user.id, targetUserId: target.id } });
+    const targetName = target.profile?.displayName || target.name || target.username || target.email;
+    await logAction({
+      actorId: user.id,
+      action: "play_ready_liked",
+      entityType: "user",
+      entityId: target.id,
+      title: `Spielampel geliked: ${targetName}`,
+      href: "/",
+      details: { targetUserId: target.id, targetName }
+    });
+  }
+  redirect("/");
+}
+
 async function stopDashboardTracker(formData: FormData) {
   "use server";
   const user = await currentUser();
@@ -193,7 +227,19 @@ export default async function DashboardPage() {
             ? { tenantId: user.tenantId, active: true, user: { active: true } }
             : { tenantId: user.tenantId, userId: user.id, active: true, user: { active: true } }
         : { userId: user.id, active: true, user: { active: true } },
-      include: { user: { include: { settings: true, profile: true } } },
+      include: {
+        user: {
+          include: {
+            settings: true,
+            profile: true,
+            playReadyLikesReceived: {
+              where: { tenantId: user.tenantId || null },
+              include: { actor: { include: { profile: true } } },
+              orderBy: { createdAt: "desc" }
+            }
+          }
+        }
+      },
       orderBy: { createdAt: "asc" }
     }),
     selfBondageEnabled
@@ -339,6 +385,8 @@ export default async function DashboardPage() {
               const isSelf = member.id === user.id;
               const displayName = member.profile?.displayName || member.name || member.username || member.email;
               const stateLabel = ready ? "Voll Lust" : "Gerade nicht";
+              const likes = member.playReadyLikesReceived || [];
+              const likedBySelf = likes.some((like) => like.actorId === user.id);
               const content = (
                 <span className={`flex min-h-28 w-full items-center gap-4 rounded-lg border p-4 text-left transition ${
                   ready ? "border-emerald-500 bg-emerald-500/10" : "border-redbrand bg-redbrand/10"
@@ -355,6 +403,7 @@ export default async function DashboardPage() {
                     <span className="block truncate text-base font-semibold text-ink">{displayName}</span>
                     <span className={`mt-1 block text-sm font-semibold ${ready ? "text-emerald-700" : "text-redbrand"}`}>{stateLabel}</span>
                     {isSelf ? <span className="mt-1 block text-xs text-graphite">Antippen zum Umschalten</span> : null}
+                    {likes.length ? <span className="mt-1 block text-xs text-graphite">👍 {likes.length} Like{likes.length === 1 ? "" : "s"}</span> : null}
                   </span>
                 </span>
               );
@@ -363,7 +412,16 @@ export default async function DashboardPage() {
                   <button type="submit" className="focus-ring block w-full rounded-lg">{content}</button>
                 </form>
               ) : (
-                <div key={member.id}>{content}</div>
+                <div key={member.id} className="space-y-2">
+                  {content}
+                  <form action={likePlayReady}>
+                    <input type="hidden" name="targetUserId" value={member.id} />
+                    <button type="submit" disabled={likedBySelf} className={`focus-ring inline-flex min-h-9 items-center gap-2 rounded-md border border-line px-3 py-1.5 text-xs font-semibold ${likedBySelf ? "bg-paper text-redbrand" : "bg-surface text-graphite hover:bg-paper hover:text-redbrand"}`}>
+                      <ThumbsUp className="h-3.5 w-3.5" />
+                      {likedBySelf ? "Geliked" : "Gefällt mir"}
+                    </button>
+                  </form>
+                </div>
               );
             })}
           </div>

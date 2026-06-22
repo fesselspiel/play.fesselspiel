@@ -855,5 +855,12 @@ Details:
 ## Likes und Favoriten
 
 - Feed-Einträge können pro Benutzer mit Daumen hoch geliked werden. Likes werden klein am Feed-Eintrag angezeigt und erzeugen das Protokollereignis `feed_liked`.
+- Spielampel-Einträge anderer Benutzer können geliked werden. Die eigene Ampel bleibt nur umschaltbar, Likes erzeugen das Protokollereignis `play_ready_liked`.
 - Spielsachen und Szenen haben benutzerbezogene Favoriten (`ToyFavorite`, `PositionFavorite`).
 - Favorisieren erzeugt eigene Protokollereignisse (`toy_favorited`, `position_favorited`), wird auf Detailseiten angezeigt und taucht auf der Startseite im Bereich Favoriten auf.
+
+## Telegram-Chat-Speicherung
+
+- Das manuelle Speichern erkannter Telegram-Chats prüft jetzt sowohl die neue Seitenbot-Zuordnung `telegramSettingsId` als auch die Legacy-Zuordnung `settingsId`.
+- Bereits vorhandene Chats werden dadurch aktualisiert, statt beim erneuten Einlesen an der eindeutigen Kombination aus Chat-ID und Thread-ID zu scheitern.
+- Fehler beim Speichern werden als `telegram_chat_save_failed` mit Chat-ID, Thread-ID, Bot-ID und Fehlertext protokolliert.
