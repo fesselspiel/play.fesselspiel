@@ -6,7 +6,7 @@ import { TemplateVariableTextarea } from "@/components/template-variable-textare
 import { NotificationTargetFields } from "@/components/telegram/notification-target-fields";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
 import { defaultEmailTemplates, ensureEmailSetup, sendTemplateEmail } from "@/lib/email";
-import { currentSessionContext, requireAdmin } from "@/lib/auth";
+import { currentAdminOrRedirect, currentSessionContext, requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
 import { env } from "@/lib/env";
@@ -198,7 +198,7 @@ async function testEmailRule(formData: FormData) {
 }
 
 export default async function EmailSettingsPage({ searchParams }: { searchParams?: { saved?: string; test?: string; template?: string; error?: string; action?: string; ruleTestSent?: string; ruleTestFailed?: string } }) {
-  const admin = await requireAdmin();
+  const admin = await currentAdminOrRedirect();
   await requireFeature("email");
   const { tenant } = await currentSessionContext();
   if (!tenant) redirect("/");

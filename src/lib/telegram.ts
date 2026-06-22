@@ -44,6 +44,10 @@ export type TelegramChatCandidate = {
   threadTitle: string | null;
   chatType: string;
   from: string;
+  fromId: string | null;
+  fromUsername: string | null;
+  fromFirstName: string | null;
+  fromLastName: string | null;
   text: string;
   createdAt: string;
 };
@@ -106,6 +110,10 @@ export function toChatCandidate(update: TelegramUpdate): TelegramChatCandidate |
     threadTitle,
     chatType: message.chat.type || "unknown",
     from: message.from?.username || message.from?.first_name || "",
+    fromId: message.from?.id ? String(message.from.id) : null,
+    fromUsername: message.from?.username || null,
+    fromFirstName: message.from?.first_name || null,
+    fromLastName: message.from?.last_name || null,
     text: message.text || message.caption || (message.voice ? "Sprachnachricht" : message.photo?.length || message.document ? "Datei" : ""),
     createdAt: message.date ? new Date(message.date * 1000).toISOString() : new Date().toISOString()
   };

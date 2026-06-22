@@ -10,7 +10,11 @@ const Body = z.object({
   chatTitle: z.string().optional(),
   threadTitle: z.string().nullable().optional(),
   lastMessageText: z.string().optional(),
-  lastMessageFrom: z.string().optional()
+  lastMessageFrom: z.string().optional(),
+  fromId: z.string().nullable().optional(),
+  fromUsername: z.string().nullable().optional(),
+  fromFirstName: z.string().nullable().optional(),
+  fromLastName: z.string().nullable().optional()
 });
 
 export async function POST(request: Request) {
@@ -53,5 +57,24 @@ export async function POST(request: Request) {
           ...detectedMessage
         }
       });
+  if (parsed.data.fromId) {
+    await prisma.telegramKnownUser.upsert({
+      where: { settingsId_telegramUserId: { settingsId: settings.id, telegramUserId: parsed.data.fromId } },
+      update: {
+        telegramUsername: parsed.data.fromUsername ? parsed.data.fromUsername.toLowerCase() : null,
+        firstName: parsed.data.fromFirstName || null,
+        lastName: parsed.data.fromLastName || null,
+        lastMessageAt: new Date()
+      },
+      create: {
+        settingsId: settings.id,
+        telegramUserId: parsed.data.fromId,
+        telegramUsername: parsed.data.fromUsername ? parsed.data.fromUsername.toLowerCase() : null,
+        firstName: parsed.data.fromFirstName || null,
+        lastName: parsed.data.fromLastName || null,
+        lastMessageAt: new Date()
+      }
+    });
+  }
   return NextResponse.json({ ok: true, chat });
 }

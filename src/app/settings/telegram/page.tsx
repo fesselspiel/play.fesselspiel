@@ -527,7 +527,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
       take: 80
     }),
     prisma.auditLog.findMany({
-      where: { action: { in: ["telegram_message_received", "telegram_image_received"] } },
+      where: { action: { in: ["telegram_message_received", "telegram_image_received", "telegram_message_ignored"] } },
       include: { actor: { include: { profile: true } } },
       orderBy: { createdAt: "desc" },
       take: 120
@@ -721,7 +721,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                         <div className="font-semibold text-ink">{display}</div>
                         <div className="text-xs text-graphite">
                           {name || "Name unbekannt"} · ID {known.telegramUserId}
-                          {known.fromProtocol ? " · aus dem Protokoll" : " · aktiv erkannt"}
+                          {known.fromProtocol ? " · aus dem Protokoll oder ignoriertem Thread" : " · aktiv erkannt"}
                         </div>
                         <div className="text-xs text-graphite">Zuletzt: {formatDateTime(known.lastMessageAt)}</div>
                       </div>

@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
@@ -199,6 +200,13 @@ export async function requireAdmin() {
   const user = await currentSessionUser();
   if (!user) throw new Response("Nicht angemeldet", { status: 401 });
   if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") throw new Response("Nicht berechtigt", { status: 403 });
+  return user;
+}
+
+export async function currentAdminOrRedirect() {
+  const user = await currentSessionUser();
+  if (!user) redirect("/login");
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");
   return user;
 }
 

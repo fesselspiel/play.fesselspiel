@@ -393,6 +393,14 @@ async function findActiveTelegramChat(chatId: string, threadId: string | null) {
   });
 }
 
+async function findKnownTelegramChatInGroup(chatId: string) {
+  return prisma.telegramChat.findFirst({
+    where: { chatId, status: { in: ["ACTIVE", "PENDING"] } },
+    include: { settings: true },
+    orderBy: [{ status: "asc" }, { updatedAt: "desc" }]
+  });
+}
+
 function mappedTelegramUserId(
   chat: Awaited<ReturnType<typeof findActiveTelegramChat>>,
   from?: TelegramMessageFrom
@@ -436,6 +444,27 @@ async function rememberTelegramKnownUser(chat: Awaited<ReturnType<typeof findAct
   });
 }
 
+async function rememberTelegramKnownUserForSettings(settingsId: string, from?: TelegramMessageFrom) {
+  if (!from?.id) return;
+  await prisma.telegramKnownUser.upsert({
+    where: { settingsId_telegramUserId: { settingsId, telegramUserId: String(from.id) } },
+    update: {
+      telegramUsername: from.username ? from.username.toLowerCase() : null,
+      firstName: from.first_name || null,
+      lastName: from.last_name || null,
+      lastMessageAt: new Date()
+    },
+    create: {
+      settingsId,
+      telegramUserId: String(from.id),
+      telegramUsername: from.username ? from.username.toLowerCase() : null,
+      firstName: from.first_name || null,
+      lastName: from.last_name || null,
+      lastMessageAt: new Date()
+    }
+  });
+}
+
 export async function POST(request: Request) {
   const update = (await request.json()) as TelegramUpdate;
   const message = update.message || update.channel_post;
@@ -444,6 +473,26 @@ export async function POST(request: Request) {
   const threadId = message.message_thread_id ? String(message.message_thread_id) : null;
   const chat = await findActiveTelegramChat(chatId, threadId);
   if (!chat?.settings.telegramBotTokenEnc) {
+    const knownGroupChat = await findKnownTelegramChatInGroup(chatId);
+    if (knownGroupChat) {
+      await rememberTelegramKnownUserForSettings(knownGroupChat.settingsId, message.from);
+      await prisma.auditLog.create({
+        data: {
+          actorId: null,
+          action: "telegram_message_ignored",
+          entityType: "telegram",
+          title: "Telegram-Nachricht ignoriert",
+          details: {
+            reason: "thread_not_active",
+            chatId,
+            threadId,
+            chatTitle: message.chat.title || message.chat.username || null,
+            text: (message.text || message.caption || "").slice(0, 300),
+            ...telegramUserDetails(message.from)
+          }
+        }
+      });
+    }
     return NextResponse.json({ ok: true, ignored: true });
   }
   await rememberTelegramKnownUser(chat, message.from);

@@ -14,6 +14,10 @@ type Candidate = {
   threadTitle: string | null;
   chatType: string;
   from: string;
+  fromId: string | null;
+  fromUsername: string | null;
+  fromFirstName: string | null;
+  fromLastName: string | null;
   text: string;
   createdAt: string;
 };
@@ -113,7 +117,11 @@ export function TelegramChatDiscovery() {
           chatTitle: candidate.chatTitle,
           threadTitle: candidate.threadTitle,
           lastMessageText: candidate.text,
-          lastMessageFrom: candidate.from
+          lastMessageFrom: candidate.from,
+          fromId: candidate.fromId,
+          fromUsername: candidate.fromUsername,
+          fromFirstName: candidate.fromFirstName,
+          fromLastName: candidate.fromLastName
         })
       });
       const payload = await response.json();
@@ -161,6 +169,9 @@ export function TelegramChatDiscovery() {
           {webhookInfo.result.last_error_message ? <div><strong>Letzter Fehler:</strong> {webhookInfo.result.last_error_message}</div> : null}
         </div>
       ) : null}
+      <p className="rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
+        Neue Telegram-Benutzer werden nur erkannt, wenn Telegram dem Bot die Nachricht tatsächlich zustellt. In Gruppen mit Bot-Privacy muss die Person am zuverlässigsten einen Befehl wie <code>/id</code> oder <code>/help</code> im aktiven Thread schicken.
+      </p>
       {error ? <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-redbrand">{error}</p> : null}
       <div className="space-y-3">
         {candidates.map((candidate) => {
@@ -172,7 +183,7 @@ export function TelegramChatDiscovery() {
                 <div><span className="text-graphite">Thread-ID:</span> <strong>{candidate.threadId || "-"}</strong></div>
                 <div><span className="text-graphite">Chatname:</span> {candidate.chatTitle || candidate.title || "Unbenannter Chat"}</div>
                 <div><span className="text-graphite">Threadname:</span> {candidate.threadTitle || (candidate.threadId ? "Thread-Name fehlt" : "Hauptchat")}</div>
-                <div><span className="text-graphite">Von:</span> {candidate.from || "-"}</div>
+                <div><span className="text-graphite">Von:</span> {candidate.from || "-"}{candidate.fromId ? ` · ID ${candidate.fromId}` : ""}</div>
               </div>
               <div className="mt-3 rounded-md bg-surface p-3 text-sm">
                 <div className="font-semibold text-ink">Letzte erkannte Testnachricht</div>

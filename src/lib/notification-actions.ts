@@ -39,6 +39,7 @@ export const knownAuditActions = [
   ["session_viewed", "Session aufgerufen"],
   ["telegram_answer_sent", "Telegram-Antwort gesendet"],
   ["telegram_image_received", "Telegram-Bild empfangen"],
+  ["telegram_message_ignored", "Telegram-Nachricht ignoriert"],
   ["telegram_message_received", "Telegram-Nachricht empfangen"],
   ["telegram_notification_failed", "Telegram-Benachrichtigung fehlgeschlagen"],
   ["telegram_notification_sent", "Telegram-Benachrichtigung gesendet"]

@@ -806,3 +806,11 @@ Details:
 - Ausgehende Telegram-HTML-Nachrichten normalisieren gespeicherte Literal-Zeilenumbrüche wie `\n` vor dem Senden zu echten Zeilenumbrüchen. `<br>` wird ebenfalls in Telegram-kompatible Zeilenumbrüche umgesetzt.
 - Eingehende Telegram-Texte und Bilder speichern künftig Telegram-User-ID, Username und Namen im Protokoll. Die Telegram-Benutzerzuordnung zeigt diese Protokollnutzer zusätzlich zu aktiv erkannten Nutzern an.
 - Neue Telegram- und E-Mail-Aktionsregeln wählen keinen Standardbenutzer mehr automatisch aus. Benutzer oder Kreis müssen bewusst gewählt werden.
+- Die Telegram-Erkennung speichert Benutzer jetzt auch aus `Chat einlesen`, wenn Telegram `getUpdates` für die Testnachricht liefert.
+- Wenn der Webhook eine Nachricht aus einem bekannten Telegram-Gruppenchat, aber aus einem nicht aktivierten Thread erhält, wird sie weiterhin nicht beantwortet, aber als `telegram_message_ignored` protokolliert und der Telegram-Benutzer für die Zuordnung erfasst.
+- Die Telegram-Hilfe weist darauf hin, dass Gruppen mit Bot-Privacy am zuverlässigsten Befehle wie `/id` oder `/help` an den Bot zustellen.
+
+## E-Mail-Adminseite
+
+- Für Admin-Seiten gibt es einen Redirect-Helper, der bei fehlendem Login zur Loginseite und bei fehlender Adminrolle zur Startseite weiterleitet.
+- Die E-Mail-Einstellungsseite nutzt diesen Helper im Page-Render, damit nicht angemeldete Aufrufe keinen Server-Digest mehr erzeugen.
