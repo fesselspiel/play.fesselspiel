@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, GripVertical, MoveDown, MoveUp } from "lucide-react";
+import { ChevronDown, MoveDown, MoveUp } from "lucide-react";
 import { useState, useTransition } from "react";
 
 type ToyItem = {
@@ -37,15 +37,6 @@ type BondageSystemItem = {
   activityCount: number;
   inTagFilter: boolean;
 };
-
-function DragHandle() {
-  return (
-    <span className="focus-ring inline-flex h-10 w-10 shrink-0 cursor-grab items-center justify-center rounded-md border border-line bg-surface text-graphite active:cursor-grabbing">
-      <GripVertical className="h-5 w-5" />
-      <span className="sr-only">Sortieren</span>
-    </span>
-  );
-}
 
 function useReorder<T extends { id: string }>(kind: "toys" | "positions" | "bondageSystem", items: T[]) {
   const [ordered, setOrdered] = useState(items);
@@ -89,14 +80,14 @@ function useReorder<T extends { id: string }>(kind: "toys" | "positions" | "bond
   return { ordered, dragId, setDragId, move, moveBy, isPending };
 }
 
-export function SortableToyList({ items }: { items: ToyItem[] }) {
-  const { ordered, dragId, setDragId, move, isPending } = useReorder("toys", items);
+export function SortableToyList({ items, canSort = false }: { items: ToyItem[]; canSort?: boolean }) {
+  const { ordered, dragId, setDragId, move, moveBy, isPending } = useReorder("toys", items);
   return (
     <div className="space-y-3">
       {ordered.map((toy) => (
         <div
           key={toy.id}
-          draggable
+          draggable={false}
           onDragStart={() => setDragId(toy.id)}
           onDragOver={(event) => event.preventDefault()}
           onDrop={() => move(toy.id)}
@@ -105,7 +96,6 @@ export function SortableToyList({ items }: { items: ToyItem[] }) {
         >
           <details className="group/toy-card overflow-hidden rounded-lg border border-line bg-surface">
             <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 px-3 py-3 hover:bg-paper [&::-webkit-details-marker]:hidden">
-              <DragHandle />
               <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-paper sm:h-16 sm:w-16">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={toy.imageUrl || "/toy-placeholder.svg"} alt="" className="h-full w-full object-cover" />
@@ -142,6 +132,28 @@ export function SortableToyList({ items }: { items: ToyItem[] }) {
           </details>
         </div>
       ))}
+      {canSort ? (
+        <details className="rounded-lg border border-line bg-surface p-4">
+          <summary className="cursor-pointer list-none text-sm font-semibold text-graphite hover:text-redbrand [&::-webkit-details-marker]:hidden">
+            Reihenfolge bearbeiten
+          </summary>
+          <div className="mt-3 space-y-2">
+            {ordered.map((toy, index) => (
+              <div key={toy.id} className="flex items-center gap-2 rounded-md bg-paper p-2">
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{toy.title}</span>
+                <button type="button" onClick={() => moveBy(toy.id, -1)} disabled={index === 0} className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface disabled:opacity-40">
+                  <MoveUp className="h-4 w-4" />
+                </button>
+                <button type="button" onClick={() => moveBy(toy.id, 1)} disabled={index === ordered.length - 1} className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface disabled:opacity-40">
+                  <MoveDown className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            {isPending ? <p className="text-xs text-graphite">Reihenfolge wird gespeichert ...</p> : null}
+          </div>
+        </details>
+      ) : null}
+      {isPending ? <p className="text-xs text-graphite">Reihenfolge wird gespeichert ...</p> : null}
     </div>
   );
 }

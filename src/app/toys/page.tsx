@@ -31,7 +31,7 @@ export default async function ToysPage() {
         Hier verwaltest du deinen Spielzeugkatalog. Öffne einen Eintrag für Details, QR-Code und Verknüpfungen oder lege über den roten Button ein neues Spielzeug mit Bild, Beschreibung und passenden Szenen an.
       </PageGuide>
       {toys.length ? (
-        <SortableToyList items={toys.map((toy) => ({
+        <SortableToyList canSort={user.role === "ADMIN" || user.role === "SUPER_ADMIN"} items={toys.map((toy) => ({
           id: toy.id,
           title: toy.title,
           slug: toy.slug,

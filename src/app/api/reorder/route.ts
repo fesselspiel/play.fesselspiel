@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
   const body = await request.json().catch(() => null) as { kind?: ReorderKind; ids?: string[] } | null;
   const kind = body?.kind;
-  if ((kind === "positions" || kind === "bondageSystem") && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Nicht berechtigt" }, { status: 403 });
+  if (["toys", "positions", "bondageSystem"].includes(String(kind)) && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Nicht berechtigt" }, { status: 403 });
   const ids = Array.isArray(body?.ids) ? body.ids.map(String).filter(Boolean) : [];
   if (!kind || !["toys", "positions", "bondageSystem"].includes(kind) || !ids.length) {
     return NextResponse.json({ error: "Ungültige Sortierung" }, { status: 400 });

@@ -769,3 +769,9 @@ Details:
 - Die aktive Seitenansicht zeigt jetzt die passende Hauptdomain der geöffneten Seite an.
 - In der Seitenauswahl heißt die aktuell geöffnete Seite `Aktive Seite` statt erneut `Seite öffnen`.
 - Alte automatisch erzeugte Superadmin-Mitgliedschaften in Nebenseiten wurden auf dem VPS entfernt, ohne den Benutzer selbst zu löschen.
+
+## Sortierung von Spielsachen
+
+- Spielsachen können jetzt wie Szenen über einen eingeklappten Bereich `Reihenfolge bearbeiten` sortiert werden.
+- Die Sortierung nutzt die vorhandene `sortOrder`-Spalte und speichert Änderungen über `/api/reorder`.
+- Nur Admins und Superadmins dürfen die Reihenfolge von Spielsachen, Szenen und Bondage-System-Einträgen ändern.
