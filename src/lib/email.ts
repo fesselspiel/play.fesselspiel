@@ -1,4 +1,6 @@
 import net from "node:net";
+import { randomUUID } from "node:crypto";
+import type { Prisma } from "@prisma/client";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
@@ -44,6 +46,10 @@ type SendTemplateInput = {
   key: string;
   to: string | null | undefined;
   variables: Record<string, string | number | boolean | null | undefined>;
+  actorId?: string | null;
+  source?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
 };
 
 type SendRawInput = {
@@ -54,6 +60,7 @@ type SendRawInput = {
   body: string;
   smtpHost: string;
   smtpPort: number;
+  messageId: string;
 };
 
 function cleanHeader(value: string) {
@@ -75,6 +82,10 @@ function isDeliverableAddress(email: string | null | undefined) {
 
 function renderTemplate(source: string, variables: SendTemplateInput["variables"]) {
   return source.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => String(variables[key] ?? ""));
+}
+
+function jsonValue(value: unknown) {
+  return JSON.parse(JSON.stringify(value ?? null)) as Prisma.InputJsonValue;
 }
 
 function readSmtpReply(socket: net.Socket) {
@@ -107,9 +118,10 @@ function readSmtpReply(socket: net.Socket) {
   });
 }
 
-async function smtpCommand(socket: net.Socket, command: string, expected: number[]) {
+async function smtpCommand(socket: net.Socket, command: string, expected: number[], transcript: string[]) {
   socket.write(`${command}\r\n`);
   const response = await readSmtpReply(socket);
+  transcript.push(`${command.replace(/^DATA[\s\S]*/i, "DATA")} -> ${response.trim()}`);
   const code = Number(response.slice(0, 3));
   if (!expected.includes(code)) throw new Error(`SMTP-Fehler nach ${command}: ${response.trim()}`);
   return response;
@@ -117,20 +129,23 @@ async function smtpCommand(socket: net.Socket, command: string, expected: number
 
 async function sendRawEmail(input: SendRawInput) {
   const socket = net.createConnection({ host: input.smtpHost, port: input.smtpPort });
+  const transcript: string[] = [];
   try {
     await new Promise<void>((resolve, reject) => {
       socket.once("connect", resolve);
       socket.once("error", reject);
     });
-    await readSmtpReply(socket);
-    await smtpCommand(socket, "EHLO playplaner.com", [250]);
-    await smtpCommand(socket, `MAIL FROM:<${cleanHeader(input.fromEmail)}>`, [250]);
-    await smtpCommand(socket, `RCPT TO:<${cleanHeader(input.to)}>`, [250, 251]);
-    await smtpCommand(socket, "DATA", [354]);
+    transcript.push(`CONNECT ${input.smtpHost}:${input.smtpPort}`);
+    transcript.push(`SERVER -> ${(await readSmtpReply(socket)).trim()}`);
+    await smtpCommand(socket, "EHLO playplaner.com", [250], transcript);
+    await smtpCommand(socket, `MAIL FROM:<${cleanHeader(input.fromEmail)}>`, [250], transcript);
+    await smtpCommand(socket, `RCPT TO:<${cleanHeader(input.to)}>`, [250, 251], transcript);
+    await smtpCommand(socket, "DATA", [354], transcript);
     const message = [
       `From: ${encodeHeader(input.fromName)} <${cleanHeader(input.fromEmail)}>`,
       `To: <${cleanHeader(input.to)}>`,
       `Subject: ${encodeHeader(input.subject)}`,
+      `Message-ID: <${input.messageId}@playplaner.local>`,
       "MIME-Version: 1.0",
       "Content-Type: text/plain; charset=UTF-8",
       "Content-Transfer-Encoding: 8bit",
@@ -140,12 +155,74 @@ async function sendRawEmail(input: SendRawInput) {
     ].join("\r\n");
     socket.write(`${message}\r\n`);
     const dataResponse = await readSmtpReply(socket);
+    transcript.push(`MESSAGE -> ${dataResponse.trim()}`);
     const code = Number(dataResponse.slice(0, 3));
     if (code !== 250) throw new Error(`SMTP-Fehler beim Senden: ${dataResponse.trim()}`);
-    await smtpCommand(socket, "QUIT", [221]);
+    await smtpCommand(socket, "QUIT", [221], transcript);
+    return { transcript, response: dataResponse.trim() };
   } finally {
     socket.destroy();
   }
+}
+
+async function writeEmailProtocol(input: {
+  status: "SENT" | "FAILED" | "SKIPPED";
+  templateKey: string;
+  recipient: string;
+  subject: string;
+  fromEmail?: string | null;
+  fromName?: string | null;
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  messageId?: string | null;
+  error?: string | null;
+  details?: Prisma.InputJsonValue;
+  actorId?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+}) {
+  const log = await prisma.emailLog.create({
+    data: {
+      templateKey: input.templateKey,
+      recipient: input.recipient || "(kein Empfänger)",
+      subject: input.subject || "(kein Betreff)",
+      status: input.status,
+      fromEmail: input.fromEmail || null,
+      fromName: input.fromName || null,
+      smtpHost: input.smtpHost || null,
+      smtpPort: input.smtpPort || null,
+      messageId: input.messageId || null,
+      error: input.error || null,
+      details: input.details
+    }
+  });
+  await prisma.auditLog.create({
+    data: {
+      actorId: input.actorId || null,
+      action: input.status === "SENT" ? "email_sent" : input.status === "FAILED" ? "email_failed" : "email_skipped",
+      entityType: input.entityType || "email",
+      entityId: input.entityId || log.id,
+      title: input.status === "SENT"
+        ? `E-Mail gesendet: ${input.subject}`
+        : input.status === "FAILED"
+          ? `E-Mail fehlgeschlagen: ${input.subject}`
+          : `E-Mail übersprungen: ${input.subject || input.templateKey}`,
+      details: jsonValue({
+        emailLogId: log.id,
+        templateKey: input.templateKey,
+        recipient: input.recipient,
+        status: input.status,
+        fromEmail: input.fromEmail,
+        smtpHost: input.smtpHost,
+        smtpPort: input.smtpPort,
+        messageId: input.messageId,
+        error: input.error,
+        details: input.details ?? null
+      }),
+      href: "/settings/email"
+    }
+  });
+  return log;
 }
 
 export async function ensureEmailSetup() {
@@ -173,36 +250,101 @@ export async function ensureEmailSetup() {
 }
 
 export async function sendTemplateEmail(input: SendTemplateInput) {
-  if (!isDeliverableAddress(input.to)) return { sent: false, skipped: "no-recipient" };
+  const recipient = String(input.to || "").trim();
+  const messageId = randomUUID();
+  if (!isDeliverableAddress(input.to)) {
+    await writeEmailProtocol({
+      status: "SKIPPED",
+      templateKey: input.key,
+      recipient,
+      subject: input.key,
+      messageId,
+      error: "Kein zustellbarer Empfänger",
+      details: { reason: "no-recipient", source: input.source || null },
+      actorId: input.actorId,
+      entityType: input.entityType,
+      entityId: input.entityId
+    });
+    return { sent: false, skipped: "no-recipient" };
+  }
   await ensureEmailSetup();
   const [settings, template] = await Promise.all([
     prisma.emailSettings.findUnique({ where: { id: "system" } }),
     prisma.emailTemplate.findUnique({ where: { key: input.key } })
   ]);
-  if (!settings?.enabled || !template?.enabled) return { sent: false, skipped: "disabled" };
-  const subject = renderTemplate(template.subject, input.variables);
-  const body = renderTemplate(template.body, input.variables);
+  const subject = template ? renderTemplate(template.subject, input.variables) : input.key;
+  const body = template ? renderTemplate(template.body, input.variables) : "";
+  const smtpHost = settings?.smtpHost || env.emailSmtpHost;
+  const smtpPort = settings?.smtpPort || env.emailSmtpPort;
+  const baseDetails = {
+    source: input.source || null,
+    templateFound: Boolean(template),
+    templateEnabled: Boolean(template?.enabled),
+    systemEnabled: Boolean(settings?.enabled),
+    variables: Object.keys(input.variables)
+  };
+  if (!settings?.enabled || !template?.enabled) {
+    await writeEmailProtocol({
+      status: "SKIPPED",
+      templateKey: input.key,
+      recipient,
+      subject,
+      fromEmail: settings?.fromEmail,
+      fromName: settings?.fromName,
+      smtpHost,
+      smtpPort,
+      messageId,
+      error: !settings?.enabled ? "E-Mail-System deaktiviert" : "E-Mail-Template deaktiviert",
+      details: { ...baseDetails, reason: !settings?.enabled ? "system-disabled" : "template-disabled" },
+      actorId: input.actorId,
+      entityType: input.entityType,
+      entityId: input.entityId
+    });
+    return { sent: false, skipped: "disabled" };
+  }
   try {
-    await sendRawEmail({
-      to: String(input.to),
+    const delivery = await sendRawEmail({
+      to: recipient,
       fromEmail: settings.fromEmail,
       fromName: settings.fromName,
       subject,
       body,
-      smtpHost: settings.smtpHost || env.emailSmtpHost,
-      smtpPort: settings.smtpPort || env.emailSmtpPort
+      smtpHost,
+      smtpPort,
+      messageId
     });
-    await prisma.emailLog.create({ data: { templateKey: input.key, recipient: String(input.to), subject, status: "SENT" } });
+    await writeEmailProtocol({
+      status: "SENT",
+      templateKey: input.key,
+      recipient,
+      subject,
+      fromEmail: settings.fromEmail,
+      fromName: settings.fromName,
+      smtpHost,
+      smtpPort,
+      messageId,
+      details: { ...baseDetails, smtpTranscript: delivery.transcript, smtpResponse: delivery.response },
+      actorId: input.actorId,
+      entityType: input.entityType,
+      entityId: input.entityId
+    });
     return { sent: true };
   } catch (error) {
-    await prisma.emailLog.create({
-      data: {
-        templateKey: input.key,
-        recipient: String(input.to),
-        subject,
-        status: "FAILED",
-        error: error instanceof Error ? error.message : String(error)
-      }
+    await writeEmailProtocol({
+      status: "FAILED",
+      templateKey: input.key,
+      recipient,
+      subject,
+      fromEmail: settings.fromEmail,
+      fromName: settings.fromName,
+      smtpHost,
+      smtpPort,
+      messageId,
+      error: error instanceof Error ? error.message : String(error),
+      details: baseDetails,
+      actorId: input.actorId,
+      entityType: input.entityType,
+      entityId: input.entityId
     });
     return { sent: false, error };
   }

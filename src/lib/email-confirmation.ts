@@ -31,6 +31,10 @@ export async function sendEmailConfirmation(user: { id: string; email: string; u
   return sendTemplateEmail({
     key: "user_invite",
     to: user.email,
+    actorId: user.id,
+    source: "email-confirmation",
+    entityType: "user",
+    entityId: user.id,
     variables: {
       userName: user.profile?.displayName || user.name || user.username || user.email,
       loginIdentifier: user.username || user.email,

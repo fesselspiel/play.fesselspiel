@@ -79,6 +79,22 @@ function targetTypeFor(rule: { targetUserId: string | null; targetCircleId: stri
   return "none";
 }
 
+function emailLogDetail(details: unknown, key: string) {
+  if (!details || typeof details !== "object") return "";
+  const value = (details as Record<string, unknown>)[key];
+  if (Array.isArray(value)) return value.join("\n");
+  if (value && typeof value === "object") return JSON.stringify(value, null, 2);
+  return value === null || value === undefined ? "" : String(value);
+}
+
+function emailLogReason(details: unknown) {
+  const reason = emailLogDetail(details, "reason");
+  if (reason === "system-disabled") return "E-Mail-System deaktiviert";
+  if (reason === "template-disabled") return "Template deaktiviert";
+  if (reason === "no-recipient") return "Kein zustellbarer Empfänger";
+  return reason;
+}
+
 async function saveEmailSettings(formData: FormData) {
   "use server";
   await requireAdmin();
@@ -116,7 +132,7 @@ async function saveEmailTemplate(formData: FormData) {
 
 async function sendTestEmail(formData: FormData) {
   "use server";
-  await requireAdmin();
+  const admin = await requireAdmin();
   await requireFeature("email");
   await ensureEmailSetup();
   const to = String(formData.get("to") || "").trim();
@@ -127,6 +143,10 @@ async function sendTestEmail(formData: FormData) {
   const result = await sendTemplateEmail({
     key: template.key,
     to,
+    actorId: admin.id,
+    source: "email-test",
+    entityType: "emailTemplate",
+    entityId: template.id,
     variables: {
       userName: "Testbenutzer",
       loginIdentifier: "test",
@@ -404,14 +424,43 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
               </summary>
               <div className="space-y-2 border-t border-line p-5">
               {logs.map((log) => (
-                <div key={log.id} className="rounded-md border border-line bg-paper p-3 text-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <strong>{log.subject}</strong>
+                <details key={log.id} className="rounded-md border border-line bg-paper text-sm">
+                  <summary className="flex cursor-pointer list-none items-start justify-between gap-2 px-3 py-3 [&::-webkit-details-marker]:hidden">
+                    <span className="min-w-0">
+                      <strong className="block truncate">{log.subject}</strong>
+                      <span className="mt-1 block text-xs text-graphite">{log.recipient} · {log.templateKey || "ohne Template"} · {formatDateTime(log.createdAt)}</span>
+                      {emailLogReason(log.details) ? <span className="mt-1 block text-xs font-semibold text-redbrand">{emailLogReason(log.details)}</span> : null}
+                    </span>
                     <Badge tone={log.status === "SENT" ? "green" : log.status === "FAILED" ? "red" : "neutral"}>{log.status}</Badge>
+                  </summary>
+                  <div className="space-y-3 border-t border-line p-3">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-md bg-surface p-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-graphite">Absender</div>
+                        <div className="mt-1 text-ink">{log.fromName || "-"} {log.fromEmail ? `<${log.fromEmail}>` : ""}</div>
+                      </div>
+                      <div className="rounded-md bg-surface p-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-graphite">SMTP</div>
+                        <div className="mt-1 text-ink">{log.smtpHost || "-"}{log.smtpPort ? `:${log.smtpPort}` : ""}</div>
+                      </div>
+                      <div className="rounded-md bg-surface p-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-graphite">Message-ID</div>
+                        <div className="mt-1 break-all font-mono text-xs text-ink">{log.messageId || "-"}</div>
+                      </div>
+                      <div className="rounded-md bg-surface p-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-graphite">System</div>
+                        <div className="mt-1 text-ink">
+                          System {emailLogDetail(log.details, "systemEnabled") || "-"} · Template {emailLogDetail(log.details, "templateEnabled") || "-"}
+                        </div>
+                      </div>
+                    </div>
+                    {log.error ? <pre className="whitespace-pre-wrap rounded-md bg-surface p-2 text-xs text-redbrand">{log.error}</pre> : null}
+                    {emailLogDetail(log.details, "smtpTranscript") ? (
+                      <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-md bg-surface p-2 text-xs text-graphite">{emailLogDetail(log.details, "smtpTranscript")}</pre>
+                    ) : null}
+                    <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-md bg-surface p-2 text-xs text-graphite">{JSON.stringify(log.details || {}, null, 2)}</pre>
                   </div>
-                  <div className="mt-1 text-xs text-graphite">{log.recipient} · {log.templateKey || "ohne Template"} · {formatDateTime(log.createdAt)}</div>
-                  {log.error ? <pre className="mt-2 whitespace-pre-wrap rounded-md bg-surface p-2 text-xs text-redbrand">{log.error}</pre> : null}
-                </div>
+                </details>
               ))}
               {!logs.length ? <p className="rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite">Noch keine E-Mails protokolliert.</p> : null}
             </div>

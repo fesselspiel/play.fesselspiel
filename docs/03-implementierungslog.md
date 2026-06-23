@@ -885,8 +885,18 @@ Details:
 - Admins und Super-Admins haben unbegrenzt viele Einladungen; normale Benutzer nutzen das Kontingent aus `UserSettings.inviteQuota`.
 - Einladungslinks führen auf `/invite/[token]` und erlauben dort das Anlegen eines neuen Benutzerkontos. Normale freie Registrierung bleibt damit vermieden.
 - Offene Einladungen können per E-Mail-Template `user_invite_link`, per Telegram an aktive Chats/Threads oder per API `/api/external/invites` erstellt bzw. verteilt werden.
+- Neue Einladungen speichern den Token verschlüsselt, damit Einladungsmails später erneut gesendet werden können. Bei älteren offenen Einladungen ohne gespeicherten Token wird beim erneuten Senden automatisch ein frischer Link erzeugt.
+- Einladungen können widerrufen oder gelöscht werden; beide Aktionen werden protokolliert.
 - Die Telegram-Befehle `/invites` und `/invite Name` zeigen Kontingent und erzeugen einen klickbaren Einladungslink.
 - Das Telegram-Versandprotokoll kann nach Benutzer, Chat und Thread gefiltert werden.
+
+## E-Mail-Protokoll
+
+- `sendTemplateEmail` schreibt jetzt jeden Versuch zentral ins E-Mail-Protokoll: gesendet, fehlgeschlagen und übersprungen.
+- Das E-Mail-Protokoll speichert Empfänger, Template, Betreff, Absender, SMTP-Host, Port, Message-ID, Status, Fehler und strukturierte Details.
+- Erfolgreiche SMTP-Übergaben enthalten die SMTP-Konversation im Protokoll, damit sichtbar ist, ob Postfix die Nachricht angenommen hat.
+- Zusätzlich entsteht für jeden E-Mail-Versuch ein normaler Protokolleintrag (`email_sent`, `email_failed`, `email_skipped`), sodass E-Mail-Ereignisse auch in Feed-, Telegram-, E-Mail- und externen Regeln verwendet werden können.
+- Die E-Mail-Adminseite zeigt das Versandprotokoll als aufklappbare Einträge mit SMTP-Details und Fehlerursachen.
 
 ## Medien, Tracker und Mandanten
 

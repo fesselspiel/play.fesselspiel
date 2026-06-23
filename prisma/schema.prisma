@@ -305,6 +305,7 @@ model UserInvite {
   email           String?
   name            String?
   tokenHash       String    @unique
+  tokenEnc        String?
   status          String    @default("OPEN")
   expiresAt       DateTime
   acceptedAt      DateTime?
@@ -519,6 +520,12 @@ model EmailLog {
   recipient   String
   subject     String
   status      String
+  fromEmail   String?
+  fromName    String?
+  smtpHost    String?
+  smtpPort    Int?
+  messageId   String?
+  details     Json?
   error       String?
   createdAt   DateTime @default(now())
 

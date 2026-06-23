@@ -37,6 +37,10 @@ export async function POST(request: Request) {
   await sendTemplateEmail({
     key: "login_success",
     to: result.user.email,
+    actorId: result.user.id,
+    source: "login",
+    entityType: "user",
+    entityId: result.user.id,
     variables: {
       userName: userDisplayName(result.user),
       loginIdentifier: result.user.username || result.user.email,

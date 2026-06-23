@@ -81,6 +81,10 @@ async function sendRule(rule: RuleForNotification, audit: Pick<AuditForNotificat
       sendTemplateEmail({
         key: rule.templateKey,
         to: user.email,
+        actorId: (actor as { id?: string } | null)?.id || null,
+        source: "audit-notification",
+        entityType: "emailNotificationRule",
+        entityId: rule.id,
         variables: {
           ...variablesForAudit(audit, actor),
           userName: actorName(user),

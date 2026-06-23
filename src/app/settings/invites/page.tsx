@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
-import { Copy, Send, Ticket, UserPlus } from "lucide-react";
+import { Copy, Mail, Send, Ticket, Trash2, UserPlus } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { requireFeature } from "@/lib/features";
-import { createInvite, inviteUsage, inviteUrl } from "@/lib/invites";
+import { createInvite, inviteUsage, inviteUrl, resendInviteEmail } from "@/lib/invites";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
 import { sendTelegramMessage, telegramHtml, telegramLink } from "@/lib/telegram";
@@ -56,6 +56,43 @@ async function revokeInvite(formData: FormData) {
   redirect("/settings/invites");
 }
 
+async function deleteInvite(formData: FormData) {
+  "use server";
+  await requireFeature("invites");
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const tenant = await currentTenant();
+  const id = String(formData.get("id") || "");
+  const invite = await prisma.userInvite.findFirst({ where: { id, tenantId: tenant.id, invitedById: user.id } });
+  if (!invite) redirect("/settings/invites");
+  await prisma.userInvite.delete({ where: { id: invite.id } });
+  await logAction({
+    actorId: user.id,
+    action: "invite_deleted",
+    entityType: "invite",
+    entityId: invite.id,
+    title: `Einladung gelöscht${invite.name || invite.email ? `: ${invite.name || invite.email}` : ""}`,
+    details: { email: invite.email, name: invite.name, status: invite.status },
+    href: "/settings/invites"
+  });
+  redirect("/settings/invites?deleted=1");
+}
+
+async function resendInviteMail(formData: FormData) {
+  "use server";
+  await requireFeature("invites");
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const tenant = await currentTenant();
+  const result = await resendInviteEmail({
+    tenantId: tenant.id,
+    inviteId: String(formData.get("id") || ""),
+    actor: user
+  });
+  if (!result.ok) redirect(`/settings/invites?mail=${result.error}`);
+  redirect(`/settings/invites?mail=${result.sent ? "sent" : "skipped"}`);
+}
+
 async function sendInviteTelegram(formData: FormData) {
   "use server";
   await requireFeature("invites");
@@ -91,7 +128,7 @@ async function sendInviteTelegram(formData: FormData) {
   redirect(`/settings/invites?telegram=sent#invite-${invite.id}`);
 }
 
-export default async function InvitesPage({ searchParams }: { searchParams?: { created?: string; invite?: string; error?: string; telegram?: string } }) {
+export default async function InvitesPage({ searchParams }: { searchParams?: { created?: string; invite?: string; error?: string; telegram?: string; mail?: string; deleted?: string } }) {
   await requireFeature("invites");
   const user = await currentUser();
   if (!user) redirect("/login");
@@ -124,6 +161,10 @@ export default async function InvitesPage({ searchParams }: { searchParams?: { c
       ) : null}
       {searchParams?.error === "quota" ? <p className="mb-4 rounded-md bg-redbrand/10 p-3 text-sm font-semibold text-redbrand">Dein Einladungskontingent ist aufgebraucht.</p> : null}
       {searchParams?.telegram === "sent" ? <p className="mb-4 rounded-md bg-emerald-500/10 p-3 text-sm font-semibold text-emerald-700">Einladung wurde per Telegram verschickt.</p> : null}
+      {searchParams?.mail === "sent" ? <p className="mb-4 rounded-md bg-emerald-500/10 p-3 text-sm font-semibold text-emerald-700">Einladungsmail wurde erneut an Postfix übergeben.</p> : null}
+      {searchParams?.mail === "skipped" ? <p className="mb-4 rounded-md bg-paper p-3 text-sm font-semibold text-graphite">Einladungsmail wurde nicht gesendet. Prüfe E-Mail-System, Template und Empfängeradresse.</p> : null}
+      {searchParams?.mail === "missing_email" ? <p className="mb-4 rounded-md bg-redbrand/10 p-3 text-sm font-semibold text-redbrand">Diese Einladung hat keine E-Mail-Adresse.</p> : null}
+      {searchParams?.deleted ? <p className="mb-4 rounded-md bg-paper p-3 text-sm font-semibold text-graphite">Einladung gelöscht.</p> : null}
       <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
         <div className="space-y-6">
           <Panel>
@@ -190,8 +231,23 @@ export default async function InvitesPage({ searchParams }: { searchParams?: { c
                           <input type="hidden" name="id" value={invite.id} />
                           <Button variant="danger">Widerrufen</Button>
                         </form>
+                        {invite.email ? (
+                          <form action={resendInviteMail}>
+                            <input type="hidden" name="id" value={invite.id} />
+                            <Button><Mail className="h-4 w-4" /> Mail erneut senden</Button>
+                          </form>
+                        ) : null}
+                        <form action={deleteInvite}>
+                          <input type="hidden" name="id" value={invite.id} />
+                          <Button variant="danger"><Trash2 className="h-4 w-4" /> Löschen</Button>
+                        </form>
                       </div>
-                    ) : null}
+                    ) : (
+                      <form action={deleteInvite}>
+                        <input type="hidden" name="id" value={invite.id} />
+                        <Button variant="danger"><Trash2 className="h-4 w-4" /> Löschen</Button>
+                      </form>
+                    )}
                   </div>
                 </details>
               );

@@ -25,6 +25,10 @@ async function requestPasswordReset(formData: FormData) {
     await sendTemplateEmail({
       key: "password_reset",
       to: user.email,
+      actorId: user.id,
+      source: "password-reset",
+      entityType: "user",
+      entityId: user.id,
       variables: {
         userName: user.profile?.displayName || user.name || user.username || user.email,
         loginIdentifier: user.username || user.email,

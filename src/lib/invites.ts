@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { createHash, randomBytes } from "node:crypto";
 import type { Role } from "@prisma/client";
 import { logAction, userDisplayName } from "@/lib/audit";
+import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { sendTemplateEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
@@ -41,6 +42,7 @@ export async function createInvite(input: {
       email: input.email?.trim().toLowerCase() || null,
       name: input.name?.trim() || null,
       tokenHash: tokenHash(token),
+      tokenEnc: encryptSecret(token),
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14)
     }
   });
@@ -58,6 +60,10 @@ export async function createInvite(input: {
     await sendTemplateEmail({
       key: "user_invite_link",
       to: invite.email,
+      actorId: input.invitedBy.id,
+      source: "invite-create",
+      entityType: "invite",
+      entityId: invite.id,
       variables: {
         userName: invite.name || invite.email,
         inviterName: userDisplayName(input.invitedBy),
@@ -67,6 +73,54 @@ export async function createInvite(input: {
     });
   }
   return { ok: true as const, invite, token, url, usage };
+}
+
+export async function resendInviteEmail(input: {
+  tenantId: string;
+  inviteId: string;
+  actor: { id: string; role: Role | string; profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null };
+}) {
+  const invite = await prisma.userInvite.findFirst({
+    where: { id: input.inviteId, tenantId: input.tenantId, invitedById: input.actor.id, status: "OPEN" },
+    include: { invitedBy: { include: { profile: true } } }
+  });
+  if (!invite) return { ok: false as const, error: "not_found" };
+  if (!invite.email) return { ok: false as const, error: "missing_email" };
+  let token = decryptSecret(invite.tokenEnc);
+  let expiresAt = invite.expiresAt;
+  if (!token) {
+    token = randomBytes(32).toString("base64url");
+    expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14);
+    await prisma.userInvite.update({
+      where: { id: invite.id },
+      data: { tokenHash: tokenHash(token), tokenEnc: encryptSecret(token), expiresAt }
+    });
+  }
+  const url = inviteUrl(token);
+  const result = await sendTemplateEmail({
+    key: "user_invite_link",
+    to: invite.email,
+    actorId: input.actor.id,
+    source: "invite-resend",
+    entityType: "invite",
+    entityId: invite.id,
+    variables: {
+      userName: invite.name || invite.email,
+      inviterName: userDisplayName(input.actor),
+      inviteUrl: url,
+      appUrl: env.appUrl
+    }
+  });
+  await logAction({
+    actorId: input.actor.id,
+    action: "invite_email_resent",
+    entityType: "invite",
+    entityId: invite.id,
+    title: `Einladung erneut per E-Mail gesendet: ${invite.name || invite.email}`,
+    details: { email: invite.email, sent: result.sent, skipped: "skipped" in result ? result.skipped : null, expiresAt: expiresAt.toISOString() },
+    href: "/settings/invites"
+  });
+  return { ok: true as const, sent: result.sent, url };
 }
 
 export async function findValidInvite(token: string) {

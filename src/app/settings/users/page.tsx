@@ -82,6 +82,10 @@ async function createUser(formData: FormData) {
     await sendTemplateEmail({
       key: "user_created",
       to: null,
+      actorId: user.id,
+      source: "user-created-without-email",
+      entityType: "user",
+      entityId: user.id,
       variables: {
         userName: user.name || user.username || user.email,
         loginIdentifier: user.username || user.email,
