@@ -74,11 +74,27 @@ export default async function ApiSettingsPage({ searchParams }: { searchParams: 
           <Panel>
             <h2 className="mb-4 text-lg font-semibold">Aktive Endpunkte</h2>
             <div className="space-y-3 text-sm">
-              <code className="block rounded-md bg-paper p-3">GET /api/external/status?token=...</code>
-              <code className="block rounded-md bg-paper p-3">GET /api/external/sessions/start?token=...&note=Alexa</code>
-              <code className="block rounded-md bg-paper p-3">GET /api/external/sessions/stop?token=...</code>
-              <code className="block rounded-md bg-paper p-3">GET /api/external/sessions/toggle?token=...</code>
-              <code className="block rounded-md bg-paper p-3">POST /api/external/media</code>
+              {[
+                ["GET", "/api/external/status?token=...", "Status, Benutzer und Grunddaten prüfen."],
+                ["GET", "/api/external/trackers/quotas?token=...", "Kontingente und offene Tracker-Todos abfragen."],
+                ["GET", "/api/external/trackers/{trackerKey}/start?token=...&note=...&title=...", "Beliebigen Tracker starten, z. B. trackerKey=segufix oder kg."],
+                ["GET", "/api/external/trackers/{trackerKey}/stop?token=...&note=...", "Beliebigen laufenden Tracker beenden."],
+                ["GET", "/api/external/sessions/start?token=...&note=...", "Legacy-Segufix starten."],
+                ["GET", "/api/external/sessions/stop?token=...&note=...", "Legacy-Segufix beenden."],
+                ["GET", "/api/external/sessions/toggle?token=...&note=...", "Legacy-Segufix umschalten."],
+                ["GET", "/api/external/kg/start?token=...&note=...", "Legacy-KG starten."],
+                ["GET", "/api/external/kg/stop?token=...&note=...", "Legacy-KG beenden."],
+                ["POST", "/api/external/media", "Bild/Video per Multipart hochladen. Token im Header oder als Feld `token`."]
+              ].map(([method, endpoint, description]) => (
+                <div key={endpoint} className="rounded-md bg-paper p-3">
+                  <div className="font-semibold text-ink">{method}</div>
+                  <code className="mt-1 block overflow-x-auto text-xs text-ink">{endpoint}</code>
+                  <p className="mt-2 text-xs text-graphite">{description}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
+              Variablen: <code>{"{trackerKey}"}</code> ist der technische Tracker-Schlüssel. Häufige URL-Parameter sind <code>token</code>, <code>note</code>, <code>title</code>, <code>startTime</code> und <code>endTime</code>, sofern der jeweilige Endpunkt sie unterstützt.
             </div>
           </Panel>
 

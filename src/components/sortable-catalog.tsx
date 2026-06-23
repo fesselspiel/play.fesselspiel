@@ -13,6 +13,7 @@ type ToyItem = {
   positionCount: number;
   activityCount: number;
   favoriteCount?: number;
+  favoriteNames?: string[];
   isFavorite?: boolean;
 };
 
@@ -27,6 +28,7 @@ type PositionItem = {
   activityCount: number;
   tools: { id: string; title: string; slug: string }[];
   favoriteCount?: number;
+  favoriteNames?: string[];
   isFavorite?: boolean;
 };
 
@@ -123,9 +125,12 @@ export function SortableToyList({ items, canSort = false }: { items: ToyItem[]; 
                   <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-graphite">
                     <span className="rounded-md bg-surface px-2 py-1">{toy.positionCount} Szenen</span>
                     <span className="rounded-md bg-surface px-2 py-1">{toy.activityCount} Spielpläne</span>
-                    {toy.isFavorite ? <span className="rounded-md bg-redbrand px-2 py-1 text-white">Favorit</span> : null}
-                    {toy.favoriteCount ? <span className="rounded-md bg-surface px-2 py-1">{toy.favoriteCount} Favorit{toy.favoriteCount === 1 ? "" : "en"}</span> : null}
+                  {toy.isFavorite ? <span className="rounded-md bg-redbrand px-2 py-1 text-white">Favorit</span> : null}
+                  {toy.favoriteCount ? <span className="rounded-md bg-surface px-2 py-1">{toy.favoriteCount} Favorit{toy.favoriteCount === 1 ? "" : "en"}</span> : null}
                   </div>
+                  {toy.favoriteNames?.length ? (
+                    <p className="mt-3 text-xs text-graphite">Favorisiert von {toy.favoriteNames.join(", ")}</p>
+                  ) : null}
                   <p className="mt-4 text-sm leading-6 text-graphite">{toy.description || "Keine Beschreibung hinterlegt."}</p>
                   <div className="mt-4 flex flex-wrap items-center gap-3">
                     <Link href={`/toys/${toy.slug}`} className="inline-flex min-h-10 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
@@ -212,6 +217,9 @@ export function SortablePositionList({ items, canSort = false, showTools = true 
                       {position.selfBondageCapable ? "Self-Bondage-fähig" : "Nicht als Self-Bondage-fähig markiert"}
                     </span>
                   </div>
+                  {position.favoriteNames?.length ? (
+                    <p className="mt-3 text-xs text-graphite">Favorisiert von {position.favoriteNames.join(", ")}</p>
+                  ) : null}
                   <p className="mt-4 text-sm leading-6 text-graphite">{position.description || "Keine Beschreibung hinterlegt."}</p>
                   {showTools && position.tools.length ? (
                     <div className="mt-4 flex flex-wrap gap-2">

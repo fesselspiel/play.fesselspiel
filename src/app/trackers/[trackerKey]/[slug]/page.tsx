@@ -1,14 +1,35 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Square } from "lucide-react";
+import { ArrowLeft, Save, Square, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { Button, PageHeader, Panel, SoftPanel } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
+import { Button, Field, inputClass, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
+import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
-import { formatDateTime, formatMinutes } from "@/lib/dates";
+import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { stopTrackerEntry } from "@/lib/tracker-core";
+
+function inputDateTime(value?: Date | null) {
+  if (!value) return "";
+  const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+function readableFieldLabel(key: string, fields: unknown) {
+  if (Array.isArray(fields)) {
+    const match = fields.find((field) => field && typeof field === "object" && "key" in field && String((field as { key?: unknown }).key) === key) as { label?: unknown; name?: unknown } | undefined;
+    const label = String(match?.label || match?.name || "").trim();
+    if (label) return label;
+  }
+  return key
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 
 async function stopEntry(formData: FormData) {
   "use server";
@@ -19,6 +40,58 @@ async function stopEntry(formData: FormData) {
   const stopped = await stopTrackerEntry({ key, user });
   if (!stopped) notFound();
   redirect(`/trackers/${key}/${stopped.slug || stopped.id}`);
+}
+
+async function updateEntry(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const id = String(formData.get("id") || "");
+  const entry = await prisma.trackerEntry.findFirst({ where: { id, ...(await ownerScope(user)) }, include: { trackerType: true } });
+  if (!entry) notFound();
+  await requireFeature(`tracker.${entry.trackerType.key}`);
+  const startRaw = String(formData.get("startTime") || "");
+  const endRaw = String(formData.get("endTime") || "");
+  const startTime = startRaw ? new Date(startRaw) : entry.startTime;
+  const endTime = endRaw ? new Date(endRaw) : null;
+  const updated = await prisma.trackerEntry.update({
+    where: { id: entry.id },
+    data: {
+      startTime,
+      endTime,
+      durationMinutes: minutesBetween(startTime, endTime),
+      notes: String(formData.get("notes") || "").trim()
+    }
+  });
+  await logAction({
+    actorId: user.id,
+    action: `tracker_${entry.trackerType.key}_updated`,
+    entityType: "trackerEntry",
+    entityId: entry.id,
+    title: `${entry.trackerType.title} bearbeitet`,
+    href: `/trackers/${entry.trackerType.key}/${updated.slug || updated.id}`
+  });
+  redirect(`/trackers/${entry.trackerType.key}/${updated.slug || updated.id}`);
+}
+
+async function deleteEntry(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const id = String(formData.get("id") || "");
+  const entry = await prisma.trackerEntry.findFirst({ where: { id, ...(await ownerScope(user)) }, include: { trackerType: true } });
+  if (!entry) notFound();
+  await requireFeature(`tracker.${entry.trackerType.key}`);
+  await prisma.trackerEntry.delete({ where: { id: entry.id } });
+  await logAction({
+    actorId: user.id,
+    action: `tracker_${entry.trackerType.key}_deleted`,
+    entityType: "trackerEntry",
+    entityId: entry.id,
+    title: `${entry.trackerType.title} gelöscht`,
+    href: "/sessions"
+  });
+  redirect("/sessions");
 }
 
 export default async function TrackerEntryPage({ params }: { params: { trackerKey: string; slug: string } }) {
@@ -58,7 +131,7 @@ export default async function TrackerEntryPage({ params }: { params: { trackerKe
               <dl className="space-y-2 text-sm">
                 {Object.entries(fieldValues).map(([key, value]) => (
                   <div key={key} className="flex justify-between gap-3">
-                    <dt className="text-graphite">{key}</dt>
+                    <dt className="text-graphite">{readableFieldLabel(key, entry.trackerType.fields)}</dt>
                     <dd className="font-medium">{String(value || "😐 neutral")}</dd>
                   </div>
                 ))}
@@ -70,6 +143,24 @@ export default async function TrackerEntryPage({ params }: { params: { trackerKe
               <input type="hidden" name="trackerKey" value={entry.trackerType.key} />
               <Button><Square className="h-4 w-4" /> Tracker beenden</Button>
             </form>
+          ) : null}
+          {entry.ownerId === user.id ? (
+            <div className="mt-6 rounded-md border border-line bg-paper p-4">
+              <h2 className="mb-3 font-semibold">Eintrag bearbeiten</h2>
+              <form action={updateEntry} className="grid gap-3">
+                <input type="hidden" name="id" value={entry.id} />
+                <Field label="Start"><input className={inputClass} name="startTime" type="datetime-local" defaultValue={inputDateTime(entry.startTime)} /></Field>
+                <Field label="Ende"><input className={inputClass} name="endTime" type="datetime-local" defaultValue={inputDateTime(entry.endTime)} /></Field>
+                <Field label="Beschreibung"><textarea className={inputClass} name="notes" rows={4} defaultValue={entry.notes || ""} /></Field>
+                <SubmitButton pendingLabel="Eintrag wird gespeichert..."><Save className="h-4 w-4" /> Eintrag speichern</SubmitButton>
+              </form>
+              <form action={deleteEntry} className="mt-3">
+                <input type="hidden" name="id" value={entry.id} />
+                <SubmitButton pendingLabel="Eintrag wird gelöscht..." className="border border-redbrand bg-surface text-redbrand hover:bg-redbrand hover:text-white">
+                  <Trash2 className="h-4 w-4" /> Eintrag löschen
+                </SubmitButton>
+              </form>
+            </div>
           ) : null}
         </Panel>
         <Panel>

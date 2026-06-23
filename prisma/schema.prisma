@@ -91,6 +91,7 @@ model Tenant {
   externalPushRules ExternalPushRule[]
   externalPushLogs ExternalPushLog[]
   playReadyLikes PlayReadyLike[]
+  activityLikes ActivityLike[]
 
   @@index([status])
 }
@@ -164,6 +165,7 @@ model User {
   auditLogs         AuditLog[]
   feedComments      FeedComment[]
   feedLikes         FeedLike[]
+  activityLikes     ActivityLike[]
   trackerEntries    TrackerEntry[]
   favoriteToys      ToyFavorite[]
   favoritePositions PositionFavorite[]
@@ -278,6 +280,7 @@ model UserSettings {
   darkMode            Boolean        @default(false)
   playReady           Boolean        @default(false)
   playReadyUpdatedAt  DateTime?
+  playReadyExpiresAt  DateTime?
   timeOffsetMinutes   Int            @default(0)
   telegramBotTokenEnc String?
   openAiApiKeyEnc     String?
@@ -407,6 +410,21 @@ model PlayReadyLike {
   @@unique([tenantId, actorId, targetUserId])
   @@index([targetUserId, createdAt])
   @@index([actorId, createdAt])
+}
+
+model ActivityLike {
+  id         String       @id @default(cuid())
+  tenantId   String?
+  activityId String
+  userId     String?
+  createdAt  DateTime     @default(now())
+  activity   ActivityPlan @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user       User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tenant     Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, userId])
+  @@index([tenantId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model ExternalPushRule {
@@ -593,6 +611,7 @@ model ActivityPlan {
   positions   Position[]     @relation("ActivityPositions")
   media       Media[]
   images      ActivityImage[]
+  likes       ActivityLike[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, status, plannedAt])

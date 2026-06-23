@@ -856,11 +856,34 @@ Details:
 
 - Feed-Einträge können pro Benutzer mit Daumen hoch geliked werden. Likes werden klein am Feed-Eintrag angezeigt und erzeugen das Protokollereignis `feed_liked`.
 - Spielampel-Einträge anderer Benutzer können geliked werden. Die eigene Ampel bleibt nur umschaltbar, Likes erzeugen das Protokollereignis `play_ready_liked`.
+- Likes sind als Toggle umgesetzt: erneutes Anklicken entfernt das Like wieder und erzeugt ein eigenes Entfernen-Ereignis.
+- Like-Anzeigen nutzen eine gemeinsame Komponente und zeigen die Namen der Personen, die geliked haben.
+- Ideen in der Ideensammlung können in der Übersicht geliked und wieder entliked werden.
 - Spielsachen und Szenen haben benutzerbezogene Favoriten (`ToyFavorite`, `PositionFavorite`).
-- Favorisieren erzeugt eigene Protokollereignisse (`toy_favorited`, `position_favorited`), wird auf Detailseiten angezeigt und taucht auf der Startseite im Bereich Favoriten auf.
+- Favorisieren erzeugt eigene Protokollereignisse (`toy_favorited`, `position_favorited`), wird auf Detailseiten angezeigt und taucht auf der Startseite im Bereich Favoriten auf. Übersichten zeigen zusätzlich, wer favorisiert hat.
+
+## Spielampel
+
+- Benutzer können in den Profileinstellungen ein optionales Ablaufdatum für die Spielampel setzen.
+- Die Startseite zeigt das Ablaufdatum nur bei grüner Ampel und nur dann, wenn es gesetzt ist.
+- Beim Laden der Startseite werden abgelaufene grüne Ampeln automatisch auf Rot gesetzt und als `play_ready_expired` protokolliert.
 
 ## Telegram-Chat-Speicherung
 
 - Das manuelle Speichern erkannter Telegram-Chats prüft jetzt sowohl die neue Seitenbot-Zuordnung `telegramSettingsId` als auch die Legacy-Zuordnung `settingsId`.
 - Bereits vorhandene Chats werden dadurch aktualisiert, statt beim erneuten Einlesen an der eindeutigen Kombination aus Chat-ID und Thread-ID zu scheitern.
 - Fehler beim Speichern werden als `telegram_chat_save_failed` mit Chat-ID, Thread-ID, Bot-ID und Fehlertext protokolliert.
+
+## Medien, Tracker und Mandanten
+
+- Medienaktionen schreiben Protokolleinträge für Upload, Änderung, Albumanlage, Albumänderung, Löschen, Verschieben und Kommentare.
+- Kritische Medienformulare nutzen den gemeinsamen Submit-Button mit sichtbarem Speicherfeedback.
+- Ideenbilder können in der Detailansicht nachträglich neu zugeschnitten oder ersetzt werden.
+- Tracker-Einträge haben in der Detailansicht Bearbeiten- und Löschen-Formulare.
+- Tracker-Feldwerte werden in der Detailansicht mit lesbaren Labels angezeigt.
+- `/sessions/<tracker>/<jahr>` leitet auf die passende Tracker-Jahresansicht weiter.
+- Das Protokoll kann serverseitig nach Benutzer gefiltert werden.
+- API-Tokens zeigen eine vollständigere Endpunktübersicht inklusive generischer Tracker-Endpunkte und Kontingentabfrage.
+- Die Ideensammlung ist als eigenes Feature `ideas` konfigurierbar.
+- Shopify-Credentials können von Superadmins aus anderen Seiten übernommen werden.
+- Tenant-Erkennung nutzt zusätzlich den Subdomain-Slug für `*.playplaner.com`; Loginseite und HTML-Metadaten zeigen den aktuellen Seitennamen und die aktuelle Domain.

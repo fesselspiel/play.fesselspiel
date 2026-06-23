@@ -4,6 +4,7 @@ import { ImagePlus, Pencil, Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { CopySubtitle } from "@/components/copy-subtitle";
 import { FileUploadField } from "@/components/file-upload-field";
+import { SubmitButton } from "@/components/submit-button";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { confirmRequestedActivity } from "@/lib/activity-actions";
 import { isSelfBondageOrder as isSelfBondageActivity, updateSelfBondageOrderStatus } from "@/lib/activity-orders";
@@ -21,10 +22,10 @@ async function addActivityImage(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
-  await requireFeature("activities");
   const activityId = String(formData.get("activityId") || "");
   const activity = await prisma.activityPlan.findFirst({ where: { id: activityId, ...(await ownerScope(user)) } });
   if (!activity) notFound();
+  await requireFeature(activity.category === "IDEA_COLLECTION" ? "ideas" : "activities");
   const uploadedImageUrl = String(formData.get("ideaImageUploadedUrl") || "");
   const uploadedFileId = fileIdFromUrl(uploadedImageUrl);
   if (uploadedImageUrl && uploadedFileId) {
@@ -68,11 +69,11 @@ async function deleteActivityImage(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
-  await requireFeature("activities");
   const activityId = String(formData.get("activityId") || "");
   const imageKey = String(formData.get("imageKey") || "");
   const activity = await prisma.activityPlan.findFirst({ where: { id: activityId, ...(await ownerScope(user)) } });
   if (!activity) notFound();
+  await requireFeature(activity.category === "IDEA_COLLECTION" ? "ideas" : "activities");
   if (imageKey.startsWith("image:")) {
     const imageId = imageKey.replace("image:", "");
     const image = await prisma.activityImage.findFirst({ where: { id: imageId, activityId: activity.id }, include: { file: true } });
@@ -92,8 +93,58 @@ async function deleteActivityImage(formData: FormData) {
   redirect(activity.category === "IDEA_COLLECTION" ? `/ideas/${activity.slug}` : `/activities/${activity.slug}`);
 }
 
+async function replaceActivityImage(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const activityId = String(formData.get("activityId") || "");
+  const imageKey = String(formData.get("imageKey") || "");
+  const uploadedImageUrl = String(formData.get("ideaImageReplacementUrl") || "");
+  const uploadedFileId = fileIdFromUrl(uploadedImageUrl);
+  const activity = await prisma.activityPlan.findFirst({ where: { id: activityId, ...(await ownerScope(user)) } });
+  if (!activity) notFound();
+  await requireFeature(activity.category === "IDEA_COLLECTION" ? "ideas" : "activities");
+  if (!uploadedFileId) redirect(activity.category === "IDEA_COLLECTION" ? `/ideas/${activity.slug}` : `/activities/${activity.slug}`);
+  const asset = await prisma.fileAsset.findFirst({ where: { id: uploadedFileId, ownerId: user.id } });
+  if (!asset) redirect(activity.category === "IDEA_COLLECTION" ? `/ideas/${activity.slug}` : `/activities/${activity.slug}`);
+  if (imageKey.startsWith("image:")) {
+    const imageId = imageKey.replace("image:", "");
+    const image = await prisma.activityImage.findFirst({ where: { id: imageId, activityId: activity.id }, include: { file: true } });
+    if (image) {
+      await prisma.activityImage.update({
+        where: { id: image.id },
+        data: { fileId: asset.id, title: asset.originalName || image.title }
+      });
+      await deleteOwnedFile(image.file.ownerId, image.file.id);
+    }
+  } else if (imageKey.startsWith("media:")) {
+    const mediaId = imageKey.replace("media:", "");
+    const media = await prisma.media.findFirst({ where: { id: mediaId, activityId: activity.id, ...(await ownerScope(user)) } });
+    if (media) {
+      await prisma.media.update({
+        where: { id: media.id },
+        data: {
+          title: asset.originalName || media.title,
+          url: fileAssetUrl(asset.id),
+          kind: asset.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE"
+        }
+      });
+      const oldFileId = fileIdFromUrl(media.url);
+      if (oldFileId) await deleteOwnedFile(media.ownerId, oldFileId);
+    }
+  }
+  await logAction({
+    actorId: user.id,
+    action: "idea_media_updated",
+    entityType: "activity",
+    entityId: activity.id,
+    title: `Bild zur Idee bearbeitet: ${activity.title}`,
+    href: activity.category === "IDEA_COLLECTION" ? `/ideas/${activity.slug}` : `/activities/${activity.slug}`
+  });
+  redirect(activity.category === "IDEA_COLLECTION" ? `/ideas/${activity.slug}` : `/activities/${activity.slug}`);
+}
+
 export default async function ActivityDetailPage({ params }: { params: { slug: string } }) {
-  await requireFeature("activities");
   const user = await currentUser();
   if (!user) redirect("/login");
   const toolsEnabled = await hasFeature("toys");
@@ -116,6 +167,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
   }) : [];
   const isSelfBondageOrder = isSelfBondageActivity(activity);
   const isIdea = activity.category === "IDEA_COLLECTION";
+  await requireFeature(isIdea ? "ideas" : "activities");
   if (isSelfBondageOrder) await requireFeature("orders");
   const ideaImages = [
     ...activity.images.map((image) => ({
@@ -230,6 +282,26 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
                       </form>
                     ) : null}
                   </div>
+                  {activity.ownerId === user.id && image.kind === "IMAGE" ? (
+                    <details className="border-t border-line bg-surface p-3">
+                      <summary className="cursor-pointer list-none text-sm font-semibold text-redbrand [&::-webkit-details-marker]:hidden">Bild bearbeiten</summary>
+                      <form action={replaceActivityImage} className="mt-3 space-y-3" encType="multipart/form-data">
+                        <input type="hidden" name="activityId" value={activity.id} />
+                        <input type="hidden" name="imageKey" value={image.key} />
+                        <FileUploadField
+                          name="replacement"
+                          uploadedUrlName="ideaImageReplacementUrl"
+                          label="Ausschnitt oder Bild ersetzen"
+                          accept="image/*"
+                          currentUrl={image.url}
+                          currentAlt={image.title}
+                          help="Aktuelles Bild neu zuschneiden oder ein anderes Bild auswählen."
+                          imageCropAspect="landscape"
+                        />
+                        <SubmitButton pendingLabel="Bild wird gespeichert..."><Save className="h-4 w-4" /> Bild speichern</SubmitButton>
+                      </form>
+                    </details>
+                  ) : null}
                 </article>
               ))}
             </div>

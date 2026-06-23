@@ -58,6 +58,13 @@ export async function getTenantByHost(hostname: string) {
       })
     : null;
   if (domain?.tenant) return domain.tenant;
+  if (normalized.endsWith(".playplaner.com")) {
+    const slug = normalized.replace(/\.playplaner\.com$/, "");
+    if (slug && !slug.includes(".")) {
+      const tenantBySlug = await prisma.tenant.findUnique({ where: { slug }, include: { domains: true, features: true } });
+      if (tenantBySlug) return tenantBySlug;
+    }
+  }
   if (process.env.NODE_ENV !== "production") {
     const tenant = await ensureDefaultTenant();
     return prisma.tenant.findUnique({ where: { id: tenant.id }, include: { domains: true, features: true } });

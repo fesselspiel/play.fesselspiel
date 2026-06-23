@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarDays, MessageCircle, Newspaper, Plus, ShieldCheck, Sparkles, Star, ThumbsUp } from "lucide-react";
+import { CalendarDays, MessageCircle, Newspaper, Plus, ShieldCheck, Sparkles, Star } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { LikeControl } from "@/components/like-control";
 import { Badge, PageGuide, Panel, PageHeader } from "@/components/ui";
 import { accessibleOwnerIds, ownerScope } from "@/lib/access";
 import { confirmRequestedActivity } from "@/lib/activity-actions";
 import { updateSelfBondageOrderStatus, selfBondageCategory } from "@/lib/activity-orders";
 import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status";
-import { logAction } from "@/lib/audit";
+import { logAction, userDisplayName } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { hasFeature } from "@/lib/features";
 import { feedDetailsText, renderFeedTemplate } from "@/lib/feed";
@@ -30,6 +31,39 @@ function dayKey(value: Date) {
 
 function playReadyLabel(value: boolean) {
   return value ? "voll Lust" : "gerade nicht";
+}
+
+async function expirePlayReadyStatuses(viewer: Awaited<ReturnType<typeof currentUser>>, now: Date) {
+  if (!viewer) return;
+  const ownerFilter = viewer.tenantId
+    ? viewer.circleId
+      ? { tenantId: viewer.tenantId, circleId: viewer.circleId, active: true, user: { active: true } }
+      : viewer.role === "ADMIN" || viewer.role === "SUPER_ADMIN"
+        ? { tenantId: viewer.tenantId, active: true, user: { active: true } }
+        : { tenantId: viewer.tenantId, userId: viewer.id, active: true, user: { active: true } }
+    : { userId: viewer.id, active: true, user: { active: true } };
+  const memberships = await prisma.tenantMembership.findMany({
+    where: ownerFilter,
+    include: { user: { include: { profile: true, settings: true } } }
+  });
+  const expired = memberships
+    .map((membership) => membership.user)
+    .filter((member) => member.settings?.playReady && member.settings.playReadyExpiresAt && member.settings.playReadyExpiresAt <= now);
+  for (const member of expired) {
+    await prisma.userSettings.update({
+      where: { userId: member.id },
+      data: { playReady: false, playReadyUpdatedAt: now, playReadyExpiresAt: null }
+    });
+    await logAction({
+      actorId: member.id,
+      action: "play_ready_expired",
+      entityType: "userSettings",
+      entityId: member.id,
+      title: `Spielampel abgelaufen: ${userDisplayName(member)} ist wieder gerade nicht`,
+      details: { expiredAt: now.toISOString() },
+      href: "/"
+    });
+  }
 }
 
 async function togglePlayReady() {
@@ -86,9 +120,20 @@ async function likePlayReady(formData: FormData) {
   const existing = await prisma.playReadyLike.findFirst({
     where: { tenantId: user.tenantId || null, actorId: user.id, targetUserId: target.id }
   });
-  if (!existing) {
+  const targetName = userDisplayName(target);
+  if (existing) {
+    await prisma.playReadyLike.delete({ where: { id: existing.id } });
+    await logAction({
+      actorId: user.id,
+      action: "play_ready_unliked",
+      entityType: "user",
+      entityId: target.id,
+      title: `Spielampel-Like entfernt: ${targetName}`,
+      href: "/",
+      details: { targetUserId: target.id, targetName }
+    });
+  } else {
     await prisma.playReadyLike.create({ data: { tenantId: user.tenantId || undefined, actorId: user.id, targetUserId: target.id } });
-    const targetName = target.profile?.displayName || target.name || target.username || target.email;
     await logAction({
       actorId: user.id,
       action: "play_ready_liked",
@@ -171,7 +216,18 @@ async function likeFeedEntry(formData: FormData) {
   });
   if (!auditLog) redirect("/");
   const existing = await prisma.feedLike.findUnique({ where: { auditLogId_userId: { auditLogId: auditLog.id, userId: user.id } } });
-  if (!existing) {
+  if (existing) {
+    await prisma.feedLike.delete({ where: { id: existing.id } });
+    await logAction({
+      actorId: user.id,
+      action: "feed_unliked",
+      entityType: "auditLog",
+      entityId: auditLog.id,
+      title: `Feed-Like entfernt: ${auditLog.title}`,
+      href: auditLog.href || "/",
+      details: { auditLogId: auditLog.id }
+    });
+  } else {
     await prisma.feedLike.create({ data: { auditLogId: auditLog.id, userId: user.id } });
     await logAction({
       actorId: user.id,
@@ -189,8 +245,10 @@ async function likeFeedEntry(formData: FormData) {
 export default async function DashboardPage() {
   const user = await currentUser();
   if (!user) redirect("/login");
+  const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
 
   const now = new Date();
+  await expirePlayReadyStatuses(user, now);
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
   const weekEnd = new Date(todayStart);
@@ -387,6 +445,7 @@ export default async function DashboardPage() {
               const stateLabel = ready ? "Voll Lust" : "Gerade nicht";
               const likes = member.playReadyLikesReceived || [];
               const likedBySelf = likes.some((like) => like.actorId === user.id);
+              const likePeople = likes.map((like) => ({ id: like.actorId, name: userDisplayName(like.actor) }));
               const content = (
                 <span className={`flex min-h-28 w-full items-center gap-4 rounded-lg border p-4 text-left transition ${
                   ready ? "border-emerald-500 bg-emerald-500/10" : "border-redbrand bg-redbrand/10"
@@ -402,8 +461,10 @@ export default async function DashboardPage() {
                   <span className="min-w-0">
                     <span className="block truncate text-base font-semibold text-ink">{displayName}</span>
                     <span className={`mt-1 block text-sm font-semibold ${ready ? "text-emerald-700" : "text-redbrand"}`}>{stateLabel}</span>
+                    {ready && member.settings?.playReadyExpiresAt ? (
+                      <span className="mt-1 block text-xs text-graphite">gültig bis {formatDateTime(member.settings.playReadyExpiresAt)}</span>
+                    ) : null}
                     {isSelf ? <span className="mt-1 block text-xs text-graphite">Antippen zum Umschalten</span> : null}
-                    {likes.length ? <span className="mt-1 block text-xs text-graphite">👍 {likes.length} Like{likes.length === 1 ? "" : "s"}</span> : null}
                   </span>
                 </span>
               );
@@ -414,13 +475,7 @@ export default async function DashboardPage() {
               ) : (
                 <div key={member.id} className="space-y-2">
                   {content}
-                  <form action={likePlayReady}>
-                    <input type="hidden" name="targetUserId" value={member.id} />
-                    <button type="submit" disabled={likedBySelf} className={`focus-ring inline-flex min-h-9 items-center gap-2 rounded-md border border-line px-3 py-1.5 text-xs font-semibold ${likedBySelf ? "bg-paper text-redbrand" : "bg-surface text-graphite hover:bg-paper hover:text-redbrand"}`}>
-                      <ThumbsUp className="h-3.5 w-3.5" />
-                      {likedBySelf ? "Geliked" : "Gefällt mir"}
-                    </button>
-                  </form>
+                  <LikeControl action={likePlayReady} hiddenName="targetUserId" hiddenValue={member.id} liked={likedBySelf} likes={likePeople} />
                 </div>
               );
             })}
@@ -465,7 +520,7 @@ export default async function DashboardPage() {
               {quotaTodos.map((todo) => {
                 const main = todo.daily.required ? todo.daily : todo.weekly.required ? todo.weekly : todo.monthlyMinutes.required ? todo.monthlyMinutes : todo.monthlyDays;
                 return (
-                  <article key={todo.tracker.id} className="rounded-lg border border-line bg-paper p-4">
+                  <Link key={todo.tracker.id} href={`/sessions?tracker=${todo.tracker.key}`} className="block rounded-lg border border-line bg-paper p-4 hover:border-redbrand">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div>
                         <h3 className="font-semibold text-ink">{todo.tracker.title}</h3>
@@ -479,7 +534,7 @@ export default async function DashboardPage() {
                     <div className="mt-2 text-xs font-semibold text-graphite">
                       {todo.complete ? "erfüllt" : `noch ${main.remaining} ${todo.monthlyDays.required && main === todo.monthlyDays ? "Tage" : "Min."}`}
                     </div>
-                  </article>
+                  </Link>
                 );
               })}
             </div>
@@ -496,9 +551,11 @@ export default async function DashboardPage() {
                 </h2>
                 <p className="mt-1 text-sm text-graphite">Ausgewählte Aktionen aus dem Protokoll.</p>
               </div>
-              <Link href="/messages#feed-rules" className="inline-flex min-h-10 items-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
-                Feed steuern
-              </Link>
+              {isAdmin ? (
+                <Link href="/messages#feed-rules" className="inline-flex min-h-10 items-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
+                  Feed steuern
+                </Link>
+              ) : null}
             </div>
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               {feedEntries.map((entry) => {
@@ -507,6 +564,7 @@ export default async function DashboardPage() {
                 const body = rule ? renderFeedTemplate(rule.bodyTemplate, entry, entry.actor) : feedDetailsText(entry.details);
                 const actorName = entry.actor?.profile?.displayName || entry.actor?.name || entry.actor?.username || entry.actor?.email || "System";
                 const likedByCurrentUser = entry.feedLikes.some((like) => like.userId === user.id);
+                const feedLikePeople = entry.feedLikes.map((like) => ({ id: like.userId, name: like.user ? userDisplayName(like.user) : "Jemand" }));
                 return (
                   <article key={entry.id} className="rounded-md border border-line bg-paper p-3">
                     <div className="mb-2 flex items-center gap-2">
@@ -527,13 +585,9 @@ export default async function DashboardPage() {
                       <h3 className="text-sm font-semibold text-ink">{title}</h3>
                     )}
                     {body ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-graphite">{body}</p> : null}
-                    {entry.feedLikes.length ? (
-                      <p className="mt-2 text-[11px] font-medium text-graphite">
-                        👍 {entry.feedLikes.length === 1
-                          ? `${entry.feedLikes[0].user?.profile?.displayName || entry.feedLikes[0].user?.name || entry.feedLikes[0].user?.username || "Jemand"} gefällt das.`
-                          : `${entry.feedLikes.length} Personen gefällt das.`}
-                      </p>
-                    ) : null}
+                    <div className="mt-2">
+                      <LikeControl action={likeFeedEntry} hiddenName="auditLogId" hiddenValue={entry.id} liked={likedByCurrentUser} likes={feedLikePeople} />
+                    </div>
                     {entry.feedComments.length ? (
                       <div className="mt-3 space-y-1 border-t border-line pt-2">
                         {entry.feedComments.map((comment) => (
@@ -548,13 +602,6 @@ export default async function DashboardPage() {
                       <input name="body" className="min-h-9 flex-1 rounded-md border border-line bg-surface px-3 py-2 text-xs text-ink placeholder:text-graphite/60" placeholder="Kommentieren" />
                       <button type="submit" className="focus-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-redbrand text-white hover:bg-redbrandHover" aria-label="Kommentar senden">
                         <MessageCircle className="h-4 w-4" />
-                      </button>
-                    </form>
-                    <form action={likeFeedEntry} className="mt-2">
-                      <input type="hidden" name="auditLogId" value={entry.id} />
-                      <button type="submit" disabled={likedByCurrentUser} className={`focus-ring inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold ${likedByCurrentUser ? "bg-surface text-redbrand" : "bg-surface text-graphite hover:text-redbrand"}`}>
-                        <ThumbsUp className="h-3.5 w-3.5" />
-                        {likedByCurrentUser ? "Gefällt dir" : "Gefällt mir"}
                       </button>
                     </form>
                   </article>

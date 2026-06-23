@@ -189,7 +189,7 @@ async function testExternalRule(formData: FormData) {
   redirect(`/messages?externalSent=${result.sent}&externalFailed=${result.failed}#external-push`);
 }
 
-export default async function MessagesPage({ searchParams }: { searchParams?: { page?: string; action?: string; externalSent?: string; externalFailed?: string } }) {
+export default async function MessagesPage({ searchParams }: { searchParams?: { page?: string; action?: string; actor?: string; externalSent?: string; externalFailed?: string } }) {
   await requireFeature("auditLog");
   const user = await currentUser();
   if (!user) redirect("/login");
@@ -198,10 +198,17 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
   const accessIds = await accessibleOwnerIds(user);
   const page = Math.max(1, Number(searchParams?.page || 1) || 1);
   const skip = (page - 1) * pageSize;
+  const selectedActorId = accessIds.includes(String(searchParams?.actor || "")) ? String(searchParams?.actor) : "";
+  const auditWhere = selectedActorId
+    ? { actorId: selectedActorId }
+    : { OR: [{ actorId: { in: accessIds } }, { actorId: null }] };
+  const legacyWhere = selectedActorId
+    ? { senderId: selectedActorId }
+    : { OR: [{ senderId: { in: accessIds } }, { recipientId: user.id }, { recipientId: null, senderId: { in: accessIds } }] };
 
-  const [auditLogs, legacyMessages, totalAuditLogs, distinctActions, feedRules, externalPushRules, externalPushLogs] = await Promise.all([
+  const [auditLogs, legacyMessages, totalAuditLogs, distinctActions, feedRules, externalPushRules, externalPushLogs, filterUsers] = await Promise.all([
     prisma.auditLog.findMany({
-      where: { OR: [{ actorId: { in: accessIds } }, { actorId: null }] },
+      where: auditWhere,
       include: { actor: { include: { profile: true } } },
       orderBy: { createdAt: "desc" },
       skip,
@@ -209,13 +216,13 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
     }),
     page === 1
       ? prisma.message.findMany({
-          where: { OR: [{ senderId: { in: accessIds } }, { recipientId: user.id }, { recipientId: null, senderId: { in: accessIds } }] },
+          where: legacyWhere,
           include: { sender: { include: { profile: true } }, recipient: true },
           orderBy: { createdAt: "desc" },
           take: legacyMessageLimit
         })
       : Promise.resolve([]),
-    prisma.auditLog.count({ where: { OR: [{ actorId: { in: accessIds } }, { actorId: null }] } }),
+    prisma.auditLog.count({ where: auditWhere }),
     prisma.auditLog.findMany({
       distinct: ["action"],
       select: { action: true },
@@ -233,6 +240,11 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
       where: { tenantId: tenant.id },
       orderBy: { createdAt: "desc" },
       take: 20
+    }),
+    prisma.user.findMany({
+      where: { id: { in: accessIds } },
+      include: { profile: true },
+      orderBy: [{ name: "asc" }, { email: "asc" }]
     })
   ]);
 
@@ -270,12 +282,32 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
   const hasNext = skip + pageSize < totalAuditLogs;
   const requestedAction = String(searchParams?.action || "").trim();
   const actionOptions = Array.from(new Set([...knownAuditActions.map(([action]) => action), ...distinctActions.map((entry) => entry.action), requestedAction].filter(Boolean))).sort((a, b) => actionLabel(a).localeCompare(actionLabel(b)));
+  const pageQuery = selectedActorId ? `&actor=${encodeURIComponent(selectedActorId)}` : "";
 
   return (
     <AppShell>
       <PageHeader title="Protokoll" />
       <div className="space-y-4">
         <ProtocolSearch suggestions={entries.map((entry) => ({ id: entry.id, title: entry.title, actor: entry.actor, body: entry.body || "" }))} />
+        <Panel>
+          <form className="flex flex-col gap-3 sm:flex-row sm:items-end" action="/messages">
+            <Field label="Protokoll nach Benutzer filtern">
+              <select className={selectClass} name="actor" defaultValue={selectedActorId}>
+                <option value="">Alle sichtbaren Benutzer</option>
+                {filterUsers.map((entry) => (
+                  <option key={entry.id} value={entry.id}>{actorName(entry)}</option>
+                ))}
+              </select>
+            </Field>
+            {requestedAction ? <input type="hidden" name="action" value={requestedAction} /> : null}
+            <Button>Filter anwenden</Button>
+            {selectedActorId ? (
+              <Link href="/messages" className="inline-flex min-h-10 items-center justify-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
+                Filter entfernen
+              </Link>
+            ) : null}
+          </form>
+        </Panel>
         <Panel className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-paper text-redbrand">
@@ -544,12 +576,12 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           {page > 1 ? (
-            <Link href={`/messages?page=${page - 1}`} className="focus-ring inline-flex min-h-10 items-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
+            <Link href={`/messages?page=${page - 1}${pageQuery}`} className="focus-ring inline-flex min-h-10 items-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
               Zurück
             </Link>
           ) : <span />}
           {hasNext ? (
-            <Link href={`/messages?page=${page + 1}`} className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
+            <Link href={`/messages?page=${page + 1}${pageQuery}`} className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
               Weitere laden <ChevronRight className="h-4 w-4" />
             </Link>
           ) : null}

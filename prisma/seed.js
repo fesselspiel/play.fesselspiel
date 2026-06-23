@@ -37,6 +37,7 @@ async function main() {
   const features = [
     "positions",
     "toys",
+    "ideas",
     "media",
     "activities",
     "orders",

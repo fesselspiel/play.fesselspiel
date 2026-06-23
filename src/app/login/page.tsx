@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { LoginForm } from "@/components/login-form";
 import { Panel } from "@/components/ui";
+import { currentTenant, primaryTenantDomain } from "@/lib/tenancy";
 
 const featureCards = [
   {
@@ -72,7 +73,10 @@ const trustCards = [
   { title: "Bilderzentriert", text: "Galerien, Ideenbilder und Uploads sind auf schnelles Anschauen ausgelegt.", Icon: Camera }
 ];
 
-export default function LoginPage({ searchParams }: { searchParams?: { confirmed?: string; reset?: string } }) {
+export default async function LoginPage({ searchParams }: { searchParams?: { confirmed?: string; reset?: string } }) {
+  const tenant = await currentTenant();
+  const tenantName = tenant?.name || "Playplaner";
+  const tenantDomain = tenant ? primaryTenantDomain(tenant) : "playplaner.com";
   return (
     <main className="min-h-screen bg-canvas text-ink">
       <section className="relative overflow-hidden border-b border-line bg-surface">
@@ -81,8 +85,8 @@ export default function LoginPage({ searchParams }: { searchParams?: { confirmed
           <div className="flex flex-col justify-between gap-10">
             <header className="flex items-center justify-between gap-4">
               <div>
-                <div className="text-2xl font-semibold tracking-normal">Fesselspiel</div>
-                <div className="text-sm text-graphite">playplaner.com</div>
+                <div className="text-2xl font-semibold tracking-normal">{tenantName}</div>
+                <div className="text-sm text-graphite">{tenantDomain}</div>
               </div>
               <a href="#login" className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-paper">
                 <LockKeyhole className="h-4 w-4" />
@@ -192,7 +196,7 @@ export default function LoginPage({ searchParams }: { searchParams?: { confirmed
 
       <footer className="border-t border-line bg-surface px-5 py-8 text-sm text-graphite">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <span>Fesselspiel · playplaner.com</span>
+          <span>{tenantName} · {tenantDomain}</span>
           <span className="inline-flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-redbrand" />
             Privater Bereich nur nach Anmeldung

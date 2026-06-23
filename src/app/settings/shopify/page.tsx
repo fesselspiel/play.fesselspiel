@@ -113,6 +113,48 @@ async function refreshToken() {
   redirect("/settings/shopify?token=refreshed");
 }
 
+async function adoptShopifyCredentials(formData: FormData) {
+  "use server";
+  const { actor, tenant } = await requireShopifyAdmin();
+  if (actor.role !== "SUPER_ADMIN") redirect("/settings/shopify");
+  const sourceId = String(formData.get("sourceIntegrationId") || "");
+  const source = await prisma.shopifyIntegration.findFirst({ where: { id: sourceId }, include: { tenant: true } });
+  if (!source?.clientIdEnc || !source.clientSecretEnc) redirect("/settings/shopify?error=Keine Credentials gefunden");
+  await prisma.shopifyIntegration.upsert({
+    where: { tenantId: tenant.id },
+    update: {
+      clientIdEnc: source.clientIdEnc,
+      clientSecretEnc: source.clientSecretEnc,
+      accessTokenEnc: null,
+      accessTokenExpiresAt: null,
+      accessTokenScope: null,
+      shopDomain: source.shopDomain,
+      apiVersion: source.apiVersion,
+      productTag: source.productTag,
+      enabled: true
+    },
+    create: {
+      tenantId: tenant.id,
+      clientIdEnc: source.clientIdEnc,
+      clientSecretEnc: source.clientSecretEnc,
+      shopDomain: source.shopDomain,
+      apiVersion: source.apiVersion,
+      productTag: source.productTag,
+      enabled: true
+    }
+  });
+  await logAction({
+    actorId: actor.id,
+    action: "shopify_credentials_adopted",
+    entityType: "tenant",
+    entityId: tenant.id,
+    title: `${userDisplayName(actor)} hat Shopify-Credentials aus ${source.tenant.name} übernommen`,
+    href: "/settings/shopify",
+    details: { sourceTenantId: source.tenantId, sourceTenantName: source.tenant.name }
+  });
+  redirect("/settings/shopify?saved=1");
+}
+
 async function saveAllItems(formData: FormData) {
   "use server";
   const { actor, tenant } = await requireShopifyAdmin();
@@ -167,8 +209,8 @@ async function setAllItemsVisibility(formData: FormData) {
 }
 
 export default async function ShopifySettingsPage({ searchParams }: { searchParams?: { saved?: string; synced?: string; token?: string; error?: string } }) {
-  const { tenant } = await requireShopifyAdmin();
-  const [integration, products, users, circles] = await Promise.all([
+  const { actor, tenant } = await requireShopifyAdmin();
+  const [integration, products, users, circles, reusableIntegrations] = await Promise.all([
     prisma.shopifyIntegration.findUnique({ where: { tenantId: tenant.id } }),
     prisma.bondageSystemItem.findMany({
       where: { tenantId: tenant.id },
@@ -176,7 +218,14 @@ export default async function ShopifySettingsPage({ searchParams }: { searchPara
       orderBy: [{ sortOrder: "asc" }, { product: { title: "asc" } }]
     }),
     prisma.user.findMany({ where: { tenantId: tenant.id, active: true }, include: { profile: true }, orderBy: [{ name: "asc" }, { username: "asc" }] }),
-    prisma.circle.findMany({ where: { tenantId: tenant.id }, orderBy: { name: "asc" } })
+    prisma.circle.findMany({ where: { tenantId: tenant.id }, orderBy: { name: "asc" } }),
+    actor.role === "SUPER_ADMIN"
+      ? prisma.shopifyIntegration.findMany({
+          where: { tenantId: { not: tenant.id }, clientIdEnc: { not: null }, clientSecretEnc: { not: null } },
+          include: { tenant: true },
+          orderBy: { updatedAt: "desc" }
+        })
+      : Promise.resolve([])
   ]);
   return (
     <AppShell>
@@ -192,6 +241,22 @@ export default async function ShopifySettingsPage({ searchParams }: { searchPara
           {searchParams?.error ? <Panel className="text-sm text-redbrand">{searchParams.error}</Panel> : null}
           <Panel>
             <h2 className="mb-4 text-lg font-semibold text-ink">Verbindung</h2>
+            {actor.role === "SUPER_ADMIN" && reusableIntegrations.length ? (
+              <form action={adoptShopifyCredentials} className="mb-5 rounded-lg border border-line bg-paper p-4">
+                <Field label="Vorhandene Credentials übernehmen">
+                  <select className={selectClass} name="sourceIntegrationId" required>
+                    {reusableIntegrations.map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.tenant.name} · {entry.shopDomain} · Client-ID ...{entry.clientIdEnc ? secretPreview(entry.clientIdEnc) : "leer"}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <SubmitButton pendingLabel="Credentials werden übernommen..." className="mt-3 bg-surface text-redbrand ring-1 ring-line hover:bg-redbrand hover:text-white">
+                  Credentials übernehmen
+                </SubmitButton>
+              </form>
+            ) : null}
             <form action={saveIntegration} className="space-y-4">
               <label className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm font-medium text-ink">
                 <input name="enabled" type="checkbox" defaultChecked={integration?.enabled ?? true} className="h-4 w-4 accent-redbrand" />

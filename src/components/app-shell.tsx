@@ -31,7 +31,7 @@ const nav = [
   ["Szenen", "/positions", ShieldCheck, "positions"],
   ["Spielsachen", "/toys", ToyBrick, "toys"],
   ["Bondage-System", "/bondage-system", PackageSearch, "shopifyBondageSystem"],
-  ["Ideensammlung", "/ideas", Lightbulb, "activities"],
+  ["Ideensammlung", "/ideas", Lightbulb, "ideas"],
   ["Aufträge", "/orders", ClipboardCheck, "orders"],
   ["Sessions", "/sessions", Timer, "trackers"],
   ["Bilder", "/media", Images, "media"]
@@ -118,6 +118,11 @@ export async function AppShell({ children }: { children: ReactNode }) {
               {label}
             </Link>
           ))}
+          {user ? (
+            <div className="my-3 rounded-md border border-line bg-paper p-2">
+              <DarkModeToggle active={Boolean(user.settings?.darkMode)} />
+            </div>
+          ) : null}
           <div className="my-3 border-t border-line" />
           <details className="group rounded-md">
             <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand [&::-webkit-details-marker]:hidden">

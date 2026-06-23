@@ -26,6 +26,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { Badge, Button, EmptyState, Field, inputClass, PageGuide, PageHeader, selectClass } from "@/components/ui";
 import { mediaVisibilityScope, ownerScope, visibilityScope } from "@/lib/access";
 import { ensureDefaultAlbum, isDefaultAlbumTitle } from "@/lib/albums";
+import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
@@ -59,7 +60,7 @@ async function createMedia(formData: FormData) {
   const selectedAlbum = selectedAlbumId ? await prisma.album.findFirst({ where: { id: selectedAlbumId, ...scope } }) : null;
   const targetAlbum = selectedAlbum || (await ensureDefaultAlbum(user.id));
   const kind = file.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE";
-  await prisma.media.create({
+  const media = await prisma.media.create({
     data: {
       tenantId: user.tenantId || undefined,
       ownerId: user.id,
@@ -69,6 +70,14 @@ async function createMedia(formData: FormData) {
       url: fileAssetUrl(file.id),
       visibility: parsedVisibility(formData.get("visibility"))
     }
+  });
+  await logAction({
+    actorId: user.id,
+    action: "media_uploaded",
+    entityType: "media",
+    entityId: media.id,
+    title: `Bild hochgeladen: ${media.title || file.originalName}`,
+    href: mediaUrl({ album: targetAlbum.id, view: media.id })
   });
   redirect("/media");
 }
@@ -85,6 +94,14 @@ async function deleteMedia(formData: FormData) {
   await prisma.media.delete({ where: { id: media.id } });
   const fileId = fileIdFromUrl(media.url);
   if (fileId) await deleteOwnedFile(media.ownerId, fileId);
+  await logAction({
+    actorId: user.id,
+    action: "media_deleted",
+    entityType: "media",
+    entityId: media.id,
+    title: `Bild gelöscht: ${media.title || "ohne Titel"}`,
+    href: "/media"
+  });
   redirect("/media");
 }
 
@@ -99,7 +116,7 @@ async function createAlbum(formData: FormData) {
     await ensureDefaultAlbum(user.id);
     redirect("/media");
   }
-  await prisma.album.create({
+  const album = await prisma.album.create({
     data: {
       tenantId: user.tenantId || undefined,
       ownerId: user.id,
@@ -107,6 +124,14 @@ async function createAlbum(formData: FormData) {
       description: String(formData.get("description") || "").trim(),
       visibility: String(formData.get("visibility") || "PRIVATE") as "PRIVATE" | "PARTNER" | "SHARED"
     }
+  });
+  await logAction({
+    actorId: user.id,
+    action: "album_created",
+    entityType: "album",
+    entityId: album.id,
+    title: `Album angelegt: ${album.title}`,
+    href: mediaUrl({ album: album.id })
   });
   redirect("/media");
 }
@@ -122,13 +147,21 @@ async function updateAlbum(formData: FormData) {
   const defaultAlbum = await ensureDefaultAlbum(album.ownerId);
   const requestedTitle = String(formData.get("title") || album.title).trim() || album.title;
   const nextTitle = await isDefaultAlbumTitle(album.ownerId, requestedTitle) && album.id !== defaultAlbum.id ? album.title : requestedTitle;
-  await prisma.album.update({
+  const updated = await prisma.album.update({
     where: { id: album.id },
     data: {
       title: nextTitle,
       description: String(formData.get("description") || "").trim(),
       visibility: String(formData.get("visibility") || album.visibility) as "PRIVATE" | "PARTNER" | "SHARED"
     }
+  });
+  await logAction({
+    actorId: user.id,
+    action: "album_updated",
+    entityType: "album",
+    entityId: updated.id,
+    title: `Album geändert: ${updated.title}`,
+    href: mediaUrl({ album: updated.id })
   });
   redirect("/media");
 }
@@ -158,6 +191,14 @@ async function createAlbumForMedia(formData: FormData) {
     }
   });
   await prisma.media.update({ where: { id: media.id }, data: { albumId: album.id, visibility: null } });
+  await logAction({
+    actorId: user.id,
+    action: "album_created",
+    entityType: "album",
+    entityId: album.id,
+    title: `Album angelegt: ${album.title}`,
+    href: mediaUrl({ album: album.id, view: media.id })
+  });
   redirect(mediaUrl({ album: album.id, view: media.id }));
 }
 
@@ -174,7 +215,7 @@ async function updateMediaSettings(formData: FormData) {
   if (!media) redirect("/media");
   const album = await prisma.album.findFirst({ where: { id: albumId, ...scope } });
   if (!album) redirect(next);
-  await prisma.media.update({
+  const updated = await prisma.media.update({
     where: { id: media.id },
     data: {
       albumId: album.id,
@@ -187,6 +228,14 @@ async function updateMediaSettings(formData: FormData) {
   } else if (album.coverMediaId === media.id) {
     await prisma.album.update({ where: { id: album.id }, data: { coverMediaId: null } });
   }
+  await logAction({
+    actorId: user.id,
+    action: "media_updated",
+    entityType: "media",
+    entityId: updated.id,
+    title: `Bild geändert: ${updated.title || "ohne Titel"}`,
+    href: next
+  });
   redirect(next);
 }
 
@@ -203,6 +252,15 @@ async function addMediaToAlbum(formData: FormData) {
   await prisma.media.updateMany({
     where: { ...scope, id: { in: mediaIds } },
     data: { albumId: album.id, visibility: null }
+  });
+  await logAction({
+    actorId: user.id,
+    action: "media_album_changed",
+    entityType: "album",
+    entityId: album.id,
+    title: `Bilder in Album verschoben: ${album.title}`,
+    href: mediaUrl({ album: album.id }),
+    details: { count: mediaIds.length }
   });
   redirect(mediaUrl({ album: album.id }));
 }
@@ -228,6 +286,15 @@ async function deleteAlbum(formData: FormData) {
     await prisma.media.updateMany({ where: { albumId: album.id }, data: { albumId: fallback.id } });
   }
   await prisma.album.delete({ where: { id: album.id } });
+  await logAction({
+    actorId: user.id,
+    action: "album_deleted",
+    entityType: "album",
+    entityId: album.id,
+    title: `Album gelöscht: ${album.title}`,
+    href: "/media",
+    details: { mediaCount: media.length, deletedMedia: formData.get("deleteMedia") === "on" }
+  });
   redirect("/media");
 }
 
@@ -242,12 +309,21 @@ async function createMediaComment(formData: FormData) {
   if (!body) redirect(next);
   const media = await prisma.media.findFirst({ where: { id: mediaId, ...(await ownerScope(user)) } });
   if (!media) redirect("/media");
-  await prisma.mediaComment.create({
+  const comment = await prisma.mediaComment.create({
     data: {
       mediaId: media.id,
       ownerId: user.id,
       body
     }
+  });
+  await logAction({
+    actorId: user.id,
+    action: "media_commented",
+    entityType: "media",
+    entityId: media.id,
+    title: `Bild kommentiert: ${media.title || "ohne Titel"}`,
+    href: next,
+    details: { commentId: comment.id, comment: body.slice(0, 500) }
   });
   redirect(next);
 }
@@ -503,7 +579,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                   <option value="SHARED">Alle</option>
                 </select>
               </Field>
-              <Button><Save className="h-4 w-4" /> Speichern</Button>
+              <SubmitButton pendingLabel="Bild wird gespeichert..."><Save className="h-4 w-4" /> Speichern</SubmitButton>
             </form>
           </details>
 
@@ -562,7 +638,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                       ))}
                     </div>
                   </div>
-                  <Button variant="secondary" className="w-full">Auswahl ins Zielalbum verschieben</Button>
+                  <SubmitButton pendingLabel="Bilder werden verschoben..." className="w-full bg-surface text-ink ring-1 ring-line hover:bg-paper">Auswahl ins Zielalbum verschieben</SubmitButton>
                 </form>
               </details>
             ) : null}
@@ -607,7 +683,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                             <input name="deleteMedia" type="checkbox" className="mt-1 h-4 w-4 accent-redbrand" />
                             Bilder und Dateien endgültig mitlöschen
                           </label>
-                          <Button variant="danger" className="w-full"><Trash2 className="h-4 w-4" /> Album löschen</Button>
+                          <SubmitButton pendingLabel="Album wird gelöscht..." className="w-full border border-redbrand bg-surface text-redbrand hover:bg-redbrand hover:text-white"><Trash2 className="h-4 w-4" /> Album löschen</SubmitButton>
                         </form>
                       )}
                     </details>
@@ -719,7 +795,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                   <input type="hidden" name="mediaId" value={selected.id} />
                   <input type="hidden" name="next" value={selectedUrl} />
                   <textarea className={inputClass} name="body" rows={3} placeholder="Notiz oder Kommentar" required />
-                  <Button variant="secondary" className="w-full">Kommentar speichern</Button>
+                  <SubmitButton pendingLabel="Kommentar wird gespeichert..." className="w-full bg-surface text-ink ring-1 ring-line hover:bg-paper">Kommentar speichern</SubmitButton>
                 </form>
                 {selectedComments.length ? (
                   <div className="mt-4 space-y-3">
@@ -742,10 +818,10 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                 </a>
                 <form action={deleteMedia} className="flex-1">
                   <input type="hidden" name="id" value={selected.id} />
-                  <Button variant="danger" className="w-full">
+                  <SubmitButton pendingLabel="Bild wird gelöscht..." className="w-full border border-redbrand bg-surface text-redbrand hover:bg-redbrand hover:text-white">
                     <Trash2 className="h-4 w-4" />
                     Löschen
-                  </Button>
+                  </SubmitButton>
                 </form>
               </div>
             </aside>
