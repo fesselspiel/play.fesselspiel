@@ -14,6 +14,7 @@ import {
   Network,
   PackageSearch,
   Settings,
+  Signal,
   SlidersHorizontal,
   ShieldCheck,
   Timer,
@@ -31,7 +32,7 @@ const mobileNav = [
   ["Szenen", "/positions", ShieldCheck, "positions"],
   ["Spielsachen", "/toys", ToyBrick, "toys"],
   ["Bondage-System", "/bondage-system", PackageSearch, "shopifyBondageSystem"],
-  ["Ideensammlung", "/ideas", Lightbulb, "activities"],
+  ["Ideensammlung", "/ideas", Lightbulb, "ideas"],
   ["Aufträge", "/orders", ClipboardCheck, "orders"],
   ["Sessions", "/sessions", Timer, "trackers"],
   ["Bilder", "/media", Images, "media"]
@@ -43,7 +44,10 @@ const ideasMobileNav = mobileNav.slice(4, 5);
 const workMobileNav = mobileNav.slice(5, 7);
 const pictureMobileNav = mobileNav.slice(7);
 
-const mobileSettingsNav = [["Profil", "/profile", UserRound]] as const;
+const mobileSettingsNav = [
+  ["Profil", "/profile", UserRound],
+  ["Ampel", "/settings/play-ready", Signal]
+] as const;
 
 const adminOnlyMobileSettingsNav = [
   ["Seite", "/settings/tenant", SlidersHorizontal],

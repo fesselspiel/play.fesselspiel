@@ -864,7 +864,8 @@ Details:
 
 ## Spielampel
 
-- Benutzer können in den Profileinstellungen ein optionales Ablaufdatum für die Spielampel setzen.
+- Benutzer können unter `Einstellungen -> Ampel` ein optionales Ablaufdatum für die Spielampel setzen.
+- Die Ablaufzeit wird über Dropdowns gesetzt: Stunden stundenweise, Minuten in 15-Minuten-Schritten.
 - Die Startseite zeigt das Ablaufdatum nur bei grüner Ampel und nur dann, wenn es gesetzt ist.
 - Beim Laden der Startseite werden abgelaufene grüne Ampeln automatisch auf Rot gesetzt und als `play_ready_expired` protokolliert.
 

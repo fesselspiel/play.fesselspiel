@@ -12,20 +12,6 @@ import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "
 import { prisma } from "@/lib/prisma";
 import { normalizeTheme, normalizeThemeMode } from "@/lib/themes";
 
-function localInputDateTime(value?: Date | null) {
-  if (!value) return "";
-  const offset = value.getTimezoneOffset();
-  const local = new Date(value.getTime() - offset * 60_000);
-  return local.toISOString().slice(0, 16);
-}
-
-function parseOptionalDateTime(value: FormDataEntryValue | null) {
-  const raw = String(value || "").trim();
-  if (!raw) return null;
-  const date = new Date(raw);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
 async function existingProfileImageUrl(ownerId: string, url?: string | null) {
   const fileId = fileIdFromUrl(url);
   if (!fileId) return "";
@@ -76,13 +62,11 @@ async function saveProfile(formData: FormData) {
         upsert: {
           update: {
             theme: normalizeTheme(String(formData.get("theme") || "")),
-            darkMode: normalizeThemeMode(String(formData.get("darkMode") || "")) === "dark",
-            playReadyExpiresAt: parseOptionalDateTime(formData.get("playReadyExpiresAt"))
+            darkMode: normalizeThemeMode(String(formData.get("darkMode") || "")) === "dark"
           },
           create: {
             theme: normalizeTheme(String(formData.get("theme") || "")),
-            darkMode: normalizeThemeMode(String(formData.get("darkMode") || "")) === "dark",
-            playReadyExpiresAt: parseOptionalDateTime(formData.get("playReadyExpiresAt"))
+            darkMode: normalizeThemeMode(String(formData.get("darkMode") || "")) === "dark"
           }
         }
       }
@@ -153,12 +137,6 @@ export default async function ProfilePage({ searchParams }: { searchParams?: { e
             </SubmitButton>
           ) : null}
           <Field label="Profiltext"><textarea className={inputClass} name="bio" rows={5} defaultValue={user.profile?.bio || ""} /></Field>
-          <Field label="Spielampel gültig bis">
-            <input className={inputClass} name="playReadyExpiresAt" type="datetime-local" defaultValue={localInputDateTime(user.settings?.playReadyExpiresAt)} />
-          </Field>
-          <p className="rounded-md bg-paper px-3 py-2 text-sm text-graphite">
-            Optional: Wenn du ein Datum setzt, wird deine grüne Spielampel danach automatisch auf Rot zurückgestellt.
-          </p>
           <FileUploadField
             name="profileImage"
             uploadedUrlName="profileImageUploadedUrl"

@@ -12,6 +12,7 @@ import {
   Network,
   PackageSearch,
   Settings,
+  Signal,
   SlidersHorizontal,
   ShieldCheck,
   Timer,
@@ -43,7 +44,10 @@ const ideasNav = nav.slice(4, 5);
 const workNav = nav.slice(5, 7);
 const pictureNav = nav.slice(7);
 
-const settingsNav = [["Profil", "/profile", UserRound]] as const;
+const settingsNav = [
+  ["Profil", "/profile", UserRound],
+  ["Ampel", "/settings/play-ready", Signal]
+] as const;
 
 const adminOnlySettingsNav = [
   ["Seite", "/settings/tenant", SlidersHorizontal],
