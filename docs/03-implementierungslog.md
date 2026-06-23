@@ -117,6 +117,15 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Menü kann jetzt zuverlässig per X, Hintergrundklick, Escape oder Link-Auswahl geschlossen werden.
 - Benutzerkarte und Abmelden liegen im scrollbaren Menübereich, damit sie auf iPad/iPhone erreichbar bleiben.
 
+## Benutzeranleitung
+
+- Öffentliche HTML-Vorschau unter `/docs/benutzeranleitung.html`.
+- Öffentliche PDF-Datei unter `/docs/playplaner-benutzeranleitung.pdf`.
+- Generator `scripts/generate-user-guide.js` erzeugt beide Dateien reproduzierbar im Projekt-Webspace.
+- Neue Admin-Seite `/settings/help` trennt Vorschau, Download und Teilen-Link.
+- Menüpunkt `Anleitung` wurde unter den Admin-Einstellungen in Desktop- und Mobile-Menü ergänzt.
+- Die Anleitung beschreibt Startseite, Szenen, Spielsachen, Bondage-System, Ideensammlung, Aufträge, Bilder, Tracker, Telegram, E-Mail, API, Protokoll, Feed und Administration.
+
 ## Bearbeiten und Löschen
 
 Ergaenzt für:

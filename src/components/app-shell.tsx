@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ReactNode } from "react";
 import {
   DatabaseBackup,
+  FileText,
   Images,
   KeyRound,
   Lightbulb,
@@ -58,6 +59,7 @@ const adminOnlySettingsNav = [
   ["Tracker", "/settings/trackers", Timer],
   ["Telegram", "/settings/telegram", Settings],
   ["E-Mail", "/settings/email", Mail],
+  ["Anleitung", "/settings/help", FileText],
   ["Daten", "/settings/data", DatabaseBackup],
   ["API Tokens", "/settings/api", KeyRound],
   ["Protokoll", "/messages", MessageCircle]

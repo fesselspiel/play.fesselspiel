@@ -11,6 +11,9 @@
 - `package.json`: Scripts und Dependencies.
 - `prisma/schema.prisma`: Datenmodell.
 - `prisma/seed.js`: Initialer Admin und Basisdaten.
+- `scripts/generate-user-guide.js`: erzeugt die öffentliche Benutzeranleitung als HTML und PDF unter `public/docs`.
+- `public/docs/benutzeranleitung.html`: Browser-Vorschau der Benutzeranleitung.
+- `public/docs/playplaner-benutzeranleitung.pdf`: öffentlich teilbare PDF-Anleitung.
 
 ## Zentrale Libraries
 
@@ -108,6 +111,7 @@ Telegram-Formatierung:
 - `src/app/profile/page.tsx`
 - `src/app/settings/users/page.tsx`
 - `src/app/settings/telegram/page.tsx`
+- `src/app/settings/help/page.tsx`: Admin-Seite für Anleitung mit Vorschau, Download und Teilen-Link.
 
 ### Telegram APIs
 

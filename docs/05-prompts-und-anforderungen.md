@@ -731,3 +731,21 @@ Umsetzung:
 - Dashboard und Session-Seiten zeigen `Session beenden`, wenn die laufende Session dem aktuellen Benutzer gehört.
 - Telegram-Regeln nutzen eine dynamische Zielauswahl: entweder Benutzer oder Kreis.
 - `Test senden` ruft gezielt die ausgewählte Regel mit Testdaten auf.
+
+## Benutzeranleitungs-Prompt
+
+Anforderung:
+
+- Aus den vorhandenen Funktionen soll eine ausführliche, für Benutzer verständliche und gut formatierte Anleitung entstehen.
+- Die Anleitung soll Bilder beziehungsweise visuelle Beispiele enthalten.
+- Sie soll im Webspace als PDF liegen.
+- Im Administrationsmenü sollen Vorschau, Download und Teilen-Link unterscheidbar abrufbar sein.
+- Der Link zur PDF soll öffentlich zugänglich sein.
+
+Umsetzung:
+
+- Statische HTML-Vorschau unter `/docs/benutzeranleitung.html`.
+- Statische PDF unter `/docs/playplaner-benutzeranleitung.pdf`.
+- Generator `scripts/generate-user-guide.js` erzeugt HTML und PDF reproduzierbar.
+- Neue Admin-Seite `/settings/help` mit drei getrennten Aktionen: Vorschau öffnen, PDF herunterladen, öffentlichen PDF-Link kopieren.
+- Desktop- und Mobile-Menü zeigen für Administratoren den neuen Punkt `Anleitung`.
