@@ -864,8 +864,10 @@ Details:
 
 ## Spielampel
 
-- Benutzer können unter `Einstellungen -> Ampel` ein optionales Ablaufdatum für die Spielampel setzen.
-- Die Ablaufzeit wird über Dropdowns gesetzt: Stunden stundenweise, Minuten in 15-Minuten-Schritten.
+- Benutzer können unter `Einstellungen -> Ampel` eine optionale relative Ablaufzeit für die Spielampel setzen.
+- Die Ablaufzeit wird ab dem Speichern berechnet: Stunden stundenweise, Minuten in 15-Minuten-Schritten, maximal 12 Stunden.
+- Die Spielampel ist als eigenes Feature `playReady` konfigurierbar und blendet Startseitenbereich sowie Einstellungsmenüpunkt aus, wenn es deaktiviert ist.
+- Externe Systeme können die Spielampel über `/api/external/play-ready` mit API-Token abfragen oder setzen.
 - Die Startseite zeigt das Ablaufdatum nur bei grüner Ampel und nur dann, wenn es gesetzt ist.
 - Beim Laden der Startseite werden abgelaufene grüne Ampeln automatisch auf Rot gesetzt und als `play_ready_expired` protokolliert.
 

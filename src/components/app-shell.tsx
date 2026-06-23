@@ -45,8 +45,8 @@ const workNav = nav.slice(5, 7);
 const pictureNav = nav.slice(7);
 
 const settingsNav = [
-  ["Profil", "/profile", UserRound],
-  ["Ampel", "/settings/play-ready", Signal]
+  ["Profil", "/profile", UserRound, null],
+  ["Ampel", "/settings/play-ready", Signal, "playReady"]
 ] as const;
 
 const adminOnlySettingsNav = [
@@ -80,6 +80,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
   const visibleIdeasNav = ideasNav.filter(([, , , feature]) => navFeatureVisible(feature));
   const visibleWorkNav = workNav.filter(([, , , feature]) => navFeatureVisible(feature));
   const visiblePictureNav = pictureNav.filter(([, , , feature]) => navFeatureVisible(feature));
+  const visibleSettingsNav = settingsNav.filter(([, , , feature]) => navFeatureVisible(feature));
   return (
     <div className="min-h-screen bg-canvas">
       <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-line bg-surface px-5 py-6 lg:block">
@@ -146,7 +147,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
                   {label}
                 </Link>
               )) : null}
-              {settingsNav.map(([label, href, Icon]) => (
+              {visibleSettingsNav.map(([label, href, Icon]) => (
                 <Link key={href} href={href} className="flex min-h-9 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
                   <Icon className="h-4 w-4" />
                   {label}

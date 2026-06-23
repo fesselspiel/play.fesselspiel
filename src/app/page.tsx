@@ -10,7 +10,7 @@ import { updateSelfBondageOrderStatus, selfBondageCategory } from "@/lib/activit
 import { activityStatusDisplay, activityStatusTone } from "@/lib/activity-status";
 import { logAction, userDisplayName } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
-import { hasFeature } from "@/lib/features";
+import { hasFeature, requireFeature } from "@/lib/features";
 import { feedDetailsText, renderFeedTemplate } from "@/lib/feed";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
@@ -70,6 +70,7 @@ async function togglePlayReady() {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("playReady");
   const settings = await prisma.userSettings.findUnique({ where: { userId: user.id }, select: { playReady: true } });
   const previous = Boolean(settings?.playReady);
   const next = !previous;
@@ -106,6 +107,7 @@ async function likePlayReady(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  await requireFeature("playReady");
   const targetUserId = String(formData.get("targetUserId") || "");
   if (!targetUserId || targetUserId === user.id) redirect("/");
   const target = await prisma.user.findFirst({
@@ -248,14 +250,14 @@ export default async function DashboardPage() {
   const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
 
   const now = new Date();
-  await expirePlayReadyStatuses(user, now);
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
   const weekEnd = new Date(todayStart);
   weekEnd.setDate(todayStart.getDate() + 7);
   const scope = await ownerScope(user);
   const auditAccessIds = await accessibleOwnerIds(user);
-  const [activitiesEnabled, selfBondageEnabled, ordersEnabled, trackersEnabled, auditLogEnabled, toysEnabled, positionsEnabled] = await Promise.all([
+  const [playReadyEnabled, activitiesEnabled, selfBondageEnabled, ordersEnabled, trackersEnabled, auditLogEnabled, toysEnabled, positionsEnabled] = await Promise.all([
+    hasFeature("playReady"),
     hasFeature("activities"),
     hasFeature("selfBondage"),
     hasFeature("orders"),
@@ -264,6 +266,7 @@ export default async function DashboardPage() {
     hasFeature("toys"),
     hasFeature("positions")
   ]);
+  if (playReadyEnabled) await expirePlayReadyStatuses(user, now);
   const [trackerEntries, weekActivities, weekEvents, circleUsers, selfBondagePositions, favoriteToys, favoritePositions, openOrders, requestedPlans, feedRules] = await Promise.all([
     trackersEnabled ? prisma.trackerEntry.findMany({ where: scope, include: { trackerType: true }, orderBy: { startTime: "desc" }, take: 8 }) : Promise.resolve([]),
     activitiesEnabled
@@ -277,29 +280,31 @@ export default async function DashboardPage() {
       where: { ...scope, startsAt: { gte: todayStart, lt: weekEnd } },
       orderBy: { startsAt: "asc" }
     }),
-    prisma.tenantMembership.findMany({
-      where: user.tenantId
-        ? user.circleId
-          ? { tenantId: user.tenantId, circleId: user.circleId, active: true, user: { active: true } }
-          : user.role === "ADMIN" || user.role === "SUPER_ADMIN"
-            ? { tenantId: user.tenantId, active: true, user: { active: true } }
-            : { tenantId: user.tenantId, userId: user.id, active: true, user: { active: true } }
-        : { userId: user.id, active: true, user: { active: true } },
-      include: {
-        user: {
+    playReadyEnabled
+      ? prisma.tenantMembership.findMany({
+          where: user.tenantId
+            ? user.circleId
+              ? { tenantId: user.tenantId, circleId: user.circleId, active: true, user: { active: true } }
+              : user.role === "ADMIN" || user.role === "SUPER_ADMIN"
+                ? { tenantId: user.tenantId, active: true, user: { active: true } }
+                : { tenantId: user.tenantId, userId: user.id, active: true, user: { active: true } }
+            : { userId: user.id, active: true, user: { active: true } },
           include: {
-            settings: true,
-            profile: true,
-            playReadyLikesReceived: {
-              where: { tenantId: user.tenantId || null },
-              include: { actor: { include: { profile: true } } },
-              orderBy: { createdAt: "desc" }
+            user: {
+              include: {
+                settings: true,
+                profile: true,
+                playReadyLikesReceived: {
+                  where: { tenantId: user.tenantId || null },
+                  include: { actor: { include: { profile: true } } },
+                  orderBy: { createdAt: "desc" }
+                }
+              }
             }
-          }
-        }
-      },
-      orderBy: { createdAt: "asc" }
-    }),
+          },
+          orderBy: { createdAt: "asc" }
+        })
+      : Promise.resolve([]),
     selfBondageEnabled
       ? prisma.position.findMany({
           where: { ...scope, selfBondageCapable: true },
@@ -431,56 +436,58 @@ export default async function DashboardPage() {
       </PageGuide>
 
       <div className="space-y-6">
-        <Panel>
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold">Spielampel</h2>
-            <p className="mt-1 text-sm text-graphite">Grün heißt volle Lust, Rot heißt gerade nicht.</p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {circleUsers.map((membership) => {
-              const member = membership.user;
-              const ready = Boolean(member.settings?.playReady);
-              const isSelf = member.id === user.id;
-              const displayName = member.profile?.displayName || member.name || member.username || member.email;
-              const stateLabel = ready ? "Voll Lust" : "Gerade nicht";
-              const likes = member.playReadyLikesReceived || [];
-              const likedBySelf = likes.some((like) => like.actorId === user.id);
-              const likePeople = likes.map((like) => ({ id: like.actorId, name: userDisplayName(like.actor) }));
-              const content = (
-                <span className={`flex min-h-28 w-full items-center gap-4 rounded-lg border p-4 text-left transition ${
-                  ready ? "border-emerald-500 bg-emerald-500/10" : "border-redbrand bg-redbrand/10"
-                } ${isSelf ? "hover:scale-[1.01]" : ""}`}>
-                  {member.profile?.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={member.profile.imageUrl} alt="" className={`h-12 w-12 shrink-0 rounded-full object-cover ring-4 ${ready ? "ring-emerald-500" : "ring-redbrand"}`} />
-                  ) : (
-                    <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white shadow-soft ${ready ? "bg-emerald-500" : "bg-redbrand"}`}>
-                      {displayName.slice(0, 1).toUpperCase()}
+        {playReadyEnabled ? (
+          <Panel>
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">Spielampel</h2>
+              <p className="mt-1 text-sm text-graphite">Grün heißt volle Lust, Rot heißt gerade nicht.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {circleUsers.map((membership) => {
+                const member = membership.user;
+                const ready = Boolean(member.settings?.playReady);
+                const isSelf = member.id === user.id;
+                const displayName = member.profile?.displayName || member.name || member.username || member.email;
+                const stateLabel = ready ? "Voll Lust" : "Gerade nicht";
+                const likes = member.playReadyLikesReceived || [];
+                const likedBySelf = likes.some((like) => like.actorId === user.id);
+                const likePeople = likes.map((like) => ({ id: like.actorId, name: userDisplayName(like.actor) }));
+                const content = (
+                  <span className={`flex min-h-28 w-full items-center gap-4 rounded-lg border p-4 text-left transition ${
+                    ready ? "border-emerald-500 bg-emerald-500/10" : "border-redbrand bg-redbrand/10"
+                  } ${isSelf ? "hover:scale-[1.01]" : ""}`}>
+                    {member.profile?.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={member.profile.imageUrl} alt="" className={`h-12 w-12 shrink-0 rounded-full object-cover ring-4 ${ready ? "ring-emerald-500" : "ring-redbrand"}`} />
+                    ) : (
+                      <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white shadow-soft ${ready ? "bg-emerald-500" : "bg-redbrand"}`}>
+                        {displayName.slice(0, 1).toUpperCase()}
+                      </span>
+                    )}
+                    <span className="min-w-0">
+                      <span className="block truncate text-base font-semibold text-ink">{displayName}</span>
+                      <span className={`mt-1 block text-sm font-semibold ${ready ? "text-emerald-700" : "text-redbrand"}`}>{stateLabel}</span>
+                      {ready && member.settings?.playReadyExpiresAt ? (
+                        <span className="mt-1 block text-xs text-graphite">gültig bis {formatDateTime(member.settings.playReadyExpiresAt)}</span>
+                      ) : null}
+                      {isSelf ? <span className="mt-1 block text-xs text-graphite">Antippen zum Umschalten</span> : null}
                     </span>
-                  )}
-                  <span className="min-w-0">
-                    <span className="block truncate text-base font-semibold text-ink">{displayName}</span>
-                    <span className={`mt-1 block text-sm font-semibold ${ready ? "text-emerald-700" : "text-redbrand"}`}>{stateLabel}</span>
-                    {ready && member.settings?.playReadyExpiresAt ? (
-                      <span className="mt-1 block text-xs text-graphite">gültig bis {formatDateTime(member.settings.playReadyExpiresAt)}</span>
-                    ) : null}
-                    {isSelf ? <span className="mt-1 block text-xs text-graphite">Antippen zum Umschalten</span> : null}
                   </span>
-                </span>
-              );
-              return isSelf ? (
-                <form key={member.id} action={togglePlayReady}>
-                  <button type="submit" className="focus-ring block w-full rounded-lg">{content}</button>
-                </form>
-              ) : (
-                <div key={member.id} className="space-y-2">
-                  {content}
-                  <LikeControl action={likePlayReady} hiddenName="targetUserId" hiddenValue={member.id} liked={likedBySelf} likes={likePeople} />
-                </div>
-              );
-            })}
-          </div>
-        </Panel>
+                );
+                return isSelf ? (
+                  <form key={member.id} action={togglePlayReady}>
+                    <button type="submit" className="focus-ring block w-full rounded-lg">{content}</button>
+                  </form>
+                ) : (
+                  <div key={member.id} className="space-y-2">
+                    {content}
+                    <LikeControl action={likePlayReady} hiddenName="targetUserId" hiddenValue={member.id} liked={likedBySelf} likes={likePeople} />
+                  </div>
+                );
+              })}
+            </div>
+          </Panel>
+        ) : null}
 
         {favoriteToys.length || favoritePositions.length ? (
           <Panel>

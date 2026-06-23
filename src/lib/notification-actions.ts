@@ -37,6 +37,7 @@ export const knownAuditActions = [
   ["media_updated", "Bild geändert"],
   ["media_uploaded", "Bild hochgeladen"],
   ["play_ready_changed", "Spielampel geändert"],
+  ["play_ready_changed_api", "Spielampel per API geändert"],
   ["play_ready_expired", "Spielampel abgelaufen"],
   ["play_ready_liked", "Spielampel geliked"],
   ["play_ready_unliked", "Spielampel-Like entfernt"],

@@ -45,8 +45,8 @@ const workMobileNav = mobileNav.slice(5, 7);
 const pictureMobileNav = mobileNav.slice(7);
 
 const mobileSettingsNav = [
-  ["Profil", "/profile", UserRound],
-  ["Ampel", "/settings/play-ready", Signal]
+  ["Profil", "/profile", UserRound, null],
+  ["Ampel", "/settings/play-ready", Signal, "playReady"]
 ] as const;
 
 const adminOnlyMobileSettingsNav = [
@@ -107,6 +107,7 @@ export function MobileMenu({
   const visibleIdeasNav = ideasMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
   const visibleWorkNav = workMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
   const visiblePictureNav = pictureMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
+  const visibleSettingsNav = mobileSettingsNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
 
   useEffect(() => {
     if (!open) return;
@@ -226,7 +227,7 @@ export function MobileMenu({
                         {label}
                       </Link>
                     )) : null}
-                    {mobileSettingsNav.map(([label, href, Icon]) => (
+                    {visibleSettingsNav.map(([label, href, Icon]) => (
                       <Link key={href} href={href} onClick={closeMenu} className={settingsLinkClass}>
                         <Icon className="h-4 w-4" />
                         {label}

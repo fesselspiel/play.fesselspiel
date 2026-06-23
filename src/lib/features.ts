@@ -7,6 +7,7 @@ export const featureCatalog = [
   { key: "toys", label: "Spielsachen" },
   { key: "shopifyBondageSystem", label: "Bondage-System" },
   { key: "ideas", label: "Ideensammlung" },
+  { key: "playReady", label: "Spielampel" },
   { key: "media", label: "Bilder" },
   { key: "activities", label: "Spielplanung" },
   { key: "orders", label: "Aufträge" },

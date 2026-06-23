@@ -76,6 +76,8 @@ export default async function ApiSettingsPage({ searchParams }: { searchParams: 
             <div className="space-y-3 text-sm">
               {[
                 ["GET", "/api/external/status?token=...", "Status, Benutzer und Grunddaten prüfen."],
+                ["GET", "/api/external/play-ready?token=...", "Aktuellen Spielampelstatus abfragen."],
+                ["GET", "/api/external/play-ready?token=...&state=green&hours=2&minutes=15", "Spielampel setzen. `state` kann green, red oder toggle sein; Dauer maximal 12 Stunden."],
                 ["GET", "/api/external/trackers/quotas?token=...", "Kontingente und offene Tracker-Todos abfragen."],
                 ["GET", "/api/external/trackers/{trackerKey}/start?token=...&note=...&title=...", "Beliebigen Tracker starten, z. B. trackerKey=segufix oder kg."],
                 ["GET", "/api/external/trackers/{trackerKey}/stop?token=...&note=...", "Beliebigen laufenden Tracker beenden."],
@@ -94,7 +96,7 @@ export default async function ApiSettingsPage({ searchParams }: { searchParams: 
               ))}
             </div>
             <div className="mt-4 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
-              Variablen: <code>{"{trackerKey}"}</code> ist der technische Tracker-Schlüssel. Häufige URL-Parameter sind <code>token</code>, <code>note</code>, <code>title</code>, <code>startTime</code> und <code>endTime</code>, sofern der jeweilige Endpunkt sie unterstützt.
+              Variablen: <code>{"{trackerKey}"}</code> ist der technische Tracker-Schlüssel. Häufige URL-Parameter sind <code>token</code>, <code>note</code>, <code>title</code>, <code>startTime</code>, <code>endTime</code>, <code>state</code>, <code>hours</code>, <code>minutes</code> und <code>expiresMinutes</code>, sofern der jeweilige Endpunkt sie unterstützt.
             </div>
           </Panel>
 
