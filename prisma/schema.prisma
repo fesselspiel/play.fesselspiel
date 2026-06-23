@@ -65,6 +65,7 @@ model Tenant {
   disabledButtonHref String   @default("/")
   status      String         @default("ACTIVE")
   primaryColor String        @default("#E30613")
+  homeLayout  Json           @default("[]")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   domains     TenantDomain[]

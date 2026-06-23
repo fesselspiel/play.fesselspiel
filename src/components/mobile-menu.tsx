@@ -54,6 +54,7 @@ const mobileSettingsNav = [
 
 const adminOnlyMobileSettingsNav = [
   ["Seite", "/settings/tenant", SlidersHorizontal],
+  ["Startseite", "/settings/home", LayoutDashboard],
   ["Benutzer", "/settings/users", UsersRound],
   ["Shopify", "/settings/shopify", PackageSearch],
   ["Tracker", "/settings/trackers", Timer],

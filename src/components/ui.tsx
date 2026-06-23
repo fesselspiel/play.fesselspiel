@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ReactNode } from "react";
+import { CSSProperties, ReactNode } from "react";
 
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: ReactNode; action?: ReactNode }) {
   return (
@@ -17,8 +17,8 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
   );
 }
 
-export function Panel({ children, className = "", id }: { children: ReactNode; className?: string; id?: string }) {
-  return <section id={id} className={`rounded-lg border border-line bg-surface p-5 shadow-soft ${className}`}>{children}</section>;
+export function Panel({ children, className = "", id, style }: { children: ReactNode; className?: string; id?: string; style?: CSSProperties }) {
+  return <section id={id} style={style} className={`rounded-lg border border-line bg-surface p-5 shadow-soft ${className}`}>{children}</section>;
 }
 
 export function SoftPanel({ children, className = "" }: { children: ReactNode; className?: string }) {

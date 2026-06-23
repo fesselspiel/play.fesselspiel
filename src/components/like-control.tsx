@@ -37,8 +37,8 @@ export function LikeControl({
         <input type="hidden" name={hiddenName} value={hiddenValue} />
         <button
           type="submit"
-          className={`focus-ring inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold ${
-            liked ? "bg-surface text-redbrand hover:bg-paper" : "bg-surface text-graphite hover:text-redbrand"
+          className={`focus-ring inline-flex min-h-7 items-center gap-1 rounded-sm px-1 py-0.5 text-xs font-semibold ${
+            liked ? "text-redbrand hover:text-redbrandHover" : "text-graphite hover:text-redbrand"
           }`}
         >
           <ThumbsUp className="h-3.5 w-3.5" />

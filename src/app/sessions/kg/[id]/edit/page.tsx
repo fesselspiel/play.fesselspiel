@@ -6,7 +6,7 @@ import { Button, Field, inputClass, PageGuide, PageHeader } from "@/components/u
 import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
-import { formatDateTimeLocal, minutesBetween } from "@/lib/dates";
+import { formatDateTimeLocal, minutesBetween, parseDateTimeLocal } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 
@@ -18,9 +18,9 @@ async function updateKgSession(formData: FormData) {
   const id = String(formData.get("id") || "");
   const session = await prisma.kgSession.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!session) notFound();
-  const startTime = new Date(String(formData.get("startTime")));
+  const startTime = parseDateTimeLocal(String(formData.get("startTime"))) || session.startTime;
   const endRaw = String(formData.get("endTime") || "");
-  const endTime = endRaw ? new Date(endRaw) : null;
+  const endTime = endRaw ? parseDateTimeLocal(endRaw) : null;
   const updated = await prisma.kgSession.update({
     where: { id: session.id },
     data: {

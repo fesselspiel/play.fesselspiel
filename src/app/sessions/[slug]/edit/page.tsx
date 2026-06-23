@@ -6,7 +6,7 @@ import { Button, Field, inputClass, PageGuide, PageHeader, selectClass } from "@
 import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
-import { formatDateTimeLocal, minutesBetween } from "@/lib/dates";
+import { formatDateTimeLocal, minutesBetween, parseDateTimeLocal } from "@/lib/dates";
 import { moodAfter, moodBefore } from "@/lib/moods";
 import { prisma } from "@/lib/prisma";
 import { uniqueSessionSlug } from "@/lib/session-slug";
@@ -21,9 +21,9 @@ async function updateSession(formData: FormData) {
   const id = String(formData.get("id"));
   const session = await prisma.segufixSession.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!session) notFound();
-  const startTime = new Date(String(formData.get("startTime")));
+  const startTime = parseDateTimeLocal(String(formData.get("startTime"))) || session.startTime;
   const endRaw = String(formData.get("endTime") || "");
-  const endTime = endRaw ? new Date(endRaw) : null;
+  const endTime = endRaw ? parseDateTimeLocal(endRaw) : null;
   const updated = await prisma.segufixSession.update({
     where: { id: session.id },
     data: {

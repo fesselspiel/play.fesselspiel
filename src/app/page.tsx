@@ -12,6 +12,7 @@ import { logAction, userDisplayName } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { hasFeature, requireFeature } from "@/lib/features";
 import { feedDetailsText, renderFeedTemplate } from "@/lib/feed";
+import { homeSectionOrder } from "@/lib/home-layout";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
@@ -366,6 +367,8 @@ export default async function DashboardPage() {
       })
     : [];
   const quotaTodos = (await trackerQuotaStatusForUser(user)).filter((status) => status.hasQuota);
+  const homeTenant = user.tenantId ? await prisma.tenant.findUnique({ where: { id: user.tenantId }, select: { homeLayout: true } }) : null;
+  const sectionStyle = (key: Parameters<typeof homeSectionOrder>[1]) => ({ order: homeSectionOrder(homeTenant?.homeLayout, key) });
 
   const orderStatusActors = new Map(
     (openOrders.length
@@ -435,9 +438,9 @@ export default async function DashboardPage() {
         Start ist die Übersicht für dein Portal. Oben siehst du die Spielampel, direkt darunter die wichtigsten Spiel-Aktionen, danach Kalender und letzte Session-Einträge.
       </PageGuide>
 
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         {playReadyEnabled ? (
-          <Panel>
+          <Panel style={sectionStyle("playReady")}>
             <div className="mb-4">
               <h2 className="text-lg font-semibold">Spielampel</h2>
               <p className="mt-1 text-sm text-graphite">Grün heißt volle Lust, Rot heißt gerade nicht.</p>
@@ -490,7 +493,7 @@ export default async function DashboardPage() {
         ) : null}
 
         {favoriteToys.length || favoritePositions.length ? (
-          <Panel>
+          <Panel style={sectionStyle("favorites")}>
             <div className="mb-4 flex items-center gap-2">
               <Star className="h-5 w-5 text-redbrand" />
               <h2 className="text-lg font-semibold text-ink">Favoriten</h2>
@@ -513,7 +516,7 @@ export default async function DashboardPage() {
         ) : null}
 
         {quotaTodos.length ? (
-          <Panel>
+          <Panel style={sectionStyle("trackerTodos")}>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-ink">Tracker-Todos</h2>
@@ -549,7 +552,7 @@ export default async function DashboardPage() {
         ) : null}
 
         {feedEntries.length ? (
-          <Panel>
+          <Panel style={sectionStyle("feed")}>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -604,13 +607,19 @@ export default async function DashboardPage() {
                         ))}
                       </div>
                     ) : null}
-                    <form action={commentFeedEntry} className="mt-3 flex gap-2">
-                      <input type="hidden" name="auditLogId" value={entry.id} />
-                      <input name="body" className="min-h-9 flex-1 rounded-md border border-line bg-surface px-3 py-2 text-xs text-ink placeholder:text-graphite/60" placeholder="Kommentieren" />
-                      <button type="submit" className="focus-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-redbrand text-white hover:bg-redbrandHover" aria-label="Kommentar senden">
-                        <MessageCircle className="h-4 w-4" />
-                      </button>
-                    </form>
+                    <details className="group/comment mt-2">
+                      <summary className="focus-ring inline-flex min-h-7 cursor-pointer list-none items-center gap-1 rounded-sm px-1 py-0.5 text-xs font-semibold text-graphite hover:text-redbrand [&::-webkit-details-marker]:hidden">
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        Kommentieren
+                      </summary>
+                      <form action={commentFeedEntry} className="mt-2 flex gap-2">
+                        <input type="hidden" name="auditLogId" value={entry.id} />
+                        <input name="body" className="min-h-9 flex-1 rounded-md border border-line bg-surface px-3 py-2 text-xs text-ink placeholder:text-graphite/60" placeholder="Kommentar schreiben" />
+                        <button type="submit" className="focus-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-redbrand text-white hover:bg-redbrandHover" aria-label="Kommentar senden">
+                          <MessageCircle className="h-4 w-4" />
+                        </button>
+                      </form>
+                    </details>
                   </article>
                 );
               })}
@@ -619,7 +628,7 @@ export default async function DashboardPage() {
         ) : null}
 
         {ordersEnabled && openOrders.length ? (
-          <Panel className="border-sky-600 bg-sky-600/10">
+          <Panel className="border-sky-600 bg-sky-600/10" style={sectionStyle("orders")}>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="flex items-center gap-2 text-xl font-semibold text-ink">
@@ -674,7 +683,7 @@ export default async function DashboardPage() {
         ) : null}
 
         {activitiesEnabled ? (
-        <div className={`grid gap-4 ${ordersEnabled ? "xl:grid-cols-3" : "xl:grid-cols-2"}`}>
+        <div className={`grid gap-4 ${ordersEnabled ? "xl:grid-cols-3" : "xl:grid-cols-2"}`} style={sectionStyle("quickActions")}>
           <Panel className="text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-redbrand text-white">
               <Sparkles className="h-6 w-6" />
@@ -716,7 +725,7 @@ export default async function DashboardPage() {
         ) : null}
 
         {activitiesEnabled && requestedPlans.length ? (
-          <Panel className="border-redbrand bg-redbrand/10">
+          <Panel className="border-redbrand bg-redbrand/10" style={sectionStyle("requestedPlans")}>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold text-ink">Offene Spielplan-Anfragen</h2>
@@ -757,7 +766,7 @@ export default async function DashboardPage() {
         ) : null}
 
         {trackersEnabled && openTrackerEntries.length ? (
-          <Panel>
+          <Panel style={sectionStyle("runningTrackers")}>
             <h2 className="mb-3 text-lg font-semibold">Laufende Tracker</h2>
             <div className="space-y-2">
               {openTrackerEntries.map((entry) => (
@@ -781,7 +790,7 @@ export default async function DashboardPage() {
         ) : null}
 
         {activitiesEnabled ? (
-        <Panel>
+        <Panel style={sectionStyle("week")}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">Gemeinsame Woche</h2>
@@ -840,7 +849,7 @@ export default async function DashboardPage() {
         ) : null}
 
         {trackersEnabled ? (
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div className="grid gap-6 xl:grid-cols-2" style={sectionStyle("recentTrackers")}>
           <Panel>
             <h2 className="mb-4 text-lg font-semibold">Letzte Tracker-Einträge</h2>
             <div className="space-y-3">

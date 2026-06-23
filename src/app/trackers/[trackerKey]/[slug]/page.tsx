@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import { ArrowLeft, Save, Square, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
@@ -7,15 +8,52 @@ import { Button, Field, inputClass, PageHeader, Panel, SoftPanel } from "@/compo
 import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
-import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
+import { formatDateTime, formatDateTimeLocal, formatMinutes, minutesBetween, parseDateTimeLocal } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
+import { moodAfter, moodBefore } from "@/lib/moods";
 import { prisma } from "@/lib/prisma";
 import { stopTrackerEntry } from "@/lib/tracker-core";
 
-function inputDateTime(value?: Date | null) {
-  if (!value) return "";
-  const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
+type TrackerField = {
+  key: string;
+  label: string;
+  type: string;
+  options?: Array<string | { value?: unknown; label?: unknown }>;
+};
+
+function trackerFields(fields: unknown, trackerKey?: string): TrackerField[] {
+  const parsed = Array.isArray(fields)
+    ? fields
+        .filter((field) => field && typeof field === "object" && "key" in field)
+        .map((field) => {
+          const data = field as { key?: unknown; label?: unknown; name?: unknown; type?: unknown; options?: unknown };
+          return {
+            key: String(data.key || ""),
+            label: String(data.label || data.name || data.key || ""),
+            type: String(data.type || "text"),
+            options: Array.isArray(data.options) ? data.options as TrackerField["options"] : undefined
+          };
+        })
+        .filter((field) => field.key)
+    : [];
+  const existingKeys = new Set(parsed.map((field) => field.key));
+  if (trackerKey === "segufix") {
+    if (!existingKeys.has("moodBefore")) parsed.push({ key: "moodBefore", label: "Stimmung vorher", type: "select", options: Object.entries(moodBefore).map(([value, label]) => ({ value, label })) });
+    if (!existingKeys.has("moodAfter")) parsed.push({ key: "moodAfter", label: "Stimmung nachher", type: "select", options: Object.entries(moodAfter).map(([value, label]) => ({ value, label })) });
+  }
+  return parsed;
+}
+
+function fieldOptions(field: TrackerField) {
+  if (field.options?.length) {
+    return field.options.map((option) => {
+      if (typeof option === "string") return { value: option, label: option };
+      return { value: String(option.value || option.label || ""), label: String(option.label || option.value || "") };
+    }).filter((option) => option.value);
+  }
+  if (field.key === "moodBefore") return Object.entries(moodBefore).map(([value, label]) => ({ value, label }));
+  if (field.key === "moodAfter") return Object.entries(moodAfter).map(([value, label]) => ({ value, label }));
+  return [];
 }
 
 function readableFieldLabel(key: string, fields: unknown) {
@@ -52,15 +90,23 @@ async function updateEntry(formData: FormData) {
   await requireFeature(`tracker.${entry.trackerType.key}`);
   const startRaw = String(formData.get("startTime") || "");
   const endRaw = String(formData.get("endTime") || "");
-  const startTime = startRaw ? new Date(startRaw) : entry.startTime;
-  const endTime = endRaw ? new Date(endRaw) : null;
+  const startTime = parseDateTimeLocal(startRaw) || entry.startTime;
+  const endTime = endRaw ? parseDateTimeLocal(endRaw) : null;
+  const currentValues = entry.fieldValues && typeof entry.fieldValues === "object" ? entry.fieldValues as Record<string, unknown> : {};
+  const fieldValues: Record<string, unknown> = { ...currentValues };
+  for (const field of trackerFields(entry.trackerType.fields, entry.trackerType.key)) {
+    const nextValue = String(formData.get(`field:${field.key}`) || "").trim();
+    if (nextValue) fieldValues[field.key] = nextValue;
+    else delete fieldValues[field.key];
+  }
   const updated = await prisma.trackerEntry.update({
     where: { id: entry.id },
     data: {
       startTime,
       endTime,
       durationMinutes: minutesBetween(startTime, endTime),
-      notes: String(formData.get("notes") || "").trim()
+      notes: String(formData.get("notes") || "").trim(),
+      fieldValues: fieldValues as Prisma.InputJsonObject
     }
   });
   await logAction({
@@ -89,9 +135,9 @@ async function deleteEntry(formData: FormData) {
     entityType: "trackerEntry",
     entityId: entry.id,
     title: `${entry.trackerType.title} gelöscht`,
-    href: "/sessions"
+    href: `/sessions?tracker=${entry.trackerType.key}`
   });
-  redirect("/sessions");
+  redirect(`/sessions?tracker=${entry.trackerType.key}&year=${entry.startTime.getFullYear()}`);
 }
 
 export default async function TrackerEntryPage({ params }: { params: { trackerKey: string; slug: string } }) {
@@ -109,6 +155,7 @@ export default async function TrackerEntryPage({ params }: { params: { trackerKe
   });
   if (!entry) notFound();
   const fieldValues = entry.fieldValues && typeof entry.fieldValues === "object" ? entry.fieldValues as Record<string, unknown> : {};
+  const editableFields = trackerFields(entry.trackerType.fields, entry.trackerType.key);
   return (
     <AppShell>
       <PageHeader title={entry.title || entry.trackerType.title} />
@@ -149,8 +196,25 @@ export default async function TrackerEntryPage({ params }: { params: { trackerKe
               <h2 className="mb-3 font-semibold">Eintrag bearbeiten</h2>
               <form action={updateEntry} className="grid gap-3">
                 <input type="hidden" name="id" value={entry.id} />
-                <Field label="Start"><input className={inputClass} name="startTime" type="datetime-local" defaultValue={inputDateTime(entry.startTime)} /></Field>
-                <Field label="Ende"><input className={inputClass} name="endTime" type="datetime-local" defaultValue={inputDateTime(entry.endTime)} /></Field>
+                <Field label="Start"><input className={inputClass} name="startTime" type="datetime-local" defaultValue={formatDateTimeLocal(entry.startTime)} /></Field>
+                <Field label="Ende"><input className={inputClass} name="endTime" type="datetime-local" defaultValue={formatDateTimeLocal(entry.endTime)} /></Field>
+                {editableFields.map((field) => {
+                  const options = fieldOptions(field);
+                  return (
+                    <Field key={field.key} label={field.label}>
+                      {options.length ? (
+                        <select className={inputClass} name={`field:${field.key}`} defaultValue={String(fieldValues[field.key] || "")}>
+                          <option value="">😐 neutral</option>
+                          {options.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input className={inputClass} name={`field:${field.key}`} defaultValue={String(fieldValues[field.key] || "")} />
+                      )}
+                    </Field>
+                  );
+                })}
                 <Field label="Beschreibung"><textarea className={inputClass} name="notes" rows={4} defaultValue={entry.notes || ""} /></Field>
                 <SubmitButton pendingLabel="Eintrag wird gespeichert..."><Save className="h-4 w-4" /> Eintrag speichern</SubmitButton>
               </form>

@@ -6,7 +6,7 @@ import { Button, Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } fr
 import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
-import { formatDateTime, formatMinutes, minutesBetween } from "@/lib/dates";
+import { formatDateTime, formatMinutes, minutesBetween, parseDateTimeLocal } from "@/lib/dates";
 import { featureEnabled, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
@@ -23,8 +23,8 @@ async function createTrackerEntry(formData: FormData) {
   if (!trackerType) redirect("/sessions?error=tracker");
   const startRaw = String(formData.get("startTime") || "");
   const endRaw = String(formData.get("endTime") || "");
-  const startTime = startRaw ? new Date(startRaw) : new Date();
-  const endTime = endRaw ? new Date(endRaw) : null;
+  const startTime = parseDateTimeLocal(startRaw) || new Date();
+  const endTime = endRaw ? parseDateTimeLocal(endRaw) : null;
   const entry = await prisma.trackerEntry.create({
     data: {
       tenantId: user.tenantId || trackerType.tenantId,
@@ -102,6 +102,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
   const totalMinutes = activeTracker.entries.reduce((sum, entry) => sum + (entry.durationMinutes || 0), 0);
   const open = activeTracker.entries.find((entry) => !entry.endTime);
   const quota = quotaByKey.get(activeTracker.key);
+  const statusLabel = open ? "läuft" : quota?.hasQuota ? quota.complete ? "erfüllt" : "offen" : "kein Ziel";
   const byDay = new Map<string, typeof activeTracker.entries>();
   for (const entry of activeTracker.entries) {
     const key = `${entry.startTime.getMonth()}-${entry.startTime.getDate()}`;
@@ -142,7 +143,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
               <div className="mb-5 grid gap-3 sm:grid-cols-3">
                 <SoftPanel><div className="text-sm text-graphite">Einträge</div><div className="mt-2 text-2xl font-semibold">{activeTracker.entries.length}</div></SoftPanel>
                 <SoftPanel><div className="text-sm text-graphite">Gesamtzeit</div><div className="mt-2 text-2xl font-semibold">{formatMinutes(totalMinutes)}</div></SoftPanel>
-                <SoftPanel><div className="text-sm text-graphite">Status</div><div className="mt-2 text-2xl font-semibold">{open ? "läuft" : quota?.complete === false ? "Todo" : "ok"}</div></SoftPanel>
+                <SoftPanel><div className="text-sm text-graphite">Kontingent</div><div className="mt-2 text-2xl font-semibold">{statusLabel}</div></SoftPanel>
               </div>
               {open ? (
                 <div className="mb-5 rounded-md border border-line bg-paper p-3 text-sm">
@@ -172,12 +173,22 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                         <div className="pr-2 text-right font-medium text-graphite">{month}</div>
                         {Array.from({ length: 31 }, (_, day) => {
                           const entries = byDay.get(`${monthIndex}-${day + 1}`) || [];
-                          return (
+                          const firstEntry = entries[0];
+                          const cellStyle = { backgroundColor: entries.length ? activeTracker.color : "transparent", opacity: entries.length ? 0.85 : 1 };
+                          return firstEntry ? (
+                            <Link
+                              key={`${month}-${day}`}
+                              href={`/trackers/${activeTracker.key}/${firstEntry.slug || firstEntry.id}`}
+                              className="focus-ring h-5 rounded-sm border border-line hover:ring-2 hover:ring-redbrand"
+                              title={`${entries.length} Einträge, öffnen`}
+                              style={cellStyle}
+                            />
+                          ) : (
                             <div
                               key={`${month}-${day}`}
                               className="h-5 rounded-sm border border-line"
-                              title={entries.length ? `${entries.length} Einträge` : ""}
-                              style={{ backgroundColor: entries.length ? activeTracker.color : "transparent", opacity: entries.length ? 0.85 : 1 }}
+                              title=""
+                              style={cellStyle}
                             />
                           );
                         })}
