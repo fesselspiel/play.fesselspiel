@@ -45,6 +45,7 @@ export const defaultEmailTemplates = [
 type SendTemplateInput = {
   key: string;
   to: string | null | undefined;
+  bcc?: string | string[] | null;
   variables: Record<string, string | number | boolean | null | undefined>;
   actorId?: string | null;
   source?: string | null;
@@ -54,6 +55,7 @@ type SendTemplateInput = {
 
 type SendRawInput = {
   to: string;
+  bcc?: string[];
   fromEmail: string;
   fromName: string;
   subject: string;
@@ -78,6 +80,11 @@ function escapeSmtpData(value: string) {
 function isDeliverableAddress(email: string | null | undefined) {
   const value = String(email || "").trim();
   return Boolean(value && value.includes("@") && !value.endsWith("@local.fesselspiel"));
+}
+
+function normalizedBcc(value: SendTemplateInput["bcc"]) {
+  const items = Array.isArray(value) ? value : value ? [value] : [];
+  return items.map((entry) => String(entry || "").trim()).filter(isDeliverableAddress);
 }
 
 function renderTemplate(source: string, variables: SendTemplateInput["variables"]) {
@@ -140,6 +147,9 @@ async function sendRawEmail(input: SendRawInput) {
     await smtpCommand(socket, "EHLO playplaner.com", [250], transcript);
     await smtpCommand(socket, `MAIL FROM:<${cleanHeader(input.fromEmail)}>`, [250], transcript);
     await smtpCommand(socket, `RCPT TO:<${cleanHeader(input.to)}>`, [250, 251], transcript);
+    for (const recipient of input.bcc || []) {
+      await smtpCommand(socket, `RCPT TO:<${cleanHeader(recipient)}>`, [250, 251], transcript);
+    }
     await smtpCommand(socket, "DATA", [354], transcript);
     const message = [
       `From: ${encodeHeader(input.fromName)} <${cleanHeader(input.fromEmail)}>`,
@@ -251,6 +261,7 @@ export async function ensureEmailSetup() {
 
 export async function sendTemplateEmail(input: SendTemplateInput) {
   const recipient = String(input.to || "").trim();
+  const bcc = normalizedBcc(input.bcc);
   const messageId = randomUUID();
   if (!isDeliverableAddress(input.to)) {
     await writeEmailProtocol({
@@ -278,6 +289,7 @@ export async function sendTemplateEmail(input: SendTemplateInput) {
   const smtpPort = settings?.smtpPort || env.emailSmtpPort;
   const baseDetails = {
     source: input.source || null,
+    bcc,
     templateFound: Boolean(template),
     templateEnabled: Boolean(template?.enabled),
     systemEnabled: Boolean(settings?.enabled),
@@ -311,7 +323,8 @@ export async function sendTemplateEmail(input: SendTemplateInput) {
       body,
       smtpHost,
       smtpPort,
-      messageId
+      messageId,
+      bcc
     });
     await writeEmailProtocol({
       status: "SENT",

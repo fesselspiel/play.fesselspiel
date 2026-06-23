@@ -31,6 +31,7 @@ export async function createInvite(input: {
   email?: string | null;
   name?: string | null;
   sendEmail?: boolean;
+  bcc?: string | string[] | null;
 }) {
   const usage = await inviteUsage(input.invitedBy);
   if (usage.remaining !== null && usage.remaining <= 0) return { ok: false as const, error: "quota_exhausted", usage };
@@ -60,6 +61,7 @@ export async function createInvite(input: {
     await sendTemplateEmail({
       key: "user_invite_link",
       to: invite.email,
+      bcc: input.bcc,
       actorId: input.invitedBy.id,
       source: "invite-create",
       entityType: "invite",
