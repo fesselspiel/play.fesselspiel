@@ -17,6 +17,7 @@ import {
   Signal,
   SlidersHorizontal,
   ShieldCheck,
+  Ticket,
   Timer,
   ToyBrick,
   UserRound,
@@ -46,7 +47,8 @@ const pictureMobileNav = mobileNav.slice(7);
 
 const mobileSettingsNav = [
   ["Profil", "/profile", UserRound, null],
-  ["Ampel", "/settings/play-ready", Signal, "playReady"]
+  ["Ampel", "/settings/play-ready", Signal, "playReady"],
+  ["Einladungen", "/settings/invites", Ticket, "invites"]
 ] as const;
 
 const adminOnlyMobileSettingsNav = [

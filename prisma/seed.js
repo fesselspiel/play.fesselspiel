@@ -39,6 +39,7 @@ async function main() {
     "toys",
     "ideas",
     "playReady",
+    "invites",
     "media",
     "activities",
     "orders",

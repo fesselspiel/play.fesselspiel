@@ -18,6 +18,13 @@ export const defaultEmailTemplates = [
       "Hallo {{userName}},\n\nfür dich wurde ein Zugang zu Fesselspiel angelegt.\n\nLogin: {{loginIdentifier}}\nBestätigen und Passwort setzen: {{confirmUrl}}\n\nDer Link ist zeitlich begrenzt gültig.\n\nViele Grüße\nFesselspiel"
   },
   {
+    key: "user_invite_link",
+    title: "Einladungslink",
+    subject: "Du wurdest zu Playplaner eingeladen",
+    body:
+      "Hallo {{userName}},\n\n{{inviterName}} hat dich zu Playplaner eingeladen.\n\nEinladung annehmen: {{inviteUrl}}\n\nDer Link ist zeitlich begrenzt gültig. Ohne Einladung kann kein neues Konto angelegt werden.\n\nViele Grüße\nPlayplaner"
+  },
+  {
     key: "login_success",
     title: "Login-Benachrichtigung",
     subject: "Login bei Fesselspiel",

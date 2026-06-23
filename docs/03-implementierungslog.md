@@ -876,6 +876,17 @@ Details:
 - Das manuelle Speichern erkannter Telegram-Chats prüft jetzt sowohl die neue Seitenbot-Zuordnung `telegramSettingsId` als auch die Legacy-Zuordnung `settingsId`.
 - Bereits vorhandene Chats werden dadurch aktualisiert, statt beim erneuten Einlesen an der eindeutigen Kombination aus Chat-ID und Thread-ID zu scheitern.
 - Fehler beim Speichern werden als `telegram_chat_save_failed` mit Chat-ID, Thread-ID, Bot-ID und Fehlertext protokolliert.
+- Erkannte Telegram-Benutzer werden nicht mehr per direktem `upsert` gespeichert, sondern über eine gemeinsame Merge-Logik. Dadurch werden Legacy- und Seitenbot-Zuordnung zusammengeführt, wenn dieselbe Telegram-ID schon unter `settingsId` oder `telegramSettingsId` existiert.
+
+## Einladungen
+
+- Das neue Feature `invites` steuert ein kontrolliertes Einladungssystem.
+- Benutzer sehen unter `Einstellungen -> Einladungen` ihr persönliches Kontingent, offene Einladungen und angenommene Einladungen.
+- Admins und Super-Admins haben unbegrenzt viele Einladungen; normale Benutzer nutzen das Kontingent aus `UserSettings.inviteQuota`.
+- Einladungslinks führen auf `/invite/[token]` und erlauben dort das Anlegen eines neuen Benutzerkontos. Normale freie Registrierung bleibt damit vermieden.
+- Offene Einladungen können per E-Mail-Template `user_invite_link`, per Telegram an aktive Chats/Threads oder per API `/api/external/invites` erstellt bzw. verteilt werden.
+- Die Telegram-Befehle `/invites` und `/invite Name` zeigen Kontingent und erzeugen einen klickbaren Einladungslink.
+- Das Telegram-Versandprotokoll kann nach Benutzer, Chat und Thread gefiltert werden.
 
 ## Medien, Tracker und Mandanten
 

@@ -78,6 +78,8 @@ export default async function ApiSettingsPage({ searchParams }: { searchParams: 
                 ["GET", "/api/external/status?token=...", "Status, Benutzer und Grunddaten prüfen."],
                 ["GET", "/api/external/play-ready?token=...", "Aktuellen Spielampelstatus abfragen."],
                 ["GET", "/api/external/play-ready?token=...&state=green&hours=2&minutes=15", "Spielampel setzen. `state` kann green, red oder toggle sein; Dauer maximal 12 Stunden."],
+                ["GET", "/api/external/invites?token=...", "Einladungskontingent abfragen."],
+                ["GET", "/api/external/invites?token=...&create=1&name=Anna&email=...", "Einladungslink erzeugen; Admins haben unbegrenzt Einladungen."],
                 ["GET", "/api/external/trackers/quotas?token=...", "Kontingente und offene Tracker-Todos abfragen."],
                 ["GET", "/api/external/trackers/{trackerKey}/start?token=...&note=...&title=...", "Beliebigen Tracker starten, z. B. trackerKey=segufix oder kg."],
                 ["GET", "/api/external/trackers/{trackerKey}/stop?token=...&note=...", "Beliebigen laufenden Tracker beenden."],

@@ -5,6 +5,7 @@ import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
 import { ensureLegacyUserSettings, resolveTelegramSettingsForScope } from "@/lib/tenant-telegram";
+import { rememberKnownTelegramUser } from "@/lib/telegram-known-users";
 
 const Body = z.object({
   chatId: z.string().min(1),
@@ -87,31 +88,17 @@ export async function POST(request: Request) {
         }
       });
   if (parsed.data.fromId) {
-    await prisma.telegramKnownUser.upsert({
-      where: { telegramSettingsId_telegramUserId: { telegramSettingsId: telegramSettings.id, telegramUserId: parsed.data.fromId } },
-      update: {
-        telegramUsername: parsed.data.fromUsername ? parsed.data.fromUsername.toLowerCase() : null,
-        firstName: parsed.data.fromFirstName || null,
-        lastName: parsed.data.fromLastName || null,
-        membershipStatus: "ACTIVE",
-        source: "CHAT_DISCOVERY",
-        lastChatId: parsed.data.chatId,
-        lastChatTitle: parsed.data.chatTitle || parsed.data.title || null,
-        lastMessageAt: new Date()
-      },
-      create: {
-        settingsId: legacySettings.id,
-        telegramSettingsId: activeTelegramSettingsId,
-        telegramUserId: parsed.data.fromId,
-        telegramUsername: parsed.data.fromUsername ? parsed.data.fromUsername.toLowerCase() : null,
-        firstName: parsed.data.fromFirstName || null,
-        lastName: parsed.data.fromLastName || null,
-        membershipStatus: "ACTIVE",
-        source: "CHAT_DISCOVERY",
-        lastChatId: parsed.data.chatId,
-        lastChatTitle: parsed.data.chatTitle || parsed.data.title || null,
-        lastMessageAt: new Date()
-      }
+    await rememberKnownTelegramUser({
+      settingsId: legacySettings.id,
+      telegramSettingsId: activeTelegramSettingsId,
+      telegramUserId: parsed.data.fromId,
+      telegramUsername: parsed.data.fromUsername || null,
+      firstName: parsed.data.fromFirstName || null,
+      lastName: parsed.data.fromLastName || null,
+      membershipStatus: "ACTIVE",
+      source: "CHAT_DISCOVERY",
+      lastChatId: parsed.data.chatId,
+      lastChatTitle: parsed.data.chatTitle || parsed.data.title || null
     });
   }
   return NextResponse.json({ ok: true, chat });

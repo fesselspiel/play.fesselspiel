@@ -16,6 +16,7 @@ import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
 import { DEFAULT_TENANT_BOT_KEY, ensureLegacyUserSettings, ensurePersonalTelegramSettings, ensureTenantTelegramSettings, extraBotKey, tenantTelegramSettingsForUser } from "@/lib/tenant-telegram";
 import { getTelegramChatAdministrators, setTelegramWebhook } from "@/lib/telegram";
+import { rememberKnownTelegramUser } from "@/lib/telegram-known-users";
 import { testTelegramNotificationRule } from "@/lib/telegram-notifications";
 
 type TelegramTargetUser = {
@@ -332,31 +333,17 @@ async function syncTelegramAdministrators() {
       const admins = response.result || [];
       for (const admin of admins) {
         if (!admin.user.id || admin.user.is_bot) continue;
-        await prisma.telegramKnownUser.upsert({
-          where: { telegramSettingsId_telegramUserId: { telegramSettingsId: settings.id, telegramUserId: String(admin.user.id) } },
-          update: {
-            telegramUsername: admin.user.username ? admin.user.username.toLowerCase() : null,
-            firstName: admin.user.first_name || null,
-            lastName: admin.user.last_name || null,
-            membershipStatus: "ACTIVE",
-            source: "ADMIN_SYNC",
-            lastChatId: chat.chatId,
-            lastChatTitle: chat.chatTitle || chat.title || null,
-            lastMessageAt: new Date()
-          },
-          create: {
-            settingsId: (await ensureLegacyUserSettings(user.id)).id,
-            telegramSettingsId: settings.id,
-            telegramUserId: String(admin.user.id),
-            telegramUsername: admin.user.username ? admin.user.username.toLowerCase() : null,
-            firstName: admin.user.first_name || null,
-            lastName: admin.user.last_name || null,
-            membershipStatus: "ACTIVE",
-            source: "ADMIN_SYNC",
-            lastChatId: chat.chatId,
-            lastChatTitle: chat.chatTitle || chat.title || null,
-            lastMessageAt: new Date()
-          }
+        await rememberKnownTelegramUser({
+          settingsId: (await ensureLegacyUserSettings(user.id)).id,
+          telegramSettingsId: settings.id,
+          telegramUserId: String(admin.user.id),
+          telegramUsername: admin.user.username || null,
+          firstName: admin.user.first_name || null,
+          lastName: admin.user.last_name || null,
+          membershipStatus: "ACTIVE",
+          source: "ADMIN_SYNC",
+          lastChatId: chat.chatId,
+          lastChatTitle: chat.chatTitle || chat.title || null
         });
         synced += 1;
       }
@@ -697,7 +684,7 @@ function telegramLogDayGroups<T extends { createdAt: Date }>(logs: T[]) {
   });
 }
 
-export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string; action?: string; adminSynced?: string; adminSyncFailed?: string; memberDiscovery?: string } }) {
+export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string; action?: string; adminSynced?: string; adminSyncFailed?: string; memberDiscovery?: string; telegramActor?: string; telegramChat?: string; telegramThread?: string } }) {
   const user = await currentAdminUser();
   const { tenant } = await currentSessionContext();
   if (!tenant) redirect("/");
@@ -762,7 +749,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
       where: { action: { in: ["telegram_notification_sent", "telegram_notification_failed", "telegram_answer_sent"] } },
       include: { actor: { include: { profile: true } } },
       orderBy: { createdAt: "desc" },
-      take: 80
+      take: 200
     }),
     prisma.auditLog.findMany({
       where: { action: { in: ["telegram_message_received", "telegram_image_received", "telegram_message_ignored", "telegram_member_detected", "telegram_member_left"] } },
@@ -834,7 +821,23 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
     })));
   const notificationTargetUsers = notificationUsers(targetUsers);
   const chatById = new Map(allChats.map((chat) => [chat.id, chat]));
-  const telegramLogGroups = telegramLogDayGroups(telegramLogs);
+  const selectedTelegramActor = String(searchParams?.telegramActor || "");
+  const selectedTelegramChat = String(searchParams?.telegramChat || "");
+  const selectedTelegramThread = String(searchParams?.telegramThread || "");
+  const telegramThreads = Array.from(new Map(allChats.map((chat) => [`${chat.chatId}:${chat.threadId || ""}`, chat])).values());
+  const filteredTelegramLogs = telegramLogs.filter((log) => {
+    if (selectedTelegramActor && log.actorId !== selectedTelegramActor) return false;
+    if (selectedTelegramChat) {
+      const logChatId = detailText(log.details, "chatId") || (detailText(log.details, "outputChatId") ? chatById.get(detailText(log.details, "outputChatId"))?.chatId || "" : "");
+      if (logChatId !== selectedTelegramChat) return false;
+    }
+    if (selectedTelegramThread) {
+      const logThreadId = detailText(log.details, "threadId") || (detailText(log.details, "outputChatId") ? chatById.get(detailText(log.details, "outputChatId"))?.threadId || "" : "");
+      if ((logThreadId || "main") !== selectedTelegramThread) return false;
+    }
+    return true;
+  });
+  const telegramLogGroups = telegramLogDayGroups(filteredTelegramLogs);
   return (
     <AppShell>
       <PageHeader title="Telegram" />
@@ -958,7 +961,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
               {!additionalBotInfos.length ? <p className="rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite">Noch keine weiteren Seitenbots angelegt.</p> : null}
             </div>
           </Panel>
-          <Panel>
+          <Panel id="telegram-log">
             <h2 className="mb-4 text-lg font-semibold">Erkannte Chats</h2>
             <div className="space-y-3">
               {pendingChats.map((chat) => (
@@ -1231,6 +1234,29 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
             <p className="mb-4 text-sm leading-6 text-graphite">
               Hier stehen die letzten Telegram-Ausgänge aus Aktionsregeln und Bot-Antworten. Einträge sind nach Tag und Stunde gruppiert und zeigen Ziel, Thread, Benutzer, Nachricht und Fehlerdetails.
             </p>
+            <form className="mb-4 grid gap-3 rounded-md bg-paper p-3 md:grid-cols-4" action="/settings/telegram#telegram-log">
+              <Field label="Benutzer">
+                <select className={selectClass} name="telegramActor" defaultValue={selectedTelegramActor}>
+                  <option value="">Alle Benutzer</option>
+                  {targetUsers.map((entry) => <option key={entry.id} value={entry.id}>{userLabel(entry)}</option>)}
+                </select>
+              </Field>
+              <Field label="Chat">
+                <select className={selectClass} name="telegramChat" defaultValue={selectedTelegramChat}>
+                  <option value="">Alle Chats</option>
+                  {Array.from(new Map(allChats.map((chat) => [chat.chatId, chat])).values()).map((chat) => <option key={chat.chatId} value={chat.chatId}>{chat.chatTitle || chat.title || chat.chatId}</option>)}
+                </select>
+              </Field>
+              <Field label="Thread">
+                <select className={selectClass} name="telegramThread" defaultValue={selectedTelegramThread}>
+                  <option value="">Alle Threads</option>
+                  {telegramThreads.map((chat) => <option key={`${chat.chatId}:${chat.threadId || "main"}`} value={chat.threadId || "main"}>{chat.threadTitle || "Hauptchat"} · {chat.chatTitle || chat.title || chat.chatId}</option>)}
+                </select>
+              </Field>
+              <div className="flex items-end">
+                <Button><Send className="h-4 w-4" /> Filtern</Button>
+              </div>
+            </form>
             <div className="space-y-4">
               {telegramLogGroups.map((day, dayIndex) => (
                 <details key={day.key} open={dayIndex === 0} className="overflow-hidden rounded-lg border border-line bg-surface">

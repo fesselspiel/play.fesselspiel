@@ -8,9 +8,12 @@ import { formatDateTime, formatMinutes } from "@/lib/dates";
 import { logAction } from "@/lib/audit";
 import { createSessionHistoryForCompletedOrder, isSelfBondageOrder, selfBondageCategory } from "@/lib/activity-orders";
 import { fileAssetUrl, saveFileBuffer } from "@/lib/files";
+import { featureEnabled } from "@/lib/features";
+import { createInvite, inviteUsage } from "@/lib/invites";
 import { downloadTelegramFile, largestTelegramPhoto, sendTelegramMessage, telegramHtml, telegramLink, transcribeTelegramVoice } from "@/lib/telegram";
 import type { TelegramChatMemberUpdate, TelegramMessage, TelegramUpdate, TelegramUser } from "@/lib/telegram";
 import { uniqueSlug } from "@/lib/slug";
+import { rememberKnownTelegramUser } from "@/lib/telegram-known-users";
 import { startTrackerEntry, stopTrackerEntry } from "@/lib/tracker-core";
 
 type TelegramMessageFrom = TelegramMessage["from"];
@@ -31,6 +34,8 @@ const HELP_TEXT = `<b>Befehle</b>
 /help - Befehle anzeigen
 /id - Chat-ID und Thread-ID anzeigen
 /status - kurze Übersicht
+/invites - Einladungskontingent anzeigen
+/invite Name - Einladungslink erzeugen
 /toys - Spielzeuge anzeigen
 /toy_new Name - neues Spielzeug mit Dialog anlegen
 /positions - Szenen anzeigen
@@ -78,7 +83,10 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   if (!parsed) return `Verstanden: ${text}`;
   const tenantId = await tenantIdForUser(userId);
   const tenantScope = tenantId ? { tenantId } : {};
-  const appUser = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, tenantId: true, circleId: true, role: true } });
+  const appUser = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { settings: true, profile: true, tenant: { include: { features: true } } }
+  });
   const visibleOwnerIds = appUser?.tenantId && (appUser.role === "ADMIN" || appUser.role === "SUPER_ADMIN")
     ? (await prisma.tenantMembership.findMany({ where: { tenantId: appUser.tenantId, active: true, user: { active: true } }, select: { userId: true } })).map((entry) => entry.userId)
     : appUser?.tenantId && appUser.circleId
@@ -98,6 +106,35 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
       prisma.trackerEntry.count({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "kg" } } })
     ]);
     return ["<b>Portalstatus</b>", htmlLine("Spielzeuge", toys), htmlLine("Szenen", positions), htmlLine("Geplante Aktivitäten", activities), htmlLine("Segufix-Sessions", sessions), htmlLine("KG-Einträge", kgSessions)].join("\n");
+  }
+
+  if (parsed.command === "/invites") {
+    if (!featureEnabled(appUser?.tenant?.features, "invites")) return "Einladungen sind auf dieser Seite nicht aktiv.";
+    if (!appUser) return "Benutzer nicht gefunden.";
+    const usage = await inviteUsage(appUser);
+    return [
+      "<b>Einladungen</b>",
+      usage.quota === null ? "Kontingent: unbegrenzt" : htmlLine("Übrig", `${usage.remaining} von ${usage.quota}`),
+      htmlLine("Offen oder benutzt", usage.used),
+      telegramLink(`${env.appUrl}/settings/invites`, "Einladungen öffnen")
+    ].join("\n");
+  }
+
+  if (parsed.command === "/invite") {
+    if (!featureEnabled(appUser?.tenant?.features, "invites")) return "Einladungen sind auf dieser Seite nicht aktiv.";
+    if (!appUser?.tenantId) return "Keine Seite zugeordnet.";
+    const result = await createInvite({
+      tenantId: appUser.tenantId,
+      invitedBy: appUser,
+      name: parsed.args || null
+    });
+    if (!result.ok) return "Dein Einladungskontingent ist aufgebraucht.";
+    return [
+      "<b>Einladung erstellt</b>",
+      result.invite.name ? htmlLine("Name", result.invite.name) : "",
+      telegramLink(result.url, "Einladung annehmen"),
+      telegramLink(`${env.appUrl}/settings/invites`, "Einladungen verwalten")
+    ].filter(Boolean).join("\n");
   }
 
   if (parsed.command.startsWith("/media_album_")) {
@@ -429,33 +466,17 @@ function telegramUserDetails(from?: TelegramMessageFrom | TelegramUser) {
 
 async function rememberTelegramKnownUser(chat: Awaited<ReturnType<typeof findActiveTelegramChat>>, from?: TelegramMessageFrom) {
   if (!chat || !from?.id) return;
-  await prisma.telegramKnownUser.upsert({
-    where: chat.telegramSettingsId
-      ? { telegramSettingsId_telegramUserId: { telegramSettingsId: chat.telegramSettingsId, telegramUserId: String(from.id) } }
-      : { settingsId_telegramUserId: { settingsId: chat.settingsId, telegramUserId: String(from.id) } },
-    update: {
-      telegramUsername: from.username ? from.username.toLowerCase() : null,
-      firstName: from.first_name || null,
-      lastName: from.last_name || null,
-      membershipStatus: "ACTIVE",
-      source: "MESSAGE",
-      lastChatId: chat.chatId,
-      lastChatTitle: chat.chatTitle || chat.title || null,
-      lastMessageAt: new Date()
-    },
-    create: {
-      settingsId: chat.settingsId,
-      telegramSettingsId: chat.telegramSettingsId,
-      telegramUserId: String(from.id),
-      telegramUsername: from.username ? from.username.toLowerCase() : null,
-      firstName: from.first_name || null,
-      lastName: from.last_name || null,
-      membershipStatus: "ACTIVE",
-      source: "MESSAGE",
-      lastChatId: chat.chatId,
-      lastChatTitle: chat.chatTitle || chat.title || null,
-      lastMessageAt: new Date()
-    }
+  await rememberKnownTelegramUser({
+    settingsId: chat.settingsId,
+    telegramSettingsId: chat.telegramSettingsId,
+    telegramUserId: String(from.id),
+    telegramUsername: from.username || null,
+    firstName: from.first_name || null,
+    lastName: from.last_name || null,
+    membershipStatus: "ACTIVE",
+    source: "MESSAGE",
+    lastChatId: chat.chatId,
+    lastChatTitle: chat.chatTitle || chat.title || null
   });
 }
 
@@ -467,33 +488,17 @@ async function rememberTelegramKnownUserForSettings(
   if (!from?.id) return;
   const membershipStatus = options.membershipStatus || "ACTIVE";
   const source = options.source || "MESSAGE";
-  await prisma.telegramKnownUser.upsert({
-    where: options.telegramSettingsId
-      ? { telegramSettingsId_telegramUserId: { telegramSettingsId: options.telegramSettingsId, telegramUserId: String(from.id) } }
-      : { settingsId_telegramUserId: { settingsId, telegramUserId: String(from.id) } },
-    update: {
-      telegramUsername: from.username ? from.username.toLowerCase() : null,
-      firstName: from.first_name || null,
-      lastName: from.last_name || null,
-      membershipStatus,
-      source,
-      lastChatId: options.chatId || null,
-      lastChatTitle: options.chatTitle || null,
-      lastMessageAt: new Date()
-    },
-    create: {
-      settingsId,
-      telegramSettingsId: options.telegramSettingsId || null,
-      telegramUserId: String(from.id),
-      telegramUsername: from.username ? from.username.toLowerCase() : null,
-      firstName: from.first_name || null,
-      lastName: from.last_name || null,
-      membershipStatus,
-      source,
-      lastChatId: options.chatId || null,
-      lastChatTitle: options.chatTitle || null,
-      lastMessageAt: new Date()
-    }
+  await rememberKnownTelegramUser({
+    settingsId,
+    telegramSettingsId: options.telegramSettingsId || null,
+    telegramUserId: String(from.id),
+    telegramUsername: from.username || null,
+    firstName: from.first_name || null,
+    lastName: from.last_name || null,
+    membershipStatus,
+    source,
+    lastChatId: options.chatId || null,
+    lastChatTitle: options.chatTitle || null
   });
 }
 
