@@ -131,11 +131,9 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 ### Externe API
 
 - `src/app/api/external/status/route.ts`
-- `src/app/api/external/sessions/start/route.ts`
-- `src/app/api/external/sessions/stop/route.ts`
-- `src/app/api/external/sessions/toggle/route.ts`
-- `src/app/api/external/kg/start/route.ts`
-- `src/app/api/external/kg/stop/route.ts`
+- `src/app/api/external/trackers/[trackerKey]/start/route.ts`
+- `src/app/api/external/trackers/[trackerKey]/stop/route.ts`
+- `src/app/api/external/trackers/quotas/route.ts`
 - `src/app/api/external/media/route.ts`
 
 ## Prisma-Modelle

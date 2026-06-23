@@ -403,17 +403,15 @@ Details:
 - Tokens werden nur einmalig im Klartext angezeigt; gespeichert wird ein HMAC-Hash und die letzten sechs Zeichen.
 - Neue Einstellungsseite `API Tokens` unter `/settings/api`.
 - Tokens können per `Authorization: Bearer <token>` oder für einfache Alexa-/Shortcut-Aufrufe per URL-Parameter `?token=<token>` verwendet werden.
-- Erste externe Endpunkte:
+- Externe Endpunkte:
   - `GET /api/external/status?token=...`
-  - `GET|POST /api/external/sessions/start?token=...&note=...`
-  - `GET|POST /api/external/sessions/stop?token=...&note=...`
-  - `GET|POST /api/external/sessions/toggle?token=...`
+  - `GET|POST /api/external/trackers/{trackerKey}/start?token=...&note=...`
+  - `GET|POST /api/external/trackers/{trackerKey}/stop?token=...&note=...`
+  - `GET /api/external/trackers/quotas?token=...`
   - `POST /api/external/media` mit `multipart/form-data`, Feld `file`
-- Session-Endpunkte akzeptieren optionale ISO-Zeiten:
+- Tracker-Endpunkte akzeptieren optionale ISO-Zeiten:
   - `startTime`
   - `endTime`
-  - `moodBefore`
-  - `moodAfter`
   - Notizfelder
 - Externe Bilduploads werden als geschützte Dateien gespeichert und direkt als Bild angelegt.
 
@@ -451,16 +449,11 @@ Details:
 - Der Seed legt Demo-Spielzeuge, Demo-Szene und den Demo-Spielplan `Entspannungsabend` nur noch an, wenn `SEED_DEMO_DATA=true` gesetzt ist.
 - Dadurch taucht der Demo-Spielplan nach Löschen und Neustart nicht mehr automatisch wieder auf.
 - Der auf dem VPS vorhandene Demo-Spielplan `entspannungsabend` wurde einmalig gelöscht.
-- Neues Prisma-Modell `KgSession` für KG-Tragezeiten.
-- Unter `Sessions` gibt es zwei Reiter:
-  - `Segufix Time Tracker`
-  - `KG Time Tracker`
-- Der KG Time Tracker erfasst Startzeit, Endzeit, Dauer und Notiz minutengenau.
-- KG-Jahresübersicht nutzt Blau statt Rot, damit sie vom Segufix-Kalender unterscheidbar bleibt.
-- Neue externe API-Endpunkte:
-  - `/api/external/kg/start`
-  - `/api/external/kg/stop`
-- Der externe Status-Endpunkt gibt zusätzlich `openKgSession` zurück.
+- KG und Segufix laufen über die generische Tracker-Struktur `TrackerType`/`TrackerEntry`.
+- Unter `Sessions` erscheinen alle aktiven Tracker als Tabs.
+- Der KG Time Tracker erfasst Startzeit, Endzeit, Dauer und Beschreibung minutengenau.
+- Die Tracker-Jahresübersicht nutzt die konfigurierte Tracker-Farbe.
+- Externe API-Endpunkte verwenden nur noch `/api/external/trackers/{trackerKey}/start` und `/api/external/trackers/{trackerKey}/stop`.
 - Telegram-Kommandos erweitert:
   - `/kg` zeigt KG-Auswertung für das aktuelle Jahr.
   - `/kg_start Notiz` startet den KG Tracker und schließt einen offenen KG-Eintrag automatisch.

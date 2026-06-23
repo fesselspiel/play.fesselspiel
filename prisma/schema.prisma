@@ -775,6 +775,8 @@ model TrackerType {
   autoCloseOpenSession  Boolean        @default(true)
   quotaDailyMinutes     Int?
   quotaWeeklyMinutes    Int?
+  quotaWeeklyTail       Boolean        @default(false)
+  quotaWeekStartsOn     Int            @default(1)
   quotaMonthlyDays      Int?
   quotaMonthlyMinutes   Int?
   quotaReminderEnabled  Boolean        @default(false)

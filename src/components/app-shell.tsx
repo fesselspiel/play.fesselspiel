@@ -88,12 +88,12 @@ export async function AppShell({ children }: { children: ReactNode }) {
   const visibleSettingsNav = settingsNav.filter(([, , , feature]) => navFeatureVisible(feature));
   return (
     <div className="min-h-screen bg-canvas">
-      <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-line bg-surface px-5 py-6 lg:block">
-        <Link href="/" className="mb-8 block">
+      <aside className="fixed inset-y-0 left-0 hidden w-72 flex-col border-r border-line bg-surface px-5 py-6 lg:flex">
+        <Link href="/" className="mb-8 block shrink-0">
           <div className="text-xl font-semibold text-ink">{tenantName}</div>
           <div className="text-sm text-graphite">{tenantDomain}</div>
         </Link>
-        <nav className="space-y-1">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1 [-webkit-overflow-scrolling:touch]">
           {visiblePrimaryNav.map(([label, href, Icon]) => (
             <Link key={href} href={href} className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
               <Icon className="h-4 w-4" />
@@ -128,11 +128,6 @@ export async function AppShell({ children }: { children: ReactNode }) {
               {label}
             </Link>
           ))}
-          {user ? (
-            <div className="my-3 rounded-md border border-line bg-paper p-2">
-              <DarkModeToggle active={Boolean(user.settings?.darkMode)} />
-            </div>
-          ) : null}
           <div className="my-3 border-t border-line" />
           <details className="group rounded-md">
             <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand [&::-webkit-details-marker]:hidden">
@@ -164,12 +159,14 @@ export async function AppShell({ children }: { children: ReactNode }) {
                   {label}
                 </Link>
               )) : null}
-              {user ? <DarkModeToggle active={Boolean(user.settings?.darkMode)} /> : null}
             </div>
           </details>
         </nav>
         {user ? (
-          <div className="absolute bottom-6 left-5 right-5">
+          <div className="mt-4 shrink-0 border-t border-line pt-3">
+            <div className="mb-3 rounded-md border border-line bg-paper p-2">
+              <DarkModeToggle active={Boolean(user.settings?.darkMode)} />
+            </div>
             <Link href="/profile" className="mb-3 flex items-center gap-3 rounded-md bg-paper p-3 text-xs text-graphite hover:bg-canvas hover:text-redbrand">
               {user.profile?.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element

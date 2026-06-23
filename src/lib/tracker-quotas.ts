@@ -8,6 +8,8 @@ type QuotaTracker = {
   color: string;
   quotaDailyMinutes?: number | null;
   quotaWeeklyMinutes?: number | null;
+  quotaWeeklyTail?: boolean | null;
+  quotaWeekStartsOn?: number | null;
   quotaMonthlyDays?: number | null;
   quotaMonthlyMinutes?: number | null;
 };
@@ -16,10 +18,17 @@ function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function startOfWeek(date: Date) {
+function startOfWeek(date: Date, startsOn = 1) {
   const start = startOfDay(date);
-  const day = start.getDay() || 7;
-  start.setDate(start.getDate() - day + 1);
+  const normalizedStartsOn = Math.min(6, Math.max(0, Number(startsOn)));
+  const diff = (start.getDay() - normalizedStartsOn + 7) % 7;
+  start.setDate(start.getDate() - diff);
+  return start;
+}
+
+function rollingWeekStart(date: Date) {
+  const start = new Date(date);
+  start.setDate(start.getDate() - 7);
   return start;
 }
 
@@ -100,15 +109,15 @@ export async function trackerQuotaStatusForUser(user: QuotaUser, now = new Date(
     orderBy: { title: "asc" }
   });
   const dayStart = startOfDay(now);
-  const weekStart = startOfWeek(now);
   const monthStart = startOfMonth(now);
   const dayEnd = nextDay(now);
   const monthEnd = nextMonth(now);
 
   return Promise.all(trackers.map(async (tracker) => {
+    const weekStart = tracker.quotaWeeklyTail ? rollingWeekStart(now) : startOfWeek(now, tracker.quotaWeekStartsOn ?? 1);
     const [dailyMinutes, weeklyMinutes, monthlyMinutes, monthlyDays] = await Promise.all([
       completedMinutesForTracker(tracker, user, dayStart, dayEnd),
-      completedMinutesForTracker(tracker, user, weekStart, dayEnd),
+      completedMinutesForTracker(tracker, user, weekStart, now),
       completedMinutesForTracker(tracker, user, monthStart, monthEnd),
       completedDaysForTracker(tracker, user, monthStart, monthEnd)
     ]);
@@ -121,6 +130,8 @@ export async function trackerQuotaStatusForUser(user: QuotaUser, now = new Date(
       tracker: { id: tracker.id, key: tracker.key, title: tracker.title, color: tracker.color },
       daily,
       weekly,
+      weeklyMode: tracker.quotaWeeklyTail ? "rolling" : "calendar",
+      weekStartsOn: tracker.quotaWeekStartsOn ?? 1,
       monthlyMinutes: monthlyMinutesProgress,
       monthlyDays: monthlyDaysProgress,
       complete: relevant.length ? relevant.every((entry) => entry.complete) : true,
