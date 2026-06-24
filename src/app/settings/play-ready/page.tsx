@@ -15,19 +15,18 @@ function clampDuration(minutes: number) {
   return Math.min(maxDurationMinutes, Math.ceil(minutes / 15) * 15);
 }
 
-function durationParts(value?: Date | null) {
-  if (!value) return { hours: "01", minutes: "00" };
-  const diffMinutes = clampDuration(Math.max(0, Math.round((value.getTime() - Date.now()) / 60_000)));
+function durationParts(minutes?: number | null) {
+  if (!minutes) return { hours: "01", minutes: "00" };
+  const diffMinutes = clampDuration(minutes);
   const hours = Math.floor(diffMinutes / 60);
-  const minutes = diffMinutes % 60;
-  return { hours: String(hours).padStart(2, "0"), minutes: String(minutes).padStart(2, "0") };
+  const restMinutes = diffMinutes % 60;
+  return { hours: String(hours).padStart(2, "0"), minutes: String(restMinutes).padStart(2, "0") };
 }
 
-function expiresFromDuration(hours: string, minutes: string) {
+function durationFromParts(hours: string, minutes: string) {
   const hourValue = Number(hours);
   const minuteValue = Number(minutes);
-  const totalMinutes = clampDuration(hourValue * 60 + minuteValue);
-  return new Date(Date.now() + totalMinutes * 60_000);
+  return clampDuration(hourValue * 60 + minuteValue);
 }
 
 async function savePlayReadySettings(formData: FormData) {
@@ -38,11 +37,13 @@ async function savePlayReadySettings(formData: FormData) {
   const enabled = formData.get("expiresEnabled") === "on";
   const hour = String(formData.get("expiresHour") || "1");
   const minute = String(formData.get("expiresMinute") || "00");
-  const expiresAt = enabled ? expiresFromDuration(hour, minute) : null;
+  const expiryMinutes = enabled ? durationFromParts(hour, minute) : null;
+  const current = await prisma.userSettings.findUnique({ where: { userId: user.id }, select: { playReady: true } });
+  const expiresAt = current?.playReady && expiryMinutes ? new Date(Date.now() + expiryMinutes * 60_000) : null;
   await prisma.userSettings.upsert({
     where: { userId: user.id },
-    update: { playReadyExpiresAt: expiresAt },
-    create: { userId: user.id, playReadyExpiresAt: expiresAt }
+    update: { playReadyExpiryMinutes: expiryMinutes, playReadyExpiresAt: expiresAt },
+    create: { userId: user.id, playReadyExpiryMinutes: expiryMinutes, playReadyExpiresAt: expiresAt }
   });
   redirect("/settings/play-ready?saved=1");
 }
@@ -52,8 +53,9 @@ export default async function PlayReadySettingsPage({ searchParams }: { searchPa
   const user = await currentUser();
   if (!user) redirect("/login");
   const expiresAt = user.settings?.playReadyExpiresAt || null;
-  const hasExpiry = Boolean(expiresAt);
-  const parts = durationParts(expiresAt);
+  const expiryMinutes = user.settings?.playReadyExpiryMinutes || null;
+  const hasExpiry = Boolean(expiryMinutes);
+  const parts = durationParts(expiryMinutes);
   return (
     <AppShell>
       <PageHeader title="Ampel" />
@@ -99,7 +101,9 @@ export default async function PlayReadySettingsPage({ searchParams }: { searchPa
             </Field>
           </div>
           <div className="rounded-md bg-paper p-4 text-sm leading-6 text-graphite">
-            Aktuell: {expiresAt ? `läuft ab am ${formatDateTime(expiresAt)}` : "keine Ablaufzeit gesetzt"}
+            Gespeichert: {expiryMinutes ? `${Math.floor(expiryMinutes / 60)} Stunden ${expiryMinutes % 60} Minuten ab Grün-Schaltung` : "keine Ablaufzeit gesetzt"}
+            <br />
+            Aktuelle grüne Ampel: {expiresAt ? `läuft ab am ${formatDateTime(expiresAt)}` : "nicht zeitlich aktiv"}
             <br />
             Maximum: 12 Stunden ab dem Speichern.
           </div>

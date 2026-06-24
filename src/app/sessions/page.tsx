@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import { ChevronLeft, ChevronRight, Save, Square } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button, Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
@@ -10,6 +11,7 @@ import { formatDateTime, formatMinutes, minutesBetween, parseDateTimeLocal } fro
 import { featureEnabled, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
+import { fieldOptions, fieldValuesFromForm, trackerFields } from "@/lib/tracker-fields";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 import { findTrackerTypeForUser, stopTrackerEntry, uniqueTrackerSlug } from "@/lib/tracker-core";
 
@@ -25,6 +27,7 @@ async function createTrackerEntry(formData: FormData) {
   const endRaw = String(formData.get("endTime") || "");
   const startTime = parseDateTimeLocal(startRaw) || new Date();
   const endTime = endRaw ? parseDateTimeLocal(endRaw) : null;
+  const fieldValues = fieldValuesFromForm(formData, trackerFields(trackerType.fields, trackerType.key));
   const entry = await prisma.trackerEntry.create({
     data: {
       tenantId: user.tenantId || trackerType.tenantId,
@@ -36,7 +39,7 @@ async function createTrackerEntry(formData: FormData) {
       endTime,
       durationMinutes: minutesBetween(startTime, endTime),
       notes: String(formData.get("notes") || "").trim(),
-      fieldValues: {}
+      fieldValues: fieldValues as Prisma.InputJsonObject
     }
   });
   await logAction({
@@ -103,6 +106,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
   const open = activeTracker.entries.find((entry) => !entry.endTime);
   const quota = quotaByKey.get(activeTracker.key);
   const statusLabel = open ? "läuft" : quota?.hasQuota ? quota.complete ? "erfüllt" : "offen" : "kein Ziel";
+  const activeTrackerFields = trackerFields(activeTracker.fields, activeTracker.key);
   const byDay = new Map<string, typeof activeTracker.entries>();
   for (const entry of activeTracker.entries) {
     const key = `${entry.startTime.getMonth()}-${entry.startTime.getDate()}`;
@@ -156,12 +160,37 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                   ) : null}
                 </div>
               ) : null}
-              <form action={createTrackerEntry} className="mb-5 grid gap-3 lg:grid-cols-[1fr_1fr_1.5fr_auto] lg:items-end">
+              <form action={createTrackerEntry} className="mb-5 space-y-3">
                 <input type="hidden" name="trackerKey" value={activeTracker.key} />
-                <Field label="Start"><input className={inputClass} name="startTime" type="datetime-local" /></Field>
-                <Field label="Ende"><input className={inputClass} name="endTime" type="datetime-local" /></Field>
-                <Field label="Beschreibung"><input className={inputClass} name="notes" placeholder="Optionaler Kommentar" /></Field>
-                <Button><Save className="h-4 w-4" /> Eintrag speichern</Button>
+                <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1.5fr_auto] lg:items-end">
+                  <Field label="Start"><input className={inputClass} name="startTime" type="datetime-local" /></Field>
+                  <Field label="Ende"><input className={inputClass} name="endTime" type="datetime-local" /></Field>
+                  <Field label="Beschreibung"><input className={inputClass} name="notes" placeholder="Optionaler Kommentar" /></Field>
+                  <Button><Save className="h-4 w-4" /> Eintrag speichern</Button>
+                </div>
+                {activeTrackerFields.length ? (
+                  <div className="grid gap-3 rounded-lg border border-line bg-paper p-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {activeTrackerFields.map((field) => {
+                      const options = fieldOptions(field);
+                      return (
+                        <Field key={field.key} label={field.label}>
+                          {options.length ? (
+                            <select className={inputClass} name={`field:${field.key}`} defaultValue="">
+                              <option value="">😐 neutral</option>
+                              {options.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                              ))}
+                            </select>
+                          ) : field.type === "textarea" ? (
+                            <textarea className={inputClass} name={`field:${field.key}`} rows={3} />
+                          ) : (
+                            <input className={inputClass} name={`field:${field.key}`} type={field.type === "number" ? "number" : "text"} />
+                          )}
+                        </Field>
+                      );
+                    })}
+                  </div>
+                ) : null}
               </form>
               <div className="mb-5 overflow-x-auto">
                 <div className="min-w-[760px]">

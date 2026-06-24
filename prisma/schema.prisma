@@ -285,6 +285,7 @@ model UserSettings {
   playReady           Boolean        @default(false)
   playReadyUpdatedAt  DateTime?
   playReadyExpiresAt  DateTime?
+  playReadyExpiryMinutes Int?
   inviteQuota         Int            @default(3)
   timeOffsetMinutes   Int            @default(0)
   telegramBotTokenEnc String?

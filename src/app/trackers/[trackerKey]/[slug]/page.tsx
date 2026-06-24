@@ -10,51 +10,9 @@ import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime, formatDateTimeLocal, formatMinutes, minutesBetween, parseDateTimeLocal } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
-import { moodAfter, moodBefore } from "@/lib/moods";
 import { prisma } from "@/lib/prisma";
+import { fieldOptions, fieldValuesFromForm, trackerFields } from "@/lib/tracker-fields";
 import { stopTrackerEntry } from "@/lib/tracker-core";
-
-type TrackerField = {
-  key: string;
-  label: string;
-  type: string;
-  options?: Array<string | { value?: unknown; label?: unknown }>;
-};
-
-function trackerFields(fields: unknown, trackerKey?: string): TrackerField[] {
-  const parsed = Array.isArray(fields)
-    ? fields
-        .filter((field) => field && typeof field === "object" && "key" in field)
-        .map((field) => {
-          const data = field as { key?: unknown; label?: unknown; name?: unknown; type?: unknown; options?: unknown };
-          return {
-            key: String(data.key || ""),
-            label: String(data.label || data.name || data.key || ""),
-            type: String(data.type || "text"),
-            options: Array.isArray(data.options) ? data.options as TrackerField["options"] : undefined
-          };
-        })
-        .filter((field) => field.key)
-    : [];
-  const existingKeys = new Set(parsed.map((field) => field.key));
-  if (trackerKey === "segufix") {
-    if (!existingKeys.has("moodBefore")) parsed.push({ key: "moodBefore", label: "Stimmung vorher", type: "select", options: Object.entries(moodBefore).map(([value, label]) => ({ value, label })) });
-    if (!existingKeys.has("moodAfter")) parsed.push({ key: "moodAfter", label: "Stimmung nachher", type: "select", options: Object.entries(moodAfter).map(([value, label]) => ({ value, label })) });
-  }
-  return parsed;
-}
-
-function fieldOptions(field: TrackerField) {
-  if (field.options?.length) {
-    return field.options.map((option) => {
-      if (typeof option === "string") return { value: option, label: option };
-      return { value: String(option.value || option.label || ""), label: String(option.label || option.value || "") };
-    }).filter((option) => option.value);
-  }
-  if (field.key === "moodBefore") return Object.entries(moodBefore).map(([value, label]) => ({ value, label }));
-  if (field.key === "moodAfter") return Object.entries(moodAfter).map(([value, label]) => ({ value, label }));
-  return [];
-}
 
 function readableFieldLabel(key: string, fields: unknown) {
   if (Array.isArray(fields)) {
@@ -93,12 +51,7 @@ async function updateEntry(formData: FormData) {
   const startTime = parseDateTimeLocal(startRaw) || entry.startTime;
   const endTime = endRaw ? parseDateTimeLocal(endRaw) : null;
   const currentValues = entry.fieldValues && typeof entry.fieldValues === "object" ? entry.fieldValues as Record<string, unknown> : {};
-  const fieldValues: Record<string, unknown> = { ...currentValues };
-  for (const field of trackerFields(entry.trackerType.fields, entry.trackerType.key)) {
-    const nextValue = String(formData.get(`field:${field.key}`) || "").trim();
-    if (nextValue) fieldValues[field.key] = nextValue;
-    else delete fieldValues[field.key];
-  }
+  const fieldValues = fieldValuesFromForm(formData, trackerFields(entry.trackerType.fields, entry.trackerType.key), currentValues);
   const updated = await prisma.trackerEntry.update({
     where: { id: entry.id },
     data: {
@@ -209,8 +162,10 @@ export default async function TrackerEntryPage({ params }: { params: { trackerKe
                             <option key={option.value} value={option.value}>{option.label}</option>
                           ))}
                         </select>
+                      ) : field.type === "textarea" ? (
+                        <textarea className={inputClass} name={`field:${field.key}`} rows={3} defaultValue={String(fieldValues[field.key] || "")} />
                       ) : (
-                        <input className={inputClass} name={`field:${field.key}`} defaultValue={String(fieldValues[field.key] || "")} />
+                        <input className={inputClass} name={`field:${field.key}`} type={field.type === "number" ? "number" : "text"} defaultValue={String(fieldValues[field.key] || "")} />
                       )}
                     </Field>
                   );

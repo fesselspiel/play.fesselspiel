@@ -72,19 +72,22 @@ async function togglePlayReady() {
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("playReady");
-  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id }, select: { playReady: true } });
+  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id }, select: { playReady: true, playReadyExpiryMinutes: true } });
   const previous = Boolean(settings?.playReady);
   const next = !previous;
+  const expiresAt = next && settings?.playReadyExpiryMinutes ? new Date(Date.now() + settings.playReadyExpiryMinutes * 60_000) : null;
   await prisma.userSettings.upsert({
     where: { userId: user.id },
     update: {
       playReady: next,
-      playReadyUpdatedAt: new Date()
+      playReadyUpdatedAt: new Date(),
+      playReadyExpiresAt: expiresAt
     },
     create: {
       userId: user.id,
       playReady: true,
-      playReadyUpdatedAt: new Date()
+      playReadyUpdatedAt: new Date(),
+      playReadyExpiresAt: expiresAt
     }
   });
   const actor = await prisma.user.findUnique({
@@ -98,7 +101,7 @@ async function togglePlayReady() {
     entityType: "userSettings",
     entityId: user.id,
     title: `Spielampel geändert: ${actorName} ist ${playReadyLabel(next)}`,
-    details: { previous: playReadyLabel(previous), next: playReadyLabel(next) },
+    details: { previous: playReadyLabel(previous), next: playReadyLabel(next), expiresAt: expiresAt?.toISOString() || null },
     href: "/"
   });
   redirect("/");
