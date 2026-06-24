@@ -430,12 +430,41 @@ async function resolveDirectTelegramChat(message: TelegramMessage, hints: { user
     }
   });
   if (!telegramSettings?.telegramBotTokenEnc) return null;
-  const mapped = telegramSettings.telegramUserMappings.find((entry) =>
+  const mappedByBot = telegramSettings.telegramUserMappings.find((entry) =>
     entry.appUser.active && ((entry.telegramUserId && entry.telegramUserId === telegramUserId) || (telegramUsername && entry.telegramUsername === telegramUsername))
   );
+  const mappedByLegacy = mappedByBot ? null : await prisma.telegramUserMapping.findFirst({
+    where: {
+      telegramSettingsId: null,
+      OR: [
+        { telegramUserId },
+        ...(telegramUsername ? [{ telegramUsername }] : [])
+      ],
+      appUser: { active: true, memberships: { some: { tenantId: telegramSettings.tenantId, active: true } } }
+    },
+    include: { appUser: true },
+    orderBy: { updatedAt: "desc" }
+  });
+  const mapped = mappedByBot || mappedByLegacy;
   const ownerId = mapped?.appUserId || telegramSettings.ownerId || telegramSettings.tenant.memberships.find((entry) => entry.role === "SUPER_ADMIN" || entry.role === "ADMIN")?.userId || telegramSettings.tenant.memberships[0]?.userId;
   if (!ownerId) return null;
   const legacySettings = await ensureLegacyUserSettings(ownerId);
+  if (mappedByLegacy && telegramUsername) {
+    const existingBotMapping = await prisma.telegramUserMapping.findUnique({
+      where: { telegramSettingsId_telegramUsername: { telegramSettingsId: telegramSettings.id, telegramUsername } }
+    });
+    if (existingBotMapping) {
+      await prisma.telegramUserMapping.update({
+        where: { id: existingBotMapping.id },
+        data: { telegramUserId, appUserId: mappedByLegacy.appUserId, settingsId: legacySettings.id }
+      });
+    } else {
+      await prisma.telegramUserMapping.update({
+        where: { id: mappedByLegacy.id },
+        data: { telegramSettingsId: telegramSettings.id, telegramUserId, appUserId: mappedByLegacy.appUserId, settingsId: legacySettings.id }
+      });
+    }
+  }
   const name = [message.from.first_name, message.from.last_name].filter(Boolean).join(" ") || (telegramUsername ? `@${telegramUsername}` : `Telegram ${telegramUserId}`);
   const targetUserId = mapped?.appUserId || (telegramSettings.scope === "USER" ? telegramSettings.ownerId : null);
   const status = targetUserId ? "ACTIVE" : "PENDING";
