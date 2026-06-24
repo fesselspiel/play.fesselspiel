@@ -10,7 +10,7 @@ import { currentUser } from "@/lib/auth";
 import { appTimeZone, formatDate } from "@/lib/dates";
 import { defaultFeedBodyTemplate, defaultFeedTitleTemplate, feedTemplateVariables } from "@/lib/feed";
 import { requireFeature } from "@/lib/features";
-import { actionLabel, knownAuditActions } from "@/lib/notification-actions";
+import { actionLabel, notificationActionOptions } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
 import { testExternalPushRule } from "@/lib/external-push-notifications";
@@ -281,7 +281,15 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
   const groups = groupEntries(entries);
   const hasNext = skip + pageSize < totalAuditLogs;
   const requestedAction = String(searchParams?.action || "").trim();
-  const actionOptions = Array.from(new Set([...knownAuditActions.map(([action]) => action), ...distinctActions.map((entry) => entry.action), requestedAction].filter(Boolean))).sort((a, b) => actionLabel(a).localeCompare(actionLabel(b)));
+  const actionOptions = await notificationActionOptions({
+    tenantId: tenant.id,
+    auditActions: [
+      ...distinctActions.map((entry) => entry.action),
+      ...feedRules.map((rule) => rule.action),
+      ...externalPushRules.map((rule) => rule.action)
+    ],
+    requestedAction
+  });
   const pageQuery = selectedActorId ? `&actor=${encodeURIComponent(selectedActorId)}` : "";
 
   return (
@@ -415,8 +423,8 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
           <form action={saveFeedRule} className="space-y-4 rounded-lg border border-line bg-paper p-4">
             <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
               <Field label="Aktion">
-                <select className={selectClass} name="action" defaultValue={requestedAction || actionOptions[0] || ""} required>
-                  {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
+                <select className={selectClass} name="action" defaultValue={requestedAction || actionOptions[0]?.action || ""} required>
+                  {actionOptions.map((option) => <option key={option.action} value={option.action}>{option.label}</option>)}
                 </select>
               </Field>
               <label className="flex min-h-10 items-center gap-2 text-sm font-semibold text-graphite">
@@ -441,7 +449,7 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
                 <form action={saveFeedRule} className="mt-4 space-y-4 border-t border-line pt-4">
                   <Field label="Aktion">
                     <select className={selectClass} name="action" defaultValue={rule.action} required>
-                      {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
+                      {actionOptions.map((option) => <option key={option.action} value={option.action}>{option.label}</option>)}
                     </select>
                   </Field>
                   <TemplateVariableTextarea label="Feed-Titel" name="titleTemplate" rows={2} defaultValue={rule.titleTemplate} variables={feedTemplateVariables} required />
@@ -484,8 +492,8 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Name"><input className={inputClass} name="name" placeholder="ioBroker Alexa Ansage" /></Field>
               <Field label="Aktion">
-                <select className={selectClass} name="action" defaultValue={requestedAction || actionOptions[0] || ""} required>
-                  {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
+                <select className={selectClass} name="action" defaultValue={requestedAction || actionOptions[0]?.action || ""} required>
+                  {actionOptions.map((option) => <option key={option.action} value={option.action}>{option.label}</option>)}
                 </select>
               </Field>
               <Field label="URL"><input className={inputClass} name="url" type="url" placeholder="https://iobroker.example/webhook/playplaner" required /></Field>
@@ -523,7 +531,7 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
                     <Field label="Name"><input className={inputClass} name="name" defaultValue={rule.name} required /></Field>
                     <Field label="Aktion">
                       <select className={selectClass} name="action" defaultValue={rule.action} required>
-                        {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
+                        {actionOptions.map((option) => <option key={option.action} value={option.action}>{option.label}</option>)}
                       </select>
                     </Field>
                     <Field label="URL"><input className={inputClass} name="url" type="url" defaultValue={rule.url} required /></Field>

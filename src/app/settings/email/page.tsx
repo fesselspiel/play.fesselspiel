@@ -12,7 +12,7 @@ import { formatDateTime } from "@/lib/dates";
 import { env } from "@/lib/env";
 import { requireFeature } from "@/lib/features";
 import { testEmailNotificationRule } from "@/lib/email-notifications";
-import { actionLabel, knownAuditActions } from "@/lib/notification-actions";
+import { actionLabel, notificationActionOptions } from "@/lib/notification-actions";
 
 const emailTemplateVariables = [
   { token: "{{userName}}", label: "Benutzername" },
@@ -241,7 +241,14 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
   const testTemplateLabel = searchParams?.template || null;
   const targetUsers = users.map((entry) => ({ id: entry.id, label: userLabel(entry) }));
   const requestedAction = String(searchParams?.action || "").trim();
-  const actionOptions = Array.from(new Set([...knownAuditActions.map(([action]) => action), ...auditActions.map((entry) => entry.action), requestedAction].filter(Boolean))).sort((a, b) => actionLabel(a).localeCompare(actionLabel(b)));
+  const actionOptions = await notificationActionOptions({
+    tenantId: tenant.id,
+    auditActions: [
+      ...auditActions.map((entry) => entry.action),
+      ...notificationRules.map((rule) => rule.action)
+    ],
+    requestedAction
+  });
   return (
     <AppShell>
       <PageHeader title="E-Mail" subtitle="Postfix, Systemmails und Templates kontrolliert verwalten." />
@@ -311,8 +318,8 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
                 <form action={createEmailNotificationRule} className="space-y-4 rounded-md border border-line bg-paper p-4">
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Aktion">
-                      <select className={selectClass} name="action" defaultValue={requestedAction || actionOptions[0] || ""} required>
-                        {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
+                      <select className={selectClass} name="action" defaultValue={requestedAction || actionOptions[0]?.action || ""} required>
+                        {actionOptions.map((option) => <option key={option.action} value={option.action}>{option.label}</option>)}
                       </select>
                     </Field>
                     <Field label="E-Mail-Vorlage">
@@ -342,7 +349,7 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
                         <div className="grid gap-3 sm:grid-cols-2">
                           <Field label="Aktion">
                             <select className={selectClass} name="action" defaultValue={rule.action} required>
-                              {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
+                              {actionOptions.map((option) => <option key={option.action} value={option.action}>{option.label}</option>)}
                             </select>
                           </Field>
                           <Field label="E-Mail-Vorlage">

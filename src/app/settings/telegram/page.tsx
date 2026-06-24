@@ -11,7 +11,7 @@ import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { appTimeZone, formatDate, formatDateTime } from "@/lib/dates";
 import { env } from "@/lib/env";
 import { requireFeature } from "@/lib/features";
-import { actionLabel, defaultNotificationTemplate, knownAuditActions } from "@/lib/notification-actions";
+import { actionLabel, defaultNotificationTemplate, notificationActionOptions } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
 import { DEFAULT_TENANT_BOT_KEY, ensureLegacyUserSettings, ensurePersonalTelegramSettings, ensureTenantTelegramSettings, extraBotKey, tenantTelegramSettingsForUser } from "@/lib/tenant-telegram";
@@ -811,7 +811,14 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
   });
   const allActiveChats = activeChats;
   const requestedAction = String(searchParams?.action || "").trim();
-  const actionOptions = Array.from(new Set([...knownAuditActions.map(([action]) => action), ...auditActions.map((entry) => entry.action), requestedAction].filter(Boolean))).sort((a, b) => actionLabel(a).localeCompare(actionLabel(b)));
+  const actionOptions = await notificationActionOptions({
+    tenantId: tenant.id,
+    auditActions: [
+      ...auditActions.map((entry) => entry.action),
+      ...notificationRules.map((rule) => rule.action)
+    ],
+    requestedAction
+  });
   const telegramTokenSuffix = secretSuffix(settings?.telegramBotTokenEnc);
   const openAiKeySuffix = secretSuffix(settings?.openAiApiKeyEnc);
   const telegramBotName = await readTelegramBotName(settings?.telegramBotTokenEnc);
@@ -1194,8 +1201,8 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
               <form action={createNotificationRule} className="space-y-4 rounded-lg border border-line bg-paper p-4">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Aktion">
-                    <select className={selectClass} name="action" defaultValue={requestedAction || actionOptions[0] || ""} required>
-                      {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
+                    <select className={selectClass} name="action" defaultValue={requestedAction || actionOptions[0]?.action || ""} required>
+                      {actionOptions.map((option) => <option key={option.action} value={option.action}>{option.label}</option>)}
                     </select>
                   </Field>
                   <NotificationTargetFields users={notificationTargetUsers} circles={targetCircles} targetType="none" />
@@ -1229,7 +1236,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                       <div className="grid gap-3 sm:grid-cols-2">
                         <Field label="Aktion">
                           <select className={selectClass} name="action" defaultValue={rule.action} required>
-                            {actionOptions.map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
+                            {actionOptions.map((option) => <option key={option.action} value={option.action}>{option.label}</option>)}
                           </select>
                         </Field>
                         <NotificationTargetFields users={notificationTargetUsers} circles={targetCircles} targetType={targetTypeFor(rule)} targetUserId={rule.targetUserId} targetCircleId={rule.targetCircleId} />

@@ -1,3 +1,12 @@
+import { prisma } from "@/lib/prisma";
+
+const legacyAuditActionPrefixes = [
+  "kg_",
+  "session_",
+  "tracker_kg_",
+  "tracker_segufix_"
+];
+
 export const knownAuditActions = [
   ["activity_confirmed", "Spielplan bestätigt"],
   ["activity_created", "Spielplan angelegt"],
@@ -26,15 +35,6 @@ export const knownAuditActions = [
   ["feed_comment_created", "Feed kommentiert"],
   ["feed_liked", "Feed geliked"],
   ["feed_unliked", "Feed-Like entfernt"],
-  ["kg_auto_closed", "KG-Tracker automatisch geschlossen"],
-  ["kg_created", "KG-Tracker angelegt"],
-  ["kg_deleted", "KG-Tracker gelöscht"],
-  ["kg_started_api", "KG-Tracker per API gestartet"],
-  ["kg_started_telegram", "KG-Tracker per Telegram gestartet"],
-  ["kg_stopped", "KG-Tracker beendet"],
-  ["kg_stopped_api", "KG-Tracker per API beendet"],
-  ["kg_stopped_telegram", "KG-Tracker per Telegram beendet"],
-  ["kg_updated", "KG-Tracker bearbeitet"],
   ["login", "Login"],
   ["login_failed", "Login fehlgeschlagen"],
   ["logout", "Logout"],
@@ -56,17 +56,6 @@ export const knownAuditActions = [
   ["self_bondage_order_created", "Self-Bondage-Auftrag erteilt"],
   ["self_bondage_order_discarded", "Self-Bondage-Auftrag verworfen"],
   ["self_bondage_order_updated", "Self-Bondage-Auftrag geändert"],
-  ["session_auto_closed", "Session automatisch geschlossen"],
-  ["session_commented", "Session kommentiert"],
-  ["session_created", "Session angelegt"],
-  ["session_deleted", "Session gelöscht"],
-  ["session_media_commented", "Session-Bild kommentiert"],
-  ["session_media_uploaded", "Session-Bild hochgeladen"],
-  ["session_stopped", "Session beendet"],
-  ["session_started_api", "Session per API gestartet"],
-  ["session_stopped_api", "Session per API beendet"],
-  ["session_updated", "Session bearbeitet"],
-  ["session_viewed", "Session aufgerufen"],
   ["shopify_credentials_adopted", "Shopify-Credentials übernommen"],
   ["telegram_answer_sent", "Telegram-Antwort gesendet"],
   ["telegram_admin_sync_failed", "Telegram-Admin-Abgleich fehlgeschlagen"],
@@ -83,26 +72,39 @@ export const knownAuditActions = [
   ["telegram_message_received", "Telegram-Nachricht empfangen"],
   ["telegram_notification_failed", "Telegram-Benachrichtigung fehlgeschlagen"],
   ["telegram_notification_sent", "Telegram-Benachrichtigung gesendet"],
-  ["tracker_kg_started_api", "KG per API gestartet"],
-  ["tracker_kg_started_telegram", "KG per Telegram gestartet"],
-  ["tracker_kg_stopped", "KG beendet"],
-  ["tracker_kg_stopped_api", "KG per API beendet"],
-  ["tracker_kg_stopped_telegram", "KG per Telegram beendet"],
   ["tracker_quota_reminder", "Tracker-Kontingent Erinnerung"],
-  ["tracker_segufix_created", "Segufix angelegt"],
-  ["tracker_segufix_started_api", "Segufix per API gestartet"],
-  ["tracker_segufix_started_telegram", "Segufix per Telegram gestartet"],
-  ["tracker_segufix_stopped", "Segufix beendet"],
-  ["tracker_segufix_stopped_api", "Segufix per API beendet"],
-  ["tracker_segufix_stopped_telegram", "Segufix per Telegram beendet"],
   ["tracker_type_created", "Tracker angelegt"],
   ["tracker_type_updated", "Tracker bearbeitet"],
   ["toy_favorited", "Spielzeug favorisiert"]
 ] as const;
 
+export function isLegacyAuditAction(action: string) {
+  return legacyAuditActionPrefixes.some((prefix) => action.startsWith(prefix));
+}
+
+function trackerActionLabel(action: string, trackerTitle?: string) {
+  const match = action.match(/^tracker_(.+)_(created|updated|deleted|started|stopped|started_api|stopped_api|started_telegram|stopped_telegram)$/);
+  if (!match) return null;
+  const title = trackerTitle || match[1];
+  const labels: Record<string, string> = {
+    created: "angelegt",
+    updated: "bearbeitet",
+    deleted: "gelöscht",
+    started: "gestartet",
+    stopped: "beendet",
+    started_api: "per API gestartet",
+    stopped_api: "per API beendet",
+    started_telegram: "per Telegram gestartet",
+    stopped_telegram: "per Telegram beendet"
+  };
+  return `${title} ${labels[match[2]] || match[2]}`;
+}
+
 export function actionLabel(action: string) {
   const known = knownAuditActions.find(([value]) => value === action)?.[1];
   if (known) return known;
+  const trackerLabel = trackerActionLabel(action);
+  if (trackerLabel) return trackerLabel;
   const words: Record<string, string> = {
     activity: "Spielplan",
     api: "API",
@@ -153,6 +155,46 @@ export function actionLabel(action: string) {
     .filter(Boolean)
     .map((part) => words[part] || part.slice(0, 1).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+export async function notificationActionOptions({
+  tenantId,
+  auditActions = [],
+  requestedAction
+}: {
+  tenantId?: string | null;
+  auditActions?: string[];
+  requestedAction?: string | null;
+}) {
+  const trackerTypes = await prisma.trackerType.findMany({
+    where: {
+      enabled: true,
+      ...(tenantId ? { OR: [{ tenantId }, { tenantId: null }] } : {})
+    },
+    orderBy: [{ tenantId: "desc" }, { title: "asc" }]
+  });
+  const trackerActions = trackerTypes.flatMap((tracker) => [
+    [`tracker_${tracker.key}_created`, `${tracker.title} angelegt`] as const,
+    [`tracker_${tracker.key}_updated`, `${tracker.title} bearbeitet`] as const,
+    [`tracker_${tracker.key}_deleted`, `${tracker.title} gelöscht`] as const,
+    [`tracker_${tracker.key}_started`, `${tracker.title} gestartet`] as const,
+    [`tracker_${tracker.key}_stopped`, `${tracker.title} beendet`] as const,
+    [`tracker_${tracker.key}_started_api`, `${tracker.title} per API gestartet`] as const,
+    [`tracker_${tracker.key}_stopped_api`, `${tracker.title} per API beendet`] as const,
+    [`tracker_${tracker.key}_started_telegram`, `${tracker.title} per Telegram gestartet`] as const,
+    [`tracker_${tracker.key}_stopped_telegram`, `${tracker.title} per Telegram beendet`] as const
+  ]);
+  const labels = new Map<string, string>();
+  for (const [action, label] of knownAuditActions) {
+    if (!isLegacyAuditAction(action)) labels.set(action, label);
+  }
+  for (const [action, label] of trackerActions) labels.set(action, label);
+  for (const action of auditActions) {
+    if (!action || isLegacyAuditAction(action)) continue;
+    if (!labels.has(action)) labels.set(action, actionLabel(action));
+  }
+  if (requestedAction && !isLegacyAuditAction(requestedAction)) labels.set(requestedAction, labels.get(requestedAction) || actionLabel(requestedAction));
+  return Array.from(labels, ([action, label]) => ({ action, label })).sort((a, b) => a.label.localeCompare(b.label));
 }
 
 export function defaultNotificationTemplate() {

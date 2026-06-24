@@ -473,8 +473,12 @@ export default async function DashboardPage() {
                     <span className="min-w-0">
                       <span className="block truncate text-base font-semibold text-ink">{displayName}</span>
                       <span className={`mt-1 block text-sm font-semibold ${ready ? "text-emerald-700" : "text-redbrand"}`}>{stateLabel}</span>
-                      {ready && member.settings?.playReadyExpiresAt ? (
-                        <span className="mt-1 block text-xs text-graphite">gültig bis {formatDateTime(member.settings.playReadyExpiresAt)}</span>
+                      {ready ? (
+                        <span className="mt-1 block text-xs font-semibold text-graphite">
+                          {member.settings?.playReadyExpiresAt
+                            ? `gültig bis ${formatDateTime(member.settings.playReadyExpiresAt)}`
+                            : "ohne Ablaufzeit"}
+                        </span>
                       ) : null}
                       {isSelf ? <span className="mt-1 block text-xs text-graphite">Antippen zum Umschalten</span> : null}
                     </span>
