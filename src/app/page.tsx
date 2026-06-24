@@ -35,6 +35,17 @@ function playReadyLabel(value: boolean) {
   return value ? "voll Lust" : "gerade nicht";
 }
 
+function playReadyRemainingText(expiresAt: Date, now: Date) {
+  const remainingMs = expiresAt.getTime() - now.getTime();
+  if (remainingMs <= 0) return "läuft jetzt ab";
+  const totalMinutes = Math.ceil(remainingMs / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours && minutes) return `noch ${hours} Std. ${minutes} Min.`;
+  if (hours) return `noch ${hours} Std.`;
+  return `noch ${minutes} Min.`;
+}
+
 async function expirePlayReadyStatuses(viewer: Awaited<ReturnType<typeof currentUser>>, now: Date) {
   if (!viewer) return;
   const ownerFilter = viewer.tenantId
@@ -481,7 +492,7 @@ export default async function DashboardPage() {
                       {ready ? (
                         <span className="mt-1 block text-xs font-semibold text-graphite">
                           {member.settings?.playReadyExpiresAt
-                            ? `gültig bis ${formatDateTime(member.settings.playReadyExpiresAt)}`
+                            ? playReadyRemainingText(member.settings.playReadyExpiresAt, now)
                             : "ohne Ablaufzeit"}
                         </span>
                       ) : null}
