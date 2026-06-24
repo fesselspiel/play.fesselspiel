@@ -99,7 +99,9 @@ function initialTitle(text: string, kind: DraftKind) {
         : /(?:album|galerie)\s+(.+?)(?:\s+(?:anlegen|erstellen|speichern|hinzufügen|hinzufügen))?$/i;
   const match = text.match(pattern);
   const candidate = match ? clean(match[1]) : "";
-  if (!candidate || /^(anlegen|erstellen|neu|hinzufügen|hinzufügen)$/i.test(candidate)) return "";
+  const generic = candidate.replace(/[?.!,;:]+$/g, "").trim();
+  if (!generic || /^(anlegen|erstellen|neu|hinzufügen|hinzufügen|speichern|machen)$/i.test(generic)) return "";
+  if (/^(kannst du|kannst du bitte|bitte|ich möchte|ich will)\b/i.test(text.trim()) && generic.length < 4) return "";
   return candidate;
 }
 

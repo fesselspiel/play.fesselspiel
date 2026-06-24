@@ -4,7 +4,7 @@ import { env } from "@/lib/env";
 import { decryptSecret } from "@/lib/crypto";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
-import { uniqueSlug } from "@/lib/slug";
+import { uniqueSlug, uniqueSlugForUpdate } from "@/lib/slug";
 import { telegramHtml, telegramLink } from "@/lib/telegram";
 import { startTrackerEntry, stopTrackerEntry } from "@/lib/tracker-core";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
@@ -420,6 +420,36 @@ async function createToy(userId: string, args: Record<string, unknown>): Promise
   return { ok: true, message: `Spielzeug angelegt: ${toy.title}`, data: { title: toy.title, url: link(`/toys/${toy.slug}`) } };
 }
 
+async function updateToy(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
+  const tenantId = await tenantIdForUser(userId);
+  const titleOrSlug = clean(args.titleOrSlug);
+  if (!titleOrSlug) return { ok: false, message: "Welches Spielzeug soll geändert werden?" };
+  const toy = await prisma.toy.findFirst({
+    where: {
+      ...(tenantId ? { tenantId } : {}),
+      ownerId: userId,
+      OR: [{ slug: titleOrSlug }, { title: contains(titleOrSlug) }]
+    },
+    orderBy: { updatedAt: "desc" }
+  });
+  if (!toy) return { ok: false, message: "Spielzeug nicht gefunden." };
+  const nextTitle = clean(args.title);
+  const nextDescription = clean(args.description);
+  const nextImageUrl = clean(args.imageUrl);
+  if (!nextTitle && !nextDescription && args.imageUrl === undefined) {
+    return { ok: false, message: "Es fehlt die Änderung. Gib Titel, Beschreibung oder Bild an." };
+  }
+  const updated = await prisma.toy.update({
+    where: { id: toy.id },
+    data: {
+      ...(nextTitle ? { title: nextTitle, slug: await uniqueSlugForUpdate("toy", nextTitle, toy.id, tenantId) } : {}),
+      ...(nextDescription ? { description: nextDescription } : {}),
+      ...(args.imageUrl !== undefined ? { imageUrl: nextImageUrl } : {})
+    }
+  });
+  return { ok: true, message: `Spielzeug geändert: ${updated.title}`, data: { title: updated.title, url: link(`/toys/${updated.slug}`), imageUrl: updated.imageUrl } };
+}
+
 async function createPosition(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   const tenantId = await tenantIdForUser(userId);
   const name = clean(args.name);
@@ -549,6 +579,7 @@ async function runTool(userId: string, name: string, args: Record<string, unknow
   if (name === "get_tracker_quotas") return getTrackerQuotas(userId, args);
   if (name === "get_favorites") return getFavorites(userId, args);
   if (name === "create_toy") return createToy(userId, args);
+  if (name === "update_toy") return updateToy(userId, args);
   if (name === "create_position") return createPosition(userId, args);
   if (name === "create_activity") return createActivity(userId, args);
   if (name === "set_activity_status") return setActivityStatus(userId, args);

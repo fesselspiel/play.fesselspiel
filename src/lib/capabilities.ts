@@ -180,6 +180,28 @@ export const capabilities: readonly Capability[] = [
         },
         telegramCommands: [{ command: "/toy_new Name", description: "neues Spielzeug mit Dialog anlegen" }],
         auditActions: ["toy_created", "toy_updated", "toy_deleted"]
+      },
+      {
+        key: "update",
+        label: "Spielzeug ändern",
+        type: "write",
+        description: "Ändert Titel, Beschreibung oder Bild eines vorhandenen Spielzeugs.",
+        agentTool: {
+          name: "update_toy",
+          description: "Ändert ein vorhandenes Spielzeug. Verwenden, wenn der Nutzer Titel, Beschreibung oder Bild eines bestehenden Spielzeugs ändern möchte. Nicht zum Neuanlegen verwenden.",
+          parameters: {
+            type: "object",
+            properties: {
+              titleOrSlug: { type: "string", description: "Aktueller Titel oder Slug des Spielzeugs, das geändert werden soll." },
+              title: { type: "string", description: "Neuer Titel, falls er geändert werden soll." },
+              description: { type: "string", description: "Neue Beschreibung, falls sie geändert werden soll." },
+              imageUrl: { type: "string", description: "Neue Bild-URL, falls das Bild geändert werden soll." }
+            },
+            required: ["titleOrSlug"],
+            additionalProperties: false
+          }
+        },
+        auditActions: ["toy_updated"]
       }
     ]
   },

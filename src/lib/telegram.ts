@@ -217,10 +217,11 @@ export async function downloadTelegramFile(tokenEnc: string, fileId: string, fal
   const bytes = Buffer.from(await response.arrayBuffer());
   const extension = filePath.split(".").pop();
   const originalName = fallbackName.includes(".") || !extension ? fallbackName : `${fallbackName}.${extension}`;
+  const contentType = response.headers.get("content-type") || "";
   return {
     bytes,
     originalName,
-    mimeType: response.headers.get("content-type") || fallbackMimeType
+    mimeType: contentType && contentType !== "application/octet-stream" ? contentType : fallbackMimeType
   };
 }
 
