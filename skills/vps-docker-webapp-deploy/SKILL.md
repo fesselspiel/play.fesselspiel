@@ -1,32 +1,24 @@
 ---
-name: playplaner-vps-docker-deploy
-description: Deploy and operate a Next.js/Prisma/PostgreSQL website on the existing Playplaner VPS using Docker Compose, Nginx reverse proxy, Certbot TLS, protected uploads, Postfix-in-Docker, and the established Codex workflow. Use when creating, migrating, deploying, debugging, or documenting a new website in the same VPS environment at 109.199.107.55.
+name: vps-docker-webapp-deploy
+description: Deploy and operate a web application on the existing VPS at 109.199.107.55 using Docker Compose, Nginx reverse proxy, Certbot TLS, protected uploads, optional Postfix-in-Docker, cron sidecars, and the established Codex workflow. Use when creating, migrating, deploying, debugging, or documenting a new website in this VPS environment.
 metadata:
-  short-description: Deploy Playplaner-style Docker apps to the VPS
+  short-description: Deploy Docker web apps to the VPS
 ---
 
-# Playplaner VPS Docker Deploy
+# VPS Docker Webapp Deploy
 
-Use this skill for a new or existing website that should run like the Playplaner/Fesselspiel app on the same VPS.
+Use this skill for a new or existing website that should run on the same VPS pattern: source in `/opt`, app isolated in Docker Compose, Nginx on the host, TLS via Certbot, and all application dependencies inside containers.
 
 ## Environment
 
 - VPS IP: `109.199.107.55`
 - SSH: `ssh root@109.199.107.55`
 - App base path pattern: `/opt/<project-name>`
-- Current reference app path: `/opt/kink-social-platform`
-- Public app port pattern: bind only to loopback, e.g. `127.0.0.1:8097:8097`
+- App port pattern: choose an unused host port and bind only to loopback, e.g. `127.0.0.1:<host-port>:<container-port>`
 - Reverse proxy: host Nginx terminates TLS and proxies to Docker app port.
 - TLS: Certbot certificates under `/etc/letsencrypt/live/<domain>/`.
-- Current reference domains:
-  - `playplaner.com`
-  - `*.playplaner.com` on HTTP catch-all to app, if configured
-  - `play.fesselspiel.com`
-- Current reference app URL: `https://playplaner.com`
-- Current reference app container: `kink_social_app`
-- Current reference database container: `kink_social_postgres`
-- Current reference mail container: `kink_social_postfix`
-- Current reference cron container: `kink_social_cron`
+- Domain pattern: one or more real domains pointing to `109.199.107.55`.
+- Container naming pattern: `<project-slug>_app`, `<project-slug>_postgres`, `<project-slug>_postfix`, `<project-slug>_cron`.
 
 ## Non-Negotiables
 
@@ -54,10 +46,10 @@ public/
 
 Reference service layout:
 
-- `app`: Next.js app, built from local Dockerfile.
-- `postgres`: `postgres:16-alpine`, named volume for database.
-- `postfix`: `boky/postfix:latest` for local SMTP relay inside Docker.
-- `cron`: tiny Alpine/curl sidecar calling app cron endpoints.
+- `app`: web app, built from local Dockerfile.
+- `postgres`: `postgres:16-alpine`, named volume for database, if the app uses PostgreSQL.
+- `postfix`: `boky/postfix:latest` for local SMTP relay inside Docker, if the app sends mail.
+- `cron`: tiny Alpine/curl sidecar calling app cron endpoints, if the app needs scheduled tasks.
 - `uploads_data`: Docker volume mounted at `/app/uploads`.
 - `runtime-logs`: bind mount to `/app/logs` for startup/app logs.
 
@@ -65,7 +57,7 @@ The app should expose its internal port, but Compose should bind it only to loca
 
 ```yaml
 ports:
-  - "127.0.0.1:${APP_PORT:-8097}:8097"
+  - "127.0.0.1:${APP_PORT:-<host-port>}:<container-port>"
 ```
 
 ## Environment Variables
@@ -75,14 +67,14 @@ Use `.env.example` as a template, then create `.env` only on the VPS.
 Core variables:
 
 ```dotenv
-APP_URL=https://example.com
+APP_URL=https://<domain>
 APP_HOST=0.0.0.0
-APP_PORT=8097
+APP_PORT=<container-port>
 
-POSTGRES_DB=appdb
-POSTGRES_USER=appuser
+POSTGRES_DB=<db-name>
+POSTGRES_USER=<db-user>
 POSTGRES_PASSWORD=<secret>
-DATABASE_URL=postgresql://appuser:<secret>@postgres:5432/appdb
+DATABASE_URL=postgresql://<db-user>:<secret>@postgres:5432/<db-name>
 
 ADMIN_EMAIL=<admin-email>
 ADMIN_USERNAME=admin
@@ -95,13 +87,13 @@ MAX_UPLOAD_BYTES=52428800
 
 EMAIL_SMTP_HOST=postfix
 EMAIL_SMTP_PORT=25
-EMAIL_POSTFIX_HOSTNAME=example.com
-EMAIL_ALLOWED_SENDER_DOMAINS=example.com
+EMAIL_POSTFIX_HOSTNAME=<domain>
+EMAIL_ALLOWED_SENDER_DOMAINS=<domain>
 
 CRON_SECRET=<long-secret>
 ```
 
-For OpenAI/Telegram/Shopify/etc., keep tokens in the app database encrypted with `ENCRYPTION_KEY` or in `.env` only when the app already expects them there.
+For OpenAI, Telegram, Shopify, payment providers, or other integrations, keep tokens in the app database encrypted with `ENCRYPTION_KEY` or in `.env` only when the app explicitly expects them there.
 
 ## Dockerfile Pattern
 
@@ -125,7 +117,7 @@ npm start
 
 Write startup output to `/app/logs/startup.log`. This makes schema changes reproducible in Docker and keeps host setup minimal.
 
-Use `--accept-data-loss` only for this private VPS workflow where the project intentionally favors fast iteration. For production-grade customer data, replace this with explicit migrations.
+Use `--accept-data-loss` only for private fast-iteration workflows. For production-grade customer data, replace this with explicit migrations.
 
 ## Nginx Reverse Proxy
 
@@ -135,7 +127,7 @@ HTTPS server block pattern:
 
 ```nginx
 server {
-    server_name example.com;
+    server_name <domain>;
     client_max_body_size 50m;
 
     location /.well-known/acme-challenge/ {
@@ -143,7 +135,7 @@ server {
     }
 
     location / {
-        proxy_pass http://127.0.0.1:8097;
+        proxy_pass http://127.0.0.1:<host-port>;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -155,8 +147,8 @@ server {
 
     listen 443 ssl;
     listen [::]:443 ssl;
-    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/<domain>/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<domain>/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 }
@@ -168,7 +160,7 @@ HTTP/catch-all pattern for base and subdomains when DNS catch-all points to the 
 server {
     listen 80;
     listen [::]:80;
-    server_name example.com *.example.com;
+    server_name <domain> *.<domain>;
     client_max_body_size 50m;
 
     location /.well-known/acme-challenge/ {
@@ -176,7 +168,7 @@ server {
     }
 
     location / {
-        proxy_pass http://127.0.0.1:8097;
+        proxy_pass http://127.0.0.1:<host-port>;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -197,7 +189,7 @@ nginx -t && systemctl reload nginx
 Issue certificates:
 
 ```sh
-certbot --nginx -d example.com
+certbot --nginx -d <domain>
 ```
 
 For subdomains without DNS API access, use DNS catch-all plus HTTP challenge only for hostnames that resolve to the VPS. Wildcard TLS usually needs DNS challenge; do not assume Certbot can issue `*.example.com` via HTTP.
@@ -236,7 +228,7 @@ ssh root@109.199.107.55 'docker ps --format "{{.Names}} {{.Status}}" | grep <con
 4. Verify HTTP:
 
 ```sh
-curl -I -k -s https://example.com/login | head -8
+curl -I -k -s https://<domain>/login | head -8
 ```
 
 5. Check app logs directly if Compose logs hits the stale-container issue:
@@ -251,7 +243,7 @@ ssh root@109.199.107.55 'tail -120 /opt/<project-name>/runtime-logs/startup.log'
 For tenant/bot-specific webhooks, use:
 
 ```text
-https://<primary-domain>/api/telegram/webhook?tenantTelegramSettingsId=<bot-settings-id>
+https://<domain>/api/telegram/webhook?<app-specific-bot-query>
 ```
 
 Check webhook:
@@ -265,7 +257,7 @@ Set webhook from a trusted environment only:
 ```sh
 curl -s -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
   -H "Content-Type: application/json" \
-  -d '{"url":"https://example.com/api/telegram/webhook?tenantTelegramSettingsId=<id>","allowed_updates":["message","edited_message","channel_post","chat_member","my_chat_member"]}'
+  -d '{"url":"https://<domain>/api/telegram/webhook?<app-specific-bot-query>","allowed_updates":["message","edited_message","channel_post","chat_member","my_chat_member"]}'
 ```
 
 Bots can only send private messages after the user opens the bot and sends `/start`.
