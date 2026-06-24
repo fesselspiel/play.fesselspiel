@@ -14,6 +14,7 @@ import { downloadTelegramFile, largestTelegramPhoto, sendTelegramMessage, telegr
 import type { TelegramChatMemberUpdate, TelegramMessage, TelegramUpdate, TelegramUser } from "@/lib/telegram";
 import { uniqueSlug } from "@/lib/slug";
 import { rememberKnownTelegramUser } from "@/lib/telegram-known-users";
+import { ensureLegacyUserSettings } from "@/lib/tenant-telegram";
 import { startTrackerEntry, stopTrackerEntry } from "@/lib/tracker-core";
 
 type TelegramMessageFrom = TelegramMessage["from"];
@@ -417,6 +418,102 @@ async function findActiveTelegramChat(chatId: string, threadId: string | null, h
   });
 }
 
+async function resolveDirectTelegramChat(message: TelegramMessage, hints: { userSettingsId?: string | null; tenantTelegramSettingsId?: string | null } = {}) {
+  if (message.chat.type !== "private" || !message.from?.id || !hints.tenantTelegramSettingsId) return null;
+  const telegramUserId = String(message.from.id);
+  const telegramUsername = String(message.from.username || "").trim().replace(/^@+/, "").toLowerCase();
+  const telegramSettings = await prisma.tenantTelegramSettings.findUnique({
+    where: { id: hints.tenantTelegramSettingsId },
+    include: {
+      telegramUserMappings: { include: { appUser: true } },
+      tenant: { include: { memberships: { where: { active: true, user: { active: true } }, include: { user: true }, orderBy: [{ role: "asc" }, { createdAt: "asc" }] } } }
+    }
+  });
+  if (!telegramSettings?.telegramBotTokenEnc) return null;
+  const mapped = telegramSettings.telegramUserMappings.find((entry) =>
+    entry.appUser.active && ((entry.telegramUserId && entry.telegramUserId === telegramUserId) || (telegramUsername && entry.telegramUsername === telegramUsername))
+  );
+  const ownerId = mapped?.appUserId || telegramSettings.ownerId || telegramSettings.tenant.memberships.find((entry) => entry.role === "SUPER_ADMIN" || entry.role === "ADMIN")?.userId || telegramSettings.tenant.memberships[0]?.userId;
+  if (!ownerId) return null;
+  const legacySettings = await ensureLegacyUserSettings(ownerId);
+  const name = [message.from.first_name, message.from.last_name].filter(Boolean).join(" ") || (telegramUsername ? `@${telegramUsername}` : `Telegram ${telegramUserId}`);
+  const targetUserId = mapped?.appUserId || (telegramSettings.scope === "USER" ? telegramSettings.ownerId : null);
+  const status = targetUserId ? "ACTIVE" : "PENDING";
+  const existing = await prisma.telegramChat.findFirst({
+    where: { telegramSettingsId: telegramSettings.id, chatId: String(message.chat.id), threadId: null },
+    include: {
+      settings: { include: { user: true, telegramUserMappings: { include: { appUser: true } } } },
+      telegramSettings: { include: { telegramUserMappings: { include: { appUser: true } } } }
+    }
+  });
+  const chat = existing
+    ? await prisma.telegramChat.update({
+        where: { id: existing.id },
+        data: {
+          settingsId: legacySettings.id,
+          chatType: "private",
+          title: "Direktchat",
+          chatTitle: name,
+          threadTitle: null,
+          targetUserId,
+          status,
+          lastMessageText: message.text || message.caption || null,
+          lastMessageFrom: name,
+          lastMessageAt: new Date()
+        },
+        include: {
+          settings: { include: { user: true, telegramUserMappings: { include: { appUser: true } } } },
+          telegramSettings: { include: { telegramUserMappings: { include: { appUser: true } } } }
+        }
+      })
+    : await prisma.telegramChat.create({
+        data: {
+          settingsId: legacySettings.id,
+          telegramSettingsId: telegramSettings.id,
+          targetUserId,
+          chatId: String(message.chat.id),
+          threadId: null,
+          chatType: "private",
+          title: "Direktchat",
+          chatTitle: name,
+          threadTitle: null,
+          status,
+          lastMessageText: message.text || message.caption || null,
+          lastMessageFrom: name,
+          lastMessageAt: new Date()
+        },
+        include: {
+          settings: { include: { user: true, telegramUserMappings: { include: { appUser: true } } } },
+          telegramSettings: { include: { telegramUserMappings: { include: { appUser: true } } } }
+        }
+      });
+  await rememberTelegramKnownUserForSettings(legacySettings.id, message.from, {
+    telegramSettingsId: telegramSettings.id,
+    source: "DIRECT_CHAT",
+    chatId: String(message.chat.id),
+    chatTitle: name
+  });
+  await prisma.auditLog.create({
+    data: {
+      actorId: targetUserId || null,
+      action: targetUserId ? "telegram_direct_chat_enabled" : "telegram_direct_chat_detected",
+      entityType: "telegramChat",
+      entityId: chat.id,
+      title: targetUserId ? `Telegram-Direktchat aktiviert: ${name}` : `Telegram-Direktchat erkannt: ${name}`,
+      href: "/settings/telegram",
+      details: {
+        chatId: String(message.chat.id),
+        chatType: "private",
+        targetUserId,
+        botId: telegramSettings.id,
+        botName: telegramSettings.name,
+        ...telegramUserDetails(message.from)
+      }
+    }
+  });
+  return chat.status === "ACTIVE" ? chat : null;
+}
+
 async function findKnownTelegramChatInGroup(chatId: string, hints: { userSettingsId?: string | null; tenantTelegramSettingsId?: string | null } = {}) {
   return prisma.telegramChat.findFirst({
     where: {
@@ -621,9 +718,24 @@ export async function POST(request: Request) {
   }
   const chatId = String(message.chat.id);
   const threadId = message.message_thread_id ? String(message.message_thread_id) : null;
-  const chat = await findActiveTelegramChat(chatId, threadId, hints);
+  const chat = await findActiveTelegramChat(chatId, threadId, hints) || await resolveDirectTelegramChat(message, hints);
   const tokenEnc = chatBotTokenEnc(chat);
   if (!chat || !tokenEnc) {
+    if (message.chat.type === "private" && hints.tenantTelegramSettingsId) {
+      const telegramSettings = await prisma.tenantTelegramSettings.findUnique({
+        where: { id: hints.tenantTelegramSettingsId },
+        select: { telegramBotTokenEnc: true }
+      });
+      if (telegramSettings?.telegramBotTokenEnc) {
+        await sendTelegramMessage(
+          telegramSettings.telegramBotTokenEnc,
+          chatId,
+          null,
+          "<b>Direktchat erkannt</b>\nBitte ordne diesen Telegram-Benutzer in der App unter Telegram einem Benutzer zu. Danach kann ich hier direkt antworten.",
+          { parseMode: "HTML", disableWebPagePreview: true }
+        );
+      }
+    }
     const knownGroupChat = await findKnownTelegramChatInGroup(chatId, hints);
     if (knownGroupChat) {
       await rememberTelegramKnownUserForSettings(knownGroupChat.settingsId, message.from, { telegramSettingsId: knownGroupChat.telegramSettingsId });

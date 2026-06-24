@@ -72,6 +72,8 @@ export const knownAuditActions = [
   ["telegram_admin_sync_failed", "Telegram-Admin-Abgleich fehlgeschlagen"],
   ["telegram_admins_synced", "Telegram-Admins synchronisiert"],
   ["telegram_chat_save_failed", "Telegram-Chat speichern fehlgeschlagen"],
+  ["telegram_direct_chat_detected", "Telegram-Direktchat erkannt"],
+  ["telegram_direct_chat_enabled", "Telegram-Direktchat aktiviert"],
   ["telegram_image_received", "Telegram-Bild empfangen"],
   ["telegram_member_detected", "Telegram-Mitglied erkannt"],
   ["telegram_member_discovery_enabled", "Telegram-Mitgliedserkennung aktiviert"],

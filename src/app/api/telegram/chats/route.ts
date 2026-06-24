@@ -10,6 +10,7 @@ import { rememberKnownTelegramUser } from "@/lib/telegram-known-users";
 const Body = z.object({
   chatId: z.string().min(1),
   threadId: z.string().nullable().optional(),
+  chatType: z.string().nullable().optional(),
   title: z.string().optional(),
   chatTitle: z.string().optional(),
   threadTitle: z.string().nullable().optional(),
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
   const targetUserId = membership?.active ? user.id : null;
   const activeTelegramSettingsId = telegramSettings.id;
   const threadId = parsed.data.threadId || null;
+  const chatType = parsed.data.chatType || null;
   const chatTitle = parsed.data.chatTitle || parsed.data.title || parsed.data.chatId;
   const threadTitle = parsed.data.threadTitle || null;
   const existing = await prisma.telegramChat.findFirst({
@@ -66,6 +68,7 @@ export async function POST(request: Request) {
           title: threadTitle || existing.threadTitle || null,
           chatTitle: chatTitle || existing.chatTitle,
           threadTitle: threadTitle || existing.threadTitle,
+          chatType: chatType || existing.chatType,
           status: "ACTIVE",
           targetUserId: existing.targetUserId || targetUserId,
           settingsId: legacySettings.id,
@@ -80,6 +83,7 @@ export async function POST(request: Request) {
           targetUserId,
           chatId: parsed.data.chatId,
           threadId,
+          chatType,
           title: threadTitle || null,
           chatTitle,
           threadTitle,

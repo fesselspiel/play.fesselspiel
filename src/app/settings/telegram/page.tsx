@@ -104,6 +104,7 @@ function telegramKnownUserSourceLabel(source?: string | null) {
   if (source === "MEMBER_SERVICE_MESSAGE") return "Mitglied hinzugefügt/entfernt";
   if (source === "BOT_MEMBER_UPDATE") return "Bot-Status";
   if (source === "CHAT_DISCOVERY") return "Chat einlesen";
+  if (source === "DIRECT_CHAT") return "Direktchat";
   if (source === "PROTOCOL") return "Protokoll";
   return "Nachricht";
 }
@@ -259,6 +260,7 @@ async function updateChat(formData: FormData) {
       threadTitle: String(formData.get("threadTitle") || "").trim() || null,
       chatId: String(formData.get("chatId") || "").trim(),
       threadId: String(formData.get("threadId") || "") || null,
+      chatType: String(formData.get("chatType") || "") || null,
       status: String(formData.get("status") || "ACTIVE") as "ACTIVE" | "DISABLED" | "PENDING",
       ...targetData
     }
@@ -522,6 +524,7 @@ async function activateDetectedChat(formData: FormData) {
           title: null,
           chatTitle: chat.chatTitle || chat.title || existingWholeChat.chatTitle || existingWholeChat.title,
           threadTitle: null,
+          chatType: chat.chatType,
           status: "ACTIVE",
           lastMessageAt: new Date(),
           ...targetData
@@ -535,6 +538,7 @@ async function activateDetectedChat(formData: FormData) {
           ...targetData,
           chatId: chat.chatId,
           threadId: null,
+          chatType: chat.chatType,
           title: null,
           chatTitle: chat.chatTitle || chat.title,
           threadTitle: null,
@@ -600,6 +604,7 @@ type TelegramChatOption = {
   id: string;
   chatId: string;
   threadId: string | null;
+  chatType?: string | null;
   title: string | null;
   chatTitle: string | null;
   threadTitle: string | null;
@@ -619,9 +624,15 @@ function threadNameLabel(chat: { title?: string | null; chatTitle?: string | nul
   return chat.threadId ? "Thread-Name fehlt" : "Hauptchat";
 }
 
+function chatKindLabel(chat: { chatType?: string | null; threadId?: string | null }) {
+  if (chat.chatType === "private") return "Direktchat";
+  if (chat.threadId) return "Thread";
+  return "Gruppenchat";
+}
+
 function chatLabel(chat: TelegramChatOption) {
   const target = chat.targetCircle ? `Kreis ${chat.targetCircle.name}` : chat.targetUser ? userLabel(chat.targetUser) : "ohne Ziel";
-  return `${threadNameLabel(chat)} · ${chatTitleLabel(chat)} · Chat ${chat.chatId} · Thread ${chat.threadId || "-"} · ${target}`;
+  return `${chatKindLabel(chat)} · ${threadNameLabel(chat)} · ${chatTitleLabel(chat)} · Chat ${chat.chatId} · Thread ${chat.threadId || "-"} · ${target}`;
 }
 
 function detailText(details: unknown, key: string) {
@@ -928,6 +939,9 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
             <h2 className="mb-4 text-lg font-semibold">Chat bestätigen</h2>
             <p className="mb-4 text-sm leading-6 text-graphite">Schreibe dem Bot eine Testnachricht im gewünschten Chat oder Thread. Danach liest der Button die letzten Telegram-Updates aus und zeigt Chat-ID sowie Thread-ID an.</p>
             <TelegramChatDiscovery scope="tenant" botId={settings?.id} />
+            <p className="mt-4 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
+              Direktnachrichten funktionieren, sobald ein Benutzer den Bot selbst öffnet und /start sendet. Telegram erlaubt Bots aus Datenschutzgründen nicht, private Chats ungefragt zu beginnen.
+            </p>
           </Panel>
           <Panel id="additional-bots">
             <h2 className="mb-4 text-lg font-semibold">Weitere Seitenbots</h2>
@@ -969,6 +983,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div><span className="text-graphite">Chatname:</span> {chatTitleLabel(chat)}</div>
                     <div><span className="text-graphite">Threadname:</span> {threadNameLabel(chat)}</div>
+                    <div><span className="text-graphite">Typ:</span> {chatKindLabel(chat)}</div>
                     <div><span className="text-graphite">Status:</span> <Badge tone="neutral">wartet</Badge></div>
                     <div><span className="text-graphite">Chat-ID:</span> <strong>{chat.chatId}</strong></div>
                     <div><span className="text-graphite">Thread-ID:</span> <strong>{chat.threadId || "-"}</strong></div>
@@ -979,14 +994,32 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                     <div className="mt-1 text-xs text-graphite">Von: {chat.lastMessageFrom || "-"} · Erkannt: {formatDateTime(chat.lastMessageAt)}</div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <form action={activateDetectedChat}>
-                      <input type="hidden" name="chatId" value={chat.id} />
-                      <input type="hidden" name="scope" value="thread" />
-                      <input type="hidden" name="targetType" value="user" />
-                      <input type="hidden" name="targetUserId" value={user.id} />
-                      <Button type="submit" variant="secondary"><Check className="h-4 w-4" /> Nur diesen Thread aktivieren</Button>
-                    </form>
-                    {!chat.threadId ? (
+                    {chat.chatType === "private" ? (
+                      <form action={activateDetectedChat} className="grid w-full gap-3 rounded-md border border-line bg-surface p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                        <input type="hidden" name="chatId" value={chat.id} />
+                        <input type="hidden" name="scope" value="thread" />
+                        <input type="hidden" name="targetType" value="user" />
+                        <Field label="Direktchat gehört zu">
+                          <select className={selectClass} name="targetUserId" defaultValue={chat.targetUserId || ""} required>
+                            <option value="">Benutzer auswählen</option>
+                            {targetUsers.map((entry) => <option key={entry.id} value={entry.id}>{userLabel(entry)}</option>)}
+                          </select>
+                        </Field>
+                        <div className="text-xs leading-5 text-graphite sm:pb-2">
+                          Nach dem Aktivieren kann der Bot mit diesem Benutzer direkt im privaten Chat kommunizieren.
+                        </div>
+                        <Button type="submit"><Check className="h-4 w-4" /> Direktchat aktivieren</Button>
+                      </form>
+                    ) : (
+                      <form action={activateDetectedChat}>
+                        <input type="hidden" name="chatId" value={chat.id} />
+                        <input type="hidden" name="scope" value="thread" />
+                        <input type="hidden" name="targetType" value="user" />
+                        <input type="hidden" name="targetUserId" value={user.id} />
+                        <Button type="submit" variant="secondary"><Check className="h-4 w-4" /> Nur diesen Thread aktivieren</Button>
+                      </form>
+                    )}
+                    {!chat.threadId && chat.chatType !== "private" ? (
                       <form action={activateDetectedChat}>
                         <input type="hidden" name="chatId" value={chat.id} />
                         <input type="hidden" name="scope" value="chat" />
@@ -1013,6 +1046,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                   <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
                     <span className="min-w-0">
                       <strong className="block truncate">{threadNameLabel(chat)}</strong>
+                      <span className="mt-1 block text-graphite">Typ: {chatKindLabel(chat)}</span>
                       <span className="mt-1 block text-graphite">Threadname: {threadNameLabel(chat)}</span>
                       <span className="mt-1 block text-graphite">Chatname: {chatTitleLabel(chat)}</span>
                       <span className="mt-1 block text-graphite">Chat-ID: {chat.chatId} · Thread-ID: {chat.threadId || "-"}</span>
@@ -1030,6 +1064,7 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
                     </div>
                     <form action={updateChat} className="grid gap-3 sm:grid-cols-2">
                       <input type="hidden" name="chatIdInternal" value={chat.id} />
+                      <input type="hidden" name="chatType" value={chat.chatType || ""} />
                       <Field label="Chatname"><input className={inputClass} name="chatTitle" defaultValue={chat.chatTitle || chat.title || ""} placeholder="z.B. Fesselspiel Play" /></Field>
                       <Field label="Threadname"><input className={inputClass} name="threadTitle" defaultValue={chat.threadTitle || ""} placeholder={chat.threadId ? "z.B. Testing" : "Hauptchat"} /></Field>
                       <Field label="Status">

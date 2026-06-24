@@ -117,6 +117,7 @@ export function TelegramChatDiscovery({ scope = "tenant", botId }: { scope?: "te
         body: JSON.stringify({
           chatId: candidate.chatId,
           threadId: candidate.threadId,
+          chatType: candidate.chatType,
           title: candidate.title,
           chatTitle: candidate.chatTitle,
           threadTitle: candidate.threadTitle,
@@ -176,7 +177,7 @@ export function TelegramChatDiscovery({ scope = "tenant", botId }: { scope?: "te
         </div>
       ) : null}
       <p className="rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
-        Für automatische Mitgliedserkennung muss der Bot Gruppenadmin sein und der Webhook einmal neu auf diese App gesetzt werden. Telegram liefert bestehende normale Gruppenmitglieder nicht vollständig nachträglich; Admins können in den Einstellungen synchronisiert werden.
+        Für Direktchats muss der Benutzer den Bot einmal in Telegram öffnen und /start senden. Danach erscheint der private Chat hier und kann einem App-Benutzer zugeordnet werden.
       </p>
       {error ? <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-redbrand">{error}</p> : null}
       <div className="space-y-3">
@@ -189,6 +190,7 @@ export function TelegramChatDiscovery({ scope = "tenant", botId }: { scope?: "te
                 <div><span className="text-graphite">Thread-ID:</span> <strong>{candidate.threadId || "-"}</strong></div>
                 <div><span className="text-graphite">Chatname:</span> {candidate.chatTitle || candidate.title || "Unbenannter Chat"}</div>
                 <div><span className="text-graphite">Threadname:</span> {candidate.threadTitle || (candidate.threadId ? "Thread-Name fehlt" : "Hauptchat")}</div>
+                <div><span className="text-graphite">Typ:</span> {candidate.chatType === "private" ? "Direktchat" : candidate.chatType || "-"}</div>
                 <div><span className="text-graphite">Von:</span> {candidate.from || "-"}{candidate.fromId ? ` · ID ${candidate.fromId}` : ""}</div>
               </div>
               <div className="mt-3 rounded-md bg-surface p-3 text-sm">
