@@ -6,6 +6,7 @@ import { formatDateTime, formatMinutes } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug, uniqueSlugForUpdate } from "@/lib/slug";
 import { telegramHtml, telegramLink } from "@/lib/telegram";
+import { queueImageReplacement } from "@/lib/telegram-item-dialogue";
 import { startTrackerEntry, stopTrackerEntry } from "@/lib/tracker-core";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 
@@ -436,7 +437,15 @@ async function updateToy(userId: string, args: Record<string, unknown>): Promise
   const nextTitle = clean(args.title);
   const nextDescription = clean(args.description);
   const nextImageUrl = clean(args.imageUrl);
+  const wantsImageReplacement = /bild|foto|image/i.test(`${clean(args.intent)} ${clean(args.change)} ${clean(args.description)}`) || (args.imageUrl === undefined && !nextTitle && !nextDescription);
   if (!nextTitle && !nextDescription && args.imageUrl === undefined) {
+    if (wantsImageReplacement) {
+      return {
+        ok: true,
+        message: await queueImageReplacement(userId, "toy", toy.id, toy.title, toy.slug),
+        data: { pendingAction: "update_image", entityType: "toy", title: toy.title, url: link(`/toys/${toy.slug}`) }
+      };
+    }
     return { ok: false, message: "Es fehlt die Änderung. Gib Titel, Beschreibung oder Bild an." };
   }
   const updated = await prisma.toy.update({

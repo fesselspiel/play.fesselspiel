@@ -195,7 +195,9 @@ export const capabilities: readonly Capability[] = [
               titleOrSlug: { type: "string", description: "Aktueller Titel oder Slug des Spielzeugs, das geändert werden soll." },
               title: { type: "string", description: "Neuer Titel, falls er geändert werden soll." },
               description: { type: "string", description: "Neue Beschreibung, falls sie geändert werden soll." },
-              imageUrl: { type: "string", description: "Neue Bild-URL, falls das Bild geändert werden soll." }
+              imageUrl: { type: "string", description: "Neue Bild-URL, falls das Bild geändert werden soll." },
+              intent: { type: "string", description: "Kurze Beschreibung der Absicht, z.B. Bild ersetzen oder Beschreibung ändern." },
+              change: { type: "string", description: "Welche Art Änderung gewünscht ist." }
             },
             required: ["titleOrSlug"],
             additionalProperties: false

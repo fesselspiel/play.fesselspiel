@@ -818,7 +818,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                 </a>
                 <form action={deleteMedia} className="flex-1">
                   <input type="hidden" name="id" value={selected.id} />
-                  <SubmitButton pendingLabel="Bild wird gelöscht..." className="w-full border border-redbrand bg-surface text-redbrand hover:bg-redbrand hover:text-white">
+                  <SubmitButton pendingLabel="Bild wird gelöscht..." className="w-full border border-redbrand bg-redbrand text-white hover:bg-redbrandHover">
                     <Trash2 className="h-4 w-4" />
                     Löschen
                   </SubmitButton>

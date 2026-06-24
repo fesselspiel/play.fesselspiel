@@ -5,6 +5,7 @@ import { telegramHtml, telegramLink } from "@/lib/telegram";
 
 type DraftKind = "toy" | "position" | "album";
 type DraftStatus = "ACTIVE" | "DONE" | "CANCELLED";
+type ImageReplacementTarget = "toy" | "position";
 
 type ItemDraft = {
   kind: DraftKind;
@@ -18,7 +19,16 @@ type ItemDraft = {
   };
 };
 
+type ImageReplacementDraft = {
+  status: DraftStatus;
+  target: ImageReplacementTarget;
+  targetId: string;
+  label: string;
+  slug: string;
+};
+
 const DRAFT_PREFIX = "Telegram-Draft:";
+const IMAGE_REPLACEMENT_PREFIX = "Telegram-Image-Replacement:";
 
 function clean(value: string) {
   return value.trim().replace(/^["'`]+|["'`]+$/g, "").trim();
@@ -60,6 +70,35 @@ async function saveDraft(userId: string, draft: ItemDraft) {
   });
 }
 
+function parseImageReplacementDraft(body: string): ImageReplacementDraft | null {
+  if (!body.startsWith(IMAGE_REPLACEMENT_PREFIX)) return null;
+  try {
+    const parsed = JSON.parse(body.slice(IMAGE_REPLACEMENT_PREFIX.length).trim()) as ImageReplacementDraft;
+    if ((parsed.target === "toy" || parsed.target === "position") && ["ACTIVE", "DONE", "CANCELLED"].includes(parsed.status) && parsed.targetId) return parsed;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+async function saveImageReplacementDraft(userId: string, draft: ImageReplacementDraft) {
+  await prisma.message.create({
+    data: {
+      senderId: userId,
+      body: `${IMAGE_REPLACEMENT_PREFIX} ${JSON.stringify(draft)}`
+    }
+  });
+}
+
+export async function queueImageReplacement(userId: string, target: ImageReplacementTarget, targetId: string, label: string, slug: string) {
+  await saveImageReplacementDraft(userId, { status: "ACTIVE", target, targetId, label, slug });
+  return [
+    "<b>Bild ersetzen</b>",
+    `Ich ersetze das Bild für ${telegramHtml(label)}.`,
+    "Sende jetzt das neue Bild hier in den Chat."
+  ].join("\n");
+}
+
 async function latestActiveDraft(userId: string) {
   const messages = await prisma.message.findMany({
     where: { senderId: userId, body: { startsWith: DRAFT_PREFIX } },
@@ -71,6 +110,72 @@ async function latestActiveDraft(userId: string) {
     if (draft) return draft.status === "ACTIVE" ? draft : null;
   }
   return null;
+}
+
+async function latestActiveImageReplacementDraft(userId: string) {
+  const messages = await prisma.message.findMany({
+    where: { senderId: userId, body: { startsWith: IMAGE_REPLACEMENT_PREFIX } },
+    orderBy: { createdAt: "desc" },
+    take: 10
+  });
+  for (const message of messages) {
+    const draft = parseImageReplacementDraft(message.body);
+    if (draft) return draft.status === "ACTIVE" ? draft : null;
+  }
+  return null;
+}
+
+function imageReplacementQuery(text: string) {
+  const normalized = clean(text);
+  if (!/(bild|foto|image)/i.test(normalized) || !/(ersetzen|ändere|aendere|ändern|aendern|tausche|tauschen|neu|ersetze)/i.test(normalized)) return "";
+  const explicit = normalized.match(/(?:für|fuer|von|bei)\s+(.+)$/i)?.[1] || "";
+  const withoutIntent = normalized
+    .replace(/(?:bitte|kannst du|kannst du bitte|ich möchte|ich will)/gi, "")
+    .replace(/(?:das|ein|neues|neue)?\s*(?:bild|foto|image)\s*(?:ersetzen|ändern|aendern|tauschen|neu machen)?/gi, "")
+    .replace(/(?:ersetze|ändere|aendere|tausche)\s*(?:das|ein|neues|neue)?\s*(?:bild|foto|image)?/gi, "")
+    .replace(/(?:für|fuer|von|bei)\s+/gi, "")
+    .trim();
+  return clean(explicit || withoutIntent);
+}
+
+async function findImageReplacementTarget(userId: string, query: string) {
+  const tenantId = await tenantIdForUser(userId);
+  const where = {
+    ...(tenantId ? { tenantId } : {}),
+    ownerId: userId,
+    OR: [
+      { title: { contains: query, mode: "insensitive" as const } },
+      { slug: { contains: query, mode: "insensitive" as const } }
+    ]
+  };
+  const toy = query
+    ? await prisma.toy.findFirst({ where, orderBy: { updatedAt: "desc" } })
+    : null;
+  if (toy) return { target: "toy" as const, targetId: toy.id, label: toy.title, slug: toy.slug };
+
+  const position = query
+    ? await prisma.position.findFirst({
+        where: {
+          ...(tenantId ? { tenantId } : {}),
+          ownerId: userId,
+          OR: [
+            { name: { contains: query, mode: "insensitive" as const } },
+            { slug: { contains: query, mode: "insensitive" as const } }
+          ]
+        },
+        orderBy: { updatedAt: "desc" }
+      })
+    : null;
+  if (position) return { target: "position" as const, targetId: position.id, label: position.name, slug: position.slug };
+  return null;
+}
+
+export async function handleImageReplacementDialogue(userId: string, text: string) {
+  const query = imageReplacementQuery(text);
+  if (!query) return null;
+  const target = await findImageReplacementTarget(userId, query);
+  if (!target) return `Ich habe keinen passenden Datensatz für <b>${telegramHtml(query)}</b> gefunden. Schreibe den Namen bitte genauer.`;
+  return queueImageReplacement(userId, target.target, target.targetId, target.label, target.slug);
 }
 
 function initialKind(text: string): DraftKind | null {
@@ -291,6 +396,38 @@ export async function startToyCreationDialogue(userId: string, title?: string) {
 }
 
 export async function handleItemCreationImage(userId: string, imageUrl: string) {
+  const pendingReplacement = await latestActiveImageReplacementDraft(userId);
+  if (pendingReplacement) {
+    if (pendingReplacement.target === "toy") {
+      const toy = await prisma.toy.update({ where: { id: pendingReplacement.targetId }, data: { imageUrl } });
+      await saveImageReplacementDraft(userId, { ...pendingReplacement, label: toy.title, slug: toy.slug, status: "DONE" });
+      await prisma.auditLog.create({
+        data: {
+          actorId: userId,
+          action: "toy_image_changed_telegram",
+          entityType: "toy",
+          entityId: toy.id,
+          title: `Spielzeugbild per Telegram ersetzt: ${toy.title}`,
+          href: `/toys/${toy.slug}`
+        }
+      });
+      return `<b>Bild ersetzt</b>\n${telegramHtml(toy.title)}\n${telegramLink(link(`/toys/${toy.slug}`), "öffnen")}`;
+    }
+    const position = await prisma.position.update({ where: { id: pendingReplacement.targetId }, data: { imageUrl } });
+    await saveImageReplacementDraft(userId, { ...pendingReplacement, label: position.name, slug: position.slug, status: "DONE" });
+    await prisma.auditLog.create({
+      data: {
+        actorId: userId,
+        action: "position_image_changed_telegram",
+        entityType: "position",
+        entityId: position.id,
+        title: `Szenenbild per Telegram ersetzt: ${position.name}`,
+        href: `/positions/${position.slug}`
+      }
+    });
+    return `<b>Bild ersetzt</b>\n${telegramHtml(position.name)}\n${telegramLink(link(`/positions/${position.slug}`), "öffnen")}`;
+  }
+
   const existing = await latestActiveDraft(userId);
   if (!existing) return null;
   if (!needsImage(existing)) {

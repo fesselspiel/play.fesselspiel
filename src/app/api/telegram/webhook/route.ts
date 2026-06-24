@@ -4,7 +4,7 @@ import { buildTelegramHelpText } from "@/lib/capabilities";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { answerWithPortalAgent } from "@/lib/telegram-agent";
-import { handleItemCreationDialogue, handleItemCreationImage, startAlbumCreationDialogue, startToyCreationDialogue } from "@/lib/telegram-item-dialogue";
+import { handleImageReplacementDialogue, handleItemCreationDialogue, handleItemCreationImage, startAlbumCreationDialogue, startToyCreationDialogue } from "@/lib/telegram-item-dialogue";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
 import { logAction } from "@/lib/audit";
 import { createSessionHistoryForCompletedOrder, isSelfBondageOrder, selfBondageCategory } from "@/lib/activity-orders";
@@ -981,10 +981,12 @@ export async function POST(request: Request) {
         ...telegramUserDetails(message.from)
       }
     });
-    const itemDialogueAnswer = commandOf(body) ? null : await handleItemCreationDialogue(actorUserId, body);
+    const imageReplacementAnswer = commandOf(body) ? null : await handleImageReplacementDialogue(actorUserId, body);
+    const itemDialogueAnswer = commandOf(body) || imageReplacementAnswer ? null : await handleItemCreationDialogue(actorUserId, body);
     const answer = commandOf(body)
       ? await handleCommand(actorUserId, body, chatId, threadId)
-      : itemDialogueAnswer ||
+      : imageReplacementAnswer ||
+        itemDialogueAnswer ||
         (await answerWithPortalAgent({
           userId: actorUserId,
           text: body,
