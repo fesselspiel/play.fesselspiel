@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
 import { telegramHtml, telegramLink } from "@/lib/telegram";
 import { startTrackerEntry, stopTrackerEntry } from "@/lib/tracker-core";
+import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 
 type PortalAgentInput = {
   userId: string;
@@ -53,6 +54,22 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           area: { type: "string", enum: ["all", "toys", "positions", "activities", "sessions"] }
         },
         required: ["query", "area"],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_tracker_quotas",
+      description: "Liest Tracker-Kontingente, Restzeiten, offene Todos und bereits erfüllte Zeiten. Verwenden bei Fragen wie: Rest-Kontingent, wie viel ist noch übrig, wie viel muss ich heute/diese Woche/diesen Monat noch machen, Tracker-Todo, Sollzeit.",
+      parameters: {
+        type: "object",
+        properties: {
+          trackerKeyOrTitle: { type: "string", description: "Optionaler Tracker, z.B. Segufix, KG oder technischer Schlüssel." },
+          period: { type: "string", enum: ["all", "daily", "weekly", "monthly"], description: "Gefragter Zeitraum. all, wenn unklar." }
+        },
+        required: ["trackerKeyOrTitle", "period"],
         additionalProperties: false
       }
     }
@@ -248,6 +265,40 @@ function htmlList(title: string, rows: string[]) {
   return [`<b>${telegramHtml(title)}</b>`, ...rows].join("\n\n");
 }
 
+type TrackerQuotaStatus = Awaited<ReturnType<typeof trackerQuotaStatusForUser>>[number];
+
+function quotaProgressLine(label: string, progress: { required: number; done: number; remaining: number; complete: boolean }, unit: "minutes" | "days") {
+  if (!progress.required) return "";
+  const done = unit === "minutes" ? formatMinutes(progress.done) : `${progress.done} Tage`;
+  const required = unit === "minutes" ? formatMinutes(progress.required) : `${progress.required} Tage`;
+  const remaining = unit === "minutes" ? formatMinutes(progress.remaining) : `${progress.remaining} Tage`;
+  return [
+    `<b>${telegramHtml(label)}</b>`,
+    htmlLine("Erledigt", `${done} von ${required}`),
+    htmlLine(progress.complete ? "Offen" : "Noch zu tun", progress.complete ? "erfüllt" : remaining)
+  ].join("\n");
+}
+
+function trackerQuotaHtml(status: TrackerQuotaStatus, period = "all") {
+  const rows = [
+    period === "all" || period === "daily" ? quotaProgressLine("Heute", status.daily, "minutes") : "",
+    period === "all" || period === "weekly" ? quotaProgressLine(status.weeklyMode === "rolling" ? "Letzte 7 Tage" : "Diese Woche", status.weekly, "minutes") : "",
+    period === "all" || period === "monthly" ? quotaProgressLine("Dieser Monat Zeit", status.monthlyMinutes, "minutes") : "",
+    period === "all" || period === "monthly" ? quotaProgressLine("Dieser Monat Tage", status.monthlyDays, "days") : ""
+  ].filter(Boolean);
+  return [
+    `<b>${telegramHtml(status.tracker.title)}</b>`,
+    rows.length ? rows.join("\n\n") : "Kein Kontingent konfiguriert.",
+    telegramLink(link(`/sessions?tracker=${status.tracker.key}`), "Tracker öffnen")
+  ].join("\n");
+}
+
+function formatTrackerQuotasHtml(quotas: TrackerQuotaStatus[], period = "all") {
+  const filtered = quotas.filter((entry) => entry.hasQuota);
+  if (!filtered.length) return "<b>Tracker-Kontingente</b>\nKeine Kontingente konfiguriert.";
+  return [`<b>Tracker-Kontingente</b>`, ...filtered.map((entry) => trackerQuotaHtml(entry, period))].join("\n\n");
+}
+
 function formatToolResultHtml(result: ToolCallResult) {
   if (!result.ok) return telegramHtml(result.message);
   const data = result.data as Record<string, unknown> | undefined;
@@ -263,6 +314,10 @@ function formatToolResultHtml(result: ToolCallResult) {
       htmlLine("Gesamtdauer", data.totalSessionDuration),
       htmlLine("Offene Session", data.openSession || "nein")
     ].join("\n");
+  }
+
+  if ("quotas" in data && Array.isArray(data.quotas)) {
+    return formatTrackerQuotasHtml(data.quotas as TrackerQuotaStatus[], String(data.period || "all"));
   }
 
   const sections: string[] = [];
@@ -361,6 +416,20 @@ async function getPortalStatus(userId: string): Promise<ToolCallResult> {
       totalSessionDuration: formatMinutes(total),
       openSession: openSession ? formatDateTime(openSession.startTime) : null
     }
+  };
+}
+
+async function getTrackerQuotas(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
+  const tenantId = await tenantIdForUser(userId);
+  const query = clean(args.trackerKeyOrTitle).toLowerCase();
+  const period = clean(args.period) || "all";
+  const quotas = (await trackerQuotaStatusForUser({ id: userId, tenantId }))
+    .filter((entry) => entry.hasQuota)
+    .filter((entry) => !query || entry.tracker.key.toLowerCase().includes(query) || entry.tracker.title.toLowerCase().includes(query));
+  return {
+    ok: true,
+    message: quotas.length ? "Tracker-Kontingente geladen." : "Für diesen Tracker ist kein Kontingent konfiguriert.",
+    data: { quotas, period }
   };
 }
 
@@ -567,6 +636,7 @@ async function stopKgTracker(userId: string, args: Record<string, unknown>): Pro
 async function runTool(userId: string, name: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   if (name === "get_portal_status") return getPortalStatus(userId);
   if (name === "search_portal") return searchPortal(userId, args);
+  if (name === "get_tracker_quotas") return getTrackerQuotas(userId, args);
   if (name === "create_toy") return createToy(userId, args);
   if (name === "create_position") return createPosition(userId, args);
   if (name === "create_activity") return createActivity(userId, args);
@@ -636,6 +706,7 @@ export async function answerWithPortalAgent(input: PortalAgentInput) {
         "Du darfst Fragen zum Portal beantworten und über die bereitgestellten Tools Portal-Aktionen ausführen. " +
         "Fuehre Schreibaktionen nur aus, wenn die Absicht des Nutzers klar ist. Frage bei fehlenden Pflichtangaben nach. " +
         "Wenn der Nutzer nur sagt, dass du dir etwas merken, notieren oder als Kontext behalten sollst, führe keine Portal-Schreibaktion aus. " +
+        "Bei Fragen zu Tracker-Kontingenten, Restzeit, Sollzeit, Todo, 'noch übrig' oder 'noch zu machen' musst du get_tracker_quotas verwenden. Antworte dabei mit erledigt und noch offen, nicht mit offenen Sessions. " +
         "Nutze den Dialogverlauf, um kurze Folgeauftraege wie 'das', 'den letzten Plan', 'morgen' oder 'mach daraus' korrekt auf den vorherigen Kontext zu beziehen. " +
         "Erfinde keine vorhandenen Datensätze. Nutze Suchen/Status, wenn du Portalwissen brauchst. " +
         "Wenn du Listen ausgibst, nutze knappes Telegram-HTML mit <b>Überschriften</b>, nummerierten Einträgen und Links. Nutze kein Markdown. " +
@@ -670,7 +741,7 @@ export async function answerWithPortalAgent(input: PortalAgentInput) {
         content: JSON.stringify(result)
       });
     }
-    if (directResults.length === 1 && ["get_portal_status", "search_portal"].includes(directResults[0].name)) {
+    if (directResults.length === 1 && ["get_portal_status", "search_portal", "get_tracker_quotas"].includes(directResults[0].name)) {
       return formatToolResultHtml(directResults[0].result);
     }
   }

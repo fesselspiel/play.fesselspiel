@@ -16,6 +16,7 @@ import { uniqueSlug } from "@/lib/slug";
 import { rememberKnownTelegramUser } from "@/lib/telegram-known-users";
 import { ensureLegacyUserSettings } from "@/lib/tenant-telegram";
 import { startTrackerEntry, stopTrackerEntry } from "@/lib/tracker-core";
+import { trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 
 type TelegramMessageFrom = TelegramMessage["from"];
 
@@ -52,6 +53,7 @@ const HELP_TEXT = `<b>Befehle</b>
 /kg - KG-Auswertung aktuelles Jahr
 /kg_start Notiz - KG-Tracker starten
 /kg_stop Notiz - KG-Tracker beenden
+/kontingent - Tracker-Kontingente und offene Todos anzeigen
 /album_new Name - neues Album anlegen
 
 <b>Du kannst auch normal schreiben</b>
@@ -66,6 +68,42 @@ function htmlLine(label: string, value: unknown) {
 function htmlList(title: string, rows: string[]) {
   if (!rows.length) return `<b>${telegramHtml(title)}</b>\nKeine Einträge gefunden.`;
   return [`<b>${telegramHtml(title)}</b>`, ...rows].join("\n\n");
+}
+
+type TrackerQuotaStatus = Awaited<ReturnType<typeof trackerQuotaStatusForUser>>[number];
+
+function quotaProgressLine(label: string, progress: { required: number; done: number; remaining: number; complete: boolean }, unit: "minutes" | "days") {
+  if (!progress.required) return "";
+  const done = unit === "minutes" ? formatMinutes(progress.done) : `${progress.done} Tage`;
+  const required = unit === "minutes" ? formatMinutes(progress.required) : `${progress.required} Tage`;
+  const remaining = unit === "minutes" ? formatMinutes(progress.remaining) : `${progress.remaining} Tage`;
+  return [
+    `<b>${telegramHtml(label)}</b>`,
+    htmlLine("Erledigt", `${done} von ${required}`),
+    htmlLine(progress.complete ? "Offen" : "Noch zu tun", progress.complete ? "erfüllt" : remaining)
+  ].join("\n");
+}
+
+function trackerQuotaHtml(status: TrackerQuotaStatus, compact = false) {
+  const rows = [
+    quotaProgressLine("Heute", status.daily, "minutes"),
+    quotaProgressLine(status.weeklyMode === "rolling" ? "Letzte 7 Tage" : "Diese Woche", status.weekly, "minutes"),
+    quotaProgressLine("Dieser Monat Zeit", status.monthlyMinutes, "minutes"),
+    quotaProgressLine("Dieser Monat Tage", status.monthlyDays, "days")
+  ].filter(Boolean);
+  if (!rows.length) return "";
+  return compact
+    ? [`<b>${telegramHtml(status.tracker.title)}</b>`, ...rows].join("\n")
+    : [`<b>${telegramHtml(status.tracker.title)}</b>`, rows.join("\n\n"), telegramLink(`${env.appUrl}/sessions?tracker=${status.tracker.key}`, "Tracker öffnen")].join("\n");
+}
+
+async function trackerQuotaMessage(userId: string, trackerKey?: string | null) {
+  const tenantId = await tenantIdForUser(userId);
+  const quotas = (await trackerQuotaStatusForUser({ id: userId, tenantId }))
+    .filter((entry) => entry.hasQuota)
+    .filter((entry) => !trackerKey || entry.tracker.key === trackerKey);
+  if (!quotas.length) return "<b>Tracker-Kontingente</b>\nKeine Kontingente konfiguriert.";
+  return [`<b>Tracker-Kontingente</b>`, ...quotas.map((entry) => trackerQuotaHtml(entry))].join("\n\n");
 }
 
 const activityStatusLabel = { REQUESTED: "angefragt", PLANNED: "geplant", DONE: "durchgeführt", DISCARDED: "verworfen" } as const;
@@ -136,6 +174,12 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
       telegramLink(result.url, "Einladung annehmen"),
       telegramLink(`${env.appUrl}/settings/invites`, "Einladungen verwalten")
     ].filter(Boolean).join("\n");
+  }
+
+  if (parsed.command === "/kontingent" || parsed.command === "/quotas" || parsed.command === "/quota") {
+    const arg = parsed.args.toLowerCase();
+    const trackerKey = arg.includes("kg") ? "kg" : arg.includes("segufix") ? "segufix" : null;
+    return trackerQuotaMessage(userId, trackerKey);
   }
 
   if (parsed.command.startsWith("/media_album_")) {
@@ -313,19 +357,25 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   if (parsed.command === "/sessions") {
     const now = new Date();
     const yearStart = new Date(now.getFullYear(), 0, 1);
-    const sessions = await prisma.trackerEntry.findMany({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, startTime: { gte: yearStart } } });
+    const [sessions, quotaMessage] = await Promise.all([
+      prisma.trackerEntry.findMany({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, startTime: { gte: yearStart } } }),
+      trackerQuotaMessage(userId, "segufix")
+    ]);
     const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
     const open = sessions.filter((session) => !session.endTime && !session.allDay).length;
-    return [`<b>Segufix ${now.getFullYear()}</b>`, htmlLine("Anzahl", sessions.length), htmlLine("Gesamtdauer", formatMinutes(total)), htmlLine("Offen", open), telegramLink(`${env.appUrl}/sessions`, "Tracker öffnen")].join("\n");
+    return [`<b>Segufix ${now.getFullYear()}</b>`, htmlLine("Anzahl", sessions.length), htmlLine("Gesamtdauer", formatMinutes(total)), htmlLine("Offen", open), quotaMessage, telegramLink(`${env.appUrl}/sessions?tracker=segufix`, "Tracker öffnen")].join("\n\n");
   }
 
   if (parsed.command === "/kg") {
     const now = new Date();
     const yearStart = new Date(now.getFullYear(), 0, 1);
-    const sessions = await prisma.trackerEntry.findMany({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "kg" }, startTime: { gte: yearStart } } });
+    const [sessions, quotaMessage] = await Promise.all([
+      prisma.trackerEntry.findMany({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "kg" }, startTime: { gte: yearStart } } }),
+      trackerQuotaMessage(userId, "kg")
+    ]);
     const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
     const open = sessions.filter((session) => !session.endTime && !session.allDay).length;
-    return [`<b>KG Time Tracker ${now.getFullYear()}</b>`, htmlLine("Einträge", sessions.length), htmlLine("Gesamtzeit", formatMinutes(total)), htmlLine("Offen", open), telegramLink(`${env.appUrl}/sessions`, "Tracker öffnen")].join("\n");
+    return [`<b>KG Time Tracker ${now.getFullYear()}</b>`, htmlLine("Einträge", sessions.length), htmlLine("Gesamtzeit", formatMinutes(total)), htmlLine("Offen", open), quotaMessage, telegramLink(`${env.appUrl}/sessions?tracker=kg`, "Tracker öffnen")].join("\n\n");
   }
 
   if (parsed.command === "/album_new" || parsed.command === "/album") {

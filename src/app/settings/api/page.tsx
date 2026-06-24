@@ -81,6 +81,7 @@ export default async function ApiSettingsPage({ searchParams }: { searchParams: 
                 ["GET", "/api/external/invites?token=...", "Einladungskontingent abfragen."],
                 ["GET", "/api/external/invites?token=...&create=1&name=Anna&email=...", "Einladungslink erzeugen; Admins haben unbegrenzt Einladungen."],
                 ["GET", "/api/external/trackers/quotas?token=...", "Kontingente und offene Tracker-Todos abfragen."],
+                ["GET", "/api/external/trackers/quotas?token=...&trackerKey=segufix", "Kontingent eines bestimmten Trackers abfragen, z. B. für Alexa."],
                 ["GET", "/api/external/trackers/{trackerKey}/start?token=...&note=...&startTime=...", "Beliebigen Tracker starten, z. B. trackerKey=segufix oder kg."],
                 ["GET", "/api/external/trackers/{trackerKey}/start?token=...&allDay=true&date=2026-06-24&note=...", "Ganztägigen Tracker-Eintrag ohne Start-/Endzeit anlegen."],
                 ["GET", "/api/external/trackers/{trackerKey}/stop?token=...&note=...", "Beliebigen laufenden Tracker beenden."],
@@ -94,7 +95,7 @@ export default async function ApiSettingsPage({ searchParams }: { searchParams: 
               ))}
             </div>
             <div className="mt-4 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
-              Variablen: <code>{"{trackerKey}"}</code> ist der technische Tracker-Schlüssel. Häufige URL-Parameter sind <code>token</code>, <code>note</code>, <code>title</code>, <code>startTime</code>, <code>date</code>, <code>allDay</code>, <code>state</code>, <code>hours</code>, <code>minutes</code> und <code>expiresMinutes</code>, sofern der jeweilige Endpunkt sie unterstützt.
+              Variablen: <code>{"{trackerKey}"}</code> ist der technische Tracker-Schlüssel. Häufige URL-Parameter sind <code>token</code>, <code>trackerKey</code>, <code>note</code>, <code>title</code>, <code>startTime</code>, <code>date</code>, <code>allDay</code>, <code>state</code>, <code>hours</code>, <code>minutes</code> und <code>expiresMinutes</code>, sofern der jeweilige Endpunkt sie unterstützt.
             </div>
           </Panel>
 
