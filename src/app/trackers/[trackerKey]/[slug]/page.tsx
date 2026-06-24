@@ -84,7 +84,15 @@ async function deleteEntry(formData: FormData) {
   const entry = await prisma.trackerEntry.findFirst({ where: { id, ...(await ownerScope(user)) }, include: { trackerType: true } });
   if (!entry) notFound();
   await requireFeature(`tracker.${entry.trackerType.key}`);
-  await prisma.trackerEntry.delete({ where: { id: entry.id } });
+  await prisma.$transaction([
+    prisma.trackerEntry.delete({ where: { id: entry.id } }),
+    ...(entry.legacyType === "segufix" && entry.legacyId
+      ? [prisma.segufixSession.deleteMany({ where: { id: entry.legacyId, ownerId: entry.ownerId } })]
+      : []),
+    ...(entry.legacyType === "kg" && entry.legacyId
+      ? [prisma.kgSession.deleteMany({ where: { id: entry.legacyId, ownerId: entry.ownerId } })]
+      : [])
+  ]);
   await logAction({
     actorId: user.id,
     action: `tracker_${entry.trackerType.key}_deleted`,
@@ -183,7 +191,7 @@ export default async function TrackerEntryPage({ params }: { params: { trackerKe
               </form>
               <form action={deleteEntry} className="mt-3">
                 <input type="hidden" name="id" value={entry.id} />
-                <SubmitButton pendingLabel="Eintrag wird gelöscht..." className="border border-redbrand bg-surface text-redbrand hover:bg-redbrand hover:text-white">
+                <SubmitButton pendingLabel="Eintrag wird gelöscht..." className="border border-redbrand !bg-surface !text-redbrand hover:!bg-redbrand hover:!text-white">
                   <Trash2 className="h-4 w-4" /> Eintrag löschen
                 </SubmitButton>
               </form>
