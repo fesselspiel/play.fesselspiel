@@ -54,6 +54,7 @@ const HELP_TEXT = `<b>Befehle</b>
 /kg_start Notiz - KG-Tracker starten
 /kg_stop Notiz - KG-Tracker beenden
 /kontingent - Tracker-Kontingente und offene Todos anzeigen
+/favoriten Name - Favoriten anzeigen
 /album_new Name - neues Album anlegen
 
 <b>Du kannst auch normal schreiben</b>
@@ -104,6 +105,48 @@ async function trackerQuotaMessage(userId: string, trackerKey?: string | null) {
     .filter((entry) => !trackerKey || entry.tracker.key === trackerKey);
   if (!quotas.length) return "<b>Tracker-Kontingente</b>\nKeine Kontingente konfiguriert.";
   return [`<b>Tracker-Kontingente</b>`, ...quotas.map((entry) => trackerQuotaHtml(entry))].join("\n\n");
+}
+
+function userDisplayName(user: { profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null }) {
+  return user.profile?.displayName || user.name || user.username || user.email || "Benutzer";
+}
+
+async function favoriteTargetUser(userId: string, targetName: string, tenantId?: string | null) {
+  const current = await prisma.user.findUnique({ where: { id: userId }, include: { profile: true } });
+  const query = targetName.trim();
+  if (!query || !current) return current;
+  const normalized = query.toLowerCase();
+  const candidates = await prisma.user.findMany({
+    where: {
+      active: true,
+      ...(tenantId ? { OR: [{ tenantId }, { memberships: { some: { tenantId, active: true } } }] } : {}),
+      OR: [
+        { username: { contains: normalized, mode: "insensitive" } },
+        { name: { contains: query, mode: "insensitive" } },
+        { email: { contains: normalized, mode: "insensitive" } },
+        { profile: { displayName: { contains: query, mode: "insensitive" } } }
+      ]
+    },
+    include: { profile: true },
+    take: 5
+  });
+  return candidates.find((entry) => userDisplayName(entry).toLowerCase() === normalized || entry.username?.toLowerCase() === normalized) || candidates[0] || current;
+}
+
+async function favoritesMessage(userId: string, targetName: string) {
+  const tenantId = await tenantIdForUser(userId);
+  const target = await favoriteTargetUser(userId, targetName, tenantId);
+  if (!target) return "Benutzer nicht gefunden.";
+  const tenantScope = tenantId ? { tenantId } : {};
+  const [toys, positions] = await Promise.all([
+    prisma.toyFavorite.findMany({ where: { userId: target.id, toy: tenantScope }, include: { toy: true }, orderBy: { createdAt: "desc" }, take: 12 }),
+    prisma.positionFavorite.findMany({ where: { userId: target.id, position: tenantScope }, include: { position: true }, orderBy: { createdAt: "desc" }, take: 12 })
+  ]);
+  const sections = [`<b>Favoriten von ${telegramHtml(userDisplayName(target))}</b>`];
+  if (toys.length) sections.push(htmlList("Spielzeuge", toys.map((entry, index) => `<b>${index + 1}. ${telegramHtml(entry.toy.title)}</b>\n${telegramLink(`${env.appUrl}/toys/${entry.toy.slug}`, "öffnen")}`)));
+  if (positions.length) sections.push(htmlList("Szenen", positions.map((entry, index) => `<b>${index + 1}. ${telegramHtml(entry.position.name)}</b>\n${telegramLink(`${env.appUrl}/positions/${entry.position.slug}`, "öffnen")}`)));
+  if (!toys.length && !positions.length) sections.push("Keine Favoriten gefunden.");
+  return sections.join("\n\n");
 }
 
 const activityStatusLabel = { REQUESTED: "angefragt", PLANNED: "geplant", DONE: "durchgeführt", DISCARDED: "verworfen" } as const;
@@ -180,6 +223,10 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     const arg = parsed.args.toLowerCase();
     const trackerKey = arg.includes("kg") ? "kg" : arg.includes("segufix") ? "segufix" : null;
     return trackerQuotaMessage(userId, trackerKey);
+  }
+
+  if (parsed.command === "/favoriten" || parsed.command === "/favorites") {
+    return favoritesMessage(userId, parsed.args);
   }
 
   if (parsed.command.startsWith("/media_album_")) {

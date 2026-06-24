@@ -77,6 +77,22 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "get_favorites",
+      description: "Listet Favoriten eines Benutzers. Verwenden bei Fragen nach Favoriten, Lieblingsspielzeugen, Lieblingsszenen oder 'was sind die Favoriten von ...'.",
+      parameters: {
+        type: "object",
+        properties: {
+          targetName: { type: "string", description: "Optionaler Benutzername oder Anzeigename, z.B. Gabriel. Leer lassen für den aktiven Benutzer." },
+          area: { type: "string", enum: ["all", "toys", "positions"], description: "Welche Favoriten angezeigt werden sollen." }
+        },
+        required: ["targetName", "area"],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
       name: "create_toy",
       description: "Legt ein Spielzeug im Spielzeugkatalog an.",
       parameters: {
@@ -299,6 +315,21 @@ function formatTrackerQuotasHtml(quotas: TrackerQuotaStatus[], period = "all") {
   return [`<b>Tracker-Kontingente</b>`, ...filtered.map((entry) => trackerQuotaHtml(entry, period))].join("\n\n");
 }
 
+function formatFavoritesHtml(data: Record<string, unknown>) {
+  const targetName = String(data.targetName || "Benutzer");
+  const toys = Array.isArray(data.toys) ? (data.toys as Record<string, unknown>[]) : [];
+  const positions = Array.isArray(data.positions) ? (data.positions as Record<string, unknown>[]) : [];
+  const sections = [`<b>Favoriten von ${telegramHtml(targetName)}</b>`];
+  if (toys.length) {
+    sections.push(htmlList("Spielzeuge", toys.map((toy, index) => `<b>${index + 1}. ${telegramHtml(toy.title || "Ohne Titel")}</b>\n${telegramLink(String(toy.url || ""), "öffnen")}`)));
+  }
+  if (positions.length) {
+    sections.push(htmlList("Szenen", positions.map((position, index) => `<b>${index + 1}. ${telegramHtml(position.name || "Ohne Name")}</b>\n${telegramLink(String(position.url || ""), "öffnen")}`)));
+  }
+  if (!toys.length && !positions.length) sections.push("Keine Favoriten gefunden.");
+  return sections.join("\n\n");
+}
+
 function formatToolResultHtml(result: ToolCallResult) {
   if (!result.ok) return telegramHtml(result.message);
   const data = result.data as Record<string, unknown> | undefined;
@@ -318,6 +349,10 @@ function formatToolResultHtml(result: ToolCallResult) {
 
   if ("quotas" in data && Array.isArray(data.quotas)) {
     return formatTrackerQuotasHtml(data.quotas as TrackerQuotaStatus[], String(data.period || "all"));
+  }
+
+  if ("favorites" in data) {
+    return formatFavoritesHtml(data);
   }
 
   const sections: string[] = [];
@@ -430,6 +465,68 @@ async function getTrackerQuotas(userId: string, args: Record<string, unknown>): 
     ok: true,
     message: quotas.length ? "Tracker-Kontingente geladen." : "Für diesen Tracker ist kein Kontingent konfiguriert.",
     data: { quotas, period }
+  };
+}
+
+function userDisplayName(user: { profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null }) {
+  return user.profile?.displayName || user.name || user.username || user.email || "Benutzer";
+}
+
+async function favoriteTargetUser(userId: string, targetName: string, tenantId?: string | null) {
+  const current = await prisma.user.findUnique({ where: { id: userId }, include: { profile: true } });
+  const query = targetName.trim();
+  if (!query || !current) return current;
+  const normalized = query.toLowerCase();
+  const candidates = await prisma.user.findMany({
+    where: {
+      active: true,
+      ...(tenantId ? { OR: [{ tenantId }, { memberships: { some: { tenantId, active: true } } }] } : {}),
+      OR: [
+        { username: { contains: normalized, mode: "insensitive" } },
+        { name: { contains: query, mode: "insensitive" } },
+        { email: { contains: normalized, mode: "insensitive" } },
+        { profile: { displayName: { contains: query, mode: "insensitive" } } }
+      ]
+    },
+    include: { profile: true },
+    take: 5
+  });
+  return candidates.find((entry) => userDisplayName(entry).toLowerCase() === normalized || entry.username?.toLowerCase() === normalized) || candidates[0] || current;
+}
+
+async function getFavorites(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
+  const tenantId = await tenantIdForUser(userId);
+  const area = clean(args.area) || "all";
+  const target = await favoriteTargetUser(userId, clean(args.targetName), tenantId);
+  if (!target) return { ok: false, message: "Benutzer nicht gefunden." };
+  const tenantScope = tenantId ? { tenantId } : {};
+  const [toys, positions] = await Promise.all([
+    area === "all" || area === "toys"
+      ? prisma.toyFavorite.findMany({
+          where: { userId: target.id, toy: tenantScope },
+          include: { toy: true },
+          orderBy: { createdAt: "desc" },
+          take: 12
+        })
+      : Promise.resolve([]),
+    area === "all" || area === "positions"
+      ? prisma.positionFavorite.findMany({
+          where: { userId: target.id, position: tenantScope },
+          include: { position: true },
+          orderBy: { createdAt: "desc" },
+          take: 12
+        })
+      : Promise.resolve([])
+  ]);
+  return {
+    ok: true,
+    message: "Favoriten geladen.",
+    data: {
+      favorites: true,
+      targetName: userDisplayName(target),
+      toys: toys.map((entry) => ({ title: entry.toy.title, url: link(`/toys/${entry.toy.slug}`) })),
+      positions: positions.map((entry) => ({ name: entry.position.name, url: link(`/positions/${entry.position.slug}`) }))
+    }
   };
 }
 
@@ -637,6 +734,7 @@ async function runTool(userId: string, name: string, args: Record<string, unknow
   if (name === "get_portal_status") return getPortalStatus(userId);
   if (name === "search_portal") return searchPortal(userId, args);
   if (name === "get_tracker_quotas") return getTrackerQuotas(userId, args);
+  if (name === "get_favorites") return getFavorites(userId, args);
   if (name === "create_toy") return createToy(userId, args);
   if (name === "create_position") return createPosition(userId, args);
   if (name === "create_activity") return createActivity(userId, args);
@@ -707,6 +805,7 @@ export async function answerWithPortalAgent(input: PortalAgentInput) {
         "Fuehre Schreibaktionen nur aus, wenn die Absicht des Nutzers klar ist. Frage bei fehlenden Pflichtangaben nach. " +
         "Wenn der Nutzer nur sagt, dass du dir etwas merken, notieren oder als Kontext behalten sollst, führe keine Portal-Schreibaktion aus. " +
         "Bei Fragen zu Tracker-Kontingenten, Restzeit, Sollzeit, Todo, 'noch übrig' oder 'noch zu machen' musst du get_tracker_quotas verwenden. Antworte dabei mit erledigt und noch offen, nicht mit offenen Sessions. " +
+        "Bei Fragen nach Favoriten, Lieblingsspielzeugen oder Lieblingsszenen musst du get_favorites verwenden, nicht search_portal. " +
         "Nutze den Dialogverlauf, um kurze Folgeauftraege wie 'das', 'den letzten Plan', 'morgen' oder 'mach daraus' korrekt auf den vorherigen Kontext zu beziehen. " +
         "Erfinde keine vorhandenen Datensätze. Nutze Suchen/Status, wenn du Portalwissen brauchst. " +
         "Wenn du Listen ausgibst, nutze knappes Telegram-HTML mit <b>Überschriften</b>, nummerierten Einträgen und Links. Nutze kein Markdown. " +
@@ -741,7 +840,7 @@ export async function answerWithPortalAgent(input: PortalAgentInput) {
         content: JSON.stringify(result)
       });
     }
-    if (directResults.length === 1 && ["get_portal_status", "search_portal", "get_tracker_quotas"].includes(directResults[0].name)) {
+    if (directResults.length === 1 && ["get_portal_status", "search_portal", "get_tracker_quotas", "get_favorites"].includes(directResults[0].name)) {
       return formatToolResultHtml(directResults[0].result);
     }
   }
