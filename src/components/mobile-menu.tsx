@@ -16,6 +16,7 @@ import {
   PackageSearch,
   Settings,
   Signal,
+  CalendarDays,
   SlidersHorizontal,
   ShieldCheck,
   Ticket,
@@ -49,7 +50,8 @@ const pictureMobileNav = mobileNav.slice(7);
 const mobileSettingsNav = [
   ["Profil", "/profile", UserRound, null],
   ["Ampel", "/settings/play-ready", Signal, "playReady"],
-  ["Einladungen", "/settings/invites", Ticket, "invites"]
+  ["Einladungen", "/settings/invites", Ticket, "invites"],
+  ["Zeitregeln", "/settings/scheduled", CalendarDays, "scheduledRules"]
 ] as const;
 
 const adminOnlyMobileSettingsNav = [

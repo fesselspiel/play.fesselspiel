@@ -230,10 +230,10 @@ function nextQuestion(draft: ItemDraft) {
   return null;
 }
 
-function needsImage(draft: ItemDraft) {
+function acceptsImage(draft: ItemDraft) {
   return Boolean(
-    (draft.kind === "toy" && draft.fields.title && draft.fields.description && draft.fields.imageUrl === undefined) ||
-      (draft.kind === "position" && draft.fields.name && draft.fields.description && draft.fields.imageUrl === undefined)
+    (draft.kind === "toy" && draft.fields.title && draft.fields.imageUrl === undefined) ||
+      (draft.kind === "position" && draft.fields.name && draft.fields.imageUrl === undefined)
   );
 }
 
@@ -263,6 +263,38 @@ function applyAnswer(draft: ItemDraft, text: string) {
           .filter(Boolean);
   }
   return draft;
+}
+
+function fieldHints(text: string, kind: DraftKind) {
+  const titleMatch = text.match(/(?:titel|name)\s*(?:ist|heißt|heisst|lautet|:)?\s*([^,\n.;]+?)(?=\s*(?:,|\bund\b|\n|$))/i);
+  const descriptionMatch = text.match(/(?:beschreibung|text)\s*(?:ist|lautet|:)?\s*([\s\S]+)/i);
+  const title = titleMatch ? clean(titleMatch[1].replace(/^ist\s+/i, "")) : "";
+  let description = descriptionMatch ? clean(descriptionMatch[1]) : "";
+  description = description
+    .replace(/\b(?:die\s+)?bild(?:datei)?\s+kommt[\s\S]*$/i, "")
+    .replace(/\b(?:das\s+)?foto\s+kommt[\s\S]*$/i, "")
+    .trim();
+  return {
+    title: kind === "toy" || kind === "album" ? title : "",
+    name: kind === "position" ? title : "",
+    description
+  };
+}
+
+function applyCaptionHints(draft: ItemDraft, caption?: string | null) {
+  if (!caption) return draft;
+  const hints = fieldHints(caption, draft.kind);
+  const fields = { ...draft.fields };
+  if (draft.kind === "toy") {
+    if (!fields.title && hints.title) fields.title = hints.title;
+    if (!fields.description && hints.description) fields.description = hints.description;
+  } else if (draft.kind === "position") {
+    if (!fields.name && hints.name) fields.name = hints.name;
+    if (!fields.description && hints.description) fields.description = hints.description;
+  } else if (!fields.title && hints.title) {
+    fields.title = hints.title;
+  }
+  return { ...draft, fields };
 }
 
 async function matchingToys(userId: string, titles: string[]) {
@@ -395,7 +427,7 @@ export async function startToyCreationDialogue(userId: string, title?: string) {
   return result;
 }
 
-export async function handleItemCreationImage(userId: string, imageUrl: string) {
+export async function handleItemCreationImage(userId: string, imageUrl: string, caption?: string | null) {
   const pendingReplacement = await latestActiveImageReplacementDraft(userId);
   if (pendingReplacement) {
     if (pendingReplacement.target === "toy") {
@@ -428,10 +460,11 @@ export async function handleItemCreationImage(userId: string, imageUrl: string) 
     return `<b>Bild ersetzt</b>\n${telegramHtml(position.name)}\n${telegramLink(link(`/positions/${position.slug}`), "öffnen")}`;
   }
 
-  const existing = await latestActiveDraft(userId);
+  const existingDraft = await latestActiveDraft(userId);
+  const existing = existingDraft ? applyCaptionHints(existingDraft, caption) : null;
   if (!existing) return null;
-  if (!needsImage(existing)) {
-    return "Ich habe das Bild erhalten. In der laufenden Erfassung brauche ich aber zuerst noch die angefragte Textangabe.";
+  if (!acceptsImage(existing)) {
+    return "Ich habe das Bild erhalten. In der laufenden Erfassung brauche ich aber zuerst noch den Namen.";
   }
 
   const draft: ItemDraft = { ...existing, fields: { ...existing.fields, imageUrl } };
@@ -441,6 +474,14 @@ export async function handleItemCreationImage(userId: string, imageUrl: string) 
     return question;
   }
   const result = await createFromDraft(userId, draft);
+  await prisma.auditLog.create({
+    data: {
+      actorId: userId,
+      action: draft.kind === "toy" ? "toy_created_telegram" : "position_created_telegram",
+      entityType: draft.kind === "toy" ? "toy" : "position",
+      title: draft.kind === "toy" ? `Spielzeug per Telegram angelegt: ${draft.fields.title || "ohne Titel"}` : `Szene per Telegram angelegt: ${draft.fields.name || "ohne Namen"}`
+    }
+  });
   await saveDraft(userId, { ...draft, status: "DONE" });
   return result;
 }

@@ -3,17 +3,19 @@ import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import { ChevronLeft, ChevronRight, Save, Square } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { TrackerLinkPicker } from "@/components/tracker-link-picker";
 import { Button, Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { formatDate, formatDateInput, formatDateTime, formatDateTimeLocal, formatMinutes, minutesBetween, parseDateInput, parseDateTimeLocal } from "@/lib/dates";
-import { featureEnabled, requireFeature } from "@/lib/features";
+import { featureEnabled, hasFeature, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
 import { fieldOptions, fieldValuesFromForm, trackerFields } from "@/lib/tracker-fields";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 import { findTrackerTypeForUser, stopTrackerEntry, uniqueTrackerSlug } from "@/lib/tracker-core";
+import { trackerLinkConnectData, trackerLinkOptionData, trackerLinkOptions } from "@/lib/tracker-links";
 
 async function createTrackerEntry(formData: FormData) {
   "use server";
@@ -30,6 +32,13 @@ async function createTrackerEntry(formData: FormData) {
   const startTime = allDay ? parseDateInput(dateRaw) || parseDateTimeLocal(startRaw) || new Date() : parseDateTimeLocal(startRaw) || parseDateInput(dateRaw) || new Date();
   const endTime = allDay ? null : endRaw ? parseDateTimeLocal(endRaw) : null;
   const fieldValues = fieldValuesFromForm(formData, trackerFields(trackerType.fields, trackerType.key));
+  const scope = await ownerScope(user);
+  const linkFeatures = {
+    toys: await hasFeature("toys"),
+    positions: await hasFeature("positions"),
+    bondageSystem: await hasFeature("shopifyBondageSystem")
+  };
+  const links = await trackerLinkConnectData(user, scope, formData, linkFeatures);
   const entry = await prisma.trackerEntry.create({
     data: {
       tenantId: user.tenantId || trackerType.tenantId,
@@ -42,7 +51,10 @@ async function createTrackerEntry(formData: FormData) {
       allDay,
       durationMinutes: allDay ? null : minutesBetween(startTime, endTime),
       notes: String(formData.get("notes") || "").trim(),
-      fieldValues: fieldValues as Prisma.InputJsonObject
+      fieldValues: fieldValues as Prisma.InputJsonObject,
+      toys: { connect: links.toys },
+      positions: { connect: links.positions },
+      bondageSystemItems: { connect: links.bondageItems }
     }
   });
   await logAction({
@@ -94,6 +106,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
     include: {
       entries: {
         where: { ...scope, startTime: { gte: yearStart, lt: yearEnd } },
+        include: { toys: true, positions: true, bondageSystemItems: { include: { product: true } } },
         orderBy: { startTime: "desc" }
       }
     },
@@ -113,6 +126,12 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
   const selectedDate = parseDateInput(searchParams.date);
   const selectedDateValue = selectedDate ? formatDateInput(selectedDate) : "";
   const selectedDateTimeValue = selectedDate ? `${selectedDateValue}T00:00` : "";
+  const linkFeatures = {
+    toys: await hasFeature("toys"),
+    positions: await hasFeature("positions"),
+    bondageSystem: await hasFeature("shopifyBondageSystem")
+  };
+  const linkOptions = trackerLinkOptionData(await trackerLinkOptions(user, scope, linkFeatures));
   const byDay = new Map<string, typeof activeTracker.entries>();
   for (const entry of activeTracker.entries) {
     const key = `${entry.startTime.getMonth()}-${entry.startTime.getDate()}`;
@@ -207,6 +226,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                     })}
                   </div>
                 ) : null}
+                <TrackerLinkPicker toys={linkOptions.toys} bondageItems={linkOptions.bondageItems} positions={linkOptions.positions} />
               </form>
               <div className="mb-5 overflow-x-auto">
                 <div className="min-w-[760px]">
@@ -258,6 +278,13 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                   <Link key={entry.id} href={`/trackers/${activeTracker.key}/${entry.slug || entry.id}`} className="block rounded-md border border-line bg-paper p-3 text-sm hover:border-redbrand">
                     <strong>{entry.allDay ? formatDate(entry.startTime) : formatDateTime(entry.startTime)}</strong>
                     <span className="ml-2 text-graphite">{entry.allDay ? "ganzer Tag" : entry.endTime ? formatMinutes(entry.durationMinutes) : "läuft"}</span>
+                    <span className="mt-1 block text-xs text-graphite">
+                      {[
+                        entry.toys.length ? `${entry.toys.length} Spielsachen` : "",
+                        entry.bondageSystemItems.length ? `${entry.bondageSystemItems.length} Produkte` : "",
+                        entry.positions.length ? `${entry.positions.length} Szenen` : ""
+                      ].filter(Boolean).join(" · ")}
+                    </span>
                     {entry.notes ? <span className="ml-2 text-graphite">{entry.notes}</span> : null}
                   </Link>
                 ))}

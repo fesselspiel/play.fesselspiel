@@ -36,6 +36,17 @@ async function revokeToken(formData: FormData) {
   redirect("/settings/api");
 }
 
+async function deleteToken(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  await requireFeature("externalApi");
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");
+  const id = String(formData.get("id") || "");
+  await prisma.apiToken.deleteMany({ where: { id, userId: user.id, active: false } });
+  redirect("/settings/api");
+}
+
 export default async function ApiSettingsPage({ searchParams }: { searchParams: ApiSearchParams }) {
   await requireFeature("externalApi");
   const user = await currentUser();
@@ -113,7 +124,12 @@ export default async function ApiSettingsPage({ searchParams }: { searchParams: 
                       <input type="hidden" name="id" value={entry.id} />
                       <Button variant="danger"><Trash2 className="h-4 w-4" /> Deaktivieren</Button>
                     </form>
-                  ) : null}
+                  ) : (
+                    <form action={deleteToken}>
+                      <input type="hidden" name="id" value={entry.id} />
+                      <Button variant="danger"><Trash2 className="h-4 w-4" /> Löschen</Button>
+                    </form>
+                  )}
                 </div>
               ))}
               {!tokens.length ? <p className="text-sm text-graphite">Noch keine API Tokens angelegt.</p> : null}

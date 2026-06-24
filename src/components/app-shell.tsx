@@ -12,8 +12,10 @@ import {
   MessageCircle,
   Network,
   PackageSearch,
+  RotateCcw,
   Settings,
   Signal,
+  CalendarDays,
   SlidersHorizontal,
   ShieldCheck,
   Ticket,
@@ -28,6 +30,7 @@ import { LogoutButton } from "@/components/logout-button";
 import { MobileMenu } from "@/components/mobile-menu";
 import { featureEnabled, hasVisibleTrackerFeature } from "@/lib/features";
 import { primaryTenantDomain } from "@/lib/tenancy";
+import { returnToOwnView } from "@/lib/view-as";
 
 const nav = [
   ["Start", "/", LayoutDashboard, null],
@@ -49,7 +52,8 @@ const pictureNav = nav.slice(7);
 const settingsNav = [
   ["Profil", "/profile", UserRound, null],
   ["Ampel", "/settings/play-ready", Signal, "playReady"],
-  ["Einladungen", "/settings/invites", Ticket, "invites"]
+  ["Einladungen", "/settings/invites", Ticket, "invites"],
+  ["Zeitregeln", "/settings/scheduled", CalendarDays, "scheduledRules"]
 ] as const;
 
 const adminOnlySettingsNav = [
@@ -73,7 +77,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
   const { actor, user, tenant } = await currentSessionContext();
   const isAdminActor = actor?.role === "ADMIN" || actor?.role === "SUPER_ADMIN";
   const isViewingAs = Boolean(actor && user && actor.id !== user.id);
-  const showAdminSettings = isAdminActor;
+  const showAdminSettings = isAdminActor && !isViewingAs;
   const tenantName = tenant?.name || "Fesselspiel";
   const tenantDomain = tenant ? primaryTenantDomain(tenant) : "playplaner.com";
   const userName = user ? user.profile?.displayName || user.name || user.username || user.email : "";
@@ -94,6 +98,14 @@ export async function AppShell({ children }: { children: ReactNode }) {
           <div className="text-sm text-graphite">{tenantDomain}</div>
         </Link>
         <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1 [-webkit-overflow-scrolling:touch]">
+          {isViewingAs ? (
+            <form action={returnToOwnView} className="mb-3 rounded-md border border-redbrand/30 bg-redbrand/10 p-2">
+              <button type="submit" className="flex min-h-10 w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-redbrand hover:bg-surface">
+                <RotateCcw className="h-4 w-4" />
+                Zur eigenen Ansicht
+              </button>
+            </form>
+          ) : null}
           {visiblePrimaryNav.map(([label, href, Icon]) => (
             <Link key={href} href={href} className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
               <Icon className="h-4 w-4" />
@@ -135,13 +147,13 @@ export async function AppShell({ children }: { children: ReactNode }) {
               Einstellungen
             </summary>
             <div className="mt-1 space-y-1 border-l border-line pl-4">
-              {isAdminActor ? adminSettingsNav.map(([label, href, Icon]) => (
+              {showAdminSettings ? adminSettingsNav.map(([label, href, Icon]) => (
                 <Link key={href} href={href} className="flex min-h-9 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
                   <Icon className="h-4 w-4" />
                   {label}
                 </Link>
               )) : null}
-              {actor?.role === "SUPER_ADMIN" ? superAdminSettingsNav.map(([label, href, Icon]) => (
+              {showAdminSettings && actor?.role === "SUPER_ADMIN" ? superAdminSettingsNav.map(([label, href, Icon]) => (
                 <Link key={href} href={href} className="flex min-h-9 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-graphite hover:bg-paper hover:text-redbrand">
                   <Icon className="h-4 w-4" />
                   {label}
@@ -186,10 +198,18 @@ export async function AppShell({ children }: { children: ReactNode }) {
         ) : null}
       </aside>
       <main className="min-h-screen lg:pl-72">
+        {isViewingAs ? (
+          <form action={returnToOwnView} className="sticky top-[4.5rem] z-20 border-b border-redbrand/20 bg-redbrand/10 px-4 py-2 lg:hidden">
+            <button type="submit" className="flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-surface px-3 py-2 text-sm font-semibold text-redbrand shadow-soft">
+              <RotateCcw className="h-4 w-4" />
+              Zur eigenen Ansicht
+            </button>
+          </form>
+        ) : null}
         <MobileMenu
           activeDarkMode={Boolean(user?.settings?.darkMode)}
-          showAdminViewSwitch={isAdminActor}
-          showSiteManagement={actor?.role === "SUPER_ADMIN"}
+          showAdminViewSwitch={showAdminSettings}
+          showSiteManagement={showAdminSettings && actor?.role === "SUPER_ADMIN"}
           showAdminSettings={showAdminSettings}
           tenantName={tenantName}
           tenantDomain={tenantDomain}

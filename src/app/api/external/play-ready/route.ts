@@ -51,11 +51,14 @@ async function handlePlayReady(request: NextRequest) {
   }
 
   const durationMinutes = durationFromValues(values);
-  const expiresAt = next && durationMinutes > 0 ? new Date(Date.now() + durationMinutes * 60_000) : null;
+  const existingDuration = existing?.playReadyExpiryMinutes || 360;
+  const effectiveDurationMinutes = durationMinutes > 0 ? durationMinutes : existingDuration;
+  const tenant = auth.user.tenantId ? await prisma.tenant.findUnique({ where: { id: auth.user.tenantId }, select: { playReadyExpiryEnabled: true } }) : null;
+  const expiresAt = next && tenant?.playReadyExpiryEnabled !== false ? new Date(Date.now() + effectiveDurationMinutes * 60_000) : null;
   await prisma.userSettings.upsert({
     where: { userId: auth.user.id },
-    update: { playReady: next, playReadyUpdatedAt: new Date(), playReadyExpiresAt: expiresAt },
-    create: { userId: auth.user.id, playReady: next, playReadyUpdatedAt: new Date(), playReadyExpiresAt: expiresAt }
+    update: { playReady: next, playReadyUpdatedAt: new Date(), playReadyExpiresAt: expiresAt, playReadyExpiryMinutes: effectiveDurationMinutes },
+    create: { userId: auth.user.id, playReady: next, playReadyUpdatedAt: new Date(), playReadyExpiresAt: expiresAt, playReadyExpiryMinutes: effectiveDurationMinutes }
   });
   await logAction({
     actorId: auth.user.id,
@@ -66,7 +69,7 @@ async function handlePlayReady(request: NextRequest) {
     details: {
       previous: playReadyLabel(previous),
       next: playReadyLabel(next),
-      durationMinutes: expiresAt ? durationMinutes : null,
+      durationMinutes: expiresAt ? effectiveDurationMinutes : null,
       expiresAt: expiresAt?.toISOString() || null
     },
     href: "/"
@@ -77,7 +80,7 @@ async function handlePlayReady(request: NextRequest) {
     label: playReadyLabel(next),
     previous: playReadyLabel(previous),
     expiresAt,
-    durationMinutes: expiresAt ? durationMinutes : null
+    durationMinutes: expiresAt ? effectiveDurationMinutes : null
   });
 }
 

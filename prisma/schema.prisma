@@ -66,6 +66,7 @@ model Tenant {
   status      String         @default("ACTIVE")
   primaryColor String        @default("#E30613")
   homeLayout  Json           @default("[]")
+  playReadyExpiryEnabled Boolean @default(true)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   domains     TenantDomain[]
@@ -91,6 +92,8 @@ model Tenant {
   feedRules FeedRule[]
   externalPushRules ExternalPushRule[]
   externalPushLogs ExternalPushLog[]
+  scheduledRules ScheduledRule[]
+  scheduledRuleRuns ScheduledRuleRun[]
   playReadyLikes PlayReadyLike[]
   activityLikes ActivityLike[]
   invites UserInvite[]
@@ -160,6 +163,7 @@ model User {
   receivedMessages  Message[]       @relation("MessageRecipient")
   telegramChatTargets TelegramChat[] @relation("TelegramChatTargetUser")
   apiTokens         ApiToken[]
+  scheduledRules    ScheduledRule[]
   sentInvites       UserInvite[] @relation("InviteCreator")
   acceptedInvites   UserInvite[] @relation("InviteAcceptedUser")
   telegramMappings  TelegramUserMapping[] @relation("TelegramMappedAppUser")
@@ -285,7 +289,7 @@ model UserSettings {
   playReady           Boolean        @default(false)
   playReadyUpdatedAt  DateTime?
   playReadyExpiresAt  DateTime?
-  playReadyExpiryMinutes Int?
+  playReadyExpiryMinutes Int?           @default(360)
   inviteQuota         Int            @default(3)
   timeOffsetMinutes   Int            @default(0)
   telegramBotTokenEnc String?
@@ -491,6 +495,53 @@ model ExternalPushLog {
   @@index([status, createdAt])
 }
 
+model ScheduledRule {
+  id               String   @id @default(cuid())
+  tenantId         String
+  ownerId          String
+  name             String
+  active           Boolean  @default(true)
+  scheduleType     String   @default("DAILY")
+  timeOfDayMinutes Int      @default(960)
+  daysOfWeek       Int[]    @default([])
+  dayOfMonth       Int?
+  intervalMinutes  Int?
+  timezone         String   @default("Europe/Berlin")
+  conditionType    String   @default("ALWAYS")
+  conditionJson    Json     @default("{}")
+  actionType       String   @default("EXTERNAL_URL")
+  actionJson       Json     @default("{}")
+  nextRunAt        DateTime?
+  lastRunAt        DateTime?
+  lastStatus       String?
+  lastMessage      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner            User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  runs             ScheduledRuleRun[]
+
+  @@index([tenantId, active, nextRunAt])
+  @@index([ownerId, active])
+}
+
+model ScheduledRuleRun {
+  id           String   @id @default(cuid())
+  tenantId     String
+  ruleId       String
+  status       String
+  conditionMet Boolean  @default(false)
+  message      String?
+  details      Json?
+  createdAt    DateTime @default(now())
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rule         ScheduledRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([ruleId, createdAt])
+  @@index([status, createdAt])
+}
+
 model EmailSettings {
   id        String   @id @default("system")
   enabled   Boolean  @default(false)
@@ -571,6 +622,7 @@ model Toy {
   owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   positions   Position[]     @relation("PositionTools")
   activities  ActivityPlan[] @relation("ActivityTools")
+  trackerEntries TrackerEntry[] @relation("TrackerEntryToys")
   favorites   ToyFavorite[]
 
   @@unique([tenantId, slug])
@@ -608,6 +660,7 @@ model Position {
   tools       Toy[]          @relation("PositionTools")
   bondageSystemItems BondageSystemItem[] @relation("PositionBondageSystemItems")
   activities  ActivityPlan[] @relation("ActivityPositions")
+  trackerEntries TrackerEntry[] @relation("TrackerEntryPositions")
   favorites   PositionFavorite[]
 
   @@unique([tenantId, slug])
@@ -718,6 +771,7 @@ model BondageSystemItem {
   targetCircle     Circle?    @relation("BondageSystemTargetCircle", fields: [targetCircleId], references: [id], onDelete: SetNull)
   positions        Position[] @relation("PositionBondageSystemItems")
   activities       ActivityPlan[] @relation("ActivityBondageSystemItems")
+  trackerEntries   TrackerEntry[] @relation("TrackerEntryBondageSystemItems")
 
   @@index([tenantId, visible, sortOrder])
   @@index([targetUserId])
@@ -810,6 +864,9 @@ model TrackerEntry {
   updatedAt       DateTime    @updatedAt
   owner           User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   trackerType     TrackerType @relation(fields: [trackerTypeId], references: [id], onDelete: Cascade)
+  toys            Toy[]       @relation("TrackerEntryToys")
+  bondageSystemItems BondageSystemItem[] @relation("TrackerEntryBondageSystemItems")
+  positions       Position[]  @relation("TrackerEntryPositions")
 
   @@unique([trackerTypeId, legacyType, legacyId])
   @@unique([tenantId, trackerTypeId, slug])

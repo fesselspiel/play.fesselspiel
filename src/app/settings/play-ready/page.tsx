@@ -7,6 +7,7 @@ import { currentUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
+import { currentTenant } from "@/lib/tenancy";
 
 const maxDurationMinutes = 12 * 60;
 
@@ -16,7 +17,7 @@ function clampDuration(minutes: number) {
 }
 
 function durationParts(minutes?: number | null) {
-  if (!minutes) return { hours: "01", minutes: "00" };
+  if (!minutes) return { hours: "06", minutes: "00" };
   const diffMinutes = clampDuration(minutes);
   const hours = Math.floor(diffMinutes / 60);
   const restMinutes = diffMinutes % 60;
@@ -34,12 +35,12 @@ async function savePlayReadySettings(formData: FormData) {
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("playReady");
-  const enabled = formData.get("expiresEnabled") === "on";
   const hour = String(formData.get("expiresHour") || "1");
   const minute = String(formData.get("expiresMinute") || "00");
-  const expiryMinutes = enabled ? durationFromParts(hour, minute) : null;
+  const expiryMinutes = durationFromParts(hour, minute);
+  const tenant = await currentTenant();
   const current = await prisma.userSettings.findUnique({ where: { userId: user.id }, select: { playReady: true } });
-  const expiresAt = current?.playReady && expiryMinutes ? new Date(Date.now() + expiryMinutes * 60_000) : null;
+  const expiresAt = current?.playReady && tenant?.playReadyExpiryEnabled !== false ? new Date(Date.now() + expiryMinutes * 60_000) : null;
   await prisma.userSettings.upsert({
     where: { userId: user.id },
     update: { playReadyExpiryMinutes: expiryMinutes, playReadyExpiresAt: expiresAt },
@@ -52,9 +53,9 @@ export default async function PlayReadySettingsPage({ searchParams }: { searchPa
   await requireFeature("playReady");
   const user = await currentUser();
   if (!user) redirect("/login");
+  const tenant = await currentTenant();
   const expiresAt = user.settings?.playReadyExpiresAt || null;
-  const expiryMinutes = user.settings?.playReadyExpiryMinutes || null;
-  const hasExpiry = Boolean(expiryMinutes);
+  const expiryMinutes = user.settings?.playReadyExpiryMinutes || 360;
   const parts = durationParts(expiryMinutes);
   return (
     <AppShell>
@@ -67,7 +68,7 @@ export default async function PlayReadySettingsPage({ searchParams }: { searchPa
           <div>
             <h2 className="text-xl font-semibold text-ink">Ablaufzeit der Spielampel</h2>
             <p className="mt-2 text-sm leading-6 text-graphite">
-              Stelle hier ein, wie lange deine grüne Ampel ab jetzt gültig bleibt. Ohne Ablaufzeit bleibt die Anzeige wie bisher.
+              Stelle hier ein, wie lange deine grüne Ampel ab jetzt gültig bleibt. Der Ablauf gilt für diese Seite standardmäßig automatisch.
             </p>
           </div>
         </div>
@@ -77,13 +78,11 @@ export default async function PlayReadySettingsPage({ searchParams }: { searchPa
           </div>
         ) : null}
         <form action={savePlayReadySettings} className="space-y-5">
-          <label className="flex items-start gap-3 rounded-lg border border-line bg-paper p-4 text-sm text-graphite">
-            <input name="expiresEnabled" type="checkbox" defaultChecked={hasExpiry} className="mt-1 h-4 w-4 accent-redbrand" />
-            <span>
-              <strong className="block text-ink">Automatisch ablaufen lassen</strong>
-              <span>Wenn aktiv, wird eine grüne Ampel nach der gewählten Dauer automatisch auf Rot zurückgesetzt.</span>
-            </span>
-          </label>
+          {tenant?.playReadyExpiryEnabled === false ? (
+            <div className="rounded-lg border border-line bg-paper p-4 text-sm leading-6 text-graphite">
+              Der automatische Ablauf ist für diese Seite von einem Admin deaktiviert. Deine Dauer bleibt gespeichert und wird wieder genutzt, sobald der Ablauf aktiviert wird.
+            </div>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Stunde">
               <select className={selectClass} name="expiresHour" defaultValue={parts.hours}>
@@ -101,9 +100,9 @@ export default async function PlayReadySettingsPage({ searchParams }: { searchPa
             </Field>
           </div>
           <div className="rounded-md bg-paper p-4 text-sm leading-6 text-graphite">
-            Gespeichert: {expiryMinutes ? `${Math.floor(expiryMinutes / 60)} Stunden ${expiryMinutes % 60} Minuten ab Grün-Schaltung` : "keine Ablaufzeit gesetzt"}
+            Gespeichert: {`${Math.floor(expiryMinutes / 60)} Stunden ${expiryMinutes % 60} Minuten ab Grün-Schaltung`}
             <br />
-            Aktuelle grüne Ampel: {expiresAt ? `läuft ab am ${formatDateTime(expiresAt)}` : "nicht zeitlich aktiv"}
+            Aktuelle grüne Ampel: {expiresAt ? `läuft ab am ${formatDateTime(expiresAt)}` : tenant?.playReadyExpiryEnabled === false ? "Ablauf ist deaktiviert" : "nicht aktiv"}
             <br />
             Maximum: 12 Stunden ab dem Speichern.
           </div>

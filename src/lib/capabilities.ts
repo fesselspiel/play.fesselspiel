@@ -634,6 +634,23 @@ export const capabilities: readonly Capability[] = [
     ]
   },
   {
+    key: "scheduledRules",
+    label: "Zeitregeln",
+    featureKey: "scheduledRules",
+    aliases: ["cron", "zeitregel", "scheduler", "geplante url"],
+    intents: ["zeitregel anlegen", "url zeitgesteuert aufrufen", "cronjob"],
+    route: "/settings/scheduled",
+    actions: [
+      {
+        key: "manage",
+        label: "Zeitregeln verwalten",
+        type: "write",
+        description: "Ruft zu konfigurierten Zeiten URLs auf oder löst Aktionen aus, wenn Bedingungen erfüllt sind.",
+        auditActions: ["scheduled_rule_created", "scheduled_rule_updated", "scheduled_rule_deleted", "scheduled_rule_executed", "scheduled_rule_skipped", "scheduled_rule_failed"]
+      }
+    ]
+  },
+  {
     key: "auditLog",
     label: "Protokoll",
     featureKey: "auditLog",
@@ -685,6 +702,7 @@ export const featureCatalog = [
   { key: "tracker.kg", label: capabilityLabelByFeature.get("tracker.kg") || "KG Time Tracker" },
   { key: "telegram", label: capabilityLabelByFeature.get("telegram") || "Telegram" },
   { key: "externalApi", label: capabilityLabelByFeature.get("externalApi") || "Externe API" },
+  { key: "scheduledRules", label: capabilityLabelByFeature.get("scheduledRules") || "Zeitregeln" },
   { key: "email", label: capabilityLabelByFeature.get("email") || "E-Mail" },
   { key: "dataTransfer", label: capabilityLabelByFeature.get("dataTransfer") || "Datenexport und Import" },
   { key: "auditLog", label: capabilityLabelByFeature.get("auditLog") || "Protokoll" }

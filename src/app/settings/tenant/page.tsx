@@ -20,10 +20,18 @@ async function saveTenantSettings(formData: FormData) {
   const disabledText = String(formData.get("disabledText") || "").trim() || "Dieses Feature ist auf dieser Seite momentan nicht eingeschaltet. Falls du es erwartest, sprich kurz mit der Person, die diese Seite verwaltet. Eure vorhandenen Daten bleiben dabei erhalten.";
   const disabledButtonText = String(formData.get("disabledButtonText") || "").trim() || "Zur Startseite";
   const disabledButtonHref = String(formData.get("disabledButtonHref") || "").trim() || "/";
+  const playReadyExpiryEnabled = formData.get("playReadyExpiryEnabled") === "on";
   await prisma.tenant.update({
     where: { id: tenant.id },
-    data: { name, headline, description, disabledTitle, disabledText, disabledButtonText, disabledButtonHref }
+    data: { name, headline, description, disabledTitle, disabledText, disabledButtonText, disabledButtonHref, playReadyExpiryEnabled }
   });
+  if (!playReadyExpiryEnabled) {
+    const memberships = await prisma.tenantMembership.findMany({ where: { tenantId: tenant.id }, select: { userId: true } });
+    await prisma.userSettings.updateMany({
+      where: { userId: { in: memberships.map((membership) => membership.userId) } },
+      data: { playReadyExpiresAt: null }
+    });
+  }
   for (const feature of featureCatalog) {
     await prisma.tenantFeature.upsert({
       where: { tenantId_key: { tenantId: tenant.id, key: feature.key } },
@@ -60,6 +68,16 @@ export default async function TenantSettingsPage({ searchParams }: { searchParam
               <Field label="Überschrift"><input className={inputClass} name="headline" defaultValue={tenant.headline || ""} /></Field>
             </div>
             <Field label="Beschreibung"><textarea className={inputClass} name="description" rows={3} defaultValue={tenant.description || ""} /></Field>
+            <details className="rounded-lg border border-line bg-paper p-4" open>
+              <summary className="cursor-pointer text-lg font-semibold text-ink">Spielampel</summary>
+              <label className="mt-4 flex items-start gap-3 text-sm text-graphite">
+                <input name="playReadyExpiryEnabled" type="checkbox" defaultChecked={tenant.playReadyExpiryEnabled !== false} className="mt-1 h-4 w-4 accent-redbrand" />
+                <span>
+                  <strong className="block text-ink">Spielampel läuft automatisch ab</strong>
+                  <span>Wenn aktiv, läuft eine grüne Ampel nach der vom jeweiligen Benutzer gewählten Dauer ab. Standard sind 6 Stunden.</span>
+                </span>
+              </label>
+            </details>
             <details className="rounded-lg border border-line bg-paper p-4">
               <summary className="cursor-pointer text-lg font-semibold text-ink">Sperrseite</summary>
               <div className="mt-4 space-y-4">

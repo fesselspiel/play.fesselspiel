@@ -899,7 +899,7 @@ export async function POST(request: Request) {
       href: imageUrl
     });
 
-    const itemDialogueAnswer = await handleItemCreationImage(actorUserId, imageUrl);
+    const itemDialogueAnswer = await handleItemCreationImage(actorUserId, imageUrl, caption);
     const actorTenantId = await tenantIdForUser(actorUserId);
     const answer: string =
       itemDialogueAnswer ??

@@ -17,6 +17,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDate, formatDateTime, formatMinutes } from "@/lib/dates";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 import { stopTrackerEntry } from "@/lib/tracker-core";
+import { currentTenant } from "@/lib/tenancy";
 
 const dayFormatter = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "Europe/Berlin" });
 const timeFormatter = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
@@ -73,21 +74,25 @@ async function togglePlayReady() {
   if (!user) redirect("/login");
   await requireFeature("playReady");
   const settings = await prisma.userSettings.findUnique({ where: { userId: user.id }, select: { playReady: true, playReadyExpiryMinutes: true } });
+  const tenant = await currentTenant();
   const previous = Boolean(settings?.playReady);
   const next = !previous;
-  const expiresAt = next && settings?.playReadyExpiryMinutes ? new Date(Date.now() + settings.playReadyExpiryMinutes * 60_000) : null;
+  const expiryMinutes = settings?.playReadyExpiryMinutes || 360;
+  const expiresAt = next && tenant?.playReadyExpiryEnabled !== false ? new Date(Date.now() + expiryMinutes * 60_000) : null;
   await prisma.userSettings.upsert({
     where: { userId: user.id },
     update: {
       playReady: next,
       playReadyUpdatedAt: new Date(),
-      playReadyExpiresAt: expiresAt
+      playReadyExpiresAt: expiresAt,
+      playReadyExpiryMinutes: expiryMinutes
     },
     create: {
       userId: user.id,
       playReady: true,
       playReadyUpdatedAt: new Date(),
-      playReadyExpiresAt: expiresAt
+      playReadyExpiresAt: expiresAt,
+      playReadyExpiryMinutes: expiryMinutes
     }
   });
   const actor = await prisma.user.findUnique({
@@ -101,7 +106,7 @@ async function togglePlayReady() {
     entityType: "userSettings",
     entityId: user.id,
     title: `Spielampel geändert: ${actorName} ist ${playReadyLabel(next)}`,
-    details: { previous: playReadyLabel(previous), next: playReadyLabel(next), expiresAt: expiresAt?.toISOString() || null },
+    details: { previous: playReadyLabel(previous), next: playReadyLabel(next), expiryMinutes, expiresAt: expiresAt?.toISOString() || null },
     href: "/"
   });
   redirect("/");

@@ -49,6 +49,7 @@ async function main() {
     "tracker.kg",
     "telegram",
     "externalApi",
+    "scheduledRules",
     "email",
     "dataTransfer",
     "auditLog"
@@ -151,6 +152,10 @@ async function main() {
   for (const entry of await prisma.apiToken.findMany({ where: { tenantId: null }, select: { id: true, userId: true } })) {
     await prisma.apiToken.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.userId) } });
   }
+  await prisma.userSettings.updateMany({
+    where: { playReadyExpiryMinutes: null },
+    data: { playReadyExpiryMinutes: 360 }
+  });
 
   const segufixType = await prisma.trackerType.upsert({
     where: { tenantId_key: { tenantId: tenant.id, key: "segufix" } },

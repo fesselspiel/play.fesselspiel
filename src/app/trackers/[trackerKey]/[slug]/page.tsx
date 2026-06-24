@@ -4,15 +4,17 @@ import type { Prisma } from "@prisma/client";
 import { ArrowLeft, Save, Square, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
+import { TrackerLinkedCards, TrackerLinkPicker } from "@/components/tracker-link-picker";
 import { Button, Field, inputClass, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { formatDate, formatDateInput, formatDateTime, formatDateTimeLocal, formatMinutes, minutesBetween, parseDateInput, parseDateTimeLocal } from "@/lib/dates";
-import { requireFeature } from "@/lib/features";
+import { hasFeature, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { fieldOptions, fieldValuesFromForm, trackerFields } from "@/lib/tracker-fields";
 import { stopTrackerEntry } from "@/lib/tracker-core";
+import { trackerLinkConnectData, trackerLinkOptionData, trackerLinkOptions } from "@/lib/tracker-links";
 
 function readableFieldLabel(key: string, fields: unknown) {
   if (Array.isArray(fields)) {
@@ -43,7 +45,8 @@ async function updateEntry(formData: FormData) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const id = String(formData.get("id") || "");
-  const entry = await prisma.trackerEntry.findFirst({ where: { id, ...(await ownerScope(user)) }, include: { trackerType: true } });
+  const scope = await ownerScope(user);
+  const entry = await prisma.trackerEntry.findFirst({ where: { id, ...scope }, include: { trackerType: true } });
   if (!entry) notFound();
   await requireFeature(`tracker.${entry.trackerType.key}`);
   const startRaw = String(formData.get("startTime") || "");
@@ -54,6 +57,12 @@ async function updateEntry(formData: FormData) {
   const endTime = allDay ? null : endRaw ? parseDateTimeLocal(endRaw) : null;
   const currentValues = entry.fieldValues && typeof entry.fieldValues === "object" ? entry.fieldValues as Record<string, unknown> : {};
   const fieldValues = fieldValuesFromForm(formData, trackerFields(entry.trackerType.fields, entry.trackerType.key), currentValues);
+  const linkFeatures = {
+    toys: await hasFeature("toys"),
+    positions: await hasFeature("positions"),
+    bondageSystem: await hasFeature("shopifyBondageSystem")
+  };
+  const links = await trackerLinkConnectData(user, scope, formData, linkFeatures);
   const updated = await prisma.trackerEntry.update({
     where: { id: entry.id },
     data: {
@@ -62,7 +71,10 @@ async function updateEntry(formData: FormData) {
       allDay,
       durationMinutes: allDay ? null : minutesBetween(startTime, endTime),
       notes: String(formData.get("notes") || "").trim(),
-      fieldValues: fieldValues as Prisma.InputJsonObject
+      fieldValues: fieldValues as Prisma.InputJsonObject,
+      toys: { set: links.toys },
+      positions: { set: links.positions },
+      bondageSystemItems: { set: links.bondageItems }
     }
   });
   await logAction({
@@ -115,11 +127,26 @@ export default async function TrackerEntryPage({ params }: { params: { trackerKe
       trackerType: { key: params.trackerKey },
       OR: [{ slug: params.slug }, { id: params.slug }]
     },
-    include: { trackerType: true, owner: { include: { profile: true } } }
+    include: {
+      trackerType: true,
+      owner: { include: { profile: true } },
+      toys: true,
+      positions: true,
+      bondageSystemItems: { include: { product: true } }
+    }
   });
   if (!entry) notFound();
   const fieldValues = entry.fieldValues && typeof entry.fieldValues === "object" ? entry.fieldValues as Record<string, unknown> : {};
   const editableFields = trackerFields(entry.trackerType.fields, entry.trackerType.key);
+  const linkFeatures = {
+    toys: await hasFeature("toys"),
+    positions: await hasFeature("positions"),
+    bondageSystem: await hasFeature("shopifyBondageSystem")
+  };
+  const linkOptions = trackerLinkOptionData(await trackerLinkOptions(user, scope, linkFeatures));
+  const linkedToys = entry.toys.map((toy) => ({ id: toy.id, title: toy.title, imageUrl: toy.imageUrl, href: `/toys/${toy.slug}`, fallback: "/toy-placeholder.svg" }));
+  const linkedPositions = entry.positions.map((position) => ({ id: position.id, title: position.name, imageUrl: position.imageUrl, href: `/positions/${position.slug}`, fallback: "/position-placeholder.svg" }));
+  const linkedBondageItems = entry.bondageSystemItems.map((item) => ({ id: item.id, title: item.product.title, imageUrl: item.product.imageUrl, href: `/bondage-system/${item.product.slug}`, fallback: "/toy-placeholder.svg" }));
   return (
     <AppShell>
       <PageHeader title={entry.title || entry.trackerType.title} />
@@ -149,6 +176,9 @@ export default async function TrackerEntryPage({ params }: { params: { trackerKe
               </dl>
             </div>
           ) : null}
+          <TrackerLinkedCards title="Verknüpfte Spielsachen" items={linkedToys} />
+          <TrackerLinkedCards title="Verknüpfte Bondage-System-Produkte" items={linkedBondageItems} />
+          <TrackerLinkedCards title="Verknüpfte Szenen" items={linkedPositions} />
           {!entry.allDay && !entry.endTime && entry.ownerId === user.id ? (
             <form action={stopEntry} className="mt-5">
               <input type="hidden" name="trackerKey" value={entry.trackerType.key} />
@@ -187,6 +217,14 @@ export default async function TrackerEntryPage({ params }: { params: { trackerKe
                   );
                 })}
                 <Field label="Beschreibung"><textarea className={inputClass} name="notes" rows={4} defaultValue={entry.notes || ""} /></Field>
+                <TrackerLinkPicker
+                  toys={linkOptions.toys}
+                  bondageItems={linkOptions.bondageItems}
+                  positions={linkOptions.positions}
+                  selectedToyIds={entry.toys.map((toy) => toy.id)}
+                  selectedBondageItemIds={entry.bondageSystemItems.map((item) => item.id)}
+                  selectedPositionIds={entry.positions.map((position) => position.id)}
+                />
                 <SubmitButton pendingLabel="Eintrag wird gespeichert..."><Save className="h-4 w-4" /> Eintrag speichern</SubmitButton>
               </form>
               <form action={deleteEntry} className="mt-3">

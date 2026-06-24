@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { logAction } from "@/lib/audit";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { runDueScheduledRules } from "@/lib/scheduled-rules";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 
 export const runtime = "nodejs";
@@ -67,5 +68,6 @@ export async function GET(request: Request) {
       }
     }
   }
-  return NextResponse.json({ ok: true, reminders });
+  const scheduledRules = await runDueScheduledRules(new Date());
+  return NextResponse.json({ ok: true, reminders, scheduledRules });
 }
