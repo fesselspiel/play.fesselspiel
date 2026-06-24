@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ensureDefaultAlbum } from "@/lib/albums";
+import { buildTelegramHelpText } from "@/lib/capabilities";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { answerWithPortalAgent } from "@/lib/telegram-agent";
@@ -31,36 +32,7 @@ async function tenantIdForUser(userId: string) {
   return user?.tenantId || undefined;
 }
 
-const HELP_TEXT = `<b>Befehle</b>
-/start - Bot starten
-/help - Befehle anzeigen
-/id - Chat-ID und Thread-ID anzeigen
-/status - kurze Übersicht
-/invites - Einladungskontingent anzeigen
-/invite Name - Einladungslink erzeugen
-/toys - Spielzeuge anzeigen
-/toy_new Name - neues Spielzeug mit Dialog anlegen
-/positions - Szenen anzeigen
-/activities - geplante Aktivitäten anzeigen
-/orders - offene Self-Bondage-Aufträge anzeigen
-/activity_request Titel - Spielplan anfragen
-/activity_confirm_1 - angefragten Spielplan aus der Liste bestätigen
-/order_accept_1 - Auftrag aus der Liste annehmen
-/order_done_1 - Auftrag aus der Liste als umgesetzt speichern
-/sessions - Session-Auswertung aktuelles Jahr
-/session_start Notiz - Segufix-Session starten
-/session_stop Notiz - laufende Session beenden
-/kg - KG-Auswertung aktuelles Jahr
-/kg_start Notiz - KG-Tracker starten
-/kg_stop Notiz - KG-Tracker beenden
-/kontingent - Tracker-Kontingente und offene Todos anzeigen
-/favoriten Name - Favoriten anzeigen
-/album_new Name - neues Album anlegen
-
-<b>Du kannst auch normal schreiben</b>
-Plane morgen um 20 Uhr einen Entspannungsabend mit Leder-Manschetten.
-Welche Spielzeuge habe ich?
-Starte eine Session mit Notiz ruhig begonnen.`;
+const HELP_TEXT = buildTelegramHelpText();
 
 function htmlLine(label: string, value: unknown) {
   return `<b>${telegramHtml(label)}:</b> ${telegramHtml(value || "-")}`;

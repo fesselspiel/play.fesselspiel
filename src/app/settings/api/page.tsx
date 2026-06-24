@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
 import { createApiToken } from "@/lib/api-tokens";
 import { currentUser } from "@/lib/auth";
+import { apiEndpointSpecs, apiVariableNames } from "@/lib/capabilities";
 import { formatDateTime } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
@@ -74,28 +75,19 @@ export default async function ApiSettingsPage({ searchParams }: { searchParams: 
           <Panel>
             <h2 className="mb-4 text-lg font-semibold">Aktive Endpunkte</h2>
             <div className="space-y-3 text-sm">
-              {[
-                ["GET", "/api/external/status?token=...", "Status, Benutzer und Grunddaten prüfen."],
-                ["GET", "/api/external/play-ready?token=...", "Aktuellen Spielampelstatus abfragen."],
-                ["GET", "/api/external/play-ready?token=...&state=green&hours=2&minutes=15", "Spielampel setzen. `state` kann green, red oder toggle sein; Dauer maximal 12 Stunden."],
-                ["GET", "/api/external/invites?token=...", "Einladungskontingent abfragen."],
-                ["GET", "/api/external/invites?token=...&create=1&name=Anna&email=...", "Einladungslink erzeugen; Admins haben unbegrenzt Einladungen."],
-                ["GET", "/api/external/trackers/quotas?token=...", "Kontingente und offene Tracker-Todos abfragen."],
-                ["GET", "/api/external/trackers/quotas?token=...&trackerKey=segufix", "Kontingent eines bestimmten Trackers abfragen, z. B. für Alexa."],
-                ["GET", "/api/external/trackers/{trackerKey}/start?token=...&note=...&startTime=...", "Beliebigen Tracker starten, z. B. trackerKey=segufix oder kg."],
-                ["GET", "/api/external/trackers/{trackerKey}/start?token=...&allDay=true&date=2026-06-24&note=...", "Ganztägigen Tracker-Eintrag ohne Start-/Endzeit anlegen."],
-                ["GET", "/api/external/trackers/{trackerKey}/stop?token=...&note=...", "Beliebigen laufenden Tracker beenden."],
-                ["POST", "/api/external/media", "Bild/Video per Multipart hochladen. Token im Header oder als Feld `token`."]
-              ].map(([method, endpoint, description]) => (
-                <div key={endpoint} className="rounded-md bg-paper p-3">
-                  <div className="font-semibold text-ink">{method}</div>
-                  <code className="mt-1 block overflow-x-auto text-xs text-ink">{endpoint}</code>
-                  <p className="mt-2 text-xs text-graphite">{description}</p>
+              {apiEndpointSpecs.map((endpoint) => (
+                <div key={`${endpoint.method}-${endpoint.path}`} className="rounded-md bg-paper p-3">
+                  <div className="font-semibold text-ink">{endpoint.method}</div>
+                  <code className="mt-1 block overflow-x-auto text-xs text-ink">{endpoint.path}</code>
+                  <p className="mt-2 text-xs text-graphite">{endpoint.description}</p>
+                  <p className="mt-1 text-[11px] text-graphite">{endpoint.capability} · {endpoint.action}</p>
                 </div>
               ))}
             </div>
             <div className="mt-4 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
-              Variablen: <code>{"{trackerKey}"}</code> ist der technische Tracker-Schlüssel. Häufige URL-Parameter sind <code>token</code>, <code>trackerKey</code>, <code>note</code>, <code>title</code>, <code>startTime</code>, <code>date</code>, <code>allDay</code>, <code>state</code>, <code>hours</code>, <code>minutes</code> und <code>expiresMinutes</code>, sofern der jeweilige Endpunkt sie unterstützt.
+              Variablen: <code>{"{trackerKey}"}</code> ist der technische Tracker-Schlüssel. Häufige URL-Parameter sind {apiVariableNames.map((name, index) => (
+                <span key={name}>{index ? ", " : ""}<code>{name}</code></span>
+              ))}, sofern der jeweilige Endpunkt sie unterstützt.
             </div>
           </Panel>
 

@@ -1,27 +1,9 @@
 import { redirect } from "next/navigation";
 import { currentSessionContext } from "@/lib/auth";
+import { featureCatalog as capabilityFeatureCatalog } from "@/lib/capabilities";
 import { currentTenant } from "@/lib/tenancy";
 
-export const featureCatalog = [
-  { key: "positions", label: "Szenen" },
-  { key: "toys", label: "Spielsachen" },
-  { key: "shopifyBondageSystem", label: "Bondage-System" },
-  { key: "ideas", label: "Ideensammlung" },
-  { key: "playReady", label: "Spielampel" },
-  { key: "invites", label: "Einladungen" },
-  { key: "media", label: "Bilder" },
-  { key: "activities", label: "Spielplanung" },
-  { key: "orders", label: "Aufträge" },
-  { key: "selfBondage", label: "Self-Bondage" },
-  { key: "trackers", label: "Tracker" },
-  { key: "tracker.segufix", label: "Segufix Time Tracker" },
-  { key: "tracker.kg", label: "KG Time Tracker" },
-  { key: "telegram", label: "Telegram" },
-  { key: "externalApi", label: "Externe API" },
-  { key: "email", label: "E-Mail" },
-  { key: "dataTransfer", label: "Datenexport und Import" },
-  { key: "auditLog", label: "Protokoll" }
-] as const;
+export const featureCatalog = capabilityFeatureCatalog;
 
 export type FeatureKey = typeof featureCatalog[number]["key"];
 

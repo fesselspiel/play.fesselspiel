@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { agentCapabilityPrompt, agentTools, directAgentToolNames } from "@/lib/capabilities";
 import { env } from "@/lib/env";
 import { decryptSecret } from "@/lib/crypto";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
@@ -33,195 +34,7 @@ async function tenantIdForUser(userId: string) {
   return user?.tenantId || undefined;
 }
 
-const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
-  {
-    type: "function",
-    function: {
-      name: "get_portal_status",
-      description: "Zeigt eine kompakte Übersicht über das Portal des aktiven Benutzers.",
-      parameters: { type: "object", properties: {}, additionalProperties: false }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "search_portal",
-      description: "Sucht Spielzeuge, Szenen, Aktivitäten und Sessions im Portal.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "Suchtext. Leer lassen für aktuelle Listen." },
-          area: { type: "string", enum: ["all", "toys", "positions", "activities", "sessions"] }
-        },
-        required: ["query", "area"],
-        additionalProperties: false
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_tracker_quotas",
-      description: "Liest Tracker-Kontingente, Restzeiten, offene Todos und bereits erfüllte Zeiten. Verwenden bei Fragen wie: Rest-Kontingent, wie viel ist noch übrig, wie viel muss ich heute/diese Woche/diesen Monat noch machen, Tracker-Todo, Sollzeit.",
-      parameters: {
-        type: "object",
-        properties: {
-          trackerKeyOrTitle: { type: "string", description: "Optionaler Tracker, z.B. Segufix, KG oder technischer Schlüssel." },
-          period: { type: "string", enum: ["all", "daily", "weekly", "monthly"], description: "Gefragter Zeitraum. all, wenn unklar." }
-        },
-        required: ["trackerKeyOrTitle", "period"],
-        additionalProperties: false
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_favorites",
-      description: "Listet Favoriten eines Benutzers. Verwenden bei Fragen nach Favoriten, Lieblingsspielzeugen, Lieblingsszenen oder 'was sind die Favoriten von ...'.",
-      parameters: {
-        type: "object",
-        properties: {
-          targetName: { type: "string", description: "Optionaler Benutzername oder Anzeigename, z.B. Gabriel. Leer lassen für den aktiven Benutzer." },
-          area: { type: "string", enum: ["all", "toys", "positions"], description: "Welche Favoriten angezeigt werden sollen." }
-        },
-        required: ["targetName", "area"],
-        additionalProperties: false
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "create_toy",
-      description: "Legt ein Spielzeug im Spielzeugkatalog an.",
-      parameters: {
-        type: "object",
-        properties: {
-          title: { type: "string" },
-          description: { type: "string" },
-          imageUrl: { type: "string" },
-          slug: { type: "string" }
-        },
-        required: ["title", "description", "imageUrl"],
-        additionalProperties: false
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "create_position",
-      description: "Legt eine Szene/Position an und kann vorhandene Spielzeuge per Titel verknüpfen.",
-      parameters: {
-        type: "object",
-        properties: {
-          name: { type: "string" },
-          description: { type: "string" },
-          imageUrl: { type: "string" },
-          toyTitles: { type: "array", items: { type: "string" } }
-        },
-        required: ["name", "description", "imageUrl"],
-        additionalProperties: false
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "create_activity",
-      description: "Plant eine Aktivität mit optionalem Datum, Notiz, Spielzeugen und Szenen.",
-      parameters: {
-        type: "object",
-        properties: {
-          title: { type: "string" },
-          category: { type: "string" },
-          note: { type: "string" },
-          plannedAt: { type: "string", description: "ISO-8601 Datum/Zeit oder leer, z.B. 2026-06-18T20:00:00+02:00" },
-          status: { type: "string", enum: ["REQUESTED", "PLANNED"] },
-          toyTitles: { type: "array", items: { type: "string" } },
-          positionNames: { type: "array", items: { type: "string" } }
-        },
-        required: ["title"],
-        additionalProperties: false
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "set_activity_status",
-      description: "Setzt eine vorhandene Aktivität auf angefragt, geplant, durchgeführt oder verworfen. Zum Bestätigen einer Anfrage auf PLANNED setzen.",
-      parameters: {
-        type: "object",
-        properties: {
-          titleOrSlug: { type: "string" },
-          status: { type: "string", enum: ["REQUESTED", "PLANNED", "DONE", "DISCARDED"] }
-        },
-        required: ["titleOrSlug", "status"],
-        additionalProperties: false
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "start_session",
-      description: "Startet eine Segufix-Session, wenn keine andere Session offen ist.",
-      parameters: {
-        type: "object",
-        properties: {
-          note: { type: "string" },
-          moodBefore: { type: "string", enum: ["NEEDS_WORK", "OKAY", "NEUTRAL", "PLEASANT", "VERY_PLEASANT"] }
-        },
-        additionalProperties: false
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "stop_session",
-      description: "Beendet die aktuell laufende Segufix-Session.",
-      parameters: {
-        type: "object",
-        properties: {
-          note: { type: "string" },
-          moodAfter: { type: "string", enum: ["WORSE", "UNCHANGED", "SLIGHTLY_BETTER", "MUCH_BETTER", "RELAXED"] }
-        },
-        additionalProperties: false
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "start_kg_tracker",
-      description: "Startet den KG Time Tracker. Wenn bereits einer offen ist, wird er beendet und ein neuer gestartet.",
-      parameters: {
-        type: "object",
-        properties: {
-          note: { type: "string" }
-        },
-        additionalProperties: false
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "stop_kg_tracker",
-      description: "Beendet den aktuell laufenden KG Time Tracker.",
-      parameters: {
-        type: "object",
-        properties: {
-          note: { type: "string" }
-        },
-        additionalProperties: false
-      }
-    }
-  }
-];
+const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = agentTools;
 
 function clean(value?: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -804,8 +617,8 @@ export async function answerWithPortalAgent(input: PortalAgentInput) {
         "Du darfst Fragen zum Portal beantworten und über die bereitgestellten Tools Portal-Aktionen ausführen. " +
         "Fuehre Schreibaktionen nur aus, wenn die Absicht des Nutzers klar ist. Frage bei fehlenden Pflichtangaben nach. " +
         "Wenn der Nutzer nur sagt, dass du dir etwas merken, notieren oder als Kontext behalten sollst, führe keine Portal-Schreibaktion aus. " +
-        "Bei Fragen zu Tracker-Kontingenten, Restzeit, Sollzeit, Todo, 'noch übrig' oder 'noch zu machen' musst du get_tracker_quotas verwenden. Antworte dabei mit erledigt und noch offen, nicht mit offenen Sessions. " +
-        "Bei Fragen nach Favoriten, Lieblingsspielzeugen oder Lieblingsszenen musst du get_favorites verwenden, nicht search_portal. " +
+        agentCapabilityPrompt() +
+        " Antworte bei Kontingenten mit erledigt und noch offen, nicht mit offenen Sessions. " +
         "Nutze den Dialogverlauf, um kurze Folgeauftraege wie 'das', 'den letzten Plan', 'morgen' oder 'mach daraus' korrekt auf den vorherigen Kontext zu beziehen. " +
         "Erfinde keine vorhandenen Datensätze. Nutze Suchen/Status, wenn du Portalwissen brauchst. " +
         "Wenn du Listen ausgibst, nutze knappes Telegram-HTML mit <b>Überschriften</b>, nummerierten Einträgen und Links. Nutze kein Markdown. " +
@@ -840,7 +653,7 @@ export async function answerWithPortalAgent(input: PortalAgentInput) {
         content: JSON.stringify(result)
       });
     }
-    if (directResults.length === 1 && ["get_portal_status", "search_portal", "get_tracker_quotas", "get_favorites"].includes(directResults[0].name)) {
+    if (directResults.length === 1 && directAgentToolNames.has(directResults[0].name)) {
       return formatToolResultHtml(directResults[0].result);
     }
   }
