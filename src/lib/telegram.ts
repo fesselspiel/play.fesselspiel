@@ -100,7 +100,9 @@ export async function setTelegramWebhook(tokenEnc: string, url: string) {
     body: JSON.stringify({ url, allowed_updates: ["message", "edited_message", "channel_post", "chat_member", "my_chat_member"] })
   });
   if (!response.ok) throw new Error(await response.text());
-  return response.json();
+  const payload = await response.json() as { ok?: boolean; description?: string };
+  if (!payload.ok) throw new Error(payload.description || "Telegram Webhook konnte nicht gesetzt werden");
+  return payload;
 }
 
 export async function getTelegramChatAdministrators(tokenEnc: string, chatId: string) {

@@ -389,6 +389,7 @@ async function activateTelegramMemberDiscovery() {
   const settings = await ensureTenantTelegramSettings(tenant.id);
   if (!settings?.telegramBotTokenEnc) redirect("/settings/telegram?memberDiscovery=missing-token#mappings");
   const webhookUrl = `${env.appUrl}/api/telegram/webhook?tenantTelegramSettingsId=${settings.id}`;
+  let failedMessage = "";
   try {
     await setTelegramWebhook(settings.telegramBotTokenEnc, webhookUrl);
     await prisma.auditLog.create({
@@ -403,19 +404,19 @@ async function activateTelegramMemberDiscovery() {
         }
       }
     });
-    redirect("/settings/telegram?memberDiscovery=enabled#mappings");
   } catch (error) {
+    failedMessage = error instanceof Error ? error.message.slice(0, 500) : "Unbekannter Fehler";
     await prisma.auditLog.create({
       data: {
         actorId: user.id,
         action: "telegram_member_discovery_failed",
         entityType: "telegram",
         title: "Telegram-Mitgliedserkennung fehlgeschlagen",
-        details: { error: error instanceof Error ? error.message.slice(0, 500) : "Unbekannter Fehler" }
+        details: { webhookUrl, error: failedMessage }
       }
     });
-    redirect("/settings/telegram?memberDiscovery=failed#mappings");
   }
+  redirect(failedMessage ? "/settings/telegram?memberDiscovery=failed#mappings" : "/settings/telegram?memberDiscovery=enabled#mappings");
 }
 
 async function createNotificationRule(formData: FormData) {
