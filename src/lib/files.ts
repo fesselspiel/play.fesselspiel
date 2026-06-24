@@ -11,6 +11,59 @@ function safeExtension(name: string) {
   return ext.slice(0, 16);
 }
 
+function extensionForMime(mimeType: string) {
+  if (mimeType === "image/jpeg") return ".jpg";
+  if (mimeType === "image/png") return ".png";
+  if (mimeType === "image/webp") return ".webp";
+  if (mimeType === "image/gif") return ".gif";
+  if (mimeType === "video/mp4") return ".mp4";
+  if (mimeType === "video/quicktime") return ".mov";
+  if (mimeType === "application/pdf") return ".pdf";
+  return "";
+}
+
+function detectFileType(bytes: Buffer) {
+  if (bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return { mimeType: "image/png", extension: ".png" };
+  }
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return { mimeType: "image/jpeg", extension: ".jpg" };
+  }
+  if (bytes.length >= 12 && bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP") {
+    return { mimeType: "image/webp", extension: ".webp" };
+  }
+  if (bytes.length >= 6 && ["GIF87a", "GIF89a"].includes(bytes.subarray(0, 6).toString("ascii"))) {
+    return { mimeType: "image/gif", extension: ".gif" };
+  }
+  if (bytes.length >= 8 && bytes.subarray(4, 8).toString("ascii") === "ftyp") {
+    return { mimeType: "video/mp4", extension: ".mp4" };
+  }
+  if (bytes.length >= 5 && bytes.subarray(0, 5).toString("ascii") === "%PDF-") {
+    return { mimeType: "application/pdf", extension: ".pdf" };
+  }
+  return null;
+}
+
+function normalizeOriginalName(name: string, extension: string) {
+  const fallback = name.trim() || `datei${extension}`;
+  if (!extension) return fallback;
+  const current = safeExtension(fallback);
+  if (current === extension) return fallback;
+  const base = current ? fallback.slice(0, -current.length) : fallback;
+  return `${base || "datei"}${extension}`;
+}
+
+function fileInfoFromBytes(bytes: Buffer, originalName: string, declaredMimeType?: string | null) {
+  const detected = detectFileType(bytes);
+  const mimeType = detected?.mimeType || declaredMimeType || "application/octet-stream";
+  const extension = detected?.extension || safeExtension(originalName) || extensionForMime(mimeType);
+  return {
+    mimeType,
+    extension,
+    originalName: detected ? normalizeOriginalName(originalName, detected.extension) : originalName
+  };
+}
+
 function assetUrl(id: string) {
   return `/api/files/${id}`;
 }
@@ -38,24 +91,24 @@ export async function saveUploadedFile(ownerId: string, file: File | null | unde
   if (!file || file.size === 0) return null;
   if (file.size > env.maxUploadBytes) throw new Error(`Datei ist größer als ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB`);
 
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const fileInfo = fileInfoFromBytes(bytes, file.name || "", file.type);
   const id = randomUUID();
-  const extension = safeExtension(file.name);
   const relativeDir = path.join(ownerId, new Date().toISOString().slice(0, 10));
-  const filename = `${id}${extension}`;
+  const filename = `${id}${fileInfo.extension}`;
   const relativePath = path.join(relativeDir, filename);
   const absoluteDir = storageAbsolutePath(relativeDir);
   const absolutePath = storageAbsolutePath(relativePath);
 
   await mkdir(absoluteDir, { recursive: true });
-  const bytes = Buffer.from(await file.arrayBuffer());
   await writeFile(absolutePath, bytes, { mode: 0o600 });
 
   const asset = await prisma.fileAsset.create({
     data: {
       tenantId: tenantId || (await currentTenant()).id,
       ownerId,
-      originalName: file.name || filename,
-      mimeType: file.type || "application/octet-stream",
+      originalName: fileInfo.originalName || filename,
+      mimeType: fileInfo.mimeType,
       sizeBytes: file.size,
       storagePath: relativePath
     }
@@ -79,10 +132,10 @@ export async function saveFileBuffer({
   if (!bytes.length) return null;
   if (bytes.length > env.maxUploadBytes) throw new Error(`Datei ist größer als ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB`);
 
+  const fileInfo = fileInfoFromBytes(bytes, originalName, mimeType);
   const id = randomUUID();
-  const extension = safeExtension(originalName);
   const relativeDir = path.join(ownerId, new Date().toISOString().slice(0, 10));
-  const filename = `${id}${extension}`;
+  const filename = `${id}${fileInfo.extension}`;
   const relativePath = path.join(relativeDir, filename);
   const absoluteDir = storageAbsolutePath(relativeDir);
   const absolutePath = storageAbsolutePath(relativePath);
@@ -94,8 +147,8 @@ export async function saveFileBuffer({
     data: {
       tenantId: tenantId || (await currentTenant()).id,
       ownerId,
-      originalName,
-      mimeType,
+      originalName: fileInfo.originalName,
+      mimeType: fileInfo.mimeType,
       sizeBytes: bytes.length,
       storagePath: relativePath
     }

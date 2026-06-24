@@ -879,6 +879,9 @@ export async function POST(request: Request) {
     if (!asset) return NextResponse.json({ ok: true });
     const imageUrl = fileAssetUrl(asset.id);
     const caption = message.caption?.trim();
+    const transparencyHint = photo && asset.mimeType === "image/jpeg"
+      ? "\n\n<b>Hinweis:</b> Telegram hat dieses Bild als Foto in JPEG umgewandelt. Für PNG mit Transparenz bitte in Telegram als Datei/Dokument senden."
+      : "";
     await prisma.message.create({ data: { senderId: actorUserId, body: `Telegram: [Bild]${caption ? ` ${caption}` : ""}`, mediaUrl: imageUrl } });
     await logAction({
       actorId: actorUserId,
@@ -932,19 +935,21 @@ export async function POST(request: Request) {
             "<b>In anderes Album verschieben</b>",
             ...albumLines,
             "",
-            `Wenn du nichts anklickst, bleibt das Bild in ${telegramHtml(defaultAlbum.title)}.`
+            `Wenn du nichts anklickst, bleibt das Bild in ${telegramHtml(defaultAlbum.title)}.`,
+            transparencyHint
           ].join("\n");
         }));
 
-    await sendTelegramMessage(tokenEnc, chatId, threadId, answer, { parseMode: "HTML", disableWebPagePreview: true });
-    await prisma.message.create({ data: { senderId: actorUserId, body: `Telegram-Agent: ${answer}` } });
+    const finalAnswer = `${answer}${itemDialogueAnswer ? transparencyHint : ""}`;
+    await sendTelegramMessage(tokenEnc, chatId, threadId, finalAnswer, { parseMode: "HTML", disableWebPagePreview: true });
+    await prisma.message.create({ data: { senderId: actorUserId, body: `Telegram-Agent: ${finalAnswer}` } });
     await logAction({
       actorId: actorUserId,
       action: "telegram_answer_sent",
       entityType: "telegram",
       title: "Telegram-Antwort gesendet",
       details: {
-        answer: answer.slice(0, 1000),
+        answer: finalAnswer.slice(0, 1000),
         chatId,
         threadId,
         chatTitle: chat.chatTitle || chat.title || null,
