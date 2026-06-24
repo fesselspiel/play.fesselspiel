@@ -8,7 +8,7 @@ import { Button, Field, inputClass, PageHeader, Panel, SoftPanel } from "@/compo
 import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
-import { formatDateTime, formatDateTimeLocal, formatMinutes, minutesBetween, parseDateTimeLocal } from "@/lib/dates";
+import { formatDate, formatDateInput, formatDateTime, formatDateTimeLocal, formatMinutes, minutesBetween, parseDateInput, parseDateTimeLocal } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { fieldOptions, fieldValuesFromForm, trackerFields } from "@/lib/tracker-fields";
@@ -48,8 +48,10 @@ async function updateEntry(formData: FormData) {
   await requireFeature(`tracker.${entry.trackerType.key}`);
   const startRaw = String(formData.get("startTime") || "");
   const endRaw = String(formData.get("endTime") || "");
-  const startTime = parseDateTimeLocal(startRaw) || entry.startTime;
-  const endTime = endRaw ? parseDateTimeLocal(endRaw) : null;
+  const allDay = formData.get("allDay") === "on";
+  const dateRaw = String(formData.get("date") || "");
+  const startTime = allDay ? parseDateInput(dateRaw) || parseDateTimeLocal(startRaw) || entry.startTime : parseDateTimeLocal(startRaw) || parseDateInput(dateRaw) || entry.startTime;
+  const endTime = allDay ? null : endRaw ? parseDateTimeLocal(endRaw) : null;
   const currentValues = entry.fieldValues && typeof entry.fieldValues === "object" ? entry.fieldValues as Record<string, unknown> : {};
   const fieldValues = fieldValuesFromForm(formData, trackerFields(entry.trackerType.fields, entry.trackerType.key), currentValues);
   const updated = await prisma.trackerEntry.update({
@@ -57,7 +59,8 @@ async function updateEntry(formData: FormData) {
     data: {
       startTime,
       endTime,
-      durationMinutes: minutesBetween(startTime, endTime),
+      allDay,
+      durationMinutes: allDay ? null : minutesBetween(startTime, endTime),
       notes: String(formData.get("notes") || "").trim(),
       fieldValues: fieldValues as Prisma.InputJsonObject
     }
@@ -120,9 +123,9 @@ export default async function TrackerEntryPage({ params }: { params: { trackerKe
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Panel>
           <div className="grid gap-4 sm:grid-cols-3">
-            <SoftPanel><div className="text-sm text-graphite">Start</div><div className="mt-2 font-semibold">{formatDateTime(entry.startTime)}</div></SoftPanel>
-            <SoftPanel><div className="text-sm text-graphite">Ende</div><div className="mt-2 font-semibold">{entry.endTime ? formatDateTime(entry.endTime) : "läuft"}</div></SoftPanel>
-            <SoftPanel><div className="text-sm text-graphite">Dauer</div><div className="mt-2 font-semibold">{formatMinutes(entry.durationMinutes)}</div></SoftPanel>
+            <SoftPanel><div className="text-sm text-graphite">{entry.allDay ? "Datum" : "Start"}</div><div className="mt-2 font-semibold">{entry.allDay ? formatDate(entry.startTime) : formatDateTime(entry.startTime)}</div></SoftPanel>
+            <SoftPanel><div className="text-sm text-graphite">Ende</div><div className="mt-2 font-semibold">{entry.allDay ? "ganzer Tag" : entry.endTime ? formatDateTime(entry.endTime) : "läuft"}</div></SoftPanel>
+            <SoftPanel><div className="text-sm text-graphite">Dauer</div><div className="mt-2 font-semibold">{entry.allDay ? "ohne Uhrzeit" : formatMinutes(entry.durationMinutes)}</div></SoftPanel>
           </div>
           {entry.notes ? <div className="mt-5 whitespace-pre-wrap rounded-md border border-line bg-paper p-4 text-sm leading-6">{entry.notes}</div> : null}
           {Object.keys(fieldValues).length ? (
@@ -138,7 +141,7 @@ export default async function TrackerEntryPage({ params }: { params: { trackerKe
               </dl>
             </div>
           ) : null}
-          {!entry.endTime && entry.ownerId === user.id ? (
+          {!entry.allDay && !entry.endTime && entry.ownerId === user.id ? (
             <form action={stopEntry} className="mt-5">
               <input type="hidden" name="trackerKey" value={entry.trackerType.key} />
               <Button><Square className="h-4 w-4" /> Tracker beenden</Button>
@@ -149,8 +152,13 @@ export default async function TrackerEntryPage({ params }: { params: { trackerKe
               <h2 className="mb-3 font-semibold">Eintrag bearbeiten</h2>
               <form action={updateEntry} className="grid gap-3">
                 <input type="hidden" name="id" value={entry.id} />
-                <Field label="Start"><input className={inputClass} name="startTime" type="datetime-local" defaultValue={formatDateTimeLocal(entry.startTime)} /></Field>
-                <Field label="Ende"><input className={inputClass} name="endTime" type="datetime-local" defaultValue={formatDateTimeLocal(entry.endTime)} /></Field>
+                <Field label="Datum"><input className={inputClass} name="date" type="date" defaultValue={formatDateInput(entry.startTime)} /></Field>
+                <Field label="Start"><input className={inputClass} name="startTime" type="datetime-local" defaultValue={entry.allDay ? "" : formatDateTimeLocal(entry.startTime)} /></Field>
+                <Field label="Ende"><input className={inputClass} name="endTime" type="datetime-local" defaultValue={entry.allDay ? "" : formatDateTimeLocal(entry.endTime)} /></Field>
+                <label className="flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-2 text-sm font-medium text-graphite">
+                  <input name="allDay" type="checkbox" defaultChecked={entry.allDay} className="h-4 w-4 accent-redbrand" />
+                  Ganzer Tag, ohne Start- und Endzeit
+                </label>
                 {editableFields.map((field) => {
                   const options = fieldOptions(field);
                   return (

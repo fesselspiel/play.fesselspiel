@@ -20,6 +20,18 @@ export function formatDateTimeLocal(value?: Date | null) {
   return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
 }
 
+export function formatDateInput(value?: Date | null) {
+  if (!value) return "";
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: appTimeZone
+  }).formatToParts(value);
+  const part = (type: string) => parts.find((entry) => entry.type === type)?.value || "00";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
 function timeZoneOffsetMs(value: Date) {
   const parts = new Intl.DateTimeFormat("sv-SE", {
     year: "numeric",
@@ -42,6 +54,16 @@ export function parseDateTimeLocal(value?: string | null) {
   if (!match) return null;
   const [, year, month, day, hour, minute] = match;
   const utcGuess = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), 0));
+  const offset = timeZoneOffsetMs(utcGuess);
+  return new Date(utcGuess.getTime() - offset);
+}
+
+export function parseDateInput(value?: string | null) {
+  const raw = String(value || "").trim();
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const utcGuess = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 0, 0, 0));
   const offset = timeZoneOffsetMs(utcGuess);
   return new Date(utcGuess.getTime() - offset);
 }

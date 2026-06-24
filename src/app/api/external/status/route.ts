@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     prisma.activityPlan.count({ where: { ...scope, category: { not: "IDEA_COLLECTION" }, status: { in: ["REQUESTED", "PLANNED"] } } }),
     prisma.media.count({ where: scope }),
     prisma.trackerEntry.findMany({
-      where: { ownerId: auth.user.id, tenantId: auth.user.tenantId || undefined, endTime: null },
+      where: { ownerId: auth.user.id, tenantId: auth.user.tenantId || undefined, endTime: null, allDay: false },
       include: { trackerType: true },
       orderBy: { startTime: "desc" }
     }),

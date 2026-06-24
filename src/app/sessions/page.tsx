@@ -7,7 +7,7 @@ import { Button, Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } fr
 import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
-import { formatDateTime, formatMinutes, minutesBetween, parseDateTimeLocal } from "@/lib/dates";
+import { formatDate, formatDateInput, formatDateTime, formatDateTimeLocal, formatMinutes, minutesBetween, parseDateInput, parseDateTimeLocal } from "@/lib/dates";
 import { featureEnabled, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
@@ -25,8 +25,10 @@ async function createTrackerEntry(formData: FormData) {
   if (!trackerType) redirect("/sessions?error=tracker");
   const startRaw = String(formData.get("startTime") || "");
   const endRaw = String(formData.get("endTime") || "");
-  const startTime = parseDateTimeLocal(startRaw) || new Date();
-  const endTime = endRaw ? parseDateTimeLocal(endRaw) : null;
+  const allDay = formData.get("allDay") === "on";
+  const dateRaw = String(formData.get("date") || "");
+  const startTime = allDay ? parseDateInput(dateRaw) || parseDateTimeLocal(startRaw) || new Date() : parseDateTimeLocal(startRaw) || parseDateInput(dateRaw) || new Date();
+  const endTime = allDay ? null : endRaw ? parseDateTimeLocal(endRaw) : null;
   const fieldValues = fieldValuesFromForm(formData, trackerFields(trackerType.fields, trackerType.key));
   const entry = await prisma.trackerEntry.create({
     data: {
@@ -37,7 +39,8 @@ async function createTrackerEntry(formData: FormData) {
       title: trackerType.title,
       startTime,
       endTime,
-      durationMinutes: minutesBetween(startTime, endTime),
+      allDay,
+      durationMinutes: allDay ? null : minutesBetween(startTime, endTime),
       notes: String(formData.get("notes") || "").trim(),
       fieldValues: fieldValues as Prisma.InputJsonObject
     }
@@ -74,7 +77,7 @@ async function stopEntry(formData: FormData) {
 
 const months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
-export default async function SessionsPage({ searchParams }: { searchParams: { year?: string; tracker?: string } }) {
+export default async function SessionsPage({ searchParams }: { searchParams: { year?: string; tracker?: string; date?: string } }) {
   await requireFeature("trackers");
   const user = await currentUser();
   if (!user) redirect("/login");
@@ -103,10 +106,13 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
   if (!visibleTrackers.length) redirect("/feature-disabled?feature=trackers");
   const activeTracker = visibleTrackers.find((tracker) => tracker.key === searchParams.tracker) || visibleTrackers[0];
   const totalMinutes = activeTracker.entries.reduce((sum, entry) => sum + (entry.durationMinutes || 0), 0);
-  const open = activeTracker.entries.find((entry) => !entry.endTime);
+  const open = activeTracker.entries.find((entry) => !entry.endTime && !entry.allDay);
   const quota = quotaByKey.get(activeTracker.key);
   const statusLabel = open ? "läuft" : quota?.hasQuota ? quota.complete ? "erfüllt" : "offen" : "kein Ziel";
   const activeTrackerFields = trackerFields(activeTracker.fields, activeTracker.key);
+  const selectedDate = parseDateInput(searchParams.date);
+  const selectedDateValue = selectedDate ? formatDateInput(selectedDate) : "";
+  const selectedDateTimeValue = selectedDate ? `${selectedDateValue}T00:00` : "";
   const byDay = new Map<string, typeof activeTracker.entries>();
   for (const entry of activeTracker.entries) {
     const key = `${entry.startTime.getMonth()}-${entry.startTime.getDate()}`;
@@ -160,14 +166,24 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                   ) : null}
                 </div>
               ) : null}
-              <form action={createTrackerEntry} className="mb-5 space-y-3">
+              <form id="new-entry" action={createTrackerEntry} className="mb-5 space-y-3">
                 <input type="hidden" name="trackerKey" value={activeTracker.key} />
-                <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1.5fr_auto] lg:items-end">
-                  <Field label="Start"><input className={inputClass} name="startTime" type="datetime-local" /></Field>
+                {selectedDateValue ? (
+                  <div className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">
+                    Neuer Eintrag für <strong className="text-ink">{formatDate(selectedDate)}</strong>. Wähle bei Bedarf „ganzer Tag“, wenn keine Uhrzeit gelten soll.
+                  </div>
+                ) : null}
+                <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1.5fr_auto] lg:items-end">
+                  <Field label="Datum"><input className={inputClass} name="date" type="date" defaultValue={selectedDateValue} /></Field>
+                  <Field label="Start"><input className={inputClass} name="startTime" type="datetime-local" defaultValue={selectedDateTimeValue} /></Field>
                   <Field label="Ende"><input className={inputClass} name="endTime" type="datetime-local" /></Field>
                   <Field label="Beschreibung"><input className={inputClass} name="notes" placeholder="Optionaler Kommentar" /></Field>
                   <Button><Save className="h-4 w-4" /> Eintrag speichern</Button>
                 </div>
+                <label className="flex items-center gap-2 rounded-md border border-line bg-paper px-3 py-2 text-sm font-medium text-graphite">
+                  <input name="allDay" type="checkbox" className="h-4 w-4 accent-redbrand" />
+                  Ganzer Tag, ohne Start- und Endzeit
+                </label>
                 {activeTrackerFields.length ? (
                   <div className="grid gap-3 rounded-lg border border-line bg-paper p-3 sm:grid-cols-2 lg:grid-cols-3">
                     {activeTrackerFields.map((field) => {
@@ -201,15 +217,26 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                       <div key={month} className="contents">
                         <div className="pr-2 text-right font-medium text-graphite">{month}</div>
                         {Array.from({ length: 31 }, (_, day) => {
+                          const date = new Date(year, monthIndex, day + 1);
+                          const validDay = date.getMonth() === monthIndex;
+                          const dateValue = `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day + 1).padStart(2, "0")}`;
                           const entries = byDay.get(`${monthIndex}-${day + 1}`) || [];
                           const firstEntry = entries[0];
-                          const cellStyle = { backgroundColor: entries.length ? activeTracker.color : "transparent", opacity: entries.length ? 0.85 : 1 };
+                          const cellStyle = { backgroundColor: entries.length ? activeTracker.color : "transparent", opacity: validDay ? entries.length ? 0.85 : 1 : 0.25 };
                           return firstEntry ? (
                             <Link
                               key={`${month}-${day}`}
                               href={`/trackers/${activeTracker.key}/${firstEntry.slug || firstEntry.id}`}
                               className="focus-ring h-5 rounded-sm border border-line hover:ring-2 hover:ring-redbrand"
                               title={`${entries.length} Einträge, öffnen`}
+                              style={cellStyle}
+                            />
+                          ) : validDay ? (
+                            <Link
+                              key={`${month}-${day}`}
+                              href={`/sessions?tracker=${activeTracker.key}&year=${year}&date=${dateValue}#new-entry`}
+                              className="focus-ring h-5 rounded-sm border border-line hover:bg-paper hover:ring-2 hover:ring-redbrand"
+                              title={`Neuen Eintrag für ${dateValue} anlegen`}
                               style={cellStyle}
                             />
                           ) : (
@@ -229,8 +256,8 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
               <div className="space-y-2">
                 {activeTracker.entries.slice(0, 8).map((entry) => (
                   <Link key={entry.id} href={`/trackers/${activeTracker.key}/${entry.slug || entry.id}`} className="block rounded-md border border-line bg-paper p-3 text-sm hover:border-redbrand">
-                    <strong>{formatDateTime(entry.startTime)}</strong>
-                    <span className="ml-2 text-graphite">{entry.endTime ? formatMinutes(entry.durationMinutes) : "läuft"}</span>
+                    <strong>{entry.allDay ? formatDate(entry.startTime) : formatDateTime(entry.startTime)}</strong>
+                    <span className="ml-2 text-graphite">{entry.allDay ? "ganzer Tag" : entry.endTime ? formatMinutes(entry.durationMinutes) : "läuft"}</span>
                     {entry.notes ? <span className="ml-2 text-graphite">{entry.notes}</span> : null}
                   </Link>
                 ))}

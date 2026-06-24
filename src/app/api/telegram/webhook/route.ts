@@ -315,7 +315,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     const yearStart = new Date(now.getFullYear(), 0, 1);
     const sessions = await prisma.trackerEntry.findMany({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, startTime: { gte: yearStart } } });
     const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
-    const open = sessions.filter((session) => !session.endTime).length;
+    const open = sessions.filter((session) => !session.endTime && !session.allDay).length;
     return [`<b>Segufix ${now.getFullYear()}</b>`, htmlLine("Anzahl", sessions.length), htmlLine("Gesamtdauer", formatMinutes(total)), htmlLine("Offen", open), telegramLink(`${env.appUrl}/sessions`, "Tracker öffnen")].join("\n");
   }
 
@@ -324,7 +324,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     const yearStart = new Date(now.getFullYear(), 0, 1);
     const sessions = await prisma.trackerEntry.findMany({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "kg" }, startTime: { gte: yearStart } } });
     const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
-    const open = sessions.filter((session) => !session.endTime).length;
+    const open = sessions.filter((session) => !session.endTime && !session.allDay).length;
     return [`<b>KG Time Tracker ${now.getFullYear()}</b>`, htmlLine("Einträge", sessions.length), htmlLine("Gesamtzeit", formatMinutes(total)), htmlLine("Offen", open), telegramLink(`${env.appUrl}/sessions`, "Tracker öffnen")].join("\n");
   }
 
@@ -333,7 +333,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   }
 
   if (parsed.command === "/session_start") {
-    const open = await prisma.trackerEntry.findFirst({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, endTime: null }, orderBy: { startTime: "desc" } });
+    const open = await prisma.trackerEntry.findFirst({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, endTime: null, allDay: false }, orderBy: { startTime: "desc" } });
     if (open) return `Es läuft bereits eine Session seit ${formatDateTime(open.startTime)}. Beende sie mit /session_stop.`;
     const session = await startTrackerEntry({
       key: "segufix",

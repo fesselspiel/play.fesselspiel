@@ -347,7 +347,7 @@ async function getPortalStatus(userId: string): Promise<ToolCallResult> {
     prisma.position.count({ where: { ...tenantScope, ownerId: userId } }),
     prisma.activityPlan.count({ where: { ...tenantScope, ownerId: userId, category: { notIn: ["IDEA_COLLECTION", "SELF_BONDAGE_ORDER"] }, status: { in: ["REQUESTED", "PLANNED"] } } }),
     prisma.trackerEntry.findMany({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, startTime: { gte: yearStart } } }),
-    prisma.trackerEntry.findFirst({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, endTime: null }, orderBy: { startTime: "desc" } })
+    prisma.trackerEntry.findFirst({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, endTime: null, allDay: false }, orderBy: { startTime: "desc" } })
   ]);
   const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
   return {
@@ -521,7 +521,7 @@ async function setActivityStatus(userId: string, args: Record<string, unknown>):
 
 async function startSession(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   const tenantId = await tenantIdForUser(userId);
-  const open = await prisma.trackerEntry.findFirst({ where: { ...(tenantId ? { tenantId } : {}), ownerId: userId, trackerType: { key: "segufix" }, endTime: null }, orderBy: { startTime: "desc" } });
+  const open = await prisma.trackerEntry.findFirst({ where: { ...(tenantId ? { tenantId } : {}), ownerId: userId, trackerType: { key: "segufix" }, endTime: null, allDay: false }, orderBy: { startTime: "desc" } });
   if (open) return { ok: false, message: `Es läuft bereits eine Session seit ${formatDateTime(open.startTime)}.` };
   const moodBefore = clean(args.moodBefore) || undefined;
   const session = await startTrackerEntry({

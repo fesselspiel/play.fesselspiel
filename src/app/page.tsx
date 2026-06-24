@@ -14,7 +14,7 @@ import { hasFeature, requireFeature } from "@/lib/features";
 import { feedDetailsText, renderFeedTemplate } from "@/lib/feed";
 import { homeSectionOrder } from "@/lib/home-layout";
 import { prisma } from "@/lib/prisma";
-import { formatDateTime, formatMinutes } from "@/lib/dates";
+import { formatDate, formatDateTime, formatMinutes } from "@/lib/dates";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 import { stopTrackerEntry } from "@/lib/tracker-core";
 
@@ -390,7 +390,7 @@ export default async function DashboardPage() {
       entry.actor?.profile?.displayName || entry.actor?.name || entry.actor?.username || entry.actor?.email || "Unbekannt"
     ])
   );
-  const openTrackerEntries = trackerEntries.filter((entry) => !entry.endTime);
+  const openTrackerEntries = trackerEntries.filter((entry) => !entry.endTime && !entry.allDay);
   const weekDays = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(todayStart);
     date.setDate(todayStart.getDate() + index);
@@ -860,9 +860,9 @@ export default async function DashboardPage() {
                 <Link key={entry.id} href={`/trackers/${entry.trackerType.key}/${entry.slug || entry.id}`} className="block rounded-md border border-line p-3 hover:border-redbrand hover:bg-paper">
                   <div className="flex items-center justify-between gap-3">
                     <strong>{entry.title || entry.trackerType.title}</strong>
-                    <span className="text-sm text-graphite">{formatMinutes(entry.durationMinutes)}</span>
+                    <span className="text-sm text-graphite">{entry.allDay ? "ganzer Tag" : formatMinutes(entry.durationMinutes)}</span>
                   </div>
-                  <p className="mt-1 text-xs text-graphite">{formatDateTime(entry.startTime)}</p>
+                  <p className="mt-1 text-xs text-graphite">{entry.allDay ? formatDate(entry.startTime) : formatDateTime(entry.startTime)}</p>
                   {entry.notes ? <p className="mt-2 text-sm text-graphite">{entry.notes}</p> : null}
                 </Link>
               ))}

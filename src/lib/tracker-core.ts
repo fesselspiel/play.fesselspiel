@@ -35,15 +35,17 @@ export async function startTrackerEntry(input: {
   key: string;
   user: { id: string; tenantId?: string | null };
   startTime?: Date;
+  allDay?: boolean;
   notes?: string;
   fieldValues?: Record<string, unknown>;
 }) {
   const trackerType = await findTrackerTypeForUser(input.key, input.user);
   if (!trackerType) return null;
   const startTime = input.startTime || new Date();
-  if (trackerType.autoCloseOpenSession) {
+  const allDay = input.allDay === true;
+  if (!allDay && trackerType.autoCloseOpenSession) {
     const open = await prisma.trackerEntry.findFirst({
-      where: { trackerTypeId: trackerType.id, ownerId: input.user.id, endTime: null },
+      where: { trackerTypeId: trackerType.id, ownerId: input.user.id, endTime: null, allDay: false },
       orderBy: { startTime: "desc" }
     });
     if (open) {
@@ -65,6 +67,7 @@ export async function startTrackerEntry(input: {
       slug: await uniqueTrackerSlug(trackerType.id, trackerType.key, startTime),
       title: trackerType.title,
       startTime,
+      allDay,
       notes: input.notes || "",
       fieldValues: (input.fieldValues || {}) as Prisma.InputJsonValue
     }
@@ -79,7 +82,7 @@ export async function stopTrackerEntry(input: {
   const trackerType = await findTrackerTypeForUser(input.key, input.user);
   if (!trackerType) return null;
   const entry = await prisma.trackerEntry.findFirst({
-    where: { trackerTypeId: trackerType.id, ownerId: input.user.id, endTime: null },
+    where: { trackerTypeId: trackerType.id, ownerId: input.user.id, endTime: null, allDay: false },
     orderBy: { startTime: "desc" }
   });
   if (!entry) return null;

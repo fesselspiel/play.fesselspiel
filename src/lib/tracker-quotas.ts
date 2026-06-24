@@ -68,6 +68,7 @@ async function completedMinutesForTracker(tracker: QuotaTracker, user: QuotaUser
     where: {
       trackerTypeId: tracker.id,
       ownerId: user.id,
+      allDay: false,
       startTime: { lt: periodEnd },
       OR: [{ endTime: null }, { endTime: { gte: periodStart } }]
     },

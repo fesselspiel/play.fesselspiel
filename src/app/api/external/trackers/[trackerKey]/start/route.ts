@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logAction } from "@/lib/audit";
 import { apiFeatureGate, dateFromValue, requestValues, requireApiUser } from "@/lib/external-api";
+import { parseDateInput } from "@/lib/dates";
 import { startTrackerEntry } from "@/lib/tracker-core";
 
 export const runtime = "nodejs";
@@ -11,10 +12,12 @@ async function startTracker(request: NextRequest, trackerKey: string) {
   const blocked = apiFeatureGate(auth.user, "externalApi", "trackers", `tracker.${trackerKey}`);
   if (blocked) return blocked;
   const values = await requestValues(request);
+  const allDay = ["1", "true", "yes", "on"].includes(String(values.get("allDay") || "").toLowerCase());
   const entry = await startTrackerEntry({
     key: trackerKey,
     user: auth.user,
-    startTime: dateFromValue(values.get("startTime")) || undefined,
+    startTime: allDay ? parseDateInput(values.get("date")) || dateFromValue(values.get("startTime")) || undefined : dateFromValue(values.get("startTime")) || undefined,
+    allDay,
     notes: values.get("note") || values.get("notes") || "Per API gestartet"
   });
   if (!entry) return NextResponse.json({ ok: false, error: "Tracker nicht gefunden oder deaktiviert" }, { status: 404 });

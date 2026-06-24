@@ -802,6 +802,7 @@ model TrackerEntry {
   title           String?
   startTime       DateTime
   endTime         DateTime?
+  allDay          Boolean     @default(false)
   durationMinutes Int?
   notes           String?
   fieldValues     Json        @default("{}")
