@@ -78,11 +78,12 @@ async function saveSite(formData: FormData) {
       disabledButtonHref: formText(formData, "disabledButtonHref", "/")
     }
   });
-  for (const feature of featureCatalog) {
+  const featureKeys = Array.from(new Set(formData.getAll("featureKey").map(String).filter(Boolean)));
+  for (const featureKey of featureKeys) {
     await prisma.tenantFeature.upsert({
-      where: { tenantId_key: { tenantId: tenant.id, key: feature.key } },
-      update: { enabled: formData.get(`feature:${feature.key}`) === "on" },
-      create: { tenantId: tenant.id, key: feature.key, enabled: formData.get(`feature:${feature.key}`) === "on" }
+      where: { tenantId_key: { tenantId: tenant.id, key: featureKey } },
+      update: { enabled: formData.get(`feature:${featureKey}`) === "on" },
+      create: { tenantId: tenant.id, key: featureKey, enabled: formData.get(`feature:${featureKey}`) === "on" }
     });
   }
   await logAction({
@@ -189,6 +190,7 @@ export default async function SitesPage({ searchParams }: { searchParams: { save
     include: {
       domains: { orderBy: [{ primary: "desc" }, { hostname: "asc" }] },
       features: true,
+      trackerTypes: { orderBy: { title: "asc" } },
       _count: { select: { users: true, circles: true, trackerTypes: true } }
     },
     orderBy: [{ slug: "asc" }, { name: "asc" }]
@@ -242,6 +244,13 @@ export default async function SitesPage({ searchParams }: { searchParams: { save
               <div className="mt-4 space-y-4">
                 {sites.map((site) => {
                   const enabled = new Set(site.features.filter((feature) => feature.enabled).map((feature) => feature.key));
+                  const staticFeatureKeys = new Set<string>(featureCatalog.map((feature) => feature.key));
+                  const features = [
+                    ...featureCatalog,
+                    ...site.trackerTypes
+                      .map((tracker) => ({ key: `tracker.${tracker.key}`, label: tracker.title }))
+                      .filter((feature) => !staticFeatureKeys.has(feature.key))
+                  ];
                   const isMain = site.slug === DEFAULT_TENANT_SLUG;
                   return (
                     <div key={site.id} className="rounded-lg border border-line bg-surface p-4">
@@ -293,8 +302,9 @@ export default async function SitesPage({ searchParams }: { searchParams: { save
                       <details className="rounded-md border border-line bg-paper p-4">
                         <summary className="cursor-pointer font-semibold text-ink">Features</summary>
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                          {featureCatalog.map((feature) => (
+                          {features.map((feature) => (
                             <label key={feature.key} className="flex items-center justify-between gap-3 rounded-md border border-line bg-surface p-3 text-sm">
+                              <input type="hidden" name="featureKey" value={feature.key} />
                               <span>
                                 <strong className="block text-ink">{feature.label}</strong>
                                 <span className="text-xs text-graphite">{feature.key}</span>

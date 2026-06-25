@@ -57,11 +57,19 @@ async function expirePlayReadyStatuses(viewer: Awaited<ReturnType<typeof current
     : { userId: viewer.id, active: true, user: { active: true } };
   const memberships = await prisma.tenantMembership.findMany({
     where: ownerFilter,
-    include: { user: { include: { profile: true, settings: true } } }
+    include: { tenant: true, user: { include: { profile: true, settings: true } } }
   });
-  const expired = memberships
+  const expiredMap = new Map<string, (typeof memberships)[number]["user"]>();
+  memberships
+    .filter((membership) => membership.tenant.playReadyExpiryEnabled !== false)
     .map((membership) => membership.user)
-    .filter((member) => member.settings?.playReady && member.settings.playReadyExpiresAt && member.settings.playReadyExpiresAt <= now);
+    .filter((member) => {
+      if (!member.settings?.playReady) return false;
+      if (!member.settings.playReadyExpiresAt) return true;
+      return member.settings.playReadyExpiresAt <= now;
+    })
+    .forEach((member) => expiredMap.set(member.id, member));
+  const expired = Array.from(expiredMap.values());
   for (const member of expired) {
     await prisma.userSettings.update({
       where: { userId: member.id },
@@ -73,7 +81,7 @@ async function expirePlayReadyStatuses(viewer: Awaited<ReturnType<typeof current
       entityType: "userSettings",
       entityId: member.id,
       title: `Spielampel abgelaufen: ${userDisplayName(member)} ist wieder gerade nicht`,
-      details: { expiredAt: now.toISOString() },
+      details: { expiredAt: now.toISOString(), reason: member.settings?.playReadyExpiresAt ? "time_reached" : "missing_expiry_time" },
       href: "/"
     });
   }

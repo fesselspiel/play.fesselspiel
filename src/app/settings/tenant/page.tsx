@@ -32,11 +32,12 @@ async function saveTenantSettings(formData: FormData) {
       data: { playReadyExpiresAt: null }
     });
   }
-  for (const feature of featureCatalog) {
+  const featureKeys = Array.from(new Set(formData.getAll("featureKey").map(String).filter(Boolean)));
+  for (const featureKey of featureKeys) {
     await prisma.tenantFeature.upsert({
-      where: { tenantId_key: { tenantId: tenant.id, key: feature.key } },
-      update: { enabled: formData.get(`feature:${feature.key}`) === "on" },
-      create: { tenantId: tenant.id, key: feature.key, enabled: formData.get(`feature:${feature.key}`) === "on" }
+      where: { tenantId_key: { tenantId: tenant.id, key: featureKey } },
+      update: { enabled: formData.get(`feature:${featureKey}`) === "on" },
+      create: { tenantId: tenant.id, key: featureKey, enabled: formData.get(`feature:${featureKey}`) === "on" }
     });
   }
   await logAction({
@@ -55,6 +56,14 @@ export default async function TenantSettingsPage({ searchParams }: { searchParam
   if (!actor) redirect("/login");
   if (actor.role !== "ADMIN" && actor.role !== "SUPER_ADMIN") redirect("/");
   if (!tenant) redirect("/");
+  const trackerTypes = await prisma.trackerType.findMany({ where: { tenantId: tenant.id }, orderBy: { title: "asc" } });
+  const staticFeatureKeys = new Set<string>(featureCatalog.map((feature) => feature.key));
+  const features = [
+    ...featureCatalog,
+    ...trackerTypes
+      .map((tracker) => ({ key: `tracker.${tracker.key}`, label: tracker.title }))
+      .filter((feature) => !staticFeatureKeys.has(feature.key))
+  ];
   const enabled = new Set(tenant.features.filter((feature) => feature.enabled).map((feature) => feature.key));
   return (
     <AppShell>
@@ -92,8 +101,9 @@ export default async function TenantSettingsPage({ searchParams }: { searchParam
             <div>
               <h2 className="mb-3 text-lg font-semibold">Features</h2>
               <div className="grid gap-3 sm:grid-cols-2">
-                {featureCatalog.map((feature) => (
+                {features.map((feature) => (
                   <label key={feature.key} className="flex items-center justify-between gap-3 rounded-md border border-line bg-paper p-3 text-sm">
+                    <input type="hidden" name="featureKey" value={feature.key} />
                     <span>
                       <strong className="block text-ink">{feature.label}</strong>
                       <span className="text-xs text-graphite">{feature.key}</span>
