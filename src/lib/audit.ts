@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { dispatchEmailAuditNotifications } from "@/lib/email-notifications";
 import { dispatchExternalPushNotifications } from "@/lib/external-push-notifications";
+import { dispatchNativePushNotifications } from "@/lib/native-push-notifications";
 import { dispatchAuditNotifications } from "@/lib/telegram-notifications";
 
 export type AuditActionInput = {
@@ -30,7 +31,8 @@ export async function logAction(input: AuditActionInput) {
     await Promise.all([
       dispatchAuditNotifications(audit),
       dispatchEmailAuditNotifications(audit),
-      dispatchExternalPushNotifications(audit)
+      dispatchExternalPushNotifications(audit),
+      dispatchNativePushNotifications(audit)
     ]);
   } catch (error) {
     console.error("audit log failed", error);

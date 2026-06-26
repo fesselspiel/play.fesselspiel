@@ -92,6 +92,8 @@ model Tenant {
   feedRules FeedRule[]
   externalPushRules ExternalPushRule[]
   externalPushLogs ExternalPushLog[]
+  nativePushDevices NativePushDevice[]
+  nativePushDeliveries NativePushDelivery[]
   scheduledRules ScheduledRule[]
   scheduledRuleRuns ScheduledRuleRun[]
   playReadyLikes PlayReadyLike[]
@@ -182,6 +184,8 @@ model User {
   bondageSystemTargets BondageSystemItem[] @relation("BondageSystemTargetUser")
   emailConfirmationTokens EmailConfirmationToken[]
   passwordResetTokens PasswordResetToken[]
+  nativePushDevices NativePushDevice[]
+  nativePushDeliveries NativePushDelivery[]
 
   @@index([tenantId])
   @@index([circleId])
@@ -493,6 +497,50 @@ model ExternalPushLog {
   @@index([tenantId, createdAt])
   @@index([action, createdAt])
   @@index([status, createdAt])
+}
+
+model NativePushDevice {
+  id          String    @id @default(cuid())
+  tenantId    String?
+  userId      String
+  platform    String
+  deviceToken String
+  environment String   @default("production")
+  deviceName  String?
+  appVersion  String?
+  lastSeenAt  DateTime @default(now())
+  disabledAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries  NativePushDelivery[]
+
+  @@unique([platform, deviceToken])
+  @@index([tenantId, userId, disabledAt])
+  @@index([userId, lastSeenAt])
+}
+
+model NativePushDelivery {
+  id          String    @id @default(cuid())
+  tenantId    String?
+  userId      String
+  deviceId    String?
+  auditId     String?
+  action      String
+  status      String
+  apnsId      String?
+  statusCode  Int?
+  error       String?
+  createdAt   DateTime  @default(now())
+  tenant      Tenant?    @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device      NativePushDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([userId, createdAt])
+  @@index([auditId])
+  @@index([action, status, createdAt])
 }
 
 model ScheduledRule {

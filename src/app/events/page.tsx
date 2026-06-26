@@ -4,6 +4,7 @@ import { MapPin, Pencil, Save } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button, Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
+import { logAction, userDisplayName } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
@@ -12,7 +13,7 @@ async function createEvent(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
-  await prisma.event.create({
+  const event = await prisma.event.create({
     data: {
       tenantId: user.tenantId || undefined,
       ownerId: user.id,
@@ -22,6 +23,15 @@ async function createEvent(formData: FormData) {
       description: String(formData.get("description") || "").trim()
     }
   });
+  await logAction({
+    actorId: user.id,
+    action: "event_created",
+    entityType: "event",
+    entityId: event.id,
+    title: `Event geplant: ${event.title} (${formatDateTime(event.startsAt)})`,
+    href: `/events/${event.id}/edit`,
+    details: { tenantId: event.tenantId, eventId: event.id, startsAt: event.startsAt.toISOString(), actor: userDisplayName(user) }
+  });
   redirect("/events");
 }
 
@@ -29,10 +39,22 @@ async function checkIn(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
+  const eventId = String(formData.get("eventId"));
+  const event = await prisma.event.findFirst({ where: { id: eventId, ...(await ownerScope(user)) } });
+  if (!event) redirect("/events");
   await prisma.checkIn.upsert({
-    where: { eventId_userId: { eventId: String(formData.get("eventId")), userId: user.id } },
+    where: { eventId_userId: { eventId, userId: user.id } },
     update: { note: String(formData.get("note") || "").trim() },
-    create: { eventId: String(formData.get("eventId")), userId: user.id, note: String(formData.get("note") || "").trim() }
+    create: { eventId, userId: user.id, note: String(formData.get("note") || "").trim() }
+  });
+  await logAction({
+    actorId: user.id,
+    action: "event_checkin_created",
+    entityType: "event",
+    entityId: event.id,
+    title: `${userDisplayName(user)} hat eingecheckt: ${event.title}`,
+    href: `/events/${event.id}/edit`,
+    details: { tenantId: event.tenantId, eventId: event.id, startsAt: event.startsAt.toISOString() }
   });
   redirect("/events");
 }

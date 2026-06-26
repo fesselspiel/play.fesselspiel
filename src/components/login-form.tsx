@@ -2,12 +2,10 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Eye, EyeOff, LockKeyhole, LogIn } from "lucide-react";
 import { Button, Field, inputClass } from "@/components/ui";
 
-export function LoginForm() {
-  const router = useRouter();
+export function LoginForm({ returnTo = "/" }: { returnTo?: string }) {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
@@ -29,7 +27,7 @@ export function LoginForm() {
       setError("Benutzername oder Passwort stimmt nicht.");
       return;
     }
-    window.location.assign("/");
+    window.location.assign(returnTo.startsWith("/") ? returnTo : "/");
   }
 
   return (

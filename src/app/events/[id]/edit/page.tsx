@@ -4,8 +4,9 @@ import { Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button, Field, inputClass, PageGuide, PageHeader } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
+import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
-import { formatDateTimeLocal } from "@/lib/dates";
+import { formatDateTime, formatDateTimeLocal } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 
 async function updateEvent(formData: FormData) {
@@ -15,13 +16,27 @@ async function updateEvent(formData: FormData) {
   const id = String(formData.get("id"));
   const event = await prisma.event.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!event) notFound();
-  await prisma.event.update({
+  const updated = await prisma.event.update({
     where: { id: event.id },
     data: {
       title: String(formData.get("title") || "").trim(),
       location: String(formData.get("location") || "").trim(),
       startsAt: new Date(String(formData.get("startsAt"))),
       description: String(formData.get("description") || "").trim()
+    }
+  });
+  await logAction({
+    actorId: user.id,
+    action: "event_updated",
+    entityType: "event",
+    entityId: updated.id,
+    title: `Event geändert: ${updated.title} (${formatDateTime(updated.startsAt)})`,
+    href: `/events/${updated.id}/edit`,
+    details: {
+      tenantId: updated.tenantId,
+      eventId: updated.id,
+      previousStartsAt: event.startsAt.toISOString(),
+      startsAt: updated.startsAt.toISOString()
     }
   });
   redirect("/events");
@@ -35,6 +50,15 @@ async function deleteEvent(formData: FormData) {
   const event = await prisma.event.findFirst({ where: { id, ...(await ownerScope(user)) } });
   if (!event) notFound();
   await prisma.event.delete({ where: { id: event.id } });
+  await logAction({
+    actorId: user.id,
+    action: "event_deleted",
+    entityType: "event",
+    entityId: event.id,
+    title: `Event gelöscht: ${event.title} (${formatDateTime(event.startsAt)})`,
+    href: "/events",
+    details: { tenantId: event.tenantId, eventId: event.id, startsAt: event.startsAt.toISOString() }
+  });
   redirect("/events");
 }
 

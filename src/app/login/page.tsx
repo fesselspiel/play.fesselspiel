@@ -73,7 +73,7 @@ const trustCards = [
   { title: "Bilderzentriert", text: "Galerien, Ideenbilder und Uploads sind auf schnelles Anschauen ausgelegt.", Icon: Camera }
 ];
 
-export default async function LoginPage({ searchParams }: { searchParams?: { confirmed?: string; reset?: string } }) {
+export default async function LoginPage({ searchParams }: { searchParams?: { confirmed?: string; reset?: string; next?: string } }) {
   const tenant = await currentTenant();
   const tenantName = tenant?.name || "Playplaner";
   const tenantDomain = tenant ? primaryTenantDomain(tenant) : "playplaner.com";
@@ -137,7 +137,7 @@ export default async function LoginPage({ searchParams }: { searchParams?: { con
             </div>
             {searchParams?.confirmed ? <div className="mb-4 rounded-md border border-emerald-500 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-700">E-Mail bestätigt. Du kannst dich jetzt einloggen.</div> : null}
             {searchParams?.reset ? <div className="mb-4 rounded-md border border-emerald-500 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-700">Passwort gespeichert. Du kannst dich jetzt einloggen.</div> : null}
-            <LoginForm />
+            <LoginForm returnTo={searchParams?.next} />
             <div className="mt-4 text-right">
               <a href="/password/forgot" className="focus-ring rounded-md text-sm font-semibold text-redbrand hover:underline">Passwort vergessen?</a>
             </div>

@@ -8,5 +8,10 @@ export const env = {
   openAiTranscriptionModel: process.env.OPENAI_TRANSCRIPTION_MODEL || "whisper-1",
   emailSmtpHost: process.env.EMAIL_SMTP_HOST || "postfix",
   emailSmtpPort: Number(process.env.EMAIL_SMTP_PORT || 25),
-  cronSecret: process.env.CRON_SECRET || ""
+  cronSecret: process.env.CRON_SECRET || "",
+  apnsTeamId: process.env.APNS_TEAM_ID || "",
+  apnsKeyId: process.env.APNS_KEY_ID || "",
+  apnsBundleId: process.env.APNS_BUNDLE_ID || "fspiel.playplaner",
+  apnsPrivateKey: (process.env.APNS_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+  apnsEnvironment: process.env.APNS_ENVIRONMENT || "production"
 };
