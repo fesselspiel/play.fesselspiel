@@ -910,6 +910,15 @@ Details:
 - `/sessions/<tracker>/<jahr>` leitet auf die passende Tracker-Jahresansicht weiter.
 - Das Protokoll kann serverseitig nach Benutzer gefiltert werden.
 - API-Tokens zeigen eine vollständigere Endpunktübersicht inklusive generischer Tracker-Endpunkte und Kontingentabfrage.
+
+### Externe Bild-API fuer native Apps
+
+- `GET /api/external/media?token=...&kind=IMAGE&limit=50` liefert die geschuetzte Bildergalerie als JSON-Feed.
+- `GET /api/external/images?token=...&source=all&limit=100` liefert einen zentralen Bildfeed aus Galerie, Spielsachen, Szenen, Ideen, Bondage-System-Produkten und Profilbildern.
+- `source` kann auf `media`, `toys`, `positions`, `ideas`, `bondageSystem` oder `profiles` gesetzt werden.
+- Jedes Bildobjekt enthaelt `downloadUrl`, `downloadPath`, `fileId`, Metadaten zur Quelle und optional `downloadUrlWithToken`, wenn der API-Token als URL-Parameter verwendet wurde.
+- `GET /api/external/files/{fileId}?token=...` liefert die geschuetzte Datei direkt mit korrektem `Content-Type`, damit iOS/SwiftUI, Android oder andere externe Apps Bilder nativ anzeigen koennen.
+- Alternativ zum URL-Token kann `Authorization: Bearer ...` verwendet werden; dann wird `downloadUrl` ohne Token geliefert und die App setzt denselben Header beim Dateiaufruf.
 - Die Ideensammlung ist als eigenes Feature `ideas` konfigurierbar.
 - Shopify-Credentials können von Superadmins aus anderen Seiten übernommen werden.
 - Tenant-Erkennung nutzt zusätzlich den Subdomain-Slug für `*.playplaner.com`; Loginseite und HTML-Metadaten zeigen den aktuellen Seitennamen und die aktuelle Domain.

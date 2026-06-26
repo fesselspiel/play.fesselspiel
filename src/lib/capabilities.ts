@@ -508,7 +508,16 @@ export const capabilities: readonly Capability[] = [
         label: "Bild hochladen",
         type: "write",
         description: "Lädt ein geschütztes Bild oder Video hoch.",
-        apiEndpoints: [{ method: "POST", path: "/api/external/media", description: "Bild/Video per Multipart hochladen. Token im Header oder als Feld `token`." }],
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/images?token=...&source=all&limit=100", description: "Zentraler Bildfeed über Galerie, Spielsachen, Szenen, Ideen, Bondage-System und Profilbilder. Per `source` filterbar." },
+          { method: "GET", path: "/api/external/images?token=...&source=toys", description: "Bilder aus dem Spielzeugkatalog für native externe App-Anzeige abrufen." },
+          { method: "GET", path: "/api/external/images?token=...&source=positions", description: "Szenen-/Situationsbilder für native externe App-Anzeige abrufen." },
+          { method: "GET", path: "/api/external/images?token=...&source=ideas", description: "Ideenbilder für native externe App-Anzeige abrufen." },
+          { method: "GET", path: "/api/external/images?token=...&source=bondageSystem", description: "Bondage-System-Produktbilder für native externe App-Anzeige abrufen." },
+          { method: "GET", path: "/api/external/media?token=...&kind=IMAGE&limit=50", description: "Geschützte Bilder als JSON-Feed für externe Apps abrufen. Antwort enthält `downloadUrl` für native Bildanzeige." },
+          { method: "GET", path: "/api/external/files/{fileId}?token=...", description: "Geschützte Bild-/Videodatei nativ laden. Alternativ Bearer Token im Authorization-Header verwenden." },
+          { method: "POST", path: "/api/external/media", description: "Bild/Video per Multipart hochladen. Token im Header oder als Feld `token`." }
+        ],
         auditActions: ["media_uploaded", "media_updated", "media_deleted", "media_album_changed_telegram"]
       },
       {
@@ -733,7 +742,7 @@ export const apiEndpointSpecs = capabilities.flatMap((capability) =>
   capability.actions.flatMap((action) => action.apiEndpoints?.map((endpoint) => ({ ...endpoint, capability: capability.label, action: action.label })) || [])
 );
 
-export const apiVariableNames = ["token", "trackerKey", "note", "title", "startTime", "date", "allDay", "state", "hours", "minutes", "expiresMinutes", "name", "email"];
+export const apiVariableNames = ["token", "trackerKey", "fileId", "albumId", "kind", "limit", "cursor", "q", "note", "title", "startTime", "date", "allDay", "state", "hours", "minutes", "expiresMinutes", "name", "email"];
 
 export const telegramCommandSpecs = capabilities.flatMap((capability) =>
   capability.actions.flatMap((action) =>
