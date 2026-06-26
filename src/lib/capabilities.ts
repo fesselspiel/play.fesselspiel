@@ -115,7 +115,8 @@ export const capabilities: readonly Capability[] = [
         type: "write",
         description: "Setzt Rot, Grün oder schaltet den Zustand um.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/play-ready?token=...&state=green&hours=2&minutes=15", description: "Spielampel setzen. `state` kann green, red oder toggle sein; Dauer maximal 12 Stunden." }
+          { method: "GET", path: "/api/external/play-ready?token=...&state=green&hours=2&minutes=15", description: "Spielampel setzen. `state` kann green, red oder toggle sein; Dauer maximal 12 Stunden." },
+          { method: "POST", path: "/api/external/play-ready", description: "Spielampel über JSON oder Form-Daten setzen. Unterstützt `state`, `expiresMinutes` oder `hours`/`minutes`." }
         ],
         auditActions: ["play_ready_changed", "play_ready_expired"]
       }
@@ -375,7 +376,8 @@ export const capabilities: readonly Capability[] = [
         description: "Startet einen beliebigen Tracker per Schlüssel.",
         apiEndpoints: [
           { method: "GET", path: "/api/external/trackers/{trackerKey}/start?token=...&note=...&startTime=...", description: "Beliebigen Tracker starten, z. B. trackerKey=segufix oder kg." },
-          { method: "GET", path: "/api/external/trackers/{trackerKey}/start?token=...&allDay=true&date=2026-06-24&note=...", description: "Ganztägigen Tracker-Eintrag ohne Start-/Endzeit anlegen." }
+          { method: "GET", path: "/api/external/trackers/{trackerKey}/start?token=...&allDay=true&date=2026-06-24&note=...", description: "Ganztägigen Tracker-Eintrag ohne Start-/Endzeit anlegen." },
+          { method: "POST", path: "/api/external/trackers/{trackerKey}/start", description: "Per POST denselben Startvorgang auslösen; Parameter im Body oder als Form-Daten." }
         ],
         auditActions: ["tracker_started", "tracker_segufix_started_telegram", "tracker_kg_started_telegram"]
       },
@@ -385,7 +387,8 @@ export const capabilities: readonly Capability[] = [
         type: "write",
         description: "Beendet einen laufenden Tracker.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/trackers/{trackerKey}/stop?token=...&note=...", description: "Beliebigen laufenden Tracker beenden." }
+          { method: "GET", path: "/api/external/trackers/{trackerKey}/stop?token=...&note=...", description: "Beliebigen laufenden Tracker beenden." },
+          { method: "POST", path: "/api/external/trackers/{trackerKey}/stop", description: "Beliebigen laufenden Tracker per POST beenden; `note` optional im Body." }
         ],
         auditActions: ["tracker_stopped", "tracker_segufix_stopped_telegram", "tracker_kg_stopped_telegram"]
       }
@@ -552,7 +555,10 @@ export const capabilities: readonly Capability[] = [
         type: "write",
         description: "Erzeugt einen Einladungslink.",
         telegramCommands: [{ command: "/invite Name", description: "Einladungslink erzeugen" }],
-        apiEndpoints: [{ method: "GET", path: "/api/external/invites?token=...&create=1&name=Anna&email=...", description: "Einladungslink erzeugen; Admins haben unbegrenzt Einladungen." }],
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/invites?token=...&create=1&name=Anna&email=...", description: "Einladungslink erzeugen; Admins haben unbegrenzt Einladungen." },
+          { method: "POST", path: "/api/external/invites?name=Anna&email=...", description: "Einladung auch per POST erstellen; `name` und `email` im Body oder als Form-Daten." }
+        ],
         auditActions: ["invite_created", "invite_resent", "invite_deleted", "invite_accepted"]
       }
     ]
