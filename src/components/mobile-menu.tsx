@@ -1,85 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import {
-  DatabaseBackup,
-  FileText,
-  Images,
-  KeyRound,
-  Lightbulb,
-  LayoutDashboard,
-  ClipboardCheck,
-  Mail,
-  Menu,
-  MessageCircle,
-  Network,
-  PackageSearch,
-  Settings,
-  Signal,
-  CalendarDays,
-  SlidersHorizontal,
-  ShieldCheck,
-  Ticket,
-  Timer,
-  ToyBrick,
-  UserRound,
-  UsersRound,
-  X
-} from "lucide-react";
+import { Menu, Settings, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { mainNavigationSections, settingsNavigationItems } from "@/lib/app-navigation";
+import { navItemVisible } from "@/lib/feature-utils";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
 import { LogoutButton } from "@/components/logout-button";
-
-const mobileNav = [
-  ["Start", "/", LayoutDashboard, null],
-  ["Szenen", "/positions", ShieldCheck, "positions"],
-  ["Spielsachen", "/toys", ToyBrick, "toys"],
-  ["Bondage-System", "/bondage-system", PackageSearch, "shopifyBondageSystem"],
-  ["Ideensammlung", "/ideas", Lightbulb, "ideas"],
-  ["Aufträge", "/orders", ClipboardCheck, "orders"],
-  ["Sessions", "/sessions", Timer, "trackers"],
-  ["Bilder", "/media", Images, "media"]
-] as const;
-
-const primaryMobileNav = mobileNav.slice(0, 1);
-const catalogMobileNav = mobileNav.slice(1, 4);
-const ideasMobileNav = mobileNav.slice(4, 5);
-const workMobileNav = mobileNav.slice(5, 7);
-const pictureMobileNav = mobileNav.slice(7);
-
-const mobileSettingsNav = [
-  ["Profil", "/profile", UserRound, null],
-  ["Ampel", "/settings/play-ready", Signal, "playReady"],
-  ["Einladungen", "/settings/invites", Ticket, "invites"],
-  ["Zeitregeln", "/settings/scheduled", CalendarDays, "scheduledRules"]
-] as const;
-
-const adminOnlyMobileSettingsNav = [
-  ["Seite", "/settings/tenant", SlidersHorizontal],
-  ["Startseite", "/settings/home", LayoutDashboard],
-  ["Benutzer", "/settings/users", UsersRound],
-  ["Shopify", "/settings/shopify", PackageSearch],
-  ["Tracker", "/settings/trackers", Timer],
-  ["Telegram", "/settings/telegram", Settings],
-  ["E-Mail", "/settings/email", Mail],
-  ["Anleitung", "/settings/help", FileText],
-  ["Daten", "/settings/data", DatabaseBackup],
-  ["API Tokens", "/settings/api", KeyRound],
-  ["Protokoll", "/messages", MessageCircle]
-] as const;
-
-const adminMobileSettingsNav = [["Ansicht wechseln", "/settings/view-as", UsersRound]] as const;
-const superAdminMobileSettingsNav = [["Seiten", "/settings/sites", Network]] as const;
-
-function isVisible(feature: string | null, disabledFeatures: string[], enabledFeatures: string[]) {
-  if (!feature) return true;
-  if (disabledFeatures.includes(feature)) return false;
-  if (feature === "trackers") return enabledFeatures.some((entry) => entry.startsWith("tracker.") && !disabledFeatures.includes(entry));
-  if (feature === "orders") return !disabledFeatures.includes("activities") && !disabledFeatures.includes("selfBondage") && !disabledFeatures.includes("positions");
-  if (feature === "selfBondage") return !disabledFeatures.includes(feature) && !disabledFeatures.includes("positions");
-  if (feature.startsWith("tracker.")) return !disabledFeatures.includes(feature) && !disabledFeatures.includes("trackers");
-  return true;
-}
 
 export function MobileMenu({
   activeDarkMode = false,
@@ -88,8 +15,7 @@ export function MobileMenu({
   showAdminSettings = false,
   tenantName = "Fesselspiel",
   tenantDomain = "playplaner.com",
-  disabledFeatures = [],
-  enabledFeatures = [],
+  features = [],
   userName,
   userEmail,
   userImageUrl,
@@ -101,20 +27,28 @@ export function MobileMenu({
   showAdminSettings?: boolean;
   tenantName?: string;
   tenantDomain?: string;
-  disabledFeatures?: string[];
-  enabledFeatures?: string[];
+  features?: { key: string; enabled: boolean }[];
   userName?: string;
   userEmail?: string;
   userImageUrl?: string | null;
   viewAsLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const visiblePrimaryNav = primaryMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
-  const visibleCatalogNav = catalogMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
-  const visibleIdeasNav = ideasMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
-  const visibleWorkNav = workMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
-  const visiblePictureNav = pictureMobileNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
-  const visibleSettingsNav = mobileSettingsNav.filter(([, , , feature]) => isVisible(feature, disabledFeatures, enabledFeatures));
+  const navSections = mainNavigationSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => navItemVisible(features, item.feature))
+    }))
+    .filter((section) => section.items.length > 0);
+
+  const visibleSettings = {
+    profileAndSettings: settingsNavigationItems.profileAndSettings.filter((item) =>
+      navItemVisible(features, item.feature)
+    ),
+    admin: settingsNavigationItems.admin.filter((item) => navItemVisible(features, item.feature)),
+    adminViewSwitch: settingsNavigationItems.viewAs,
+    superAdmin: settingsNavigationItems.superAdmin
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -181,39 +115,16 @@ export function MobileMenu({
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 touch-pan-y [-webkit-overflow-scrolling:touch]">
               <nav className="overflow-hidden rounded-md border border-line bg-surface">
-                {visiblePrimaryNav.map(([label, href, Icon]) => (
-                  <Link key={href} href={href} onClick={closeMenu} className={linkClass}>
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </Link>
-                ))}
-                <div className="h-3 border-b border-line bg-paper" />
-                {visibleCatalogNav.map(([label, href, Icon]) => (
-                  <Link key={href} href={href} onClick={closeMenu} className={linkClass}>
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </Link>
-                ))}
-                <div className="h-3 border-b border-line bg-paper" />
-                {visibleIdeasNav.map(([label, href, Icon]) => (
-                  <Link key={href} href={href} onClick={closeMenu} className={linkClass}>
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </Link>
-                ))}
-                <div className="h-3 border-b border-line bg-paper" />
-                {visibleWorkNav.map(([label, href, Icon]) => (
-                  <Link key={href} href={href} onClick={closeMenu} className={linkClass}>
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </Link>
-                ))}
-                <div className="h-3 border-b border-line bg-paper" />
-                {visiblePictureNav.map(([label, href, Icon]) => (
-                  <Link key={href} href={href} onClick={closeMenu} className={linkClass}>
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </Link>
+                {navSections.map((section, index) => (
+                  <div key={section.id}>
+                    {index > 0 ? <div className="h-3 border-b border-line bg-paper" /> : null}
+                    {section.items.map(({ label, href, icon: Icon }) => (
+                      <Link key={href} href={href} onClick={closeMenu} className={linkClass}>
+                        <Icon className="h-4 w-4" />
+                        {label}
+                      </Link>
+                    ))}
+                  </div>
                 ))}
                 <div className="h-3 border-b border-line bg-paper" />
                 <details className="border-b border-line bg-surface last:border-b-0" open>
@@ -222,25 +133,25 @@ export function MobileMenu({
                     Einstellungen
                   </summary>
                   <div className="border-t border-line bg-paper px-2 py-2">
-                    {showAdminViewSwitch ? adminMobileSettingsNav.map(([label, href, Icon]) => (
+                    {showAdminViewSwitch ? visibleSettings.adminViewSwitch.map(({ label, href, icon: Icon }) => (
                       <Link key={href} href={href} onClick={closeMenu} className={settingsLinkClass}>
                         <Icon className="h-4 w-4" />
                         {label}
                       </Link>
                     )) : null}
-                    {showSiteManagement ? superAdminMobileSettingsNav.map(([label, href, Icon]) => (
+                    {showSiteManagement ? visibleSettings.superAdmin.map(({ label, href, icon: Icon }) => (
                       <Link key={href} href={href} onClick={closeMenu} className={settingsLinkClass}>
                         <Icon className="h-4 w-4" />
                         {label}
                       </Link>
                     )) : null}
-                    {visibleSettingsNav.map(([label, href, Icon]) => (
+                    {visibleSettings.profileAndSettings.map(({ label, href, icon: Icon }) => (
                       <Link key={href} href={href} onClick={closeMenu} className={settingsLinkClass}>
                         <Icon className="h-4 w-4" />
                         {label}
                       </Link>
                     ))}
-                    {showAdminSettings ? adminOnlyMobileSettingsNav.map(([label, href, Icon]) => (
+                    {showAdminSettings ? visibleSettings.admin.map(({ label, href, icon: Icon }) => (
                       <Link key={href} href={href} onClick={closeMenu} className={settingsLinkClass}>
                         <Icon className="h-4 w-4" />
                         {label}

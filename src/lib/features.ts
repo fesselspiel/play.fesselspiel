@@ -1,25 +1,13 @@
 import { redirect } from "next/navigation";
 import { currentSessionContext } from "@/lib/auth";
 import { featureCatalog as capabilityFeatureCatalog } from "@/lib/capabilities";
+import { featureEnabled } from "@/lib/feature-utils";
 import { currentTenant } from "@/lib/tenancy";
+export { featureEnabled, hasVisibleTrackerFeature, navItemVisible } from "@/lib/feature-utils";
 
 export const featureCatalog = capabilityFeatureCatalog;
 
 export type FeatureKey = typeof featureCatalog[number]["key"];
-
-export function featureEnabled(features: { key: string; enabled: boolean }[] | undefined, key: string): boolean {
-  const feature = features?.find((entry) => entry.key === key);
-  const direct = feature?.enabled !== false;
-  if (!direct) return false;
-  if (key === "selfBondage") return direct && featureEnabled(features, "positions");
-  if (key === "orders") return direct && featureEnabled(features, "activities") && featureEnabled(features, "selfBondage");
-  if (key.startsWith("tracker.")) return direct && featureEnabled(features, "trackers");
-  return true;
-}
-
-export function hasVisibleTrackerFeature(features: { key: string; enabled: boolean }[] | undefined): boolean {
-  return featureEnabled(features, "trackers") && Boolean(features?.some((entry) => entry.key.startsWith("tracker.") && featureEnabled(features, entry.key)));
-}
 
 export async function hasFeature(key: FeatureKey | string) {
   const context = await currentSessionContext();
