@@ -176,6 +176,6 @@ Die API-Control-Seite zeigt Beispielpayloads, Curl-Vorlagen und Hinweise. Fuer e
 
 ## Hinweise fuer Weiterentwicklung
 
-- Wenn native Push-Zustellung serverseitig passieren soll, braucht es spaeter Device-Token-Registrierung, z.B. APNs-Token pro Benutzer/Geraet.
+- Native APNs-Zustellung und Device-Token-Registrierung sind in [08-native-pushnachrichten.md](./08-native-pushnachrichten.md) beschrieben.
 - Wenn systemweite Ereignisse ohne Actor in der App erscheinen sollen, sollte `AuditLog` ein `tenantId` bekommen.
 - Die Event-API ist bewusst lesend. Likes/Kommentare laufen weiterhin ueber die bestehenden Feed-/Protokollfunktionen.
