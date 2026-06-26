@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
-  const blocked = apiFeatureGate(auth.user, "externalApi", "media");
+  const blocked = apiFeatureGate(auth.user, "externalApi");
   if (blocked) return blocked;
 
   const asset = await fileAssetForAccess(auth.user, params.id);

@@ -22,11 +22,21 @@ export async function uniqueTrackerSlug(trackerTypeId: string, key: string, star
 }
 
 export async function findTrackerTypeForUser(key: string, user: { tenantId?: string | null }) {
+  if (user.tenantId) {
+    const tenantTracker = await prisma.trackerType.findFirst({
+      where: {
+        key,
+        enabled: true,
+        tenantId: user.tenantId
+      }
+    });
+    if (tenantTracker) return tenantTracker;
+  }
   return prisma.trackerType.findFirst({
     where: {
       key,
       enabled: true,
-      ...(user.tenantId ? { OR: [{ tenantId: user.tenantId }, { tenantId: null }] } : {})
+      tenantId: null
     }
   });
 }

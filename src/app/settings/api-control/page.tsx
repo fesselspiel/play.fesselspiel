@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { CalendarDays, FileJson, LinkIcon, Play, Save, Search, Signal, Square, Ticket, Upload, X } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ApiNativeConsole } from "@/components/api-native-console";
@@ -215,13 +216,18 @@ function buildImageFeedItem(
   };
 }
 
-function endpointCurl(method: string, path: string) {
-  const base = process.env.NEXT_PUBLIC_BASE_URL || "https://playplaner.com";
+function requestBaseFromHeaders() {
+  const requestHeaders = headers();
+  const host = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host") || "playplaner.com";
+  const proto = requestHeaders.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
+function endpointCurl(base: string, method: string, path: string) {
   return `curl -X ${method} \"${base}${path}\" -H \"Authorization: Bearer <API_TOKEN>\"`;
 }
 
-function endpointCurlWithQuery(method: string, path: string) {
-  const base = process.env.NEXT_PUBLIC_BASE_URL || "https://playplaner.com";
+function endpointCurlWithQuery(base: string, method: string, path: string) {
   const hasTokenPlaceholder = path.includes("token=");
   const route = hasTokenPlaceholder ? path : `${path}${path.includes("?") ? "&" : "?"}token=<API_TOKEN>`;
   return `curl -X ${method} \"${base}${route}\"`;
@@ -308,10 +314,16 @@ function groupedEndpoints() {
   return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 }
 
-async function applyPlayReady(formData: FormData) {
-  "use server";
+async function requireApiControlAdmin() {
   const user = await currentUser();
   if (!user) redirect("/login");
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");
+  return user;
+}
+
+async function applyPlayReady(formData: FormData) {
+  "use server";
+  const user = await requireApiControlAdmin();
   await requireFeature("externalApi");
   await requireFeature("playReady");
 
@@ -368,8 +380,7 @@ async function applyPlayReady(formData: FormData) {
 
 async function startTracker(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await requireApiControlAdmin();
   await requireFeature("externalApi");
 
   const trackerKey = String(formData.get("trackerKey") || "").trim();
@@ -401,8 +412,7 @@ async function startTracker(formData: FormData) {
 
 async function stopTracker(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await requireApiControlAdmin();
   await requireFeature("externalApi");
 
   const trackerKey = String(formData.get("trackerKey") || "").trim();
@@ -427,8 +437,7 @@ async function stopTracker(formData: FormData) {
 
 async function stopAllTrackers() {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await requireApiControlAdmin();
   await requireFeature("externalApi");
   const { openEntries, stopped } = await stopAllRunningTrackerEntriesForUser({ user, notes: "Massenstopp per API-Kontrolle" });
   if (!stopped.length) redirect("/settings/api-control?feedback=tracker-not-running");
@@ -452,8 +461,7 @@ async function stopAllTrackers() {
 
 async function createInviteAction(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await requireApiControlAdmin();
   await requireFeature("externalApi");
   await requireFeature("invites");
 
@@ -474,8 +482,7 @@ async function createInviteAction(formData: FormData) {
 
 async function revokeInviteAction(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await requireApiControlAdmin();
   await requireFeature("externalApi");
   await requireFeature("invites");
 
@@ -492,8 +499,7 @@ async function revokeInviteAction(formData: FormData) {
 
 async function deleteInviteAction(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await requireApiControlAdmin();
   await requireFeature("externalApi");
   await requireFeature("invites");
 
@@ -509,8 +515,7 @@ async function deleteInviteAction(formData: FormData) {
 
 async function uploadMedia(formData: FormData) {
   "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
+  const user = await requireApiControlAdmin();
   await requireFeature("externalApi");
   await requireFeature("media");
 
@@ -553,9 +558,7 @@ async function uploadMedia(formData: FormData) {
 }
 
 export default async function ApiControlPage({ searchParams }: { searchParams: ApiControlSearchParams }) {
-  const user = await currentUser();
-  if (!user) redirect("/login");
-  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");
+  const user = await requireApiControlAdmin();
 
   await requireFeature("externalApi");
   const tenant = await currentTenant();
@@ -650,7 +653,7 @@ export default async function ApiControlPage({ searchParams }: { searchParams: A
   const fileLimit = clampFileLimit(searchParams.fileLimit);
   const endpointQuery = String(searchParams.endpointQuery || "").trim().toLowerCase();
   const endpointGroupFilter = String(searchParams.endpointGroup || "").trim().toLowerCase();
-  const requestBase = process.env.NEXT_PUBLIC_BASE_URL || "https://playplaner.com";
+  const requestBase = requestBaseFromHeaders();
 
   const mediaWhere = {
     ...mediaWhereScope,
@@ -1064,7 +1067,7 @@ export default async function ApiControlPage({ searchParams }: { searchParams: A
 
       const hint = endpointRequestHint(endpoint, endpoint.method);
       const curlBody = lowerPath.startsWith("/api/external/media") && endpoint.method === "POST"
-        ? endpointCurl(endpoint.method, endpoint.path) + " -F \"file=@./bild.jpg\" -F \"title=Mein Bild\" -F \"visibility=PRIVATE\""
+        ? endpointCurl(requestBase, endpoint.method, endpoint.path) + " -F \"file=@./bild.jpg\" -F \"title=Mein Bild\" -F \"visibility=PRIVATE\""
         : null;
       return { group, endpoint, sample, hint, curlBody };
     })
@@ -1652,7 +1655,7 @@ export default async function ApiControlPage({ searchParams }: { searchParams: A
                     </a>
                   </div>
                   <p className="mt-1 text-[11px] text-redbrand">Externer Download nur mit API-Token nutzbar.</p>
-                  <CopyLink value={endpointCurl("GET", entry.externalUrl)} label={`curl GET Dateien (${entry.originalName})`} />
+                  <CopyLink value={endpointCurl(requestBase, "GET", entry.externalUrl)} label={`curl GET Dateien (${entry.originalName})`} />
                 </div>
               ))}
             </div>
@@ -1740,11 +1743,11 @@ export default async function ApiControlPage({ searchParams }: { searchParams: A
                     <p className="text-graphite">{endpoint.description}</p>
                     <div className="flex flex-wrap gap-2">
                       <CopyLink
-                        value={endpointCurl(endpoint.method, endpoint.path)}
+                        value={endpointCurl(requestBase, endpoint.method, endpoint.path)}
                         label={`copy: curl ${endpoint.method} ${endpoint.path}`}
                       />
                       <CopyLink
-                        value={endpointCurlWithQuery(endpoint.method, endpoint.path)}
+                        value={endpointCurlWithQuery(requestBase, endpoint.method, endpoint.path)}
                         label={`copy: curl ${endpoint.method} ${endpoint.path} (token in URL)`}
                       />
                       <a

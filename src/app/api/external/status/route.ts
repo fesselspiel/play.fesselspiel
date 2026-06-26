@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ownerScope } from "@/lib/access";
+import { mediaVisibilityScope, ownerScope } from "@/lib/access";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { prisma } from "@/lib/prisma";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
@@ -12,11 +12,12 @@ export async function GET(request: NextRequest) {
   const blocked = apiFeatureGate(auth.user, "externalApi");
   if (blocked) return blocked;
   const scope = await ownerScope(auth.user);
+  const mediaScope = await mediaVisibilityScope(auth.user);
   const [toys, positions, activities, media, openTrackers, quotas] = await Promise.all([
     prisma.toy.count({ where: scope }),
     prisma.position.count({ where: scope }),
     prisma.activityPlan.count({ where: { ...scope, category: { not: "IDEA_COLLECTION" }, status: { in: ["REQUESTED", "PLANNED"] } } }),
-    prisma.media.count({ where: scope }),
+    prisma.media.count({ where: mediaScope }),
     prisma.trackerEntry.findMany({
       where: { ownerId: auth.user.id, tenantId: auth.user.tenantId || undefined, endTime: null, allDay: false },
       include: { trackerType: true },

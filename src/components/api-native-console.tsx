@@ -295,20 +295,42 @@ function parseRawBody(value: string, contentType: RawRequestContentType) {
 function rawUrlFromInput(baseUrl: string, path: string) {
   const trimmed = path.trim();
   if (!trimmed) throw new Error("Pfad ist leer.");
+  const base = new URL(baseUrl);
+  let url: URL;
   if (/^https?:\/\//i.test(trimmed)) {
-    return new URL(trimmed);
+    url = new URL(trimmed);
+    if (url.origin !== base.origin) {
+      throw new Error("Roh-Requests sind auf diese Domain begrenzt, damit API-Tokens nicht an fremde Hosts gesendet werden.");
+    }
+  } else {
+    if (!trimmed.startsWith("/")) {
+      throw new Error("Pfad muss mit / beginnen.");
+    }
+    url = new URL(`${baseUrl}${trimmed}`);
   }
-  if (!trimmed.startsWith("/")) {
-    throw new Error("Pfad muss mit / beginnen oder eine absolute URL sein.");
+  if (!url.pathname.startsWith("/api/external/")) {
+    throw new Error("Roh-Requests sind nur für /api/external/* vorgesehen.");
   }
-  return new URL(`${baseUrl}${trimmed}`);
+  return url;
 }
 
 function buildRawCurl(url: URL, method: RawRequestMethod, token: string, requestBody: string, contentType?: string) {
   const tokenHeader = token ? ` -H ${JSON.stringify("Authorization: Bearer <API_TOKEN>")}` : "";
   const contentTypeHeader = contentType ? ` -H ${JSON.stringify(`content-type: ${contentType}`)}` : "";
   const payload = requestBody ? ` ${requestBody}` : "";
-  return `curl -X ${method} ${JSON.stringify(url.toString())}${tokenHeader}${contentTypeHeader}${payload}`.replace(/\s+/g, " ").trim();
+  return `curl -X ${method} ${JSON.stringify(maskSensitiveUrl(url.toString()))}${tokenHeader}${contentTypeHeader}${payload}`.replace(/\s+/g, " ").trim();
+}
+
+function maskSensitiveUrl(value: string) {
+  try {
+    const url = new URL(value);
+    for (const key of ["token", "apiToken", "access_token"]) {
+      if (url.searchParams.has(key)) url.searchParams.set(key, "<API_TOKEN>");
+    }
+    return url.toString();
+  } catch {
+    return value.replace(/([?&](?:token|apiToken|access_token)=)[^&\s]+/gi, "$1<API_TOKEN>");
+  }
 }
 
 function setStringParam(target: Record<string, string>, key: string, value: string | undefined | null) {
@@ -434,7 +456,7 @@ export function ApiNativeConsole({ apiTokens }: ApiNativeConsoleProps) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const saved = window.localStorage.getItem(apiTokenStorageKey);
+    const saved = window.sessionStorage.getItem(apiTokenStorageKey);
     if (saved) {
       setState((current) => ({ ...current, token: saved }));
     }
@@ -458,7 +480,7 @@ export function ApiNativeConsole({ apiTokens }: ApiNativeConsoleProps) {
     if (typeof window === "undefined") return;
     const token = state.token.trim();
     if (!token) return;
-    window.localStorage.setItem(apiTokenStorageKey, token);
+    window.sessionStorage.setItem(apiTokenStorageKey, token);
   }, [state.token]);
 
   function setField<K extends keyof ToolState>(field: K, value: ToolState[K]) {
@@ -566,7 +588,7 @@ export function ApiNativeConsole({ apiTokens }: ApiNativeConsoleProps) {
   function clearToken() {
     setField("token", "");
     if (typeof window !== "undefined") {
-      window.localStorage.removeItem(apiTokenStorageKey);
+      window.sessionStorage.removeItem(apiTokenStorageKey);
     }
   }
 
@@ -607,7 +629,6 @@ export function ApiNativeConsole({ apiTokens }: ApiNativeConsoleProps) {
           query.set(key, value);
         });
       }
-      if (token) query.set("token", token);
 
       if (tool.source === "capability") {
         const pathVariables = extractPathVariables(tool.path);
@@ -762,7 +783,7 @@ export function ApiNativeConsole({ apiTokens }: ApiNativeConsoleProps) {
       }
 
       if (query.size > 0) url.search = `?${query.toString()}`;
-      const requestUrl = url.toString();
+      const requestUrl = maskSensitiveUrl(url.toString());
       const requestBody = method === "GET"
         ? ""
         : init.body instanceof FormData
@@ -804,7 +825,7 @@ export function ApiNativeConsole({ apiTokens }: ApiNativeConsoleProps) {
         status,
         body,
         json: Boolean(isJson),
-        requestUrl: url.toString(),
+        requestUrl,
         requestContentType,
         requestBody,
         curl,
@@ -867,13 +888,13 @@ export function ApiNativeConsole({ apiTokens }: ApiNativeConsoleProps) {
         if (value === "") return;
         query.set(key, value);
       });
-      if (token) query.set("token", token);
       if (query.size) {
         url.search = `?${query.toString()}`;
       } else {
         url.search = "";
       }
       const headers: HeadersInit = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
       const method = rawState.method;
       let init: RequestInit = { method, headers };
       let requestBody = "";
@@ -936,11 +957,12 @@ export function ApiNativeConsole({ apiTokens }: ApiNativeConsoleProps) {
         : await response.text();
       const status = `${response.status} ${response.statusText}`;
       const durationMs = typeof performance === "undefined" ? undefined : Math.max(0, Math.round(performance.now() - start));
+      const requestUrl = maskSensitiveUrl(url.toString());
       const curl = buildRawCurl(url, method, token, requestBody, requestContentType);
       setRawResult({
         status,
         body: responseBody || "",
-        requestUrl: url.toString(),
+        requestUrl,
         requestBody,
         requestContentType,
         curl,
@@ -953,7 +975,7 @@ export function ApiNativeConsole({ apiTokens }: ApiNativeConsoleProps) {
           method,
           status,
           success: response.ok,
-          url: url.toString(),
+          url: requestUrl,
           toolId: "raw-request",
           durationMs
         },
