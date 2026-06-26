@@ -25,6 +25,11 @@ type ApnsResponse = {
   apnsId: string | null;
   body: string | null;
 };
+type NativePushTarget = {
+  screen: string;
+  id: string | null;
+  href: string | null;
+};
 
 const pushableActions = new Set([
   "event_created",
@@ -58,6 +63,89 @@ function tenantIdFromDetails(audit: AuditForPush) {
     : {};
   const tenantId = details.tenantId;
   return typeof tenantId === "string" && tenantId ? tenantId : null;
+}
+
+function auditDetails(audit: AuditForPush) {
+  return audit.details && typeof audit.details === "object" && !Array.isArray(audit.details)
+    ? audit.details as Record<string, unknown>
+    : {};
+}
+
+function stringDetail(details: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = details[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function targetScreenForAudit(audit: AuditForPush) {
+  const details = auditDetails(audit);
+  const explicit = stringDetail(details, ["targetScreen", "screen", "nativeScreen"]);
+  if (explicit) return explicit;
+  if (audit.href) {
+    if (audit.href.startsWith("/settings/push")) return "setup";
+    if (audit.href.startsWith("/settings")) return "setup";
+    if (audit.href.startsWith("/media")) return "media";
+    if (audit.href.startsWith("/toys")) return "toys";
+    if (audit.href.startsWith("/positions")) return "positions";
+    if (audit.href.startsWith("/ideas")) return "ideas";
+    if (audit.href.startsWith("/orders")) return "orders";
+    if (audit.href.startsWith("/sessions")) return "trackers";
+    if (audit.href.startsWith("/activities")) return "activities";
+  }
+  const entityType = (audit.entityType || "").toLowerCase();
+  if (["media", "album", "image"].includes(entityType)) return "media";
+  if (["toy", "shopifyproduct", "bondageproduct"].includes(entityType)) return "toys";
+  if (["position", "scene"].includes(entityType)) return "positions";
+  if (["idea"].includes(entityType)) return "ideas";
+  if (["selfbondageorder", "order"].includes(entityType)) return "orders";
+  if (["trackerentry", "trackertype", "session"].includes(entityType)) return "trackers";
+  if (["activity", "event"].includes(entityType)) return "activities";
+  if (audit.action.startsWith("play_ready_")) return "dashboard";
+  return "dashboard";
+}
+
+function targetForAudit(audit: AuditForPush): NativePushTarget {
+  const details = auditDetails(audit);
+  return {
+    screen: targetScreenForAudit(audit),
+    id: stringDetail(details, ["targetId", "nativeId", "id"]) || audit.entityId || null,
+    href: audit.href || null
+  };
+}
+
+function pushTypeForAction(action: string) {
+  if (action.startsWith("telegram_")) return "telegram";
+  if (action.startsWith("email_")) return "email";
+  if (action.startsWith("media_") || action.startsWith("album_")) return "media";
+  if (action.startsWith("idea_")) return "idea";
+  if (action.startsWith("self_bondage_order_")) return "order";
+  if (action.startsWith("tracker_")) return "tracker";
+  if (action.startsWith("play_ready_")) return "play_ready";
+  if (action.startsWith("activity_") || action.startsWith("event_")) return "activity";
+  if (action.includes("favorited")) return "favorite";
+  return action;
+}
+
+function soundForAction(action: string) {
+  if (action.includes("failed")) return "playplaner_alert.caf";
+  if (action.includes("liked") || action.includes("favorited")) return "playplaner_spark.caf";
+  if (action.startsWith("play_ready_")) return "playplaner_ping.caf";
+  if (action.startsWith("self_bondage_order_") || action.startsWith("activity_") || action.startsWith("event_")) return "playplaner_pulse.caf";
+  return "playplaner_chime.caf";
+}
+
+function imageUrlForAudit(audit: AuditForPush) {
+  const details = auditDetails(audit);
+  return stringDetail(details, [
+    "imageUrl",
+    "image",
+    "thumbnailUrl",
+    "coverImageUrl",
+    "mediaUrl",
+    "photoUrl"
+  ]);
 }
 
 async function targetUserIds(audit: AuditForPush) {
@@ -95,15 +183,23 @@ async function pushConfigForTenant(tenantId: string): Promise<PushConfig | null>
 }
 
 function payloadForAudit(audit: AuditForPush) {
+  const target = targetForAudit(audit);
+  const sound = soundForAction(audit.action);
   return {
     aps: {
       alert: {
         title: actionLabel(audit.action),
         body: audit.title
       },
-      sound: "default"
+      sound
     },
+    type: pushTypeForAction(audit.action),
+    target,
     auditId: audit.id,
+    eventId: audit.entityType === "event" || audit.action.startsWith("event_") ? audit.entityId : null,
+    threadId: stringDetail(auditDetails(audit), ["threadId", "telegramThreadId", "messageThreadId"]),
+    imageUrl: imageUrlForAudit(audit),
+    sound,
     action: audit.action,
     entityType: audit.entityType,
     entityId: audit.entityId,
@@ -112,14 +208,25 @@ function payloadForAudit(audit: AuditForPush) {
 }
 
 function payloadForTest(input: Required<Pick<TestPushInput, "title" | "body">> & Pick<TestPushInput, "tenantId" | "actorId">) {
+  const sound = "playplaner_chime.caf";
   return {
     aps: {
       alert: {
         title: input.title,
         body: input.body
       },
-      sound: "default"
+      sound
     },
+    type: "test",
+    target: {
+      screen: "setup",
+      id: input.tenantId,
+      href: "/settings/push"
+    },
+    eventId: null,
+    threadId: null,
+    imageUrl: null,
+    sound,
     action: "native_push_test",
     entityType: "tenant",
     entityId: input.tenantId,

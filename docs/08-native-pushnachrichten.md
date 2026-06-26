@@ -12,6 +12,7 @@ Die iOS-App kann sich nach dem Mobile-Login mit ihrem APNs-Gerätetoken registri
 - `NativePushDelivery` protokolliert jeden Versandversuch.
 - `/api/external/push/devices` registriert oder deaktiviert Geräte über den bestehenden Bearer-Token der mobilen App.
 - `dispatchNativePushNotifications` sendet nur bekannte Event-Actions. Andere Audit-Einträge erzeugen keine native Pushnachricht.
+- Die Nutzlast enthält zusätzlich strukturierte Routing-Felder fuer die App. Details stehen in [07-native-push-payloads-und-ios-routing.md](./07-native-push-payloads-und-ios-routing.md).
 
 ## Server-Konfiguration
 
@@ -35,6 +36,7 @@ Wenn die Push-Einstellung deaktiviert oder unvollständig ist, werden Events wei
 - Nach APNs-Registrierung sendet die App den Gerätetoken an `/api/external/push/devices`.
 - Debug-Builds registrieren `sandbox`, Release/TestFlight registriert `production`.
 - Beim Abmelden deaktiviert die App den gespeicherten Gerätetoken serverseitig.
+- Beim Antippen einer Pushnachricht kann die App `target.screen`, `target.id` und `target.href` auswerten und direkt in die passende Ansicht springen.
 
 ## Bewusste Grenzen
 

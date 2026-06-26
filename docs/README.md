@@ -11,6 +11,7 @@ Diese Dokumentation beschreibt den aktuellen Stand der Plattform, die bisher umg
 - [05-prompts-und-anforderungen.md](./05-prompts-und-anforderungen.md): Urspruengliche und spätere Anforderungen aus dem Chat, inklusive Quellanhängen.
 - [06-api-control-und-tracker-umbau.md](./06-api-control-und-tracker-umbau.md): API-Control, externe Endpunkte und Tracker-Umbau.
 - [07-mobile-app-login.md](./07-mobile-app-login.md): Login, API-Token und Eventfeed fuer native Apps.
+- [07-native-push-payloads-und-ios-routing.md](./07-native-push-payloads-und-ios-routing.md): Strukturierte Push-Payloads, Zielansichten und iOS-Sounds.
 - [08-native-pushnachrichten.md](./08-native-pushnachrichten.md): APNs-Geraete, native Pushzustellung und Betriebsvariablen.
 
 ## Pflege-Regel
