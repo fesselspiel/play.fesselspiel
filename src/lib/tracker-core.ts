@@ -31,6 +31,54 @@ export async function findTrackerTypeForUser(key: string, user: { tenantId?: str
   });
 }
 
+export async function runningTrackerEntriesForUser(
+  user: { id: string; tenantId?: string | null },
+  options?: { trackerTypeId?: string }
+) {
+  return prisma.trackerEntry.findMany({
+    where: {
+      ownerId: user.id,
+      endTime: null,
+      allDay: false,
+      ...(options?.trackerTypeId ? { trackerTypeId: options.trackerTypeId } : {})
+    },
+    include: {
+      trackerType: {
+        select: {
+          key: true,
+          title: true
+        }
+      }
+    },
+    orderBy: { startTime: "desc" }
+  });
+}
+
+export async function stopAllRunningTrackerEntriesForUser(
+  input: {
+    user: { id: string; tenantId?: string | null };
+    notes?: string;
+    trackerTypeId?: string;
+  }
+) {
+  const openEntries = await runningTrackerEntriesForUser(input.user, input.trackerTypeId ? { trackerTypeId: input.trackerTypeId } : undefined);
+  const uniqueByKey = new Map(openEntries.map((entry) => [entry.trackerType.key, entry]));
+  const stopped: Exclude<Awaited<ReturnType<typeof stopTrackerEntry>>, null>[] = [];
+
+  for (const entry of uniqueByKey.values()) {
+    const closed = await stopTrackerEntry({
+      key: entry.trackerType.key,
+      user: input.user,
+      notes: input.notes
+    });
+    if (closed) {
+      stopped.push(closed);
+    }
+  }
+
+  return { openEntries, stopped };
+}
+
 export async function startTrackerEntry(input: {
   key: string;
   user: { id: string; tenantId?: string | null };

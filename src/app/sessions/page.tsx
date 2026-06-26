@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
-import { ChevronLeft, ChevronRight, Save, Square } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, Save, Square } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { TrackerLinkPicker } from "@/components/tracker-link-picker";
 import { Button, Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
-import { logAction } from "@/lib/audit";
+import { logAction, userDisplayName } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { formatDate, formatDateInput, formatDateTime, formatDateTimeLocal, formatMinutes, minutesBetween, parseDateInput, parseDateTimeLocal } from "@/lib/dates";
 import { featureEnabled, hasFeature, requireFeature } from "@/lib/features";
@@ -14,7 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
 import { fieldOptions, fieldValuesFromForm, trackerFields } from "@/lib/tracker-fields";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
-import { findTrackerTypeForUser, stopTrackerEntry, uniqueTrackerSlug } from "@/lib/tracker-core";
+import { findTrackerTypeForUser, startTrackerEntry, stopAllRunningTrackerEntriesForUser, stopTrackerEntry, uniqueTrackerSlug } from "@/lib/tracker-core";
 import { trackerLinkConnectData, trackerLinkOptionData, trackerLinkOptions } from "@/lib/tracker-links";
 
 async function createTrackerEntry(formData: FormData) {
@@ -68,11 +68,33 @@ async function createTrackerEntry(formData: FormData) {
   redirect(`/trackers/${trackerType.key}/${entry.slug || entry.id}`);
 }
 
+async function startEntry(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const key = String(formData.get("trackerKey") || "");
+  const returnTo = String(formData.get("returnTo") || "");
+  await requireFeature(`tracker.${key}`);
+  const notes = String(formData.get("notes") || "").trim() || "Per Dashboard gestartet";
+  const entry = await startTrackerEntry({ key, user, notes });
+  if (!entry) redirect("/sessions");
+  await logAction({
+    actorId: user.id,
+    action: `tracker_${key}_started`,
+    entityType: "trackerEntry",
+    entityId: entry.id,
+    title: `${entry.title || key} gestartet`,
+    href: `/trackers/${key}/${entry.slug || entry.id}`
+  });
+  redirect(returnTo || `/trackers/${key}/${entry.slug || entry.id}`);
+}
+
 async function stopEntry(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
   const key = String(formData.get("trackerKey") || "");
+  const returnTo = String(formData.get("returnTo") || "");
   await requireFeature(`tracker.${key}`);
   const entry = await stopTrackerEntry({ key, user });
   if (!entry) redirect("/sessions");
@@ -84,7 +106,32 @@ async function stopEntry(formData: FormData) {
     title: `${entry.title || key} beendet`,
     href: `/trackers/${key}/${entry.slug || entry.id}`
   });
-  redirect(`/trackers/${key}/${entry.slug || entry.id}`);
+  redirect(returnTo || `/trackers/${key}/${entry.slug || entry.id}`);
+}
+
+async function stopAllSessionTrackers(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const returnTo = String(formData.get("returnTo") || "/sessions");
+  await requireFeature("trackers");
+  const { openEntries, stopped } = await stopAllRunningTrackerEntriesForUser({ user });
+  if (!stopped.length) redirect(returnTo);
+  for (const stoppedEntry of stopped) {
+    const source = openEntries.find((entry) => entry.id === stoppedEntry.id);
+    const key = source?.trackerType.key;
+    if (!key) continue;
+    await logAction({
+      actorId: user.id,
+      action: `tracker_${key}_stopped`,
+      entityType: "trackerEntry",
+      entityId: stoppedEntry.id,
+      title: `${stoppedEntry.title || key} beendet`,
+      href: `/trackers/${key}/${stoppedEntry.slug || stoppedEntry.id}`
+    });
+  }
+
+  redirect(returnTo);
 }
 
 const months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
@@ -94,7 +141,9 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
   const user = await currentUser();
   if (!user) redirect("/login");
   const tenant = await currentTenant();
-  const year = Number(searchParams.year || new Date().getFullYear());
+  const requestedYear = Number(searchParams.year || "");
+  const year = Number.isFinite(requestedYear) && requestedYear >= 2000 ? requestedYear : new Date().getFullYear();
+  const now = new Date();
   const yearStart = new Date(year, 0, 1);
   const yearEnd = new Date(year + 1, 0, 1);
   const scope = await ownerScope(user);
@@ -113,13 +162,29 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
     orderBy: { title: "asc" }
   });
   const visibleTrackers = trackers.filter((tracker) => featureEnabled(tenant.features, `tracker.${tracker.key}`));
+  const runningEntries = await prisma.trackerEntry.findMany({
+    where: {
+      ...scope,
+      trackerType: { id: { in: visibleTrackers.map((tracker) => tracker.id) } },
+      endTime: null,
+      allDay: false
+    },
+    include: {
+      trackerType: { select: { key: true, title: true } },
+      owner: { select: { id: true, name: true, username: true, profile: { select: { displayName: true } } } }
+    },
+    orderBy: { startTime: "desc" }
+  });
+  const runningEntryByTracker = new Map(runningEntries.map((entry) => [entry.trackerType.key, entry]));
+  const userRunningEntries = runningEntries.filter((entry) => entry.ownerId === user.id);
+  const runningTrackerCount = new Map(userRunningEntries.map((entry) => [entry.trackerType.key, entry])).size;
   const quotaStatus = await trackerQuotaStatusForUser(user);
   const quotaByKey = new Map(quotaStatus.map((entry) => [entry.tracker.key, entry]));
 
   if (!visibleTrackers.length) redirect("/feature-disabled?feature=trackers");
   const activeTracker = visibleTrackers.find((tracker) => tracker.key === searchParams.tracker) || visibleTrackers[0];
   const totalMinutes = activeTracker.entries.reduce((sum, entry) => sum + (entry.durationMinutes || 0), 0);
-  const open = activeTracker.entries.find((entry) => !entry.endTime && !entry.allDay);
+  const open = runningEntryByTracker.get(activeTracker.key) || activeTracker.entries.find((entry) => !entry.endTime && !entry.allDay);
   const quota = quotaByKey.get(activeTracker.key);
   const statusLabel = open ? "läuft" : quota?.hasQuota ? quota.complete ? "erfüllt" : "offen" : "kein Ziel";
   const activeTrackerFields = trackerFields(activeTracker.fields, activeTracker.key);
@@ -133,6 +198,8 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
   };
   const linkOptions = trackerLinkOptionData(await trackerLinkOptions(user, scope, linkFeatures));
   const byDay = new Map<string, typeof activeTracker.entries>();
+  const quickPanelCardsReturnTo = `/sessions?tracker=${activeTracker.key}&year=${year}`;
+  const activeTrackerRunningMinutes = open && !open.allDay ? Math.max(0, Math.floor((now.getTime() - open.startTime.getTime()) / 60000)) : 0;
   for (const entry of activeTracker.entries) {
     const key = `${entry.startTime.getMonth()}-${entry.startTime.getDate()}`;
     byDay.set(key, [...(byDay.get(key) || []), entry]);
@@ -160,6 +227,73 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
             );
           })}
         </div>
+        <Panel className="border-redbrand/30">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-ink">Tracker-Kontrolle</h2>
+              <p className="mt-1 text-sm text-graphite">Starten, stoppen und zwischen Trackern direkt wechseln.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {runningEntries.length ? (
+                <span className="inline-flex min-h-8 items-center rounded-full bg-redbrand/10 px-3 py-1 text-xs font-semibold text-redbrand">
+                  {runningEntries.length} aktiv
+                </span>
+              ) : null}
+              {runningTrackerCount ? (
+                <form action={stopAllSessionTrackers} className="shrink-0">
+                  <input type="hidden" name="returnTo" value={quickPanelCardsReturnTo} />
+                  <Button variant="danger" type="submit"><Square className="h-4 w-4" /> Alle stoppen</Button>
+                </form>
+              ) : null}
+            </div>
+          </div>
+          <div className="grid gap-3 xl:grid-cols-2">
+            {visibleTrackers.map((tracker) => {
+              const openEntry = runningEntryByTracker.get(tracker.key);
+              const trackerQuota = quotaByKey.get(tracker.key);
+              const isRunning = Boolean(openEntry);
+              const runningMinutes = openEntry ? Math.max(0, Math.floor((now.getTime() - new Date(openEntry.startTime).getTime()) / 60000)) : 0;
+              const runningOwnerLabel = openEntry ? userDisplayName(openEntry.owner) : "";
+              const trackerCardState = isRunning ? (openEntry?.ownerId === user.id ? "läuft (du)" : `läuft von ${runningOwnerLabel}`) : trackerQuota?.hasQuota ? trackerQuota.complete ? "erfüllt" : "offen" : "kein Ziel";
+              const statusColor = isRunning ? "bg-redbrand/10 text-redbrand" : "bg-emerald-500/10 text-emerald-700";
+              return (
+                <div key={tracker.id} className="rounded-md border border-line bg-paper p-3">
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-ink">{tracker.title}</h3>
+                      <p className="mt-1 text-xs text-graphite">
+                        {openEntry ? `läuft seit ${formatDateTime(openEntry.startTime)} · ${formatMinutes(runningMinutes)}` : trackerQuota ? quotaSummaryText(trackerQuota) : "Kein Kontingent"}
+                      </p>
+                    </div>
+                    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusColor}`}>{trackerCardState}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {isRunning ? (
+                      openEntry?.ownerId === user.id ? (
+                        <form action={stopEntry} className="shrink-0">
+                          <input type="hidden" name="trackerKey" value={tracker.key} />
+                          <input type="hidden" name="returnTo" value={quickPanelCardsReturnTo} />
+                          <Button variant="danger" type="submit"><Square className="h-4 w-4" /> Stop</Button>
+                        </form>
+                      ) : (
+                        <span className="inline-flex min-h-9 items-center rounded-md border border-line bg-surface px-3 py-2 text-sm text-graphite">Läuft von {runningOwnerLabel}</span>
+                      )
+                    ) : (
+                      <form action={startEntry} className="shrink-0">
+                        <input type="hidden" name="trackerKey" value={tracker.key} />
+                        <input type="hidden" name="returnTo" value={quickPanelCardsReturnTo} />
+                        <Button type="submit"><Play className="h-4 w-4" /> Start</Button>
+                      </form>
+                    )}
+                    <Link href={`/sessions?tracker=${tracker.key}&year=${year}`} className="inline-flex min-h-9 items-center rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-paper">
+                      Öffnen
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Panel>
         <Panel key={activeTracker.id}>
               <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -174,17 +308,19 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                 <SoftPanel><div className="text-sm text-graphite">Gesamtzeit</div><div className="mt-2 text-2xl font-semibold">{formatMinutes(totalMinutes)}</div></SoftPanel>
                 <SoftPanel><div className="text-sm text-graphite">Kontingent</div><div className="mt-2 text-2xl font-semibold">{statusLabel}</div></SoftPanel>
               </div>
-              {open ? (
-                <div className="mb-5 rounded-md border border-line bg-paper p-3 text-sm">
-                  <Link href={`/trackers/${activeTracker.key}/${open.slug || open.id}`} className="font-semibold text-ink hover:text-redbrand">Läuft seit {formatDateTime(open.startTime)}</Link>
-                  {open.ownerId === user.id ? (
-                    <form action={stopEntry} className="mt-3">
-                      <input type="hidden" name="trackerKey" value={activeTracker.key} />
-                      <Button><Square className="h-4 w-4" /> Tracker beenden</Button>
-                    </form>
-                  ) : null}
-                </div>
-              ) : null}
+                {open ? (
+                  <div className="mb-5 rounded-md border border-line bg-paper p-3 text-sm">
+                    <Link href={`/trackers/${activeTracker.key}/${open.slug || open.id}`} className="font-semibold text-ink hover:text-redbrand">Läuft seit {formatDateTime(open.startTime)}</Link>
+                    {open.ownerId === user.id ? <p className="mt-1 text-graphite">Aktive Laufzeit: {formatMinutes(activeTrackerRunningMinutes)}</p> : null}
+                    {open.ownerId === user.id ? (
+                      <form action={stopEntry} className="mt-3">
+                        <input type="hidden" name="trackerKey" value={activeTracker.key} />
+                        <input type="hidden" name="returnTo" value={quickPanelCardsReturnTo} />
+                        <Button><Square className="h-4 w-4" /> Tracker beenden</Button>
+                      </form>
+                    ) : null}
+                  </div>
+                ) : null}
               <form id="new-entry" action={createTrackerEntry} className="mb-5 space-y-3">
                 <input type="hidden" name="trackerKey" value={activeTracker.key} />
                 {selectedDateValue ? (
@@ -197,8 +333,8 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                   <Field label="Start"><input className={inputClass} name="startTime" type="datetime-local" defaultValue={selectedDateTimeValue} /></Field>
                   <Field label="Ende"><input className={inputClass} name="endTime" type="datetime-local" /></Field>
                   <Field label="Beschreibung"><input className={inputClass} name="notes" placeholder="Optionaler Kommentar" /></Field>
-                  <Button><Save className="h-4 w-4" /> Eintrag speichern</Button>
-                </div>
+                    <Button><Save className="h-4 w-4" /> Eintrag speichern</Button>
+                  </div>
                 <label className="flex items-center gap-2 rounded-md border border-line bg-paper px-3 py-2 text-sm font-medium text-graphite">
                   <input name="allDay" type="checkbox" className="h-4 w-4 accent-redbrand" />
                   Ganzer Tag, ohne Start- und Endzeit

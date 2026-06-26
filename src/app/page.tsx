@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarDays, MessageCircle, Newspaper, Plus, ShieldCheck, Sparkles, Star } from "lucide-react";
+import { CalendarDays, MessageCircle, Newspaper, Plus, Play, ShieldCheck, Sparkles, Square, Star } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { LikeControl } from "@/components/like-control";
-import { Badge, PageGuide, Panel, PageHeader } from "@/components/ui";
+import { Badge, Button, PageGuide, Panel, PageHeader } from "@/components/ui";
 import { accessibleOwnerIds, ownerScope } from "@/lib/access";
 import { confirmRequestedActivity } from "@/lib/activity-actions";
 import { updateSelfBondageOrderStatus, selfBondageCategory } from "@/lib/activity-orders";
@@ -16,7 +16,7 @@ import { homeSectionOrder } from "@/lib/home-layout";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatDateTime, formatMinutes } from "@/lib/dates";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
-import { stopTrackerEntry } from "@/lib/tracker-core";
+import { startTrackerEntry, stopAllRunningTrackerEntriesForUser, stopTrackerEntry } from "@/lib/tracker-core";
 import { currentTenant } from "@/lib/tenancy";
 
 const dayFormatter = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "Europe/Berlin" });
@@ -182,8 +182,11 @@ async function stopDashboardTracker(formData: FormData) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const key = String(formData.get("trackerKey") || "");
+  await requireFeature(`tracker.${key}`);
+  const returnTo = String(formData.get("returnTo") || "");
   const entry = await stopTrackerEntry({ key, user });
   if (!entry) redirect("/");
+  await requireFeature("trackers");
   await logAction({
     actorId: user.id,
     action: `tracker_${key}_stopped`,
@@ -192,7 +195,56 @@ async function stopDashboardTracker(formData: FormData) {
     title: `${entry.title || key} beendet`,
     href: `/trackers/${key}/${entry.slug || entry.id}`
   });
-  redirect(`/trackers/${key}/${entry.slug || entry.id}`);
+  redirect(returnTo || `/trackers/${key}/${entry.slug || entry.id}`);
+}
+
+async function stopAllDashboardTrackers(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  await requireFeature("trackers");
+  const returnTo = String(formData.get("returnTo") || "/");
+
+  const { openEntries, stopped } = await stopAllRunningTrackerEntriesForUser({ user, notes: "Massenstopp per Dashboard" });
+  if (!stopped.length) redirect(returnTo);
+  for (const stoppedEntry of stopped) {
+    const source = openEntries.find((entry) => entry.id === stoppedEntry.id);
+    const key = source?.trackerType.key;
+    if (!key) continue;
+    const title = stoppedEntry.title || key || "Tracker";
+    await logAction({
+      actorId: user.id,
+      action: `tracker_${key}_stopped`,
+      entityType: "trackerEntry",
+      entityId: stoppedEntry.id,
+      title: `${title} beendet`,
+      href: `/trackers/${key}/${stoppedEntry.slug || stoppedEntry.id}`
+    });
+  }
+
+  redirect(returnTo);
+}
+
+async function startDashboardTracker(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const key = String(formData.get("trackerKey") || "");
+  const notes = String(formData.get("notes") || "").trim() || "Per Dashboard gestartet";
+  const returnTo = String(formData.get("returnTo") || "/");
+  await requireFeature("trackers");
+  await requireFeature(`tracker.${key}`);
+  const entry = await startTrackerEntry({ key, user, notes });
+  if (!entry) redirect("/");
+  await logAction({
+    actorId: user.id,
+    action: `tracker_${key}_started`,
+    entityType: "trackerEntry",
+    entityId: entry.id,
+    title: `${entry.title || key} gestartet`,
+    href: `/trackers/${key}/${entry.slug || entry.id}`
+  });
+  redirect(returnTo);
 }
 
 async function commentFeedEntry(formData: FormData) {
@@ -295,8 +347,15 @@ export default async function DashboardPage() {
     hasFeature("positions")
   ]);
   if (playReadyEnabled) await expirePlayReadyStatuses(user, now);
-  const [trackerEntries, weekActivities, weekEvents, circleUsers, selfBondagePositions, favoriteToys, favoritePositions, openOrders, requestedPlans, feedRules] = await Promise.all([
+  const [trackerEntries, runningTrackerEntries, weekActivities, weekEvents, circleUsers, selfBondagePositions, favoriteToys, favoritePositions, openOrders, requestedPlans, feedRules] = await Promise.all([
     trackersEnabled ? prisma.trackerEntry.findMany({ where: scope, include: { trackerType: true }, orderBy: { startTime: "desc" }, take: 8 }) : Promise.resolve([]),
+    trackersEnabled
+      ? prisma.trackerEntry.findMany({
+          where: { ...scope, endTime: null, allDay: false },
+          include: { trackerType: { select: { key: true, title: true } } },
+          orderBy: { startTime: "desc" }
+        })
+      : Promise.resolve([]),
     activitiesEnabled
       ? prisma.activityPlan.findMany({
           where: { ...scope, status: "PLANNED", plannedAt: { gte: todayStart, lt: weekEnd } },
@@ -394,6 +453,8 @@ export default async function DashboardPage() {
       })
     : [];
   const quotaTodos = (await trackerQuotaStatusForUser(user)).filter((status) => status.hasQuota);
+  const runningTrackerByKey = new Map(runningTrackerEntries.map((entry) => [entry.trackerType.key, entry]));
+  const trackerTodoReturnTo = "/#trackerTodos";
   const homeTenant = user.tenantId ? await prisma.tenant.findUnique({ where: { id: user.tenantId }, select: { homeLayout: true } }) : null;
   const sectionStyle = (key: Parameters<typeof homeSectionOrder>[1]) => ({ order: homeSectionOrder(homeTenant?.homeLayout, key) });
 
@@ -414,7 +475,9 @@ export default async function DashboardPage() {
       entry.actor?.profile?.displayName || entry.actor?.name || entry.actor?.username || entry.actor?.email || "Unbekannt"
     ])
   );
-  const openTrackerEntries = trackerEntries.filter((entry) => !entry.endTime && !entry.allDay);
+  const openTrackerEntries = [...runningTrackerEntries];
+  const runningTrackerEntriesByOwner = new Map(openTrackerEntries.filter((entry) => entry.ownerId === user.id).map((entry) => [entry.trackerType.key, entry]));
+  const runningTrackerCount = runningTrackerEntriesByOwner.size;
   const weekDays = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(todayStart);
     date.setDate(todayStart.getDate() + index);
@@ -547,7 +610,7 @@ export default async function DashboardPage() {
         ) : null}
 
         {quotaTodos.length ? (
-          <Panel style={sectionStyle("trackerTodos")}>
+          <Panel id="trackerTodos" style={sectionStyle("trackerTodos")}>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-ink">Tracker-Todos</h2>
@@ -560,8 +623,9 @@ export default async function DashboardPage() {
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {quotaTodos.map((todo) => {
                 const main = todo.daily.required ? todo.daily : todo.weekly.required ? todo.weekly : todo.monthlyMinutes.required ? todo.monthlyMinutes : todo.monthlyDays;
+                const running = runningTrackerByKey.get(todo.tracker.key);
                 return (
-                  <Link key={todo.tracker.id} href={`/sessions?tracker=${todo.tracker.key}`} className="block rounded-lg border border-line bg-paper p-4 hover:border-redbrand">
+                  <article key={todo.tracker.id} className="rounded-lg border border-line bg-paper p-4">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div>
                         <h3 className="font-semibold text-ink">{todo.tracker.title}</h3>
@@ -575,11 +639,34 @@ export default async function DashboardPage() {
                     <div className="mt-2 text-xs font-semibold text-graphite">
                       {todo.complete ? "erfüllt" : `noch ${main.remaining} ${todo.monthlyDays.required && main === todo.monthlyDays ? "Tage" : "Min."}`}
                     </div>
-                  </Link>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Link href={`/sessions?tracker=${todo.tracker.key}`} className="inline-flex min-h-8 items-center rounded-md border border-line bg-surface px-3 py-2 text-xs font-semibold hover:bg-paper">
+                        Tracker öffnen
+                      </Link>
+                      {running ? (
+                        running.ownerId === user.id ? (
+                          <form action={stopDashboardTracker}>
+                            <input type="hidden" name="trackerKey" value={todo.tracker.key} />
+                            <input type="hidden" name="returnTo" value={trackerTodoReturnTo} />
+                            <Button variant="danger" type="submit"><Square className="h-4 w-4" /> Stop</Button>
+                          </form>
+                        ) : (
+                          <span className="inline-flex min-h-8 items-center rounded-md border border-line bg-surface px-3 py-2 text-xs text-graphite">läuft gerade</span>
+                        )
+                      ) : (
+                        <form action={startDashboardTracker}>
+                          <input type="hidden" name="trackerKey" value={todo.tracker.key} />
+                          <input type="hidden" name="returnTo" value={trackerTodoReturnTo} />
+                          <input type="hidden" name="notes" value={`Tracker ${todo.tracker.title} gestartet`} />
+                          <Button type="submit"><Play className="h-4 w-4" /> Start</Button>
+                        </form>
+                      )}
+                    </div>
+                  </article>
                 );
               })}
-            </div>
-          </Panel>
+              </div>
+            </Panel>
         ) : null}
 
         {feedEntries.length ? (
@@ -797,8 +884,22 @@ export default async function DashboardPage() {
         ) : null}
 
         {trackersEnabled && openTrackerEntries.length ? (
-          <Panel style={sectionStyle("runningTrackers")}>
-            <h2 className="mb-3 text-lg font-semibold">Laufende Tracker</h2>
+          <Panel id="runningTrackers" style={sectionStyle("runningTrackers")}>
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">Laufende Tracker</h2>
+                <p className="mt-1 text-sm text-graphite">
+                  {runningTrackerCount ? `Du hast ${runningTrackerCount} laufende Tracker von dir.` : "Du hast keine eigenen laufenden Tracker."}
+                  {` Gesamt aktiv: ${openTrackerEntries.length}.`}
+                </p>
+              </div>
+              {runningTrackerCount ? (
+                <form action={stopAllDashboardTrackers} className="shrink-0">
+                  <input type="hidden" name="returnTo" value="/#runningTrackers" />
+                  <Button variant="danger" type="submit"><Square className="h-4 w-4" /> Alle stoppen</Button>
+                </form>
+              ) : null}
+            </div>
             <div className="space-y-2">
               {openTrackerEntries.map((entry) => (
                 <div key={entry.id} className="rounded-md border border-line bg-paper p-3 text-sm">
@@ -809,6 +910,7 @@ export default async function DashboardPage() {
                   {entry.ownerId === user.id ? (
                     <form action={stopDashboardTracker} className="mt-3">
                       <input type="hidden" name="trackerKey" value={entry.trackerType.key} />
+                      <input type="hidden" name="returnTo" value="/#runningTrackers" />
                       <button className="focus-ring min-h-9 rounded-md bg-redbrand px-3 py-1.5 text-xs font-semibold text-white hover:bg-redbrandHover">
                         Tracker beenden
                       </button>
