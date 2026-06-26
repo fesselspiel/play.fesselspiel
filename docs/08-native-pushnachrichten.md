@@ -15,17 +15,19 @@ Die iOS-App kann sich nach dem Mobile-Login mit ihrem APNs-Gerätetoken registri
 
 ## Server-Konfiguration
 
-Für APNs braucht der Host diese Variablen:
+APNs wird nicht über Start-Umgebungsvariablen konfiguriert. Administratoren pflegen die Werte pro Seite im Backend unter `Einstellungen -> Push`.
 
-- `APNS_TEAM_ID`
-- `APNS_KEY_ID`
-- `APNS_PRIVATE_KEY`
-- `APNS_BUNDLE_ID`, Standard: `fspiel.playplaner`
-- `APNS_ENVIRONMENT`, Standard: `production`
+Gespeichert werden:
+
+- Team ID
+- Key ID
+- Bundle ID, Standard: `fspiel.playplaner`
+- APNs Private Key, verschlüsselt in der Datenbank
+- Umgebung: `production` oder `sandbox`
 
 Der APNs-Key ist ein Apple-Developer Push Notifications Auth Key, nicht der App-Store-Connect-Upload-Key.
 
-Wenn diese Werte fehlen, werden Events weiterhin protokolliert, aber es wird kein APNs-Versand versucht.
+Wenn die Push-Einstellung deaktiviert oder unvollständig ist, werden Events weiterhin protokolliert, aber es wird kein APNs-Versand versucht.
 
 ## iOS-Verhalten
 

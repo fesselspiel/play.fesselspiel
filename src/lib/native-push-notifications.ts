@@ -1,10 +1,16 @@
 import { sign } from "crypto";
 import type { AuditLog, NativePushDevice } from "@prisma/client";
-import { env } from "@/lib/env";
+import { decryptSecret } from "@/lib/crypto";
 import { actionLabel } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
 
 type AuditForPush = Pick<AuditLog, "id" | "actorId" | "action" | "title" | "href" | "entityType" | "entityId" | "details">;
+type PushConfig = {
+  teamId: string;
+  keyId: string;
+  bundleId: string;
+  privateKey: string;
+};
 
 const pushableActions = new Set([
   "event_created",
@@ -17,20 +23,16 @@ function base64url(input: string | Buffer) {
   return Buffer.from(input).toString("base64url");
 }
 
-function apnsConfigured() {
-  return Boolean(env.apnsTeamId && env.apnsKeyId && env.apnsBundleId && env.apnsPrivateKey);
-}
-
 function apnsHost(environment: string) {
   return environment === "sandbox" ? "https://api.sandbox.push.apple.com" : "https://api.push.apple.com";
 }
 
-function apnsJwt() {
-  const header = base64url(JSON.stringify({ alg: "ES256", kid: env.apnsKeyId }));
-  const claims = base64url(JSON.stringify({ iss: env.apnsTeamId, iat: Math.floor(Date.now() / 1000) }));
+function apnsJwt(config: PushConfig) {
+  const header = base64url(JSON.stringify({ alg: "ES256", kid: config.keyId }));
+  const claims = base64url(JSON.stringify({ iss: config.teamId, iat: Math.floor(Date.now() / 1000) }));
   const data = `${header}.${claims}`;
   const signature = sign("sha256", Buffer.from(data), {
-    key: env.apnsPrivateKey,
+    key: config.privateKey,
     dsaEncoding: "ieee-p1363"
   });
   return `${data}.${base64url(signature)}`;
@@ -57,6 +59,27 @@ async function targetUserIds(audit: AuditForPush) {
   return [];
 }
 
+async function tenantIdForAudit(audit: AuditForPush) {
+  const tenantId = tenantIdFromDetails(audit);
+  if (tenantId) return tenantId;
+  if (!audit.actorId) return null;
+  const actor = await prisma.user.findUnique({ where: { id: audit.actorId }, select: { tenantId: true } });
+  return actor?.tenantId || null;
+}
+
+async function pushConfigForTenant(tenantId: string): Promise<PushConfig | null> {
+  const settings = await prisma.nativePushSettings.findUnique({ where: { tenantId } });
+  if (!settings?.enabled || !settings.teamId || !settings.keyId || !settings.bundleId || !settings.privateKeyEnc) return null;
+  const privateKey = decryptSecret(settings.privateKeyEnc).replace(/\\n/g, "\n");
+  if (!privateKey) return null;
+  return {
+    teamId: settings.teamId,
+    keyId: settings.keyId,
+    bundleId: settings.bundleId,
+    privateKey
+  };
+}
+
 function payloadForAudit(audit: AuditForPush) {
   return {
     aps: {
@@ -74,12 +97,12 @@ function payloadForAudit(audit: AuditForPush) {
   };
 }
 
-async function sendToDevice(device: NativePushDevice, audit: AuditForPush, authorization: string) {
+async function sendToDevice(device: NativePushDevice, audit: AuditForPush, config: PushConfig, authorization: string) {
   const response = await fetch(`${apnsHost(device.environment)}/3/device/${device.deviceToken}`, {
     method: "POST",
     headers: {
       authorization,
-      "apns-topic": env.apnsBundleId,
+      "apns-topic": config.bundleId,
       "apns-push-type": "alert",
       "apns-priority": "10",
       "content-type": "application/json"
@@ -110,19 +133,24 @@ async function sendToDevice(device: NativePushDevice, audit: AuditForPush, autho
 }
 
 export async function dispatchNativePushNotifications(audit: AuditLog) {
-  if (!pushableActions.has(audit.action) || !apnsConfigured()) return;
+  if (!pushableActions.has(audit.action)) return;
+  const tenantId = await tenantIdForAudit(audit);
+  if (!tenantId) return;
+  const config = await pushConfigForTenant(tenantId);
+  if (!config) return;
   const users = await targetUserIds(audit);
   if (!users.length) return;
   const devices = await prisma.nativePushDevice.findMany({
     where: {
+      tenantId,
       userId: { in: users },
       platform: "ios",
       disabledAt: null
     }
   });
   if (!devices.length) return;
-  const authorization = `bearer ${apnsJwt()}`;
-  const results = await Promise.allSettled(devices.map((device) => sendToDevice(device, audit, authorization)));
+  const authorization = `bearer ${apnsJwt(config)}`;
+  const results = await Promise.allSettled(devices.map((device) => sendToDevice(device, audit, config, authorization)));
   results.forEach((result) => {
     if (result.status === "rejected") console.error("native push failed", result.reason);
   });

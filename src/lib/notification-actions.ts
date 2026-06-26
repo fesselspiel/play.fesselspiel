@@ -49,6 +49,7 @@ export const knownAuditActions = [
   ["media_deleted", "Bild gelöscht"],
   ["media_updated", "Bild geändert"],
   ["media_uploaded", "Bild hochgeladen"],
+  ["native_push_settings_updated", "Native Push gespeichert"],
   ["play_ready_changed", "Spielampel geändert"],
   ["play_ready_changed_api", "Spielampel per API geändert"],
   ["play_ready_expired", "Spielampel abgelaufen"],

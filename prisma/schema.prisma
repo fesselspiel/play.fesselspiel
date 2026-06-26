@@ -92,6 +92,7 @@ model Tenant {
   feedRules FeedRule[]
   externalPushRules ExternalPushRule[]
   externalPushLogs ExternalPushLog[]
+  nativePushSettings NativePushSettings?
   nativePushDevices NativePushDevice[]
   nativePushDeliveries NativePushDelivery[]
   scheduledRules ScheduledRule[]
@@ -497,6 +498,22 @@ model ExternalPushLog {
   @@index([tenantId, createdAt])
   @@index([action, createdAt])
   @@index([status, createdAt])
+}
+
+model NativePushSettings {
+  id            String   @id @default(cuid())
+  tenantId      String   @unique
+  enabled       Boolean  @default(false)
+  teamId        String?
+  keyId         String?
+  bundleId      String   @default("fspiel.playplaner")
+  privateKeyEnc String?
+  environment   String   @default("production")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([enabled])
 }
 
 model NativePushDevice {
