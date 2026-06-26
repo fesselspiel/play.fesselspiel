@@ -1,4 +1,5 @@
 import { sign } from "crypto";
+import { connect } from "http2";
 import type { AuditLog, NativePushDevice } from "@prisma/client";
 import { decryptSecret } from "@/lib/crypto";
 import { actionLabel } from "@/lib/notification-actions";
@@ -17,6 +18,12 @@ type TestPushInput = {
   targetUserIds: string[];
   title?: string;
   body?: string;
+};
+type ApnsResponse = {
+  ok: boolean;
+  status: number;
+  apnsId: string | null;
+  body: string | null;
 };
 
 const pushableActions = new Set([
@@ -121,25 +128,28 @@ function payloadForTest(input: Required<Pick<TestPushInput, "title" | "body">> &
   };
 }
 
-async function sendToDevice(
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error || "Unbekannter Fehler");
+}
+
+function readableApnsError(raw: string | null) {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { reason?: string };
+    if (parsed.reason) return `APNs-Fehler: ${parsed.reason}`;
+  } catch {
+    // APNs usually returns JSON, but keep raw transport text if it does not.
+  }
+  return raw;
+}
+
+async function writeFailedDelivery(
   device: NativePushDevice,
-  delivery: { auditId?: string | null; action: string; payload: unknown },
-  config: PushConfig,
-  authorization: string
+  delivery: { auditId?: string | null; action: string },
+  message: string,
+  statusCode?: number | null,
+  apnsId?: string | null
 ) {
-  const response = await fetch(`${apnsHost(device.environment)}/3/device/${device.deviceToken}`, {
-    method: "POST",
-    headers: {
-      authorization,
-      "apns-topic": config.bundleId,
-      "apns-push-type": "alert",
-      "apns-priority": "10",
-      "content-type": "application/json"
-    },
-    body: JSON.stringify(delivery.payload)
-  });
-  const apnsId = response.headers.get("apns-id");
-  const errorText = response.ok ? null : (await response.text().catch(() => "")).slice(0, 1000);
   await prisma.nativePushDelivery.create({
     data: {
       tenantId: device.tenantId,
@@ -147,19 +157,118 @@ async function sendToDevice(
       deviceId: device.id,
       auditId: delivery.auditId,
       action: delivery.action,
-      status: response.ok ? "SENT" : "FAILED",
-      apnsId,
-      statusCode: response.status,
-      error: errorText
+      status: "FAILED",
+      apnsId: apnsId || null,
+      statusCode: statusCode || null,
+      error: message.slice(0, 1000)
     }
   });
-  if (response.status === 400 || response.status === 410) {
-    const reason = errorText || "";
-    if (reason.includes("BadDeviceToken") || reason.includes("Unregistered") || reason.includes("DeviceTokenNotForTopic")) {
-      await prisma.nativePushDevice.update({ where: { id: device.id }, data: { disabledAt: new Date() } });
+}
+
+async function writeFailedDeliveries(
+  devices: NativePushDevice[],
+  delivery: { auditId?: string | null; action: string },
+  message: string
+) {
+  await Promise.allSettled(devices.map((device) => writeFailedDelivery(device, delivery, message)));
+}
+
+function headerValue(value: string | string[] | number | undefined) {
+  if (Array.isArray(value)) return value[0] || null;
+  if (value === undefined) return null;
+  return String(value);
+}
+
+function sendApnsHttp2(input: { environment: string; deviceToken: string; authorization: string; bundleId: string; payload: unknown }) {
+  return new Promise<ApnsResponse>((resolve, reject) => {
+    const client = connect(apnsHost(input.environment));
+    const chunks: Buffer[] = [];
+    let settled = false;
+
+    function finish(error?: Error, result?: ApnsResponse) {
+      if (settled) return;
+      settled = true;
+      client.close();
+      if (error) reject(error);
+      else if (result) resolve(result);
+      else reject(new Error("APNs-Verbindung ohne Ergebnis beendet"));
     }
+
+    client.once("error", (error) => finish(error));
+
+    const request = client.request({
+      ":method": "POST",
+      ":path": `/3/device/${input.deviceToken}`,
+      authorization: input.authorization,
+      "apns-topic": input.bundleId,
+      "apns-push-type": "alert",
+      "apns-priority": "10",
+      "content-type": "application/json"
+    });
+
+    let status = 0;
+    let apnsId: string | null = null;
+
+    request.setEncoding("utf8");
+    request.once("response", (headers) => {
+      status = Number(headers[":status"] || 0);
+      apnsId = headerValue(headers["apns-id"]);
+    });
+    request.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    request.once("error", (error) => finish(error));
+    request.once("end", () => {
+      const body = Buffer.concat(chunks).toString("utf8").trim();
+      finish(undefined, {
+        ok: status >= 200 && status < 300,
+        status,
+        apnsId,
+        body: body || null
+      });
+    });
+    request.end(JSON.stringify(input.payload));
+  });
+}
+
+async function sendToDevice(
+  device: NativePushDevice,
+  delivery: { auditId?: string | null; action: string; payload: unknown },
+  config: PushConfig,
+  authorization: string
+) {
+  try {
+    const response = await sendApnsHttp2({
+      environment: device.environment,
+      deviceToken: device.deviceToken,
+      authorization,
+      bundleId: config.bundleId,
+      payload: delivery.payload
+    });
+    const rawError = response.ok ? null : response.body?.slice(0, 1000) || null;
+    const errorText = readableApnsError(rawError);
+    await prisma.nativePushDelivery.create({
+      data: {
+        tenantId: device.tenantId,
+        userId: device.userId,
+        deviceId: device.id,
+        auditId: delivery.auditId,
+        action: delivery.action,
+        status: response.ok ? "SENT" : "FAILED",
+        apnsId: response.apnsId,
+        statusCode: response.status,
+        error: errorText
+      }
+    });
+    if (response.status === 400 || response.status === 410) {
+      const reason = rawError || "";
+      if (reason.includes("BadDeviceToken") || reason.includes("Unregistered") || reason.includes("DeviceTokenNotForTopic")) {
+        await prisma.nativePushDevice.update({ where: { id: device.id }, data: { disabledAt: new Date() } });
+      }
+    }
+    return response.ok;
+  } catch (error) {
+    await writeFailedDelivery(device, delivery, `HTTP/2-Transportfehler vor APNs-Antwort: ${errorMessage(error)}`);
+    return false;
   }
-  return response.ok;
 }
 
 export async function dispatchNativePushNotifications(audit: AuditLog) {
@@ -179,8 +288,14 @@ export async function dispatchNativePushNotifications(audit: AuditLog) {
     }
   });
   if (!devices.length) return;
-  const authorization = `bearer ${apnsJwt(config)}`;
   const delivery = { auditId: audit.id, action: audit.action, payload: payloadForAudit(audit) };
+  let authorization: string;
+  try {
+    authorization = `bearer ${apnsJwt(config)}`;
+  } catch (error) {
+    await writeFailedDeliveries(devices, delivery, `Provider-Token konnte nicht erzeugt werden: ${errorMessage(error)}`);
+    return;
+  }
   const results = await Promise.allSettled(devices.map((device) => sendToDevice(device, delivery, config, authorization)));
   results.forEach((result) => {
     if (result.status === "rejected") console.error("native push failed", result.reason);
@@ -201,7 +316,6 @@ export async function sendNativeTestPush(input: TestPushInput) {
     }
   });
   if (!devices.length) return { sent: 0, failed: 0, devices: 0, error: "missing_devices" };
-  const authorization = `bearer ${apnsJwt(config)}`;
   const delivery = {
     auditId: null,
     action: "native_push_test",
@@ -212,6 +326,13 @@ export async function sendNativeTestPush(input: TestPushInput) {
       body: input.body?.trim() || "Wenn du das siehst, ist native Push eingerichtet."
     })
   };
+  let authorization: string;
+  try {
+    authorization = `bearer ${apnsJwt(config)}`;
+  } catch (error) {
+    await writeFailedDeliveries(devices, delivery, `Provider-Token konnte nicht erzeugt werden: ${errorMessage(error)}`);
+    return { sent: 0, failed: devices.length, devices: devices.length, error: null };
+  }
   const results = await Promise.allSettled(devices.map((device) => sendToDevice(device, delivery, config, authorization)));
   return {
     sent: results.filter((result) => result.status === "fulfilled" && result.value).length,
