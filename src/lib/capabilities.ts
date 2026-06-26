@@ -640,6 +640,16 @@ export const capabilities: readonly Capability[] = [
     route: "/settings/api",
     actions: [
       {
+        key: "mobileLogin",
+        label: "Mobile App Login",
+        type: "write",
+        description: "Meldet einen Benutzer fuer native Apps an und erzeugt einen API-Token fuer die aktuelle Seite.",
+        apiEndpoints: [
+          { method: "POST", path: "/api/external/auth/login", description: "Native App Anmeldung mit `identifier`, `password`, optional `deviceName`; Antwort enthaelt Bearer Token, Benutzer, Seite und Capabilities." }
+        ],
+        auditActions: ["api_mobile_login", "api_mobile_login_failed"]
+      },
+      {
         key: "tokens",
         label: "API Tokens verwalten",
         type: "admin",
@@ -677,7 +687,13 @@ export const capabilities: readonly Capability[] = [
         key: "read",
         label: "Protokoll anzeigen",
         type: "read",
-        description: "Zeigt protokollierte Aktionen mit Filtern, Feed-Freigabe und Debug-Details."
+        description: "Zeigt protokollierte Aktionen mit Filtern, Feed-Freigabe und Debug-Details.",
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/events?token=...&limit=50", description: "Paginierter Ereignisfeed fuer native Apps, inklusive push-tauglichem Titel, Body, Deeplink und Engagement-Daten." },
+          { method: "GET", path: "/api/external/events?token=...&since=2026-06-26T12:00:00.000Z&action=play_ready_changed", description: "Nur neue Ereignisse seit einem Zeitpunkt oder fuer bestimmte Aktionen abrufen." },
+          { method: "GET", path: "/api/external/events/actions?token=...", description: "Verfuegbare Aktionstypen inklusive lesbarem Label und Sichtbarkeitszaehler abrufen." }
+        ],
+        auditActions: ["feed_comment_created", "feed_liked", "feed_unliked"]
       }
     ]
   },

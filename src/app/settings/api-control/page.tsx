@@ -249,6 +249,15 @@ function endpointRequestHint(endpoint: EndpointSpec, method: string) {
   if (lowerPath.includes("/api/external/media") && method === "POST") {
     return "Multipart-Upload: Felder `file`, optional `title` und `visibility`. Optionaler Album-Switch via sichtbares Standardalbum.";
   }
+  if (lowerPath.includes("/api/external/auth/login")) {
+    return "Native App Login: POST JSON mit `identifier`, `password`, optional `deviceName`. Antwort liefert einen API Bearer Token.";
+  }
+  if (lowerPath.includes("/api/external/events/actions")) {
+    return "Liefert alle fuer die App sichtbaren Ereignis-Aktionen mit Label und bisheriger Trefferzahl.";
+  }
+  if (lowerPath.includes("/api/external/events")) {
+    return "Paginierter Ereignisfeed fuer native Push-Logik. Wichtige Parameter: `since`, `cursor`, `limit`, `action` und `includeDelivery=1`.";
+  }
   if (lowerPath.includes("/api/external/play-ready") && method === "GET") {
     return "GET ohne State-Param: nur den Status lesen. Zum Setzen `state=green|red|toggle` und optional `expiresMinutes=...` oder `hours=...&minutes=...` verwenden.";
   }
@@ -286,6 +295,52 @@ function endpointSampleForPath(
       action: "upload",
       fileFields: ["file", "title", "visibility", "albumId", "notes?"],
       message: "Multipart-Upload mit Bearer Token oder token-Query."
+    };
+  }
+  if (lowerPath.includes("/api/external/auth/login")) {
+    return {
+      request: { identifier: "gabriel", password: "••••••", deviceName: "iPhone" },
+      response: {
+        ok: true,
+        token: "fsp_...",
+        tokenType: "Bearer",
+        user: { id: "user_id", username: "gabriel", name: "Gabriel" },
+        tenant: { id: "tenant_id", slug: "playplaner", name: "Playplaner", domain: "playplaner.com" },
+        capabilities: ["..."]
+      }
+    };
+  }
+  if (lowerPath.includes("/api/external/events/actions")) {
+    return {
+      ok: true,
+      count: 2,
+      actions: [
+        { action: "play_ready_changed", label: "Spielampel geändert", seenCount: 7 },
+        { action: "self_bondage_order_created", label: "Self-Bondage-Auftrag erteilt", seenCount: 2 }
+      ]
+    };
+  }
+  if (lowerPath.includes("/api/external/events")) {
+    return {
+      ok: true,
+      nextCursor: "clx_next_cursor",
+      count: 1,
+      items: [
+        {
+          id: "clx_event_id",
+          action: "play_ready_changed",
+          actionLabel: "Spielampel geändert",
+          title: "Gabriel ist voll Lust",
+          createdAt: new Date().toISOString(),
+          href: "/",
+          url: "https://playplaner.com/",
+          notification: {
+            title: "Gabriel ist voll Lust",
+            body: "Gabriel · Spielampel geändert",
+            deepLink: "/"
+          }
+        }
+      ]
     };
   }
   return null;

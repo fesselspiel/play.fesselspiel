@@ -105,6 +105,22 @@ const manualToolCatalog = ([
     category: "Medien"
   },
   {
+    id: "eventsFeed",
+    method: "GET",
+    path: "/api/external/events",
+    title: "Ereignisfeed",
+    description: "Paginierter Eventfeed fuer native Apps und Push-Vorbereitung.",
+    category: "Events"
+  },
+  {
+    id: "eventsActions",
+    method: "GET",
+    path: "/api/external/events/actions",
+    title: "Ereignis-Aktionen",
+    description: "Verfuegbare Eventtypen mit lesbaren Labels fuer App-Filter und Push-Kategorien.",
+    category: "Events"
+  },
+  {
     id: "mediaUpload",
     method: "POST",
     methods: ["POST"],
