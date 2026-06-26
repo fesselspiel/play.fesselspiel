@@ -11,6 +11,13 @@ type PushConfig = {
   bundleId: string;
   privateKey: string;
 };
+type TestPushInput = {
+  tenantId: string;
+  actorId: string;
+  targetUserIds: string[];
+  title?: string;
+  body?: string;
+};
 
 const pushableActions = new Set([
   "event_created",
@@ -97,7 +104,29 @@ function payloadForAudit(audit: AuditForPush) {
   };
 }
 
-async function sendToDevice(device: NativePushDevice, audit: AuditForPush, config: PushConfig, authorization: string) {
+function payloadForTest(input: Required<Pick<TestPushInput, "title" | "body">> & Pick<TestPushInput, "tenantId" | "actorId">) {
+  return {
+    aps: {
+      alert: {
+        title: input.title,
+        body: input.body
+      },
+      sound: "default"
+    },
+    action: "native_push_test",
+    entityType: "tenant",
+    entityId: input.tenantId,
+    href: "/settings/push",
+    actorId: input.actorId
+  };
+}
+
+async function sendToDevice(
+  device: NativePushDevice,
+  delivery: { auditId?: string | null; action: string; payload: unknown },
+  config: PushConfig,
+  authorization: string
+) {
   const response = await fetch(`${apnsHost(device.environment)}/3/device/${device.deviceToken}`, {
     method: "POST",
     headers: {
@@ -107,7 +136,7 @@ async function sendToDevice(device: NativePushDevice, audit: AuditForPush, confi
       "apns-priority": "10",
       "content-type": "application/json"
     },
-    body: JSON.stringify(payloadForAudit(audit))
+    body: JSON.stringify(delivery.payload)
   });
   const apnsId = response.headers.get("apns-id");
   const errorText = response.ok ? null : (await response.text().catch(() => "")).slice(0, 1000);
@@ -116,8 +145,8 @@ async function sendToDevice(device: NativePushDevice, audit: AuditForPush, confi
       tenantId: device.tenantId,
       userId: device.userId,
       deviceId: device.id,
-      auditId: audit.id,
-      action: audit.action,
+      auditId: delivery.auditId,
+      action: delivery.action,
       status: response.ok ? "SENT" : "FAILED",
       apnsId,
       statusCode: response.status,
@@ -130,6 +159,7 @@ async function sendToDevice(device: NativePushDevice, audit: AuditForPush, confi
       await prisma.nativePushDevice.update({ where: { id: device.id }, data: { disabledAt: new Date() } });
     }
   }
+  return response.ok;
 }
 
 export async function dispatchNativePushNotifications(audit: AuditLog) {
@@ -150,8 +180,43 @@ export async function dispatchNativePushNotifications(audit: AuditLog) {
   });
   if (!devices.length) return;
   const authorization = `bearer ${apnsJwt(config)}`;
-  const results = await Promise.allSettled(devices.map((device) => sendToDevice(device, audit, config, authorization)));
+  const delivery = { auditId: audit.id, action: audit.action, payload: payloadForAudit(audit) };
+  const results = await Promise.allSettled(devices.map((device) => sendToDevice(device, delivery, config, authorization)));
   results.forEach((result) => {
     if (result.status === "rejected") console.error("native push failed", result.reason);
   });
+}
+
+export async function sendNativeTestPush(input: TestPushInput) {
+  const config = await pushConfigForTenant(input.tenantId);
+  if (!config) return { sent: 0, failed: 0, devices: 0, error: "missing_config" };
+  const uniqueUserIds = Array.from(new Set(input.targetUserIds.filter(Boolean)));
+  if (!uniqueUserIds.length) return { sent: 0, failed: 0, devices: 0, error: "missing_targets" };
+  const devices = await prisma.nativePushDevice.findMany({
+    where: {
+      tenantId: input.tenantId,
+      userId: { in: uniqueUserIds },
+      platform: "ios",
+      disabledAt: null
+    }
+  });
+  if (!devices.length) return { sent: 0, failed: 0, devices: 0, error: "missing_devices" };
+  const authorization = `bearer ${apnsJwt(config)}`;
+  const delivery = {
+    auditId: null,
+    action: "native_push_test",
+    payload: payloadForTest({
+      tenantId: input.tenantId,
+      actorId: input.actorId,
+      title: input.title?.trim() || "Playplaner Test",
+      body: input.body?.trim() || "Wenn du das siehst, ist native Push eingerichtet."
+    })
+  };
+  const results = await Promise.allSettled(devices.map((device) => sendToDevice(device, delivery, config, authorization)));
+  return {
+    sent: results.filter((result) => result.status === "fulfilled" && result.value).length,
+    failed: results.filter((result) => result.status === "rejected" || (result.status === "fulfilled" && !result.value)).length,
+    devices: devices.length,
+    error: null
+  };
 }
