@@ -96,6 +96,7 @@ model Tenant {
   nativePushSettings NativePushSettings?
   nativePushDevices NativePushDevice[]
   nativePushDeliveries NativePushDelivery[]
+  nativePushNotificationRules NativePushNotificationRule[]
   scheduledRules ScheduledRule[]
   scheduledRuleRuns ScheduledRuleRun[]
   playReadyLikes PlayReadyLike[]
@@ -188,6 +189,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   nativePushDevices NativePushDevice[]
   nativePushDeliveries NativePushDelivery[]
+  nativePushNotificationTargets NativePushNotificationRule[] @relation("NativePushNotificationTargetUser")
 
   @@index([tenantId])
   @@index([circleId])
@@ -252,6 +254,7 @@ model Circle {
   telegramChatTargets TelegramChat[] @relation("TelegramChatTargetCircle")
   telegramNotificationTargets TelegramNotificationRule[] @relation("TelegramNotificationTargetCircle")
   emailNotificationTargets EmailNotificationRule[] @relation("EmailNotificationTargetCircle")
+  nativePushNotificationTargets NativePushNotificationRule[] @relation("NativePushNotificationTargetCircle")
   bondageSystemTargets BondageSystemItem[] @relation("BondageSystemTargetCircle")
 
   @@unique([tenantId, name])
@@ -560,6 +563,28 @@ model NativePushDelivery {
   @@index([userId, createdAt])
   @@index([auditId])
   @@index([action, status, createdAt])
+}
+
+model NativePushNotificationRule {
+  id             String   @id @default(cuid())
+  tenantId       String
+  action         String
+  targetAll      Boolean  @default(false)
+  targetUserId   String?
+  targetCircleId String?
+  titleTemplate  String   @default("{event}")
+  bodyTemplate   String   @default("{title}")
+  sound          String   @default("playplaner_chime.caf")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  targetUser     User?    @relation("NativePushNotificationTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+  targetCircle   Circle?  @relation("NativePushNotificationTargetCircle", fields: [targetCircleId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, action, active])
+  @@index([targetUserId])
+  @@index([targetCircleId])
 }
 
 model ScheduledRule {

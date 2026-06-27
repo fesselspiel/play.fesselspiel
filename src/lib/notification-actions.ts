@@ -51,6 +51,8 @@ export const knownAuditActions = [
   ["media_uploaded", "Bild hochgeladen"],
   ["native_push_settings_updated", "Native Push gespeichert"],
   ["native_push_test", "Native Push Test"],
+  ["native_push_notification_failed", "Native Push Benachrichtigung fehlgeschlagen"],
+  ["native_push_notification_sent", "Native Push Benachrichtigung gesendet"],
   ["play_ready_changed", "Spielampel geändert"],
   ["play_ready_changed_api", "Spielampel per API geändert"],
   ["play_ready_changed_telegram_agent", "Spielampel per Telegram-Agent geändert"],

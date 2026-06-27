@@ -384,6 +384,12 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
                                   >
                                     E-Mail <Mail className="h-3.5 w-3.5" />
                                   </Link>
+                                  <Link
+                                    href={`/settings/push?action=${encodeURIComponent(entry.action)}#notifications`}
+                                    className="focus-ring inline-flex min-h-9 items-center gap-1 rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-paper hover:text-redbrand"
+                                  >
+                                    Push <BellRing className="h-3.5 w-3.5" />
+                                  </Link>
                                 </>
                               ) : null}
                             </div>

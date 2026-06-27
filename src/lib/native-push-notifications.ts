@@ -18,6 +18,7 @@ type TestPushInput = {
   targetUserIds: string[];
   title?: string;
   body?: string;
+  sound?: string;
 };
 type ApnsResponse = {
   ok: boolean;
@@ -31,12 +32,19 @@ type NativePushTarget = {
   href: string | null;
 };
 
-const pushableActions = new Set([
-  "event_created",
-  "event_updated",
-  "event_deleted",
-  "event_checkin_created"
-]);
+type NativePushRule = Awaited<ReturnType<typeof findRulesForAudit>>[number];
+
+export const nativePushSounds = [
+  { value: "playplaner_chime.caf", label: "Chime - Standard" },
+  { value: "playplaner_ping.caf", label: "Ping - Spielampel" },
+  { value: "playplaner_spark.caf", label: "Spark - Likes und Favoriten" },
+  { value: "playplaner_pulse.caf", label: "Pulse - Spielplan, Events und Aufträge" },
+  { value: "playplaner_alert.caf", label: "Alert - Fehler" }
+] as const;
+
+function normalizeSound(value?: string | null) {
+  return nativePushSounds.some((sound) => sound.value === value) ? value! : "playplaner_chime.caf";
+}
 
 function base64url(input: string | Buffer) {
   return Buffer.from(input).toString("base64url");
@@ -183,13 +191,17 @@ async function pushConfigForTenant(tenantId: string): Promise<PushConfig | null>
 }
 
 function payloadForAudit(audit: AuditForPush) {
+  return payloadForAuditMessage(audit, actionLabel(audit.action), audit.title);
+}
+
+function payloadForAuditMessage(audit: AuditForPush, title: string, body: string, soundOverride?: string | null) {
   const target = targetForAudit(audit);
-  const sound = soundForAction(audit.action);
+  const sound = soundOverride ? normalizeSound(soundOverride) : soundForAction(audit.action);
   return {
     aps: {
       alert: {
-        title: actionLabel(audit.action),
-        body: audit.title
+        title,
+        body
       },
       sound
     },
@@ -207,8 +219,8 @@ function payloadForAudit(audit: AuditForPush) {
   };
 }
 
-function payloadForTest(input: Required<Pick<TestPushInput, "title" | "body">> & Pick<TestPushInput, "tenantId" | "actorId">) {
-  const sound = "playplaner_chime.caf";
+function payloadForTest(input: Required<Pick<TestPushInput, "title" | "body">> & Pick<TestPushInput, "tenantId" | "actorId" | "sound">) {
+  const sound = normalizeSound(input.sound);
   return {
     aps: {
       alert: {
@@ -378,35 +390,197 @@ async function sendToDevice(
   }
 }
 
-export async function dispatchNativePushNotifications(audit: AuditLog) {
-  if (!pushableActions.has(audit.action)) return;
-  const tenantId = await tenantIdForAudit(audit);
-  if (!tenantId) return;
-  const config = await pushConfigForTenant(tenantId);
-  if (!config) return;
-  const users = await targetUserIds(audit);
-  if (!users.length) return;
-  const devices = await prisma.nativePushDevice.findMany({
-    where: {
-      tenantId,
-      userId: { in: users },
-      platform: "ios",
-      disabledAt: null
+function actorName(actor?: { profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null } | null) {
+  return actor?.profile?.displayName || actor?.name || actor?.username || actor?.email || "System";
+}
+
+function renderTemplate(template: string, audit: AuditForPush, actor: Parameters<typeof actorName>[0] | null) {
+  const details = audit.details ? JSON.stringify(audit.details) : "";
+  const values: Record<string, string> = {
+    title: audit.title,
+    actor: actorName(actor),
+    action: audit.action,
+    event: actionLabel(audit.action),
+    entityType: audit.entityType || "",
+    entityId: audit.entityId || "",
+    url: audit.href || "",
+    details
+  };
+  return template.replace(/\{([a-zA-Z]+)\}/g, (match, key) => values[key] ?? match).trim();
+}
+
+async function findRulesForAudit(audit: AuditForPush, tenantId: string) {
+  return prisma.nativePushNotificationRule.findMany({
+    where: { tenantId, action: audit.action, active: true },
+    include: {
+      targetUser: { include: { profile: true } },
+      targetCircle: true
     }
   });
-  if (!devices.length) return;
-  const delivery = { auditId: audit.id, action: audit.action, payload: payloadForAudit(audit) };
+}
+
+async function userIdsForRule(rule: NativePushRule, audit: AuditForPush, actorId: string | null) {
+  const details = auditDetails(audit);
+  const excludeActorFromTargets = details.excludeActorFromTargets === true;
+  let ids: string[] = [];
+  if (rule.targetAll) {
+    const memberships = await prisma.tenantMembership.findMany({
+      where: { tenantId: rule.tenantId, active: true, user: { active: true } },
+      select: { userId: true }
+    });
+    ids = memberships.map((membership) => membership.userId);
+  } else if (rule.targetCircleId) {
+    const memberships = await prisma.tenantMembership.findMany({
+      where: { tenantId: rule.tenantId, circleId: rule.targetCircleId, active: true, user: { active: true } },
+      select: { userId: true }
+    });
+    ids = memberships.map((membership) => membership.userId);
+  } else if (rule.targetUserId) {
+    const membership = await prisma.tenantMembership.findFirst({
+      where: { tenantId: rule.tenantId, userId: rule.targetUserId, active: true, user: { active: true } },
+      select: { userId: true }
+    });
+    ids = membership ? [membership.userId] : [];
+  }
+  return Array.from(new Set(ids.filter((id) => !(excludeActorFromTargets && actorId && id === actorId))));
+}
+
+function targetLabel(rule: Pick<NativePushRule, "targetAll" | "targetUser" | "targetCircle">) {
+  if (rule.targetAll) return "Alle auf dieser Seite";
+  if (rule.targetUser) return actorName(rule.targetUser);
+  if (rule.targetCircle) return `Kreis ${rule.targetCircle.name}`;
+  return "Kein Ziel";
+}
+
+async function writeRuleAudit(input: {
+  actorId: string | null;
+  rule: NativePushRule;
+  audit: AuditForPush;
+  title: string;
+  body: string;
+  sent: number;
+  failed: number;
+  devices: number;
+}) {
+  await prisma.auditLog.create({
+    data: {
+      actorId: input.actorId,
+      action: input.failed ? "native_push_notification_failed" : "native_push_notification_sent",
+      entityType: "nativePushNotificationRule",
+      entityId: input.rule.id,
+      title: `${input.failed ? "Push-Benachrichtigung fehlgeschlagen" : "Push-Benachrichtigung gesendet"}: ${actionLabel(input.audit.action)}`,
+      href: "/settings/push#notifications",
+      details: {
+        sourceAction: input.audit.action,
+        sourceActionLabel: actionLabel(input.audit.action),
+        sourceTitle: input.audit.title,
+        sourceHref: input.audit.href || null,
+        target: targetLabel(input.rule),
+        targetAll: input.rule.targetAll,
+        targetUserId: input.rule.targetUserId,
+      targetCircleId: input.rule.targetCircleId,
+      sent: input.sent,
+      failed: input.failed,
+      devices: input.devices,
+      pushTitle: input.title,
+      pushBody: input.body,
+      sound: input.rule.sound
+      }
+    }
+  });
+}
+
+export async function dispatchNativePushNotifications(audit: AuditLog) {
+  const tenantId = await tenantIdForAudit(audit);
+  if (!tenantId) return;
+  const rules = await findRulesForAudit(audit, tenantId);
+  if (!rules.length) return;
+  const config = await pushConfigForTenant(tenantId);
+  if (!config) return;
+  const actor = audit.actorId
+    ? await prisma.user.findUnique({ where: { id: audit.actorId }, include: { profile: true } })
+    : null;
   let authorization: string;
   try {
     authorization = `bearer ${apnsJwt(config)}`;
   } catch (error) {
-    await writeFailedDeliveries(devices, delivery, `Provider-Token konnte nicht erzeugt werden: ${errorMessage(error)}`);
+    const userIds = Array.from(new Set((await Promise.all(rules.map((rule) => userIdsForRule(rule, audit, audit.actorId)))).flat()));
+    const devices = userIds.length ? await prisma.nativePushDevice.findMany({ where: { tenantId, userId: { in: userIds }, platform: "ios", disabledAt: null } }) : [];
+    await writeFailedDeliveries(devices, { auditId: audit.id, action: audit.action }, `Provider-Token konnte nicht erzeugt werden: ${errorMessage(error)}`);
     return;
   }
-  const results = await Promise.allSettled(devices.map((device) => sendToDevice(device, delivery, config, authorization)));
-  results.forEach((result) => {
-    if (result.status === "rejected") console.error("native push failed", result.reason);
+  for (const rule of rules) {
+    const userIds = await userIdsForRule(rule, audit, audit.actorId);
+    if (!userIds.length) continue;
+    const devices = await prisma.nativePushDevice.findMany({
+      where: {
+        tenantId,
+        userId: { in: userIds },
+        platform: "ios",
+        disabledAt: null
+      }
+    });
+    if (!devices.length) continue;
+    const title = renderTemplate(rule.titleTemplate, audit, actor) || actionLabel(audit.action);
+    const body = renderTemplate(rule.bodyTemplate, audit, actor) || audit.title;
+    const delivery = { auditId: audit.id, action: audit.action, payload: payloadForAuditMessage(audit, title, body, rule.sound) };
+    const results = await Promise.allSettled(devices.map((device) => sendToDevice(device, delivery, config, authorization)));
+    results.forEach((result) => {
+      if (result.status === "rejected") console.error("native push failed", result.reason);
+    });
+    await writeRuleAudit({
+      actorId: audit.actorId,
+      rule,
+      audit,
+      title,
+      body,
+      sent: results.filter((result) => result.status === "fulfilled" && result.value).length,
+      failed: results.filter((result) => result.status === "rejected" || (result.status === "fulfilled" && !result.value)).length,
+      devices: devices.length
+    });
+  }
+}
+
+export async function testNativePushNotificationRule(ruleId: string, actorId: string) {
+  const rule = await prisma.nativePushNotificationRule.findUnique({
+    where: { id: ruleId },
+    include: { targetUser: { include: { profile: true } }, targetCircle: true }
   });
+  if (!rule) return { sent: 0, failed: 0, devices: 0, error: "missing_rule" };
+  const actor = await prisma.user.findUnique({ where: { id: actorId }, include: { profile: true } });
+  const audit: AuditForPush = {
+    id: `test-${rule.id}`,
+    actorId,
+    action: rule.action,
+    title: `Test: ${actionLabel(rule.action)}`,
+    href: "/settings/push#notifications",
+    entityType: "nativePushNotificationRule",
+    entityId: rule.id,
+    details: { test: true }
+  };
+  const config = await pushConfigForTenant(rule.tenantId);
+  if (!config) return { sent: 0, failed: 0, devices: 0, error: "missing_config" };
+  const userIds = await userIdsForRule(rule, audit, actorId);
+  if (!userIds.length) return { sent: 0, failed: 0, devices: 0, error: "missing_targets" };
+  const devices = await prisma.nativePushDevice.findMany({ where: { tenantId: rule.tenantId, userId: { in: userIds }, platform: "ios", disabledAt: null } });
+  if (!devices.length) return { sent: 0, failed: 0, devices: 0, error: "missing_devices" };
+  let authorization: string;
+  try {
+    authorization = `bearer ${apnsJwt(config)}`;
+  } catch (error) {
+    const delivery = { auditId: null, action: rule.action };
+    await writeFailedDeliveries(devices, delivery, `Provider-Token konnte nicht erzeugt werden: ${errorMessage(error)}`);
+    return { sent: 0, failed: devices.length, devices: devices.length, error: null };
+  }
+  const title = renderTemplate(rule.titleTemplate, audit, actor) || actionLabel(rule.action);
+  const body = renderTemplate(rule.bodyTemplate, audit, actor) || audit.title;
+  const results = await Promise.allSettled(devices.map((device) => sendToDevice(device, { auditId: null, action: rule.action, payload: payloadForAuditMessage(audit, title, body, rule.sound) }, config, authorization)));
+  return {
+    sent: results.filter((result) => result.status === "fulfilled" && result.value).length,
+    failed: results.filter((result) => result.status === "rejected" || (result.status === "fulfilled" && !result.value)).length,
+    devices: devices.length,
+    error: null
+  };
 }
 
 export async function sendNativeTestPush(input: TestPushInput) {
@@ -430,7 +604,8 @@ export async function sendNativeTestPush(input: TestPushInput) {
       tenantId: input.tenantId,
       actorId: input.actorId,
       title: input.title?.trim() || "Playplaner Test",
-      body: input.body?.trim() || "Wenn du das siehst, ist native Push eingerichtet."
+      body: input.body?.trim() || "Wenn du das siehst, ist native Push eingerichtet.",
+      sound: input.sound
     })
   };
   let authorization: string;
