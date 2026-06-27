@@ -177,6 +177,7 @@ Die Antwort enthaelt eine flache `categories`-Liste und `groups` nach `toy` und 
 
 ```http
 GET /api/external/catalog/toys?limit=100
+GET /api/external/catalog/toys/{id}
 Authorization: Bearer fsp_...
 ```
 
@@ -189,11 +190,13 @@ Parameter:
 - `token`: optional, erzeugt `downloadUrlWithToken` fuer Bildabrufe ohne Bearer-Header.
 
 Jeder Eintrag enthaelt `category`, `image`, `favorites`, `isFavorite`, `positions` und `activities`.
+Der Detail-Endpunkt akzeptiert die interne ID oder den Slug.
 
 ### Szenen
 
 ```http
 GET /api/external/catalog/positions?limit=100
+GET /api/external/catalog/positions/{id}
 Authorization: Bearer fsp_...
 ```
 
@@ -207,6 +210,48 @@ Parameter:
 - `token`: optional, erzeugt `downloadUrlWithToken` fuer Bildabrufe ohne Bearer-Header.
 
 Jeder Eintrag enthaelt `category`, `image`, `favorites`, `isFavorite`, `selfBondageCapable`, `toys`, `bondageSystemItems` und `activities`.
+Der Detail-Endpunkt akzeptiert die interne ID oder den Slug.
+
+## Mobile Parity Endpunkte
+
+Diese Endpunkte bilden die wichtigsten Portalbereiche nativ ab. Sie verwenden Bearer Auth und geben JSON zurueck.
+
+### Spielplanung
+
+- `GET /api/external/sessions?status=&cursor=&limit=`
+- `GET /api/external/sessions/{id}`
+- `POST /api/external/sessions`
+- `PATCH /api/external/sessions/{id}`
+- `DELETE /api/external/sessions/{id}`
+
+`POST` akzeptiert `title`, `note`, `scheduledAt`/`plannedAt`, `status`, `toyIds[]`, `positionIds[]` und `bondageSystemItemIds[]`.
+
+### Ideen
+
+- `GET /api/external/ideas?status=&q=&cursor=&limit=`
+- `GET /api/external/ideas/{id}`
+- `POST /api/external/ideas`
+- `PATCH /api/external/ideas/{id}`
+- `DELETE /api/external/ideas/{id}`
+
+`POST` akzeptiert `title`, `note`/`text`, `status`, `toyIds[]` und `positionIds[]`.
+
+### Auftraege
+
+- `GET /api/external/orders?status=&cursor=&limit=`
+- `GET /api/external/orders/{id}`
+- `POST /api/external/orders`
+- `PATCH /api/external/orders/{id}`
+- `POST /api/external/orders/{id}/status`
+
+Der Status-Endpunkt akzeptiert `action=accept`, `action=complete` oder `action=cancel`.
+
+### Bondage-System
+
+- `GET /api/external/bondage-system?q=&cursor=&limit=`
+- `GET /api/external/bondage-system/{id}`
+
+`{id}` darf die interne ID oder der Slug des Shopify-Produkts sein.
 
 ## Sichtbarkeit
 
@@ -225,7 +270,18 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `GET /api/external/events/actions`
 - `GET /api/external/catalog/categories`
 - `GET /api/external/catalog/toys`
+- `GET /api/external/catalog/toys/{id}`
 - `GET /api/external/catalog/positions`
+- `GET /api/external/catalog/positions/{id}`
+- `GET|POST /api/external/sessions`
+- `GET|PATCH|DELETE /api/external/sessions/{id}`
+- `GET|POST /api/external/ideas`
+- `GET|PATCH|DELETE /api/external/ideas/{id}`
+- `GET|POST /api/external/orders`
+- `GET|PATCH /api/external/orders/{id}`
+- `POST /api/external/orders/{id}/status`
+- `GET /api/external/bondage-system`
+- `GET /api/external/bondage-system/{id}`
 
 Die API-Control-Seite zeigt Beispielpayloads, Curl-Vorlagen und Hinweise. Fuer echte App-Tests sollte der Bearer-Header genutzt werden.
 

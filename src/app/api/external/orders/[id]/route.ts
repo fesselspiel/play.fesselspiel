@@ -1,0 +1,46 @@
+import { NextRequest, NextResponse } from "next/server";
+import { ownerScope } from "@/lib/access";
+import { logAction } from "@/lib/audit";
+import { selfBondageCategory } from "@/lib/activity-orders";
+import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
+import { activityInclude, parseActivityStatus, parseDateValue, serializeActivity } from "@/lib/external-mobile-serializers";
+import { prisma } from "@/lib/prisma";
+
+export const runtime = "nodejs";
+
+async function findOrder(user: { id: string; tenantId?: string | null; circleId?: string | null; role?: string | null }, id: string) {
+  return prisma.activityPlan.findFirst({ where: { id, ...(await ownerScope(user)), category: selfBondageCategory }, include: activityInclude });
+}
+
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  const auth = await requireApiUser(request);
+  if ("response" in auth) return auth.response;
+  const blocked = apiFeatureGate(auth.user, "externalApi", "orders");
+  if (blocked) return blocked;
+  const order = await findOrder(auth.user, params.id);
+  if (!order) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+  return NextResponse.json({ ok: true, item: serializeActivity(request, order) });
+}
+
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  const auth = await requireApiUser(request);
+  if ("response" in auth) return auth.response;
+  const blocked = apiFeatureGate(auth.user, "externalApi", "orders");
+  if (blocked) return blocked;
+  const existing = await findOrder(auth.user, params.id);
+  if (!existing) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+  const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+  const status = parseActivityStatus(String(body.status || ""));
+  const order = await prisma.activityPlan.update({
+    where: { id: existing.id },
+    data: {
+      ...(body.title !== undefined ? { title: String(body.title || "").trim() || existing.title } : {}),
+      ...(body.note !== undefined || body.instruction !== undefined ? { note: String(body.note || body.instruction || "").trim() } : {}),
+      ...(body.plannedAt !== undefined || body.scheduledAt !== undefined ? { plannedAt: parseDateValue(body.plannedAt || body.scheduledAt) } : {}),
+      ...(status ? { status } : {})
+    },
+    include: activityInclude
+  });
+  await logAction({ actorId: auth.user.id, action: "self_bondage_order_updated", entityType: "activity", entityId: order.id, title: `Self-Bondage-Auftrag geändert: ${order.title}`, href: `/orders#order-${order.id}`, details: { excludeActorFromTargets: true } });
+  return NextResponse.json({ ok: true, item: serializeActivity(request, order) });
+}

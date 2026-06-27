@@ -8,7 +8,8 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Die Übersichten gruppieren Einträge nach aufklappbaren Kategorien.
 - Beim Anlegen und Bearbeiten kann eine vorhandene Kategorie ausgewählt oder direkt eine neue Kategorie angelegt werden.
 - Export/Import, Telegram-Ausgaben, Agent-Anlage und Bildfeeds fuehren Kategorieinformationen mit.
-- Neue externe Endpunkte: `/api/external/catalog/categories`, `/api/external/catalog/toys` und `/api/external/catalog/positions`.
+- Neue externe Endpunkte: `/api/external/catalog/categories`, `/api/external/catalog/toys`, `/api/external/catalog/toys/{id}`, `/api/external/catalog/positions` und `/api/external/catalog/positions/{id}`.
+- Mobile-Parity-Endpunkte fuer Spielplanung, Ideen, Auftraege und Bondage-System wurden ergänzt: `/api/external/sessions`, `/api/external/ideas`, `/api/external/orders` und `/api/external/bondage-system`.
 
 ## Initiale App
 

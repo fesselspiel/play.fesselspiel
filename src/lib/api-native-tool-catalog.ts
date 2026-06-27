@@ -105,6 +105,85 @@ const manualToolCatalog = ([
     category: "Medien"
   },
   {
+    id: "sessions",
+    method: "GET",
+    methods: ["GET", "POST"],
+    path: "/api/external/sessions",
+    title: "Spielplanung",
+    description: "Spielpläne listen oder mit toyIds/positionIds geplant anlegen.",
+    category: "Spielbetrieb"
+  },
+  {
+    id: "sessionDetail",
+    method: "GET",
+    methods: ["GET", "PATCH", "DELETE"],
+    path: "/api/external/sessions/{id}",
+    title: "Spielplan-Detail",
+    description: "Spielplan anzeigen, ändern oder verwerfen.",
+    category: "Spielbetrieb"
+  },
+  {
+    id: "ideas",
+    method: "GET",
+    methods: ["GET", "POST"],
+    path: "/api/external/ideas",
+    title: "Ideensammlung",
+    description: "Ideen listen oder neu anlegen.",
+    category: "Ideen"
+  },
+  {
+    id: "ideaDetail",
+    method: "GET",
+    methods: ["GET", "PATCH", "DELETE"],
+    path: "/api/external/ideas/{id}",
+    title: "Idee-Detail",
+    description: "Idee anzeigen, ändern oder verwerfen.",
+    category: "Ideen"
+  },
+  {
+    id: "orders",
+    method: "GET",
+    methods: ["GET", "POST"],
+    path: "/api/external/orders",
+    title: "Aufträge",
+    description: "Self-Bondage-Aufträge listen oder erteilen.",
+    category: "Aufträge"
+  },
+  {
+    id: "orderDetail",
+    method: "GET",
+    methods: ["GET", "PATCH"],
+    path: "/api/external/orders/{id}",
+    title: "Auftrag-Detail",
+    description: "Auftrag anzeigen oder ändern.",
+    category: "Aufträge"
+  },
+  {
+    id: "orderStatus",
+    method: "POST",
+    methods: ["POST"],
+    path: "/api/external/orders/{id}/status",
+    title: "Auftrag-Status",
+    description: "Auftrag annehmen, umsetzen oder verwerfen per action=accept|complete|cancel.",
+    category: "Aufträge"
+  },
+  {
+    id: "bondageSystem",
+    method: "GET",
+    path: "/api/external/bondage-system",
+    title: "Bondage-System",
+    description: "Freigegebene Bondage-System-Produkte lesen.",
+    category: "Katalog"
+  },
+  {
+    id: "bondageSystemDetail",
+    method: "GET",
+    path: "/api/external/bondage-system/{id}",
+    title: "Bondage-System Detail",
+    description: "Bondage-System-Produkt per ID oder Slug lesen.",
+    category: "Katalog"
+  },
+  {
     id: "catalogCategories",
     method: "GET",
     path: "/api/external/catalog/categories",
@@ -121,11 +200,27 @@ const manualToolCatalog = ([
     category: "Katalog"
   },
   {
+    id: "catalogToyDetail",
+    method: "GET",
+    path: "/api/external/catalog/toys/{id}",
+    title: "Spielsache Detail",
+    description: "Spielsache per ID oder Slug inklusive Bild, Favoriten und Verknuepfungen lesen.",
+    category: "Katalog"
+  },
+  {
     id: "catalogPositions",
     method: "GET",
     path: "/api/external/catalog/positions",
     title: "Szenen",
     description: "Szenen inklusive Kategorien, Bildern, Favoriten, Self-Bondage-Flag und Verknuepfungen.",
+    category: "Katalog"
+  },
+  {
+    id: "catalogPositionDetail",
+    method: "GET",
+    path: "/api/external/catalog/positions/{id}",
+    title: "Szene Detail",
+    description: "Szene per ID oder Slug inklusive Bild, Favoriten und Verknuepfungen lesen.",
     category: "Katalog"
   },
   {
