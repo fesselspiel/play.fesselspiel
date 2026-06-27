@@ -5,6 +5,7 @@ import { FileUploadField } from "@/components/file-upload-field";
 import { Button, Field, inputClass, PageGuide, PageHeader } from "@/components/ui";
 import { bondageSystemVisibilityScope, ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
+import { catalogCategories, categoryIdFromForm } from "@/lib/catalog-categories";
 import { hasFeature, requireFeature } from "@/lib/features";
 import { fileAssetUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
@@ -19,6 +20,7 @@ async function createPosition(formData: FormData) {
   const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
   const name = String(formData.get("name") || "").trim();
   const slug = await uniqueSlug("position", normalizeSlug(String(formData.get("slug") || ""), name), user.tenantId);
+  const categoryId = await categoryIdFromForm("position", user.tenantId, formData);
   const toolIds = toysEnabled ? formData.getAll("tools").map(String) : [];
   const bondageItemIds = bondageSystemEnabled ? formData.getAll("bondageSystemItems").map(String) : [];
   const accessibleTools = toysEnabled && toolIds.length ? await prisma.toy.findMany({ where: { ...(await ownerScope(user)), id: { in: toolIds } }, select: { id: true } }) : [];
@@ -28,6 +30,7 @@ async function createPosition(formData: FormData) {
   await prisma.position.create({
     data: {
       tenantId: user.tenantId || undefined,
+      categoryId,
       ownerId: user.id,
       name,
       slug,
@@ -47,12 +50,15 @@ export default async function NewPositionPage() {
   await requireFeature("positions");
   const toysEnabled = await hasFeature("toys");
   const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
-  const toys = toysEnabled ? await prisma.toy.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }) : [];
-  const bondageItems = bondageSystemEnabled ? await prisma.bondageSystemItem.findMany({
-    where: { tenantId: user.tenantId || undefined, visible: true, ...bondageSystemVisibilityScope(user) },
-    include: { product: true },
-    orderBy: [{ sortOrder: "asc" }, { product: { title: "asc" } }]
-  }) : [];
+  const [toys, bondageItems, categories] = await Promise.all([
+    toysEnabled ? prisma.toy.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { title: "asc" }] }) : Promise.resolve([]),
+    bondageSystemEnabled ? prisma.bondageSystemItem.findMany({
+      where: { tenantId: user.tenantId || undefined, visible: true, ...bondageSystemVisibilityScope(user) },
+      include: { product: true },
+      orderBy: [{ sortOrder: "asc" }, { product: { title: "asc" } }]
+    }) : Promise.resolve([]),
+    catalogCategories("position", user.tenantId)
+  ]);
   return (
     <AppShell>
       <PageHeader title="Szene anlegen" />
@@ -62,6 +68,14 @@ export default async function NewPositionPage() {
       <form action={createPosition} className="max-w-3xl space-y-4">
         <Field label="Name"><input className={inputClass} name="name" required placeholder="Rückenlage" /></Field>
         <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" placeholder="rueckenlage" /></Field>
+        <Field label="Kategorie">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <select className={inputClass} name="categoryId" defaultValue={categories[0]?.id || ""} required>
+              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select>
+            <input className={inputClass} name="categoryNew" placeholder="Neue Kategorie, optional" />
+          </div>
+        </Field>
         <FileUploadField name="image" uploadedUrlName="imageUploadedUrl" label="Bild" accept="image/*" help="Wähle ein Bild aus der Mediathek oder Kamera aus." />
         <Field label="Beschreibung"><textarea className={inputClass} name="description" rows={5} /></Field>
         <label className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm font-medium text-ink">

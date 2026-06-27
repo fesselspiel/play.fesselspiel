@@ -3,6 +3,7 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { accessibleOwnerIds, type AccessUser } from "@/lib/access";
 import { ensureDefaultAlbum } from "@/lib/albums";
+import { getOrCreateCatalogCategory } from "@/lib/catalog-categories";
 import { absolutePathForAsset, fileAssetUrl, fileIdFromUrl, saveFileBuffer } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
@@ -96,8 +97,8 @@ export async function buildDataExport(user: AccessUser) {
     feedRules
   ] = await Promise.all([
     prisma.fileAsset.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
-    prisma.toy.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
-    prisma.position.findMany({ where: ownerScope, include: { tools: { select: { id: true } } }, orderBy: { createdAt: "asc" } }),
+    prisma.toy.findMany({ where: ownerScope, include: { category: true }, orderBy: { createdAt: "asc" } }),
+    prisma.position.findMany({ where: ownerScope, include: { category: true, tools: { select: { id: true } } }, orderBy: { createdAt: "asc" } }),
     prisma.activityPlan.findMany({ where: ownerScope, include: { tools: { select: { id: true } }, positions: { select: { id: true } } }, orderBy: { createdAt: "asc" } }),
     prisma.activityImage.findMany({ where: { activity: { ownerId: { in: ownerIds } } }, orderBy: { createdAt: "asc" } }),
     prisma.segufixSession.findMany({ where: ownerScope, orderBy: { startTime: "asc" } }),
@@ -125,10 +126,16 @@ export async function buildDataExport(user: AccessUser) {
       sizeBytes: entry.sizeBytes,
       createdAt: entry.createdAt
     })),
-    toys: toys.map(withoutOwner),
+    toys: toys.map((entry) => ({
+      ...withoutOwner(entry),
+      categoryName: entry.category?.name || undefined,
+      category: undefined
+    })),
     positions: positions.map((entry) => ({
       ...withoutOwner(entry),
+      categoryName: entry.category?.name || undefined,
       toolIds: entry.tools.map((tool) => tool.id),
+      category: undefined,
       tools: undefined
     })),
     activities: activities.map((entry) => ({
@@ -200,10 +207,12 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
   for (const entry of records(data.toys)) {
     const title = String(entry.title || "Importiertes Spielzeug");
     const slug = await uniqueSlug("toy", String(entry.slug || title), user.tenantId);
+    const category = await getOrCreateCatalogCategory("toy", user.tenantId, String(entry.categoryName || ""));
     const created = await prisma.toy.create({
       data: {
         ownerId: user.id,
         tenantId: user.tenantId || undefined,
+        categoryId: category.id,
         title,
         slug,
         description: String(entry.description || ""),
@@ -217,11 +226,13 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
   for (const entry of records(data.positions)) {
     const name = String(entry.name || "Importierte Szene");
     const slug = await uniqueSlug("position", String(entry.slug || name), user.tenantId);
+    const category = await getOrCreateCatalogCategory("position", user.tenantId, String(entry.categoryName || ""));
     const toolIds = strings(entry.toolIds).map((id) => toyMap.get(id)).filter((id): id is string => Boolean(id));
     const created = await prisma.position.create({
       data: {
         ownerId: user.id,
         tenantId: user.tenantId || undefined,
+        categoryId: category.id,
         name,
         slug,
         description: String(entry.description || ""),

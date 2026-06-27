@@ -42,7 +42,7 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
   const bondageSystemEnabled = await hasFeature("shopifyBondageSystem");
   const position = await prisma.position.findFirst({
     where: { slug: params.slug, ...contentTenantScope(user) },
-    include: { tools: toysEnabled, activities: true, favorites: true }
+    include: { category: true, tools: toysEnabled, activities: true, favorites: true }
   });
   if (!position || !(await isAccessibleOwner(user, position.ownerId))) notFound();
   const isFavorite = position.favorites.some((favorite) => favorite.userId === user.id);
@@ -67,6 +67,7 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
             <img src={position.imageUrl || "/position-placeholder.svg"} alt="" className="h-full w-full object-cover" />
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
+            <Badge tone="neutral">Kategorie: {position.category?.name || "Allgemein"}</Badge>
             <Badge tone={position.selfBondageCapable ? "red" : "neutral"}>
               {position.selfBondageCapable ? "Self-Bondage-fähig" : "Nicht als Self-Bondage-fähig markiert"}
             </Badge>

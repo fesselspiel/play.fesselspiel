@@ -6,6 +6,7 @@ import { FileUploadField } from "@/components/file-upload-field";
 import { Button, Field, inputClass, PageGuide, PageHeader } from "@/components/ui";
 import { contentTenantScope, isAccessibleOwner, ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
+import { catalogCategories, categoryIdFromForm } from "@/lib/catalog-categories";
 import { hasFeature, requireFeature } from "@/lib/features";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
@@ -23,6 +24,7 @@ async function updateToy(formData: FormData) {
 
   const title = String(formData.get("title") || "").trim();
   const slug = await uniqueSlugForUpdate("toy", normalizeSlug(String(formData.get("slug") || ""), title), toy.id, user.tenantId);
+  const categoryId = await categoryIdFromForm("toy", user.tenantId, formData);
   const uploadedImageUrl = String(formData.get("imageUploadedUrl") || "").trim();
   const image = uploadedImageUrl ? null : await saveUploadedFile(user.id, formData.get("image") as File | null);
   const removeImage = formData.get("removeImage") === "on";
@@ -35,6 +37,7 @@ async function updateToy(formData: FormData) {
     where: { id: toy.id },
     data: {
       title,
+      categoryId,
       slug,
       description: String(formData.get("description") || "").trim(),
       imageUrl,
@@ -65,10 +68,14 @@ export default async function EditToyPage({ params }: { params: { slug: string }
   if (!user) redirect("/login");
   await requireFeature("toys");
   const positionsEnabled = await hasFeature("positions");
-  const toy = await prisma.toy.findFirst({ where: { slug: params.slug, ...contentTenantScope(user) }, include: { positions: positionsEnabled } });
+  const toy = await prisma.toy.findFirst({ where: { slug: params.slug, ...contentTenantScope(user) }, include: { positions: positionsEnabled, category: true } });
   if (!toy || !(await isAccessibleOwner(user, toy.ownerId))) notFound();
-  const positions = positionsEnabled ? await prisma.position.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : [];
+  const [positions, categories] = await Promise.all([
+    positionsEnabled ? prisma.position.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : Promise.resolve([]),
+    catalogCategories("toy", user.tenantId)
+  ]);
   const selectedPositions = new Set(positionsEnabled ? toy.positions.map((position) => position.id) : []);
+  const currentCategoryId = toy.categoryId || categories[0]?.id || "";
 
   return (
     <AppShell>
@@ -84,6 +91,14 @@ export default async function EditToyPage({ params }: { params: { slug: string }
           </Field>
           <Field label="URL-Slug">
             <input className={inputClass} name="slug" pattern="[a-z0-9-]*" defaultValue={toy.slug} />
+          </Field>
+          <Field label="Kategorie">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <select className={inputClass} name="categoryId" defaultValue={currentCategoryId} required>
+                {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+              </select>
+              <input className={inputClass} name="categoryNew" placeholder="Neue Kategorie, optional" />
+            </div>
           </Field>
           <FileUploadField
             name="image"

@@ -42,7 +42,7 @@ export default async function ToyDetailPage({ params }: { params: { slug: string
   if (!user) redirect("/login");
   await requireFeature("toys");
   const positionsEnabled = await hasFeature("positions");
-  const toy = await prisma.toy.findFirst({ where: { slug: params.slug, ...contentTenantScope(user) }, include: { positions: positionsEnabled, activities: true, favorites: true } });
+  const toy = await prisma.toy.findFirst({ where: { slug: params.slug, ...contentTenantScope(user) }, include: { category: true, positions: positionsEnabled, activities: true, favorites: true } });
   if (!toy || !(await isAccessibleOwner(user, toy.ownerId))) notFound();
   const url = `${env.appUrl}/toys/${toy.slug}`;
   const displayUrl = url.replace(/^https?:\/\//, "");
@@ -65,6 +65,7 @@ export default async function ToyDetailPage({ params }: { params: { slug: string
           </div>
           <p className="mt-5 leading-7 text-graphite">{toy.description || "Keine Beschreibung hinterlegt."}</p>
           <div className="mt-5 grid gap-3 text-sm text-graphite sm:grid-cols-2">
+            <div>Kategorie: {toy.category?.name || "Allgemein"}</div>
             <div>Erstellt: {formatDateTime(toy.createdAt)}</div>
             <div>Aktualisiert: {formatDateTime(toy.updatedAt)}</div>
           </div>

@@ -225,11 +225,11 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   }
 
   if (parsed.command === "/toys") {
-    const toys = await prisma.toy.findMany({ where: { ...tenantScope, ownerId: userId }, orderBy: [{ sortOrder: "asc" }, { title: "asc" }], take: 12 });
+    const toys = await prisma.toy.findMany({ where: { ...tenantScope, ownerId: userId }, include: { category: true }, orderBy: [{ sortOrder: "asc" }, { title: "asc" }], take: 12 });
     return htmlList(
       "Spielzeuge",
       toys.map((toy, index) =>
-        [`<b>${index + 1}. ${telegramHtml(toy.title)}</b>`, toy.description ? telegramHtml(toy.description) : "", telegramLink(`${env.appUrl}/toys/${toy.slug}`, "öffnen")]
+        [`<b>${index + 1}. ${telegramHtml(toy.title)}</b>`, `Kategorie: ${telegramHtml(toy.category?.name || "Allgemein")}`, toy.description ? telegramHtml(toy.description) : "", telegramLink(`${env.appUrl}/toys/${toy.slug}`, "öffnen")]
           .filter(Boolean)
           .join("\n")
       )
@@ -241,11 +241,11 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   }
 
   if (parsed.command === "/positions") {
-    const positions = await prisma.position.findMany({ where: { ...tenantScope, ownerId: userId }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], take: 12 });
+    const positions = await prisma.position.findMany({ where: { ...tenantScope, ownerId: userId }, include: { category: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], take: 12 });
     return htmlList(
       "Szenen",
       positions.map((position, index) =>
-        [`<b>${index + 1}. ${telegramHtml(position.name)}</b>`, position.description ? telegramHtml(position.description) : "", telegramLink(`${env.appUrl}/positions/${position.slug}`, "öffnen")]
+        [`<b>${index + 1}. ${telegramHtml(position.name)}</b>`, `Kategorie: ${telegramHtml(position.category?.name || "Allgemein")}`, position.description ? telegramHtml(position.description) : "", telegramLink(`${env.appUrl}/positions/${position.slug}`, "öffnen")]
           .filter(Boolean)
           .join("\n")
       )

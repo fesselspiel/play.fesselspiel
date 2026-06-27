@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
   if (wants(source, ["toys", "toy", "spielsachen"]) && featureEnabled(features, "toys")) {
     const toys = await prisma.toy.findMany({
       where: { ...(await ownerScope(auth.user)), imageUrl: { not: null }, ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}) },
-      include: { owner: { include: { profile: true } } },
+      include: { category: true, owner: { include: { profile: true } } },
       orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
       take: limit
     });
@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
         updatedAt: toy.updatedAt,
         token,
         owner: { id: toy.owner.id, username: toy.owner.username, displayName: displayName(toy.owner) },
-        meta: { slug: toy.slug, selfBondageCapable: toy.selfBondageCapable }
+        meta: { slug: toy.slug, categoryId: toy.categoryId, categoryName: toy.category?.name || "Allgemein", selfBondageCapable: toy.selfBondageCapable }
       }));
     }
   }
@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
   if (wants(source, ["positions", "position", "scenes", "szenen", "situationen"]) && featureEnabled(features, "positions")) {
     const positions = await prisma.position.findMany({
       where: { ...(await ownerScope(auth.user)), imageUrl: { not: null }, ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}) },
-      include: { owner: { include: { profile: true } } },
+      include: { category: true, owner: { include: { profile: true } } },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       take: limit
     });
@@ -187,7 +187,7 @@ export async function GET(request: NextRequest) {
         updatedAt: position.updatedAt,
         token,
         owner: { id: position.owner.id, username: position.owner.username, displayName: displayName(position.owner) },
-        meta: { slug: position.slug, selfBondageCapable: position.selfBondageCapable }
+        meta: { slug: position.slug, categoryId: position.categoryId, categoryName: position.category?.name || "Allgemein", selfBondageCapable: position.selfBondageCapable }
       }));
     }
   }

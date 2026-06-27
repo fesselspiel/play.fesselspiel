@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { agentCapabilityPrompt, agentTools, directAgentToolNames } from "@/lib/capabilities";
 import { env } from "@/lib/env";
+import { getOrCreateCatalogCategory } from "@/lib/catalog-categories";
 import { decryptSecret } from "@/lib/crypto";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
@@ -356,18 +357,20 @@ async function searchPortal(userId: string, args: Record<string, unknown>): Prom
   if (area === "all" || area === "toys") {
     const toys = await prisma.toy.findMany({
       where: { ...tenantScope, ownerId: userId, ...(whereText ? { OR: whereText } : {}) },
+      include: { category: true },
       orderBy: { updatedAt: "desc" },
       take: 8
     });
-    result.toys = toys.map((toy) => ({ title: toy.title, url: link(`/toys/${toy.slug}`), description: toy.description }));
+    result.toys = toys.map((toy) => ({ title: toy.title, url: link(`/toys/${toy.slug}`), category: toy.category?.name || "Allgemein", description: toy.description }));
   }
   if (area === "all" || area === "positions") {
     const positions = await prisma.position.findMany({
       where: { ...tenantScope, ownerId: userId, ...(whereName ? { OR: whereName } : {}) },
+      include: { category: true },
       orderBy: { updatedAt: "desc" },
       take: 8
     });
-    result.positions = positions.map((position) => ({ name: position.name, url: link(`/positions/${position.slug}`), description: position.description }));
+    result.positions = positions.map((position) => ({ name: position.name, url: link(`/positions/${position.slug}`), category: position.category?.name || "Allgemein", description: position.description }));
   }
   if (area === "all" || area === "activities") {
     const activities = await prisma.activityPlan.findMany({
@@ -408,10 +411,12 @@ async function createToy(userId: string, args: Record<string, unknown>): Promise
   if (!clean(args.description)) return { ok: false, message: "Beschreibung fehlt. Frage danach, bevor du das Spielzeug anlegst." };
   if (args.imageUrl === undefined) return { ok: false, message: "Bild-URL fehlt. Frage danach, bevor du das Spielzeug anlegst." };
   const slug = await uniqueSlug("toy", clean(args.slug) || title, tenantId);
+  const category = await getOrCreateCatalogCategory("toy", tenantId, clean(args.category));
   const toy = await prisma.toy.create({
     data: {
       ownerId: userId,
       tenantId,
+      categoryId: category.id,
       title,
       slug,
       description: clean(args.description),
@@ -467,10 +472,12 @@ async function createPosition(userId: string, args: Record<string, unknown>): Pr
   if (args.imageUrl === undefined) return { ok: false, message: "Bild-URL fehlt. Frage danach, bevor du die Szene anlegst." };
   const slug = await uniqueSlug("position", name, tenantId);
   const toys = await matchingToys(userId, args.toyTitles);
+  const category = await getOrCreateCatalogCategory("position", tenantId, clean(args.category));
   const position = await prisma.position.create({
     data: {
       ownerId: userId,
       tenantId,
+      categoryId: category.id,
       name,
       slug,
       description: clean(args.description),

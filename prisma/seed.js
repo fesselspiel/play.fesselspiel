@@ -128,6 +128,27 @@ async function main() {
   for (const entry of await prisma.position.findMany({ where: { tenantId: null }, select: { id: true, ownerId: true } })) {
     await prisma.position.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.ownerId) } });
   }
+  const tenantsForCategories = await prisma.tenant.findMany({ select: { id: true } });
+  for (const tenantEntry of tenantsForCategories) {
+    const toyCategory = await prisma.catalogCategory.upsert({
+      where: { tenantId_kind_name: { tenantId: tenantEntry.id, kind: "toy", name: "Allgemein" } },
+      update: {},
+      create: { tenantId: tenantEntry.id, kind: "toy", name: "Allgemein" }
+    });
+    const positionCategory = await prisma.catalogCategory.upsert({
+      where: { tenantId_kind_name: { tenantId: tenantEntry.id, kind: "position", name: "Allgemein" } },
+      update: {},
+      create: { tenantId: tenantEntry.id, kind: "position", name: "Allgemein" }
+    });
+    await prisma.toy.updateMany({ where: { tenantId: tenantEntry.id, categoryId: null }, data: { categoryId: toyCategory.id } });
+    await prisma.position.updateMany({ where: { tenantId: tenantEntry.id, categoryId: null }, data: { categoryId: positionCategory.id } });
+  }
+  const globalToyCategory = await prisma.catalogCategory.findFirst({ where: { tenantId: null, kind: "toy", name: "Allgemein" } })
+    || await prisma.catalogCategory.create({ data: { tenantId: null, kind: "toy", name: "Allgemein" } });
+  const globalPositionCategory = await prisma.catalogCategory.findFirst({ where: { tenantId: null, kind: "position", name: "Allgemein" } })
+    || await prisma.catalogCategory.create({ data: { tenantId: null, kind: "position", name: "Allgemein" } });
+  await prisma.toy.updateMany({ where: { tenantId: null, categoryId: null }, data: { categoryId: globalToyCategory.id } });
+  await prisma.position.updateMany({ where: { tenantId: null, categoryId: null }, data: { categoryId: globalPositionCategory.id } });
   for (const entry of await prisma.activityPlan.findMany({ where: { tenantId: null }, select: { id: true, ownerId: true } })) {
     await prisma.activityPlan.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.ownerId) } });
   }
@@ -247,10 +268,20 @@ async function main() {
     ["Leder Manschetten", "Weiche Manschetten für ruhige Sessions.", "/toy-cuffs.svg"],
     ["Segufix System", "Dokumentierte Ausrüstung für geplante Entspannungs-Sessions.", "/toy-system.svg"]
   ];
+  const demoToyCategory = await prisma.catalogCategory.upsert({
+    where: { tenantId_kind_name: { tenantId: tenant.id, kind: "toy", name: "Allgemein" } },
+    update: {},
+    create: { tenantId: tenant.id, kind: "toy", name: "Allgemein" }
+  });
+  const demoPositionCategory = await prisma.catalogCategory.upsert({
+    where: { tenantId_kind_name: { tenantId: tenant.id, kind: "position", name: "Allgemein" } },
+    update: {},
+    create: { tenantId: tenant.id, kind: "position", name: "Allgemein" }
+  });
   for (const [title, description, imageUrl] of toyData) {
     const slug = slugify(title);
     const existing = await prisma.toy.findFirst({ where: { tenantId: tenant.id, slug } });
-    if (!existing) await prisma.toy.create({ data: { tenantId: tenant.id, ownerId: admin.id, title, slug, description, imageUrl } });
+    if (!existing) await prisma.toy.create({ data: { tenantId: tenant.id, categoryId: demoToyCategory.id, ownerId: admin.id, title, slug, description, imageUrl } });
   }
 
   const cuffs = await prisma.toy.findFirst({ where: { tenantId: tenant.id, slug: "leder-manschetten" } });
@@ -261,6 +292,7 @@ async function main() {
     demoPosition = await prisma.position.create({
       data: {
       tenantId: tenant.id,
+      categoryId: demoPositionCategory.id,
       ownerId: admin.id,
       name: "Rückenlage",
       slug: "rueckenlage",

@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { getOrCreateCatalogCategory } from "@/lib/catalog-categories";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
 import { telegramHtml, telegramLink } from "@/lib/telegram";
@@ -334,7 +335,8 @@ async function createFromDraft(userId: string, draft: ItemDraft) {
     const description = draft.fields.description || "";
     const imageUrl = draft.fields.imageUrl || "";
     const slug = await uniqueSlug("toy", title, tenantId);
-    const toy = await prisma.toy.create({ data: { tenantId, ownerId: userId, title, description, imageUrl, slug } });
+    const category = await getOrCreateCatalogCategory("toy", tenantId);
+    const toy = await prisma.toy.create({ data: { tenantId, categoryId: category.id, ownerId: userId, title, description, imageUrl, slug } });
     return `<b>Spielzeug angelegt</b>\n${telegramHtml(toy.title)}\n${telegramLink(link(`/toys/${toy.slug}`), "öffnen")}`;
   }
 
@@ -344,10 +346,12 @@ async function createFromDraft(userId: string, draft: ItemDraft) {
   const toyTitles = draft.fields.toyTitles || [];
   const toys = await matchingToys(userId, toyTitles);
   const slug = await uniqueSlug("position", name, tenantId);
+  const category = await getOrCreateCatalogCategory("position", tenantId);
   const position = await prisma.position.create({
     data: {
       ownerId: userId,
       tenantId,
+      categoryId: category.id,
       name,
       description,
       imageUrl,

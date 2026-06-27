@@ -5,6 +5,7 @@ import { FileUploadField } from "@/components/file-upload-field";
 import { Button, Field, inputClass, PageGuide, PageHeader } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
+import { catalogCategories, categoryIdFromForm } from "@/lib/catalog-categories";
 import { hasFeature, requireFeature } from "@/lib/features";
 import { fileAssetUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
@@ -23,11 +24,13 @@ async function createToy(formData: FormData) {
   const imageUrl = uploadedImageUrl || (image ? fileAssetUrl(image.id) : "");
   const requestedSlug = normalizeSlug(String(formData.get("slug") || ""), title);
   const slug = await uniqueSlug("toy", requestedSlug, user.tenantId);
+  const categoryId = await categoryIdFromForm("toy", user.tenantId, formData);
   const selectedPositionIds = positionsEnabled ? formData.getAll("positions").map(String) : [];
   const positions = positionsEnabled ? await prisma.position.findMany({ where: { ...(await ownerScope(user)), id: { in: selectedPositionIds } }, select: { id: true } }) : [];
   await prisma.toy.create({
     data: {
       tenantId: user.tenantId || undefined,
+      categoryId,
       ownerId: user.id,
       title,
       description,
@@ -44,7 +47,10 @@ export default async function NewToyPage() {
   if (!user) redirect("/login");
   await requireFeature("toys");
   const positionsEnabled = await hasFeature("positions");
-  const positions = positionsEnabled ? await prisma.position.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : [];
+  const [positions, categories] = await Promise.all([
+    positionsEnabled ? prisma.position.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : Promise.resolve([]),
+    catalogCategories("toy", user.tenantId)
+  ]);
   return (
     <AppShell>
       <PageHeader title="Spielzeug anlegen" />
@@ -57,6 +63,14 @@ export default async function NewToyPage() {
         </Field>
         <Field label="URL-Slug">
           <input className={inputClass} name="slug" pattern="[a-z0-9-]*" placeholder="leder-manschetten" />
+        </Field>
+        <Field label="Kategorie">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <select className={inputClass} name="categoryId" defaultValue={categories[0]?.id || ""} required>
+              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select>
+            <input className={inputClass} name="categoryNew" placeholder="Neue Kategorie, optional" />
+          </div>
         </Field>
         <FileUploadField name="image" uploadedUrlName="imageUploadedUrl" label="Foto/Bild" accept="image/*" help="Wähle ein Bild aus der Mediathek oder Kamera aus." />
         <Field label="Beschreibung">

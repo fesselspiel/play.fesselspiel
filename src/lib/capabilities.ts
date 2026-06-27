@@ -173,6 +173,7 @@ export const capabilities: readonly Capability[] = [
               title: { type: "string" },
               description: { type: "string" },
               imageUrl: { type: "string" },
+              category: { type: "string", description: "Kategorie, optional. Wenn leer, wird Allgemein verwendet." },
               slug: { type: "string" }
             },
             required: ["title", "description", "imageUrl"],
@@ -237,6 +238,7 @@ export const capabilities: readonly Capability[] = [
               name: { type: "string" },
               description: { type: "string" },
               imageUrl: { type: "string" },
+              category: { type: "string", description: "Kategorie, optional. Wenn leer, wird Allgemein verwendet." },
               toyTitles: { type: "array", items: { type: "string" } }
             },
             required: ["name", "description", "imageUrl"],
