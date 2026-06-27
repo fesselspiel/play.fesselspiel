@@ -20,6 +20,12 @@ export function playReadyStateToBoolean(state: PlayReadyState) {
   return state === "green";
 }
 
+export function nextPlayReadyState(state: PlayReadyState): PlayReadyState {
+  if (state === "red") return "green";
+  if (state === "green") return "yellow";
+  return "red";
+}
+
 export function playReadyLabel(state: PlayReadyState) {
   if (state === "green") return "voll Lust";
   if (state === "yellow") return "flexibel";

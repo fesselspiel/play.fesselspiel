@@ -4,7 +4,7 @@ import { formatMinutes } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { actionLabel } from "@/lib/notification-actions";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
-import { effectivePlayReadyState, normalizePlayReadyState, playReadyColorLabel, playReadyLabel, playReadyStateToBoolean } from "@/lib/play-ready";
+import { effectivePlayReadyState, nextPlayReadyState, normalizePlayReadyState, playReadyColorLabel, playReadyLabel, playReadyStateToBoolean } from "@/lib/play-ready";
 
 const defaultTimezone = "Europe/Berlin";
 
@@ -143,7 +143,7 @@ async function executeAction(rule: ScheduledRule, owner: RuleOwner, condition: A
   if (rule.actionType === "SET_PLAY_READY") {
     const state = stringValue(action.state, "green");
     const current = effectivePlayReadyState(owner.settings);
-    const next = state === "toggle" ? (current === "green" ? "red" : "green") : normalizePlayReadyState(state, "green");
+    const next = state === "toggle" ? nextPlayReadyState(current) : normalizePlayReadyState(state, "green");
     const nextReady = playReadyStateToBoolean(next);
     const expiryMinutes = owner.settings?.playReadyExpiryMinutes || 360;
     const tenant = await prisma.tenant.findUnique({ where: { id: rule.tenantId }, select: { playReadyExpiryEnabled: true } });

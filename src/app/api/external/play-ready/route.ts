@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logAction, userDisplayName } from "@/lib/audit";
 import { apiFeatureGate, requestValues, requireApiUser } from "@/lib/external-api";
-import { effectivePlayReadyState, playReadyLabel, playReadyRemainingText, playReadyStateToBoolean, type PlayReadyState } from "@/lib/play-ready";
+import { effectivePlayReadyState, nextPlayReadyState, playReadyLabel, playReadyRemainingText, playReadyStateToBoolean, type PlayReadyState } from "@/lib/play-ready";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -29,7 +29,7 @@ function stateFromValues(values: Map<string, string>, current: PlayReadyState): 
   if (["green", "gruen", "grün", "true", "1", "yes", "on", "lust"].includes(raw)) return "green";
   if (["yellow", "gelb", "flexibel", "maybe", "neutral"].includes(raw)) return "yellow";
   if (["red", "rot", "false", "0", "no", "off", "nicht"].includes(raw)) return "red";
-  if (raw === "toggle" || raw === "switch") return current === "green" ? "red" : "green";
+  if (raw === "toggle" || raw === "switch") return nextPlayReadyState(current);
   return null;
 }
 

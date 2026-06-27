@@ -22,7 +22,7 @@ import { prisma } from "@/lib/prisma";
 import { startTrackerEntry, stopAllRunningTrackerEntriesForUser, stopTrackerEntry } from "@/lib/tracker-core";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 import { formatDateTime, parseDateInput, parseDateTimeLocal } from "@/lib/dates";
-import { effectivePlayReadyState, normalizePlayReadyState, playReadyColorLabel, playReadyLabel, playReadyRemainingText, playReadyStateToBoolean, type PlayReadyState } from "@/lib/play-ready";
+import { effectivePlayReadyState, nextPlayReadyState, normalizePlayReadyState, playReadyColorLabel, playReadyLabel, playReadyRemainingText, playReadyStateToBoolean, type PlayReadyState } from "@/lib/play-ready";
 
 type ApiControlSearchParams = {
   feedback?: string;
@@ -128,7 +128,7 @@ function playReadyFromText(value: string, current: PlayReadyState): PlayReadySta
   if (["green", "an", "on", "1", "true", "aktiv", "ja"].includes(normalized)) return "green";
   if (["yellow", "gelb", "flexibel", "maybe", "neutral"].includes(normalized)) return "yellow";
   if (["red", "aus", "off", "0", "false", "inaktiv", "nein"].includes(normalized)) return "red";
-  if (["toggle", "switch", "umschalten"].includes(normalized)) return current === "green" ? "red" : "green";
+  if (["toggle", "switch", "umschalten"].includes(normalized)) return nextPlayReadyState(current);
   if (normalized) return normalizePlayReadyState(normalized, current);
   return null;
 }

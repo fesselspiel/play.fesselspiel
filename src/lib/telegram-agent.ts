@@ -6,7 +6,7 @@ import { getOrCreateCatalogCategory } from "@/lib/catalog-categories";
 import { decryptSecret } from "@/lib/crypto";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
-import { effectivePlayReadyState, normalizePlayReadyState, playReadyLabel, playReadyRemainingText, playReadyStateToBoolean, type PlayReadyState } from "@/lib/play-ready";
+import { effectivePlayReadyState, nextPlayReadyState, normalizePlayReadyState, playReadyLabel, playReadyRemainingText, playReadyStateToBoolean, type PlayReadyState } from "@/lib/play-ready";
 import { uniqueSlug, uniqueSlugForUpdate } from "@/lib/slug";
 import { telegramHtml, telegramLink } from "@/lib/telegram";
 import { queueImageReplacement } from "@/lib/telegram-item-dialogue";
@@ -558,7 +558,7 @@ async function setPlayReady(userId: string, args: Record<string, unknown>): Prom
   if (!user) return { ok: false, message: "Benutzer nicht gefunden." };
   const current = effectivePlayReadyState(user.settings);
   const requested = clean(args.state);
-  const next: PlayReadyState = requested === "toggle" ? (current === "green" ? "red" : "green") : normalizePlayReadyState(requested, current);
+  const next: PlayReadyState = requested === "toggle" ? nextPlayReadyState(current) : normalizePlayReadyState(requested, current);
   const duration = agentPlayReadyDuration(args.durationMinutes) || user.settings?.playReadyExpiryMinutes || 360;
   const tenant = tenantId ? await prisma.tenant.findUnique({ where: { id: tenantId }, select: { playReadyExpiryEnabled: true } }) : null;
   const expiresAt = next === "green" && tenant?.playReadyExpiryEnabled !== false ? new Date(Date.now() + duration * 60_000) : null;

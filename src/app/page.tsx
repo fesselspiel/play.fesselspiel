@@ -18,7 +18,7 @@ import { formatDate, formatDateTime, formatMinutes } from "@/lib/dates";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 import { startTrackerEntry, stopAllRunningTrackerEntriesForUser, stopTrackerEntry } from "@/lib/tracker-core";
 import { currentTenant } from "@/lib/tenancy";
-import { effectivePlayReadyState, playReadyDisplayLabel, playReadyLabel, playReadyRemainingText, playReadyStateToBoolean, type PlayReadyState } from "@/lib/play-ready";
+import { effectivePlayReadyState, nextPlayReadyState, playReadyDisplayLabel, playReadyLabel, playReadyRemainingText, playReadyStateToBoolean, type PlayReadyState } from "@/lib/play-ready";
 
 const dayFormatter = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "Europe/Berlin" });
 const timeFormatter = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
@@ -81,7 +81,7 @@ async function togglePlayReady() {
   const settings = await prisma.userSettings.findUnique({ where: { userId: user.id }, select: { playReady: true, playReadyState: true, playReadyExpiryMinutes: true } });
   const tenant = await currentTenant();
   const previous = effectivePlayReadyState(settings);
-  const next: PlayReadyState = previous === "green" ? "red" : "green";
+  const next: PlayReadyState = nextPlayReadyState(previous);
   const nextReady = playReadyStateToBoolean(next);
   const expiryMinutes = settings?.playReadyExpiryMinutes || 360;
   const expiresAt = next === "green" && tenant?.playReadyExpiryEnabled !== false ? new Date(Date.now() + expiryMinutes * 60_000) : null;
@@ -558,7 +558,7 @@ export default async function DashboardPage() {
                             : "ohne Ablaufzeit"}
                         </span>
                       ) : null}
-                      {isSelf ? <span className="mt-1 block text-xs text-graphite">Antippen zum Umschalten</span> : null}
+                      {isSelf ? <span className="mt-1 block text-xs text-graphite">Antippen: Rot → Grün → Gelb</span> : null}
                     </span>
                   </span>
                 );
