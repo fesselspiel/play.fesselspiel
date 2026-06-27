@@ -135,7 +135,11 @@ export const capabilities: readonly Capability[] = [
         label: "Spielsachen anzeigen",
         type: "read",
         description: "Listet Spielsachen und ihre Detailseiten.",
-        telegramCommands: [{ command: "/toys", description: "Spielzeuge anzeigen" }]
+        telegramCommands: [{ command: "/toys", description: "Spielzeuge anzeigen" }],
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/catalog/toys?limit=100", description: "Listet Spielsachen inklusive Kategorie, Bild, Favoriten und Verknüpfungen." },
+          { method: "GET", path: "/api/external/catalog/categories?kind=toy", description: "Listet Spielzeug-Kategorien." }
+        ]
       },
       {
         key: "favorite",
@@ -222,7 +226,11 @@ export const capabilities: readonly Capability[] = [
         label: "Szenen anzeigen",
         type: "read",
         description: "Listet Szenen und verknüpfte Spielsachen.",
-        telegramCommands: [{ command: "/positions", description: "Szenen anzeigen" }]
+        telegramCommands: [{ command: "/positions", description: "Szenen anzeigen" }],
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/catalog/positions?limit=100", description: "Listet Szenen inklusive Kategorie, Bild, Favoriten, Self-Bondage-Flag und Verknüpfungen." },
+          { method: "GET", path: "/api/external/catalog/categories?kind=position", description: "Listet Szenen-Kategorien." }
+        ]
       },
       {
         key: "create",
@@ -766,7 +774,7 @@ export const apiEndpointSpecs = capabilities.flatMap((capability) =>
   capability.actions.flatMap((action) => action.apiEndpoints?.map((endpoint) => ({ ...endpoint, capability: capability.label, action: action.label })) || [])
 );
 
-export const apiVariableNames = ["token", "trackerKey", "fileId", "albumId", "kind", "limit", "cursor", "q", "note", "title", "startTime", "date", "allDay", "state", "hours", "minutes", "expiresMinutes", "name", "email"];
+export const apiVariableNames = ["token", "trackerKey", "fileId", "albumId", "kind", "categoryId", "positionId", "toyId", "limit", "cursor", "q", "includeRelations", "selfBondage", "note", "title", "startTime", "date", "allDay", "state", "hours", "minutes", "expiresMinutes", "name", "email"];
 
 export const telegramCommandSpecs = capabilities.flatMap((capability) =>
   capability.actions.flatMap((action) =>

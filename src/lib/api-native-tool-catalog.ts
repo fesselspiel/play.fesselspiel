@@ -105,6 +105,30 @@ const manualToolCatalog = ([
     category: "Medien"
   },
   {
+    id: "catalogCategories",
+    method: "GET",
+    path: "/api/external/catalog/categories",
+    title: "Katalog-Kategorien",
+    description: "Kategorien fuer Spielsachen und Szenen, optional gefiltert per kind=toy|position.",
+    category: "Katalog"
+  },
+  {
+    id: "catalogToys",
+    method: "GET",
+    path: "/api/external/catalog/toys",
+    title: "Spielsachen",
+    description: "Spielsachen inklusive Kategorien, Bildern, Favoriten und Verknuepfungen.",
+    category: "Katalog"
+  },
+  {
+    id: "catalogPositions",
+    method: "GET",
+    path: "/api/external/catalog/positions",
+    title: "Szenen",
+    description: "Szenen inklusive Kategorien, Bildern, Favoriten, Self-Bondage-Flag und Verknuepfungen.",
+    category: "Katalog"
+  },
+  {
     id: "eventsFeed",
     method: "GET",
     path: "/api/external/events",

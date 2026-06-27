@@ -156,6 +156,58 @@ Antwort:
 }
 ```
 
+## Katalog fuer native Apps
+
+Spielsachen, Szenen und deren Kategorien sind ueber eigene externe Endpunkte abrufbar. Alle Endpunkte nutzen denselben API-Token wie der Eventfeed.
+
+### Kategorien
+
+```http
+GET /api/external/catalog/categories?kind=all
+Authorization: Bearer fsp_...
+```
+
+Parameter:
+
+- `kind`: `all`, `toy` oder `position`.
+
+Die Antwort enthaelt eine flache `categories`-Liste und `groups` nach `toy` und `position`.
+
+### Spielsachen
+
+```http
+GET /api/external/catalog/toys?limit=100
+Authorization: Bearer fsp_...
+```
+
+Parameter:
+
+- `q`: Suche im Titel.
+- `categoryId`: Filter auf eine Kategorie.
+- `positionId`: Filter auf verknuepfte Szene.
+- `includeRelations=0`: Verknuepfungen ausblenden.
+- `token`: optional, erzeugt `downloadUrlWithToken` fuer Bildabrufe ohne Bearer-Header.
+
+Jeder Eintrag enthaelt `category`, `image`, `favorites`, `isFavorite`, `positions` und `activities`.
+
+### Szenen
+
+```http
+GET /api/external/catalog/positions?limit=100
+Authorization: Bearer fsp_...
+```
+
+Parameter:
+
+- `q`: Suche im Namen.
+- `categoryId`: Filter auf eine Kategorie.
+- `toyId`: Filter auf verknuepftes Spielzeug.
+- `selfBondage=1`: nur Self-Bondage-faehige Szenen.
+- `includeRelations=0`: Verknuepfungen ausblenden.
+- `token`: optional, erzeugt `downloadUrlWithToken` fuer Bildabrufe ohne Bearer-Header.
+
+Jeder Eintrag enthaelt `category`, `image`, `favorites`, `isFavorite`, `selfBondageCapable`, `toys`, `bondageSystemItems` und `activities`.
+
 ## Sichtbarkeit
 
 Der Eventfeed ist bewusst nicht global:
@@ -171,6 +223,9 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `POST /api/external/auth/login`
 - `GET /api/external/events`
 - `GET /api/external/events/actions`
+- `GET /api/external/catalog/categories`
+- `GET /api/external/catalog/toys`
+- `GET /api/external/catalog/positions`
 
 Die API-Control-Seite zeigt Beispielpayloads, Curl-Vorlagen und Hinweise. Fuer echte App-Tests sollte der Bearer-Header genutzt werden.
 
