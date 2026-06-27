@@ -293,6 +293,7 @@ model UserSettings {
   theme               String         @default("red")
   darkMode            Boolean        @default(false)
   playReady           Boolean        @default(false)
+  playReadyState      String         @default("red")
   playReadyUpdatedAt  DateTime?
   playReadyExpiresAt  DateTime?
   playReadyExpiryMinutes Int?           @default(360)

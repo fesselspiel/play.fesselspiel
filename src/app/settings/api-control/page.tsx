@@ -22,6 +22,7 @@ import { prisma } from "@/lib/prisma";
 import { startTrackerEntry, stopAllRunningTrackerEntriesForUser, stopTrackerEntry } from "@/lib/tracker-core";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 import { formatDateTime, parseDateInput, parseDateTimeLocal } from "@/lib/dates";
+import { effectivePlayReadyState, normalizePlayReadyState, playReadyColorLabel, playReadyLabel, playReadyRemainingText, playReadyStateToBoolean, type PlayReadyState } from "@/lib/play-ready";
 
 type ApiControlSearchParams = {
   feedback?: string;
@@ -122,11 +123,13 @@ function parseVisibility(value: string | null) {
   return null;
 }
 
-function playReadyFromText(value: string, current: boolean): boolean | null {
+function playReadyFromText(value: string, current: PlayReadyState): PlayReadyState | null {
   const normalized = value.trim().toLowerCase();
-  if (["green", "an", "on", "1", "true", "aktiv", "ja"].includes(normalized)) return true;
-  if (["red", "aus", "off", "0", "false", "inaktiv", "nein"].includes(normalized)) return false;
-  if (["toggle", "switch", "umschalten"].includes(normalized)) return !current;
+  if (["green", "an", "on", "1", "true", "aktiv", "ja"].includes(normalized)) return "green";
+  if (["yellow", "gelb", "flexibel", "maybe", "neutral"].includes(normalized)) return "yellow";
+  if (["red", "aus", "off", "0", "false", "inaktiv", "nein"].includes(normalized)) return "red";
+  if (["toggle", "switch", "umschalten"].includes(normalized)) return current === "green" ? "red" : "green";
+  if (normalized) return normalizePlayReadyState(normalized, current);
   return null;
 }
 
@@ -144,6 +147,7 @@ function feedbackText(feedback?: string, tracker?: string) {
   if (feedback === "tracker-not-running") return "Kein laufender Tracker für diesen Bereich gefunden.";
   if (feedback === "tracker-unavailable") return "Tracker nicht gefunden oder nicht aktiviert.";
   if (feedback === "playready-on") return "Spielampel wurde auf Grün gesetzt.";
+  if (feedback === "playready-flexible") return "Spielampel wurde auf Gelb/Flexibel gesetzt.";
   if (feedback === "playready-off") return "Spielampel wurde auf Rot gesetzt.";
   if (feedback === "playready-nochange") return "Spielampelstatus konnte nicht gelesen werden. Bitte Status angeben.";
   if (feedback === "media-uploaded") return "Datei wurde erfolgreich hochgeladen.";
@@ -385,10 +389,11 @@ async function applyPlayReady(formData: FormData) {
   const tenant = await currentTenant();
   const current = await prisma.userSettings.findUnique({
     where: { userId: user.id },
-    select: { playReady: true, playReadyExpiryMinutes: true }
+    select: { playReady: true, playReadyState: true, playReadyExpiryMinutes: true }
   });
 
-  const nextState = playReadyFromText(String(formData.get("state") || ""), Boolean(current?.playReady));
+  const currentState = effectivePlayReadyState(current);
+  const nextState = playReadyFromText(String(formData.get("state") || ""), currentState);
   if (nextState === null) redirect("/settings/api-control?feedback=playready-nochange");
 
   const durationMinutesOverride = parsePositiveInteger(String(formData.get("durationMinutes") || undefined));
@@ -398,25 +403,28 @@ async function applyPlayReady(formData: FormData) {
   const explicitDuration = durationMinutesOverride ? clampPlayReadyDurationMinutes(durationMinutesOverride) : combinedDuration;
 
   const defaultDuration = current?.playReadyExpiryMinutes || 360;
-  const durationMinutes = nextState ? explicitDuration || defaultDuration : 0;
-  const expiresAt = nextState && tenant?.playReadyExpiryEnabled !== false
+  const durationMinutes = nextState === "green" ? explicitDuration || defaultDuration : 0;
+  const expiresAt = nextState === "green" && tenant?.playReadyExpiryEnabled !== false
     ? new Date(Date.now() + durationMinutes * 60_000)
     : null;
+  const nextReady = playReadyStateToBoolean(nextState);
 
   await prisma.userSettings.upsert({
     where: { userId: user.id },
     update: {
-      playReady: nextState,
+      playReady: nextReady,
+      playReadyState: nextState,
       playReadyUpdatedAt: new Date(),
       playReadyExpiresAt: expiresAt,
-      playReadyExpiryMinutes: nextState ? (durationMinutes || defaultDuration) : (current?.playReadyExpiryMinutes || 360)
+      playReadyExpiryMinutes: nextState === "green" ? (durationMinutes || defaultDuration) : (current?.playReadyExpiryMinutes || 360)
     },
     create: {
       userId: user.id,
-      playReady: nextState,
+      playReady: nextReady,
+      playReadyState: nextState,
       playReadyUpdatedAt: new Date(),
       playReadyExpiresAt: expiresAt,
-      playReadyExpiryMinutes: nextState ? (durationMinutes || defaultDuration) : (current?.playReadyExpiryMinutes || 360)
+      playReadyExpiryMinutes: nextState === "green" ? (durationMinutes || defaultDuration) : (current?.playReadyExpiryMinutes || 360)
     }
   });
 
@@ -425,12 +433,12 @@ async function applyPlayReady(formData: FormData) {
     action: "play_ready_changed_control",
     entityType: "userSettings",
     entityId: user.id,
-    title: `Spielampel durch Kontrollseite gesetzt: ${nextState ? "grün" : "rot"}`,
-    details: { state: nextState, expiryMinutes: nextState ? (durationMinutes || defaultDuration) : null },
+    title: `Spielampel durch Kontrollseite gesetzt: ${playReadyColorLabel(nextState).toLowerCase()}`,
+    details: { state: nextState, label: playReadyLabel(nextState), expiryMinutes: nextState === "green" ? (durationMinutes || defaultDuration) : null },
     href: "/settings/api-control"
   });
 
-  redirect(`/settings/api-control?feedback=${nextState ? "playready-on" : "playready-off"}`);
+  redirect(`/settings/api-control?feedback=${nextState === "green" ? "playready-on" : nextState === "yellow" ? "playready-flexible" : "playready-off"}`);
 }
 
 async function startTracker(formData: FormData) {
@@ -688,10 +696,12 @@ export default async function ApiControlPage({ searchParams }: { searchParams: A
     where: { userId: user.id },
     select: {
       playReady: true,
+      playReadyState: true,
       playReadyExpiresAt: true,
       playReadyExpiryMinutes: true
     }
   });
+  const currentPlayReadyState = effectivePlayReadyState(playReadySettings);
 
   const mediaKind = String(searchParams.mediaKind || "").toUpperCase();
   const selectedKind = mediaKind === "VIDEO" ? MediaKind.VIDEO : mediaKind === "IMAGE" ? MediaKind.IMAGE : null;
@@ -1029,9 +1039,11 @@ export default async function ApiControlPage({ searchParams }: { searchParams: A
 
   const playReadyPayload = {
     ok: true,
-    playReady: Boolean(playReadySettings?.playReady),
-    playReadyLabel: playReadySettings?.playReady ? "gruen" : "rot",
+    playReady: playReadyStateToBoolean(currentPlayReadyState),
+    state: currentPlayReadyState,
+    playReadyLabel: playReadyLabel(currentPlayReadyState),
     playReadyExpiresAt: safeDate(playReadySettings?.playReadyExpiresAt),
+    playReadyRemainingText: currentPlayReadyState === "green" && playReadySettings?.playReadyExpiresAt ? playReadyRemainingText(playReadySettings.playReadyExpiresAt, new Date()) : null,
     playReadyExpiryMinutes: playReadySettings?.playReadyExpiryMinutes || null
   };
 
@@ -1164,7 +1176,7 @@ export default async function ApiControlPage({ searchParams }: { searchParams: A
   const navItems = [
     { id: "overview", label: "Übersicht", metric: `${quotaAll.length} Quotas` },
     { id: "console", label: "API Console", metric: `${apiNativeToolCatalog.length} Tools` },
-    { id: "playready", label: "Spielampel", metric: playReadySettings?.playReady ? "Grün" : "Rot" },
+    { id: "playready", label: "Spielampel", metric: playReadyColorLabel(currentPlayReadyState) },
     { id: "tracker", label: "Tracker", metric: `${runningTrackers.size} aktiv` },
     { id: "einladungen", label: "Einladungen", metric: usage.remaining === null ? "unbegrenzt" : `${usage.remaining} frei` },
     { id: "medien", label: "Medien", metric: `${visibleMedia.length} Treffer` },
@@ -1294,11 +1306,11 @@ export default async function ApiControlPage({ searchParams }: { searchParams: A
         <Panel id="playready">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><Signal className="h-5 w-5 text-redbrand" /> Spielampel</h2>
           <div className="rounded-md border border-line bg-paper p-3 text-sm">
-            <p className="font-semibold">Aktuell: {playReadySettings?.playReady ? "Grün" : "Rot"}</p>
+            <p className="font-semibold">Aktuell: {playReadyColorLabel(currentPlayReadyState)} · {playReadyLabel(currentPlayReadyState)}</p>
             <p className="mt-1 text-graphite">
-              {playReadySettings?.playReadyExpiresAt
-                ? `Ablauf: ${formatDateTime(playReadySettings.playReadyExpiresAt)}`
-                : "Kein Ablauf gesetzt (rot oder Dauer deaktiviert)."}
+              {currentPlayReadyState === "green" && playReadySettings?.playReadyExpiresAt
+                ? `Restzeit: ${playReadyRemainingText(playReadySettings.playReadyExpiresAt, new Date())}`
+                : "Keine laufende Restzeit."}
             </p>
             <p className="mt-1 text-graphite">Standarddauer: {clampPlayReadyDurationMinutes(playReadySettings?.playReadyExpiryMinutes || 360)} Min.</p>
           </div>
@@ -1308,6 +1320,7 @@ export default async function ApiControlPage({ searchParams }: { searchParams: A
               <select className={selectClass} name="state" defaultValue="toggle">
                 <option value="toggle">Umschalten</option>
                 <option value="green">Auf Grün</option>
+                <option value="yellow">Auf Gelb/Flexibel</option>
                 <option value="red">Auf Rot</option>
               </select>
             </Field>

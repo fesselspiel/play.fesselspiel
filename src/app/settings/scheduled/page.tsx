@@ -192,6 +192,7 @@ function RuleForm({
         <Field label="Ampelstatus">
           <select className={selectClass} name="conditionState" defaultValue={String(condition.state || "green")}>
             <option value="green">Grün</option>
+            <option value="yellow">Gelb/Flexibel</option>
             <option value="red">Rot</option>
           </select>
         </Field>
@@ -219,7 +220,7 @@ function RuleForm({
         </Field>
         <Field label="Methode"><select className={selectClass} name="method" defaultValue={String(actionJson.method || "POST")}><option>POST</option><option>GET</option><option>PUT</option></select></Field>
         <Field label="URL"><input className={inputClass} name="url" type="url" defaultValue={String(actionJson.url || "")} placeholder="https://iobroker.example/alexa" /></Field>
-        <Field label="Ampel setzen"><select className={selectClass} name="playReadyState" defaultValue={String(actionJson.state || "green")}><option value="green">Grün</option><option value="red">Rot</option><option value="toggle">Umschalten</option></select></Field>
+        <Field label="Ampel setzen"><select className={selectClass} name="playReadyState" defaultValue={String(actionJson.state || "green")}><option value="green">Grün</option><option value="yellow">Gelb/Flexibel</option><option value="red">Rot</option><option value="toggle">Umschalten</option></select></Field>
       </div>
       <Field label="Payload Template">
         <textarea className={inputClass} name="payloadTemplate" rows={4} defaultValue={String(actionJson.payloadTemplate || "{\"rule\":\"{ruleName}\",\"condition\":\"{condition}\",\"actor\":\"{actor}\"}")} />

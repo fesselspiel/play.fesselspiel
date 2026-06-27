@@ -4,8 +4,8 @@ import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
 import { currentUser } from "@/lib/auth";
-import { formatDateTime } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
+import { effectivePlayReadyState, playReadyRemainingText } from "@/lib/play-ready";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
 
@@ -39,8 +39,8 @@ async function savePlayReadySettings(formData: FormData) {
   const minute = String(formData.get("expiresMinute") || "00");
   const expiryMinutes = durationFromParts(hour, minute);
   const tenant = await currentTenant();
-  const current = await prisma.userSettings.findUnique({ where: { userId: user.id }, select: { playReady: true } });
-  const expiresAt = current?.playReady && tenant?.playReadyExpiryEnabled !== false ? new Date(Date.now() + expiryMinutes * 60_000) : null;
+  const current = await prisma.userSettings.findUnique({ where: { userId: user.id }, select: { playReady: true, playReadyState: true } });
+  const expiresAt = effectivePlayReadyState(current) === "green" && tenant?.playReadyExpiryEnabled !== false ? new Date(Date.now() + expiryMinutes * 60_000) : null;
   await prisma.userSettings.upsert({
     where: { userId: user.id },
     update: { playReadyExpiryMinutes: expiryMinutes, playReadyExpiresAt: expiresAt },
@@ -102,7 +102,7 @@ export default async function PlayReadySettingsPage({ searchParams }: { searchPa
           <div className="rounded-md bg-paper p-4 text-sm leading-6 text-graphite">
             Gespeichert: {`${Math.floor(expiryMinutes / 60)} Stunden ${expiryMinutes % 60} Minuten ab Grün-Schaltung`}
             <br />
-            Aktuelle grüne Ampel: {expiresAt ? `läuft ab am ${formatDateTime(expiresAt)}` : tenant?.playReadyExpiryEnabled === false ? "Ablauf ist deaktiviert" : "nicht aktiv"}
+            Aktuelle grüne Ampel: {expiresAt ? playReadyRemainingText(expiresAt, new Date()) : tenant?.playReadyExpiryEnabled === false ? "Ablauf ist deaktiviert" : "nicht aktiv"}
             <br />
             Maximum: 12 Stunden ab dem Speichern.
           </div>
@@ -113,7 +113,7 @@ export default async function PlayReadySettingsPage({ searchParams }: { searchPa
         </form>
       </Panel>
       <PageGuide title="Ampel-Ablaufzeit">
-        Die Ablaufzeit betrifft nur deine eigene Spielampel. Wenn deine Ampel grün ist und die relative Zeit abgelaufen ist, stellt das System sie automatisch auf Rot und schreibt dazu einen Protokolleintrag.
+        Die Ablaufzeit betrifft nur deine eigene Spielampel. Wenn deine Ampel grün ist und die relative Zeit abgelaufen ist, stellt das System sie automatisch auf Gelb/Flexibel und schreibt dazu einen Protokolleintrag.
       </PageGuide>
     </AppShell>
   );

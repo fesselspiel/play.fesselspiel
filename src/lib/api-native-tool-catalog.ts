@@ -42,7 +42,7 @@ const manualToolCatalog = ([
     methods: ["GET", "POST"],
     path: "/api/external/play-ready",
     title: "Spielampel",
-    description: "Lesen und Setzen der Ampel via `state`, `expiresMinutes` oder `hours`/`minutes`.",
+    description: "Lesen und Setzen der Ampel via `state` (`green`, `yellow`, `red`, `toggle`), `expiresMinutes` oder `hours`/`minutes`.",
     category: "Spielbetrieb"
   },
   {

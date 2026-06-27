@@ -4,11 +4,12 @@ import { formatMinutes } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { actionLabel } from "@/lib/notification-actions";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
+import { effectivePlayReadyState, normalizePlayReadyState, playReadyColorLabel, playReadyLabel, playReadyStateToBoolean } from "@/lib/play-ready";
 
 const defaultTimezone = "Europe/Berlin";
 
 type RuleOwner = NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique>>> & {
-  settings?: { playReady?: boolean | null; playReadyExpiryMinutes?: number | null } | null;
+  settings?: { playReady?: boolean | null; playReadyState?: string | null; playReadyExpiryMinutes?: number | null } | null;
   profile?: { displayName?: string | null } | null;
 };
 
@@ -70,10 +71,10 @@ async function conditionResult(rule: ScheduledRule, owner: RuleOwner) {
   const condition = asRecord(rule.conditionJson);
   if (rule.conditionType === "ALWAYS") return { met: true, message: "Immer ausführen", details: {} };
   if (rule.conditionType === "PLAY_READY_IS") {
-    const expected = stringValue(condition.state, "green") === "green";
+    const expected = normalizePlayReadyState(condition.state, "green");
     const settings = await prisma.userSettings.findUnique({ where: { userId: owner.id } });
-    const actual = Boolean(settings?.playReady);
-    return { met: actual === expected, message: `Ampel ist ${actual ? "grün" : "rot"}`, details: { expected, actual } };
+    const actual = effectivePlayReadyState(settings);
+    return { met: actual === expected, message: `Ampel ist ${playReadyColorLabel(actual).toLowerCase()}`, details: { expected, actual } };
   }
   if (rule.conditionType === "TRACKER_OPEN") {
     const trackerKey = stringValue(condition.trackerKey);
@@ -141,14 +142,16 @@ async function executeAction(rule: ScheduledRule, owner: RuleOwner, condition: A
   };
   if (rule.actionType === "SET_PLAY_READY") {
     const state = stringValue(action.state, "green");
-    const next = state === "toggle" ? !Boolean(owner.settings?.playReady) : state === "green";
+    const current = effectivePlayReadyState(owner.settings);
+    const next = state === "toggle" ? (current === "green" ? "red" : "green") : normalizePlayReadyState(state, "green");
+    const nextReady = playReadyStateToBoolean(next);
     const expiryMinutes = owner.settings?.playReadyExpiryMinutes || 360;
     const tenant = await prisma.tenant.findUnique({ where: { id: rule.tenantId }, select: { playReadyExpiryEnabled: true } });
-    const expiresAt = next && tenant?.playReadyExpiryEnabled !== false ? new Date(Date.now() + expiryMinutes * 60_000) : null;
+    const expiresAt = next === "green" && tenant?.playReadyExpiryEnabled !== false ? new Date(Date.now() + expiryMinutes * 60_000) : null;
     await prisma.userSettings.upsert({
       where: { userId: owner.id },
-      update: { playReady: next, playReadyUpdatedAt: new Date(), playReadyExpiresAt: expiresAt, playReadyExpiryMinutes: expiryMinutes },
-      create: { userId: owner.id, playReady: next, playReadyUpdatedAt: new Date(), playReadyExpiresAt: expiresAt, playReadyExpiryMinutes: expiryMinutes }
+      update: { playReady: nextReady, playReadyState: next, playReadyUpdatedAt: new Date(), playReadyExpiresAt: expiresAt, playReadyExpiryMinutes: expiryMinutes },
+      create: { userId: owner.id, playReady: nextReady, playReadyState: next, playReadyUpdatedAt: new Date(), playReadyExpiresAt: expiresAt, playReadyExpiryMinutes: expiryMinutes }
     });
     await logAction({
       actorId: owner.id,
@@ -157,9 +160,9 @@ async function executeAction(rule: ScheduledRule, owner: RuleOwner, condition: A
       entityId: rule.id,
       title: `Zeitregel ausgeführt: ${rule.name}`,
       href: "/settings/scheduled",
-      details: { actionType: rule.actionType, playReady: next, expiresAt: expiresAt?.toISOString() || null, condition: condition.message }
+      details: { actionType: rule.actionType, playReady: nextReady, playReadyState: next, label: playReadyLabel(next), expiresAt: expiresAt?.toISOString() || null, condition: condition.message }
     });
-    return { status: "SENT", message: `Ampel auf ${next ? "grün" : "rot"} gesetzt`, details: { playReady: next, expiresAt } };
+    return { status: "SENT", message: `Ampel auf ${playReadyColorLabel(next).toLowerCase()} gesetzt`, details: { playReady: nextReady, playReadyState: next, expiresAt } };
   }
   if (rule.actionType === "CREATE_AUDIT") {
     const auditAction = stringValue(action.action, "scheduled_rule_executed");

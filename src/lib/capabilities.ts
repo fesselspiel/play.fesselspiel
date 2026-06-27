@@ -113,10 +113,23 @@ export const capabilities: readonly Capability[] = [
         key: "set",
         label: "Ampel setzen",
         type: "write",
-        description: "Setzt Rot, Grün oder schaltet den Zustand um.",
+        description: "Setzt Rot, Gelb/Flexibel, Grün oder schaltet den Zustand um.",
+        agentTool: {
+          name: "set_play_ready",
+          description: "Setzt die Spielampel auf green/voll Lust, yellow/flexibel, red/gerade nicht oder toggle. Gelb/Flexibel ist auch der automatische Ablaufstatus. Bei Grün kann eine Dauer in Minuten angegeben werden.",
+          parameters: {
+            type: "object",
+            properties: {
+              state: { type: "string", enum: ["green", "yellow", "red", "toggle"], description: "green = voll Lust, yellow = flexibel, red = gerade nicht, toggle = zwischen grün und rot wechseln." },
+              durationMinutes: { type: "number", description: "Optional bei green. Dauer bis Ablauf in Minuten, maximal 720 und in 15-Minuten-Schritten." }
+            },
+            required: ["state"],
+            additionalProperties: false
+          }
+        },
         apiEndpoints: [
-          { method: "GET", path: "/api/external/play-ready?token=...&state=green&hours=2&minutes=15", description: "Spielampel setzen. `state` kann green, red oder toggle sein; Dauer maximal 12 Stunden." },
-          { method: "POST", path: "/api/external/play-ready", description: "Spielampel über JSON oder Form-Daten setzen. Unterstützt `state`, `expiresMinutes` oder `hours`/`minutes`." }
+          { method: "GET", path: "/api/external/play-ready?token=...&state=green&hours=2&minutes=15", description: "Spielampel setzen. `state` kann green, yellow, red oder toggle sein; Dauer maximal 12 Stunden." },
+          { method: "POST", path: "/api/external/play-ready", description: "Spielampel über JSON oder Form-Daten setzen. Unterstützt `state` (green/yellow/red/toggle), `expiresMinutes` oder `hours`/`minutes`." }
         ],
         auditActions: ["play_ready_changed", "play_ready_expired"]
       }

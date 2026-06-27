@@ -18,6 +18,7 @@ import { formatDate, formatDateTime, formatMinutes } from "@/lib/dates";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 import { startTrackerEntry, stopAllRunningTrackerEntriesForUser, stopTrackerEntry } from "@/lib/tracker-core";
 import { currentTenant } from "@/lib/tenancy";
+import { effectivePlayReadyState, playReadyDisplayLabel, playReadyLabel, playReadyRemainingText, playReadyStateToBoolean, type PlayReadyState } from "@/lib/play-ready";
 
 const dayFormatter = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "Europe/Berlin" });
 const timeFormatter = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
@@ -29,21 +30,6 @@ export const dynamic = "force-dynamic";
 
 function dayKey(value: Date) {
   return keyFormatter.format(value);
-}
-
-function playReadyLabel(value: boolean) {
-  return value ? "voll Lust" : "gerade nicht";
-}
-
-function playReadyRemainingText(expiresAt: Date, now: Date) {
-  const remainingMs = expiresAt.getTime() - now.getTime();
-  if (remainingMs <= 0) return "läuft jetzt ab";
-  const totalMinutes = Math.ceil(remainingMs / 60_000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours && minutes) return `noch ${hours} Std. ${minutes} Min.`;
-  if (hours) return `noch ${hours} Std.`;
-  return `noch ${minutes} Min.`;
 }
 
 async function expirePlayReadyStatuses(viewer: Awaited<ReturnType<typeof currentUser>>, now: Date) {
@@ -64,8 +50,8 @@ async function expirePlayReadyStatuses(viewer: Awaited<ReturnType<typeof current
     .filter((membership) => membership.tenant.playReadyExpiryEnabled !== false)
     .map((membership) => membership.user)
     .filter((member) => {
-      if (!member.settings?.playReady) return false;
-      if (!member.settings.playReadyExpiresAt) return true;
+      if (effectivePlayReadyState(member.settings) !== "green") return false;
+      if (!member.settings?.playReadyExpiresAt) return true;
       return member.settings.playReadyExpiresAt <= now;
     })
     .forEach((member) => expiredMap.set(member.id, member));
@@ -73,14 +59,14 @@ async function expirePlayReadyStatuses(viewer: Awaited<ReturnType<typeof current
   for (const member of expired) {
     await prisma.userSettings.update({
       where: { userId: member.id },
-      data: { playReady: false, playReadyUpdatedAt: now, playReadyExpiresAt: null }
+      data: { playReady: false, playReadyState: "yellow", playReadyUpdatedAt: now, playReadyExpiresAt: null }
     });
     await logAction({
       actorId: member.id,
       action: "play_ready_expired",
       entityType: "userSettings",
       entityId: member.id,
-      title: `Spielampel abgelaufen: ${userDisplayName(member)} ist wieder gerade nicht`,
+      title: `Spielampel abgelaufen: ${userDisplayName(member)} ist jetzt flexibel`,
       details: { expiredAt: now.toISOString(), reason: member.settings?.playReadyExpiresAt ? "time_reached" : "missing_expiry_time" },
       href: "/"
     });
@@ -92,23 +78,26 @@ async function togglePlayReady() {
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("playReady");
-  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id }, select: { playReady: true, playReadyExpiryMinutes: true } });
+  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id }, select: { playReady: true, playReadyState: true, playReadyExpiryMinutes: true } });
   const tenant = await currentTenant();
-  const previous = Boolean(settings?.playReady);
-  const next = !previous;
+  const previous = effectivePlayReadyState(settings);
+  const next: PlayReadyState = previous === "green" ? "red" : "green";
+  const nextReady = playReadyStateToBoolean(next);
   const expiryMinutes = settings?.playReadyExpiryMinutes || 360;
-  const expiresAt = next && tenant?.playReadyExpiryEnabled !== false ? new Date(Date.now() + expiryMinutes * 60_000) : null;
+  const expiresAt = next === "green" && tenant?.playReadyExpiryEnabled !== false ? new Date(Date.now() + expiryMinutes * 60_000) : null;
   await prisma.userSettings.upsert({
     where: { userId: user.id },
     update: {
-      playReady: next,
+      playReady: nextReady,
+      playReadyState: next,
       playReadyUpdatedAt: new Date(),
       playReadyExpiresAt: expiresAt,
       playReadyExpiryMinutes: expiryMinutes
     },
     create: {
       userId: user.id,
-      playReady: true,
+      playReady: nextReady,
+      playReadyState: next,
       playReadyUpdatedAt: new Date(),
       playReadyExpiresAt: expiresAt,
       playReadyExpiryMinutes: expiryMinutes
@@ -533,33 +522,35 @@ export default async function DashboardPage() {
           <Panel style={sectionStyle("playReady")}>
             <div className="mb-4">
               <h2 className="text-lg font-semibold">Spielampel</h2>
-              <p className="mt-1 text-sm text-graphite">Grün heißt volle Lust, Rot heißt gerade nicht.</p>
+              <p className="mt-1 text-sm text-graphite">Grün heißt volle Lust, Gelb heißt flexibel, Rot heißt gerade nicht.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {circleUsers.map((membership) => {
                 const member = membership.user;
-                const ready = Boolean(member.settings?.playReady);
+                const state = effectivePlayReadyState(member.settings);
+                const ready = state === "green";
+                const flexible = state === "yellow";
                 const isSelf = member.id === user.id;
                 const displayName = member.profile?.displayName || member.name || member.username || member.email;
-                const stateLabel = ready ? "Voll Lust" : "Gerade nicht";
+                const stateLabel = playReadyDisplayLabel(state);
                 const likes = member.playReadyLikesReceived || [];
                 const likedBySelf = likes.some((like) => like.actorId === user.id);
                 const likePeople = likes.map((like) => ({ id: like.actorId, name: userDisplayName(like.actor) }));
                 const content = (
                   <span className={`flex min-h-28 w-full items-center gap-4 rounded-lg border p-4 text-left transition ${
-                    ready ? "border-emerald-500 bg-emerald-500/10" : "border-redbrand bg-redbrand/10"
+                    ready ? "border-emerald-500 bg-emerald-500/10" : flexible ? "border-amber-400 bg-amber-400/10" : "border-redbrand bg-redbrand/10"
                   } ${isSelf ? "hover:scale-[1.01]" : ""}`}>
                     {member.profile?.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={member.profile.imageUrl} alt="" className={`h-12 w-12 shrink-0 rounded-full object-cover ring-4 ${ready ? "ring-emerald-500" : "ring-redbrand"}`} />
+                      <img src={member.profile.imageUrl} alt="" className={`h-12 w-12 shrink-0 rounded-full object-cover ring-4 ${ready ? "ring-emerald-500" : flexible ? "ring-amber-400" : "ring-redbrand"}`} />
                     ) : (
-                      <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white shadow-soft ${ready ? "bg-emerald-500" : "bg-redbrand"}`}>
+                      <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white shadow-soft ${ready ? "bg-emerald-500" : flexible ? "bg-amber-400 text-ink" : "bg-redbrand"}`}>
                         {displayName.slice(0, 1).toUpperCase()}
                       </span>
                     )}
                     <span className="min-w-0">
                       <span className="block truncate text-base font-semibold text-ink">{displayName}</span>
-                      <span className={`mt-1 block text-sm font-semibold ${ready ? "text-emerald-700" : "text-redbrand"}`}>{stateLabel}</span>
+                      <span className={`mt-1 block text-sm font-semibold ${ready ? "text-emerald-700" : flexible ? "text-amber-700" : "text-redbrand"}`}>{stateLabel}</span>
                       {ready ? (
                         <span className="mt-1 block text-xs font-semibold text-graphite">
                           {member.settings?.playReadyExpiresAt

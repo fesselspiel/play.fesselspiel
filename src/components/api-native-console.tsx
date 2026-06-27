@@ -1154,7 +1154,7 @@ export function ApiNativeConsole({ apiTokens }: ApiNativeConsoleProps) {
                 setRawField("queryText", event.currentTarget.value);
                 setRawField("selectedPreset", "");
               }}
-              placeholder="z. B. token=... & state=green"
+              placeholder="z. B. token=... & state=green oder state=yellow"
             />
           </label>
           <label className="block text-sm text-graphite">
@@ -1167,7 +1167,7 @@ export function ApiNativeConsole({ apiTokens }: ApiNativeConsoleProps) {
                 setRawField("bodyText", event.currentTarget.value);
                 setRawField("selectedPreset", "");
               }}
-              placeholder={rawState.contentType === "application/json" ? '{"ready":true,"state":"green"}' : "key=value"}
+              placeholder={rawState.contentType === "application/json" ? '{"state":"yellow"}' : "key=value"}
             />
           </label>
           {rawState.contentType === "multipart/form-data" ? (
@@ -1308,6 +1308,7 @@ export function ApiNativeConsole({ apiTokens }: ApiNativeConsoleProps) {
                               >
                                 <option value="">Nur lesen</option>
                                 <option value="green">green</option>
+                                <option value="yellow">yellow</option>
                                 <option value="red">red</option>
                                 <option value="toggle">toggle</option>
                               </select>

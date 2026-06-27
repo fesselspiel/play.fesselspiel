@@ -177,6 +177,10 @@ async function main() {
     where: { playReadyExpiryMinutes: null },
     data: { playReadyExpiryMinutes: 360 }
   });
+  await prisma.userSettings.updateMany({
+    where: { playReady: true, playReadyState: "red" },
+    data: { playReadyState: "green" }
+  });
 
   const segufixType = await prisma.trackerType.upsert({
     where: { tenantId_key: { tenantId: tenant.id, key: "segufix" } },

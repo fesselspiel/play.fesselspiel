@@ -1,10 +1,12 @@
 import OpenAI from "openai";
 import { agentCapabilityPrompt, agentTools, directAgentToolNames } from "@/lib/capabilities";
 import { env } from "@/lib/env";
+import { logAction } from "@/lib/audit";
 import { getOrCreateCatalogCategory } from "@/lib/catalog-categories";
 import { decryptSecret } from "@/lib/crypto";
 import { formatDateTime, formatMinutes } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
+import { effectivePlayReadyState, normalizePlayReadyState, playReadyLabel, playReadyRemainingText, playReadyStateToBoolean, type PlayReadyState } from "@/lib/play-ready";
 import { uniqueSlug, uniqueSlugForUpdate } from "@/lib/slug";
 import { telegramHtml, telegramLink } from "@/lib/telegram";
 import { queueImageReplacement } from "@/lib/telegram-item-dialogue";
@@ -544,6 +546,44 @@ async function setActivityStatus(userId: string, args: Record<string, unknown>):
   return { ok: true, message: `Aktivität aktualisiert: ${updated.title}`, data: { status: updated.status, url: link(`/activities/${updated.slug}`) } };
 }
 
+function agentPlayReadyDuration(value: unknown) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.min(12 * 60, Math.ceil(parsed / 15) * 15);
+}
+
+async function setPlayReady(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
+  const tenantId = await tenantIdForUser(userId);
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { profile: true, settings: true } });
+  if (!user) return { ok: false, message: "Benutzer nicht gefunden." };
+  const current = effectivePlayReadyState(user.settings);
+  const requested = clean(args.state);
+  const next: PlayReadyState = requested === "toggle" ? (current === "green" ? "red" : "green") : normalizePlayReadyState(requested, current);
+  const duration = agentPlayReadyDuration(args.durationMinutes) || user.settings?.playReadyExpiryMinutes || 360;
+  const tenant = tenantId ? await prisma.tenant.findUnique({ where: { id: tenantId }, select: { playReadyExpiryEnabled: true } }) : null;
+  const expiresAt = next === "green" && tenant?.playReadyExpiryEnabled !== false ? new Date(Date.now() + duration * 60_000) : null;
+  const nextReady = playReadyStateToBoolean(next);
+  await prisma.userSettings.upsert({
+    where: { userId },
+    update: { playReady: nextReady, playReadyState: next, playReadyUpdatedAt: new Date(), playReadyExpiresAt: expiresAt, playReadyExpiryMinutes: duration },
+    create: { userId, playReady: nextReady, playReadyState: next, playReadyUpdatedAt: new Date(), playReadyExpiresAt: expiresAt, playReadyExpiryMinutes: duration }
+  });
+  await logAction({
+    actorId: userId,
+    action: "play_ready_changed_telegram_agent",
+    entityType: "userSettings",
+    entityId: userId,
+    title: `Spielampel per Telegram-Agent geändert: ${userDisplayName(user)} ist ${playReadyLabel(next)}`,
+    details: { previous: current, next, label: playReadyLabel(next), durationMinutes: expiresAt ? duration : null, expiresAt: expiresAt?.toISOString() || null },
+    href: "/"
+  });
+  return {
+    ok: true,
+    message: `Spielampel gesetzt: ${playReadyLabel(next)}${expiresAt ? ` (${playReadyRemainingText(expiresAt, new Date())})` : ""}`,
+    data: { state: next, label: playReadyLabel(next), remainingText: expiresAt ? playReadyRemainingText(expiresAt, new Date()) : null }
+  };
+}
+
 async function startSession(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   const tenantId = await tenantIdForUser(userId);
   const open = await prisma.trackerEntry.findFirst({ where: { ...(tenantId ? { tenantId } : {}), ownerId: userId, trackerType: { key: "segufix" }, endTime: null, allDay: false }, orderBy: { startTime: "desc" } });
@@ -599,6 +639,7 @@ async function runTool(userId: string, name: string, args: Record<string, unknow
   if (name === "create_position") return createPosition(userId, args);
   if (name === "create_activity") return createActivity(userId, args);
   if (name === "set_activity_status") return setActivityStatus(userId, args);
+  if (name === "set_play_ready") return setPlayReady(userId, args);
   if (name === "start_session") return startSession(userId, args);
   if (name === "stop_session") return stopSession(userId, args);
   if (name === "start_kg_tracker") return startKgTracker(userId, args);
