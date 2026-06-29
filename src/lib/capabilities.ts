@@ -388,7 +388,7 @@ export const capabilities: readonly Capability[] = [
         telegramCommands: [{ command: "/kontingent", description: "Tracker-Kontingente und offene Todos anzeigen", aliases: ["/quota", "/quotas"] }],
         apiEndpoints: [
           { method: "GET", path: "/api/external/trackers/quotas?token=...", description: "Kontingente und offene Tracker-Todos abfragen." },
-          { method: "GET", path: "/api/external/trackers/quotas?token=...&trackerKey=segufix", description: "Kontingent eines bestimmten Trackers abfragen, z. B. für Alexa." }
+          { method: "GET", path: "/api/external/trackers/quotas?token=...&trackerKey={trackerKey}", description: "Kontingent eines bestimmten Trackers abfragen, z. B. für Alexa." }
         ],
         auditActions: ["tracker_quota_viewed"]
       },
@@ -398,11 +398,11 @@ export const capabilities: readonly Capability[] = [
         type: "write",
         description: "Startet einen beliebigen Tracker per Schlüssel.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/trackers/{trackerKey}/start?token=...&note=...&startTime=...", description: "Beliebigen Tracker starten, z. B. trackerKey=segufix oder kg." },
+          { method: "GET", path: "/api/external/trackers/{trackerKey}/start?token=...&note=...&startTime=...", description: "Beliebigen Tracker starten." },
           { method: "GET", path: "/api/external/trackers/{trackerKey}/start?token=...&allDay=true&date=2026-06-24&note=...", description: "Ganztägigen Tracker-Eintrag ohne Start-/Endzeit anlegen." },
           { method: "POST", path: "/api/external/trackers/{trackerKey}/start", description: "Per POST denselben Startvorgang auslösen; Parameter im Body oder als Form-Daten." }
         ],
-        auditActions: ["tracker_started", "tracker_segufix_started_telegram", "tracker_kg_started_telegram"]
+        auditActions: ["tracker_started"]
       },
       {
         key: "stop",
@@ -413,111 +413,7 @@ export const capabilities: readonly Capability[] = [
           { method: "GET", path: "/api/external/trackers/{trackerKey}/stop?token=...&note=...", description: "Beliebigen laufenden Tracker beenden." },
           { method: "POST", path: "/api/external/trackers/{trackerKey}/stop", description: "Beliebigen laufenden Tracker per POST beenden; `note` optional im Body." }
         ],
-        auditActions: ["tracker_stopped", "tracker_segufix_stopped_telegram", "tracker_kg_stopped_telegram"]
-      }
-    ]
-  },
-  {
-    key: "tracker.segufix",
-    label: "Segufix Time Tracker",
-    featureKey: "tracker.segufix",
-    aliases: ["segufix", "segufix session", "session"],
-    intents: ["segufix starten", "segufix stoppen", "session starten", "session beenden"],
-    route: "/sessions/segufix",
-    actions: [
-      {
-        key: "overview",
-        label: "Segufix anzeigen",
-        type: "read",
-        description: "Zeigt Segufix-Auswertung und Kontingent.",
-        telegramCommands: [{ command: "/sessions", description: "Session-Auswertung aktuelles Jahr" }]
-      },
-      {
-        key: "start",
-        label: "Segufix starten",
-        type: "write",
-        description: "Startet eine Segufix-Session.",
-        agentTool: {
-          name: "start_session",
-          description: "Startet eine Segufix-Session, wenn keine andere Session offen ist.",
-          parameters: {
-            type: "object",
-            properties: {
-              note: { type: "string" },
-              moodBefore: { type: "string", enum: ["NEEDS_WORK", "OKAY", "NEUTRAL", "PLEASANT", "VERY_PLEASANT"] }
-            },
-            additionalProperties: false
-          }
-        },
-        telegramCommands: [{ command: "/session_start Notiz", description: "Segufix-Session starten" }]
-      },
-      {
-        key: "stop",
-        label: "Segufix beenden",
-        type: "write",
-        description: "Beendet die laufende Segufix-Session.",
-        agentTool: {
-          name: "stop_session",
-          description: "Beendet die aktuell laufende Segufix-Session.",
-          parameters: {
-            type: "object",
-            properties: {
-              note: { type: "string" },
-              moodAfter: { type: "string", enum: ["WORSE", "UNCHANGED", "SLIGHTLY_BETTER", "MUCH_BETTER", "RELAXED"] }
-            },
-            additionalProperties: false
-          }
-        },
-        telegramCommands: [{ command: "/session_stop Notiz", description: "laufende Session beenden" }]
-      }
-    ]
-  },
-  {
-    key: "tracker.kg",
-    label: "KG Time Tracker",
-    featureKey: "tracker.kg",
-    aliases: ["kg", "kg tracker", "kg time tracker"],
-    intents: ["kg starten", "kg stoppen", "kg kontingent"],
-    route: "/sessions/kg",
-    actions: [
-      {
-        key: "overview",
-        label: "KG anzeigen",
-        type: "read",
-        description: "Zeigt KG-Auswertung und Kontingent.",
-        telegramCommands: [{ command: "/kg", description: "KG-Auswertung aktuelles Jahr" }]
-      },
-      {
-        key: "start",
-        label: "KG starten",
-        type: "write",
-        description: "Startet den KG Time Tracker.",
-        agentTool: {
-          name: "start_kg_tracker",
-          description: "Startet den KG Time Tracker. Wenn bereits einer offen ist, wird er beendet und ein neuer gestartet.",
-          parameters: {
-            type: "object",
-            properties: { note: { type: "string" } },
-            additionalProperties: false
-          }
-        },
-        telegramCommands: [{ command: "/kg_start Notiz", description: "KG-Tracker starten" }]
-      },
-      {
-        key: "stop",
-        label: "KG beenden",
-        type: "write",
-        description: "Beendet den aktuell laufenden KG Time Tracker.",
-        agentTool: {
-          name: "stop_kg_tracker",
-          description: "Beendet den aktuell laufenden KG Time Tracker.",
-          parameters: {
-            type: "object",
-            properties: { note: { type: "string" } },
-            additionalProperties: false
-          }
-        },
-        telegramCommands: [{ command: "/kg_stop Notiz", description: "KG-Tracker beenden" }]
+        auditActions: ["tracker_stopped"]
       }
     ]
   },
@@ -753,8 +649,6 @@ export const featureCatalog = [
   { key: "orders", label: capabilityLabelByFeature.get("orders") || "Aufträge" },
   { key: "selfBondage", label: "Self-Bondage" },
   { key: "trackers", label: capabilityLabelByFeature.get("trackers") || "Tracker" },
-  { key: "tracker.segufix", label: capabilityLabelByFeature.get("tracker.segufix") || "Segufix Time Tracker" },
-  { key: "tracker.kg", label: capabilityLabelByFeature.get("tracker.kg") || "KG Time Tracker" },
   { key: "telegram", label: capabilityLabelByFeature.get("telegram") || "Telegram" },
   { key: "externalApi", label: capabilityLabelByFeature.get("externalApi") || "Externe API" },
   { key: "scheduledRules", label: capabilityLabelByFeature.get("scheduledRules") || "Zeitregeln" },
