@@ -7,6 +7,7 @@ import { FileUploadField } from "@/components/file-upload-field";
 import { SubmitButton } from "@/components/submit-button";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
 import { UsernameField } from "@/components/username-field";
+import { logAction, userDisplayName } from "@/lib/audit";
 import { currentSessionContext, currentUser, requireAdmin } from "@/lib/auth";
 import { appTimeZone, formatDateTime } from "@/lib/dates";
 import { sendEmailConfirmation } from "@/lib/email-confirmation";
@@ -187,6 +188,41 @@ async function updateUser(formData: FormData) {
   redirect(`/settings/users?saved=user#user-${id}`);
 }
 
+async function setUserPassword(formData: FormData) {
+  "use server";
+  const admin = await requireAdmin();
+  const { tenant } = await currentSessionContext();
+  if (!tenant) redirect("/settings/users?error=tenant");
+  const id = String(formData.get("id") || "");
+  if (!id || id === admin.id) redirect(`/settings/users?error=password-self#user-${id}`);
+  const nextPassword = String(formData.get("nextPassword") || "");
+  const repeatPassword = String(formData.get("repeatPassword") || "");
+  if (!nextPassword || !repeatPassword) redirect(`/settings/users?error=password-missing#user-${id}`);
+  if (nextPassword !== repeatPassword) redirect(`/settings/users?error=password-mismatch#user-${id}`);
+  const membership = await prisma.tenantMembership.findUnique({
+    where: { tenantId_userId: { tenantId: tenant.id, userId: id } },
+    include: { user: { include: { profile: true } } }
+  });
+  if (!membership) redirect("/settings/users?error=user-delete");
+  await prisma.user.update({
+    where: { id },
+    data: {
+      passwordHash: await bcrypt.hash(nextPassword, 12),
+      active: true
+    }
+  });
+  await logAction({
+    actorId: admin.id,
+    action: "user_password_set",
+    entityType: "user",
+    entityId: id,
+    title: `${userDisplayName(admin)} hat das Passwort für ${userDisplayName(membership.user)} gesetzt`,
+    href: `/settings/users#user-${id}`,
+    details: { targetUserId: id, tenantId: tenant.id }
+  });
+  redirect(`/settings/users?saved=password#user-${id}`);
+}
+
 async function resendUserEmailConfirmation(formData: FormData) {
   "use server";
   await requireAdmin();
@@ -310,17 +346,23 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
                 ? "Bitte eine gültige E-Mail-Adresse angeben."
                 : searchParams.error === "missing-password"
                   ? "Bitte ein Passwort angeben, wenn keine E-Mail-Adresse gesetzt ist."
-                  : searchParams.error === "upload"
-                    ? "Upload konnte nicht übernommen werden. Bitte das Bild erneut auswählen."
-                    : searchParams.error === "tenant"
-                      ? "Die aktive Seite konnte nicht ermittelt werden."
-                    : searchParams.error === "user-self-delete"
-                      ? "Du kannst deinen eigenen Benutzer nicht löschen."
-                      : searchParams.error === "last-admin"
-                        ? "Der letzte Admin kann nicht gelöscht werden."
-                        : searchParams.error === "user-delete"
-                          ? "Benutzer konnte nicht gelöscht werden."
-                    : "Bitte E-Mail oder Benutzername angeben."}
+                  : searchParams.error === "password-missing"
+                    ? "Bitte beide Passwortfelder ausfüllen."
+                    : searchParams.error === "password-mismatch"
+                      ? "Die neuen Passwörter stimmen nicht überein."
+                      : searchParams.error === "password-self"
+                        ? "Ändere dein eigenes Passwort bitte im Profil."
+                        : searchParams.error === "upload"
+                          ? "Upload konnte nicht übernommen werden. Bitte das Bild erneut auswählen."
+                          : searchParams.error === "tenant"
+                            ? "Die aktive Seite konnte nicht ermittelt werden."
+                            : searchParams.error === "user-self-delete"
+                              ? "Du kannst deinen eigenen Benutzer nicht löschen."
+                              : searchParams.error === "last-admin"
+                                ? "Der letzte Admin kann nicht gelöscht werden."
+                                : searchParams.error === "user-delete"
+                                  ? "Benutzer konnte nicht gelöscht werden."
+                                  : "Bitte E-Mail oder Benutzername angeben."}
         </div>
       ) : null}
       {searchParams?.saved === "user" ? (
@@ -336,6 +378,11 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
       {searchParams?.saved === "user-deleted" ? (
         <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
           Benutzer wurde gelöscht.
+        </div>
+      ) : null}
+      {searchParams?.saved === "password" ? (
+        <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+          Passwort wurde gespeichert.
         </div>
       ) : null}
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
@@ -564,6 +611,20 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
                   imageCropAspect="square"
                 />
               </form>
+              {entry.id !== user.id ? (
+                <form action={setUserPassword} className="space-y-4 border-t border-line bg-paper p-3">
+                  <input name="id" value={entry.id} type="hidden" />
+                  <div>
+                    <h3 className="text-sm font-semibold text-ink">Passwort setzen</h3>
+                    <p className="mt-1 text-xs leading-5 text-graphite">Setzt ein neues Passwort für diesen Benutzer. Das Passwort selbst wird nicht protokolliert.</p>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <Field label="Neues Passwort"><input className={inputClass} name="nextPassword" type="password" autoComplete="new-password" required /></Field>
+                    <Field label="Neues Passwort wiederholen"><input className={inputClass} name="repeatPassword" type="password" autoComplete="new-password" required /></Field>
+                  </div>
+                  <SubmitButton pendingLabel="Passwort wird gespeichert...">Passwort speichern</SubmitButton>
+                </form>
+              ) : null}
               {!entry.emailVerifiedAt && entry.email && !entry.email.endsWith("@local.fesselspiel") ? (
                 <form action={resendUserEmailConfirmation} className="border-t border-line bg-paper p-3">
                   <input name="id" value={entry.id} type="hidden" />

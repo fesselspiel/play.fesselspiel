@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
-import { MailCheck, Save } from "lucide-react";
+import bcrypt from "bcryptjs";
+import { KeyRound, MailCheck, Save } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { FileUploadField } from "@/components/file-upload-field";
 import { SubmitButton } from "@/components/submit-button";
 import { ThemePicker } from "@/components/theme-picker";
 import { Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
+import { logAction, userDisplayName } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
 import { sendEmailConfirmation } from "@/lib/email-confirmation";
@@ -77,6 +79,33 @@ async function saveProfile(formData: FormData) {
   redirect("/profile");
 }
 
+async function changeOwnPassword(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const currentPassword = String(formData.get("currentPassword") || "");
+  const nextPassword = String(formData.get("nextPassword") || "");
+  const repeatPassword = String(formData.get("repeatPassword") || "");
+  if (!currentPassword || !nextPassword || !repeatPassword) redirect("/profile?passwordError=missing#password");
+  if (nextPassword !== repeatPassword) redirect("/profile?passwordError=mismatch#password");
+  const freshUser = await prisma.user.findUnique({ where: { id: user.id }, include: { profile: true } });
+  if (!freshUser || !(await bcrypt.compare(currentPassword, freshUser.passwordHash))) redirect("/profile?passwordError=current#password");
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await bcrypt.hash(nextPassword, 12) }
+  });
+  await logAction({
+    actorId: user.id,
+    action: "password_changed",
+    entityType: "user",
+    entityId: user.id,
+    title: `${userDisplayName(freshUser)} hat das eigene Passwort geändert`,
+    href: "/profile",
+    details: { targetUserId: user.id }
+  });
+  redirect("/profile?saved=password#password");
+}
+
 async function resendOwnEmailConfirmation() {
   "use server";
   const user = await currentUser();
@@ -87,7 +116,7 @@ async function resendOwnEmailConfirmation() {
   redirect("/profile?sent=email-confirmation");
 }
 
-export default async function ProfilePage({ searchParams }: { searchParams?: { error?: string; sent?: string } }) {
+export default async function ProfilePage({ searchParams }: { searchParams?: { error?: string; sent?: string; saved?: string; passwordError?: string } }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   const activeTheme = normalizeTheme(user.settings?.theme);
@@ -108,6 +137,11 @@ export default async function ProfilePage({ searchParams }: { searchParams?: { e
         {searchParams?.sent === "email-confirmation" ? (
           <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
             Bestätigungs-E-Mail wurde erneut gesendet.
+          </div>
+        ) : null}
+        {searchParams?.saved === "password" ? (
+          <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+            Passwort gespeichert.
           </div>
         ) : null}
         <form action={saveProfile} className="space-y-4">
@@ -152,6 +186,29 @@ export default async function ProfilePage({ searchParams }: { searchParams?: { e
           <ThemePicker activeTheme={activeTheme} activeMode={activeMode} />
           <SubmitButton pendingLabel="Profil wird gespeichert..."><Save className="h-4 w-4" /> Profil speichern</SubmitButton>
         </form>
+      </Panel>
+      <Panel id="password" className="mt-4 max-w-3xl">
+        <details>
+          <summary className="focus-ring flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 text-lg font-semibold text-ink hover:text-redbrand [&::-webkit-details-marker]:hidden">
+            Passwort ändern
+            <KeyRound className="h-5 w-5 text-graphite" />
+          </summary>
+          <form action={changeOwnPassword} className="mt-4 space-y-4">
+            {searchParams?.passwordError ? (
+              <div className="rounded-md border border-redbrand bg-redbrand/10 px-4 py-3 text-sm font-semibold text-redbrand">
+                {searchParams.passwordError === "current"
+                  ? "Das aktuelle Passwort stimmt nicht."
+                  : searchParams.passwordError === "mismatch"
+                    ? "Die neuen Passwörter stimmen nicht überein."
+                    : "Bitte alle Passwortfelder ausfüllen."}
+              </div>
+            ) : null}
+            <Field label="Aktuelles Passwort"><input className={inputClass} name="currentPassword" type="password" autoComplete="current-password" required /></Field>
+            <Field label="Neues Passwort"><input className={inputClass} name="nextPassword" type="password" autoComplete="new-password" required /></Field>
+            <Field label="Neues Passwort wiederholen"><input className={inputClass} name="repeatPassword" type="password" autoComplete="new-password" required /></Field>
+            <SubmitButton pendingLabel="Passwort wird gespeichert..."><KeyRound className="h-4 w-4" /> Passwort speichern</SubmitButton>
+          </form>
+        </details>
       </Panel>
     </AppShell>
   );

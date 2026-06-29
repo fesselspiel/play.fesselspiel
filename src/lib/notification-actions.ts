@@ -57,6 +57,7 @@ export const knownAuditActions = [
   ["native_push_test", "Native Push Test"],
   ["native_push_notification_failed", "Native Push Benachrichtigung fehlgeschlagen"],
   ["native_push_notification_sent", "Native Push Benachrichtigung gesendet"],
+  ["password_changed", "Eigenes Passwort geändert"],
   ["play_ready_changed", "Spielampel geändert"],
   ["play_ready_changed_api", "Spielampel per API geändert"],
   ["play_ready_changed_telegram_agent", "Spielampel per Telegram-Agent geändert"],
@@ -88,7 +89,8 @@ export const knownAuditActions = [
   ["tracker_quota_reminder", "Tracker-Kontingent Erinnerung"],
   ["tracker_type_created", "Tracker angelegt"],
   ["tracker_type_updated", "Tracker bearbeitet"],
-  ["toy_favorited", "Spielzeug favorisiert"]
+  ["toy_favorited", "Spielzeug favorisiert"],
+  ["user_password_set", "Benutzerpasswort gesetzt"]
 ] as const;
 
 export function isLegacyAuditAction(action: string) {
