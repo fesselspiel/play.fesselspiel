@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, MoveDown, MoveUp } from "lucide-react";
+import { ChevronDown, MoveDown, MoveUp, Pencil, Star } from "lucide-react";
 import { useState, useTransition } from "react";
 
 type ToyItem = {
@@ -86,6 +86,36 @@ function useReorder<T extends { id: string }>(kind: "toys" | "positions" | "bond
   return { ordered, dragId, setDragId, move, moveBy, isPending };
 }
 
+function FavoriteButton({ kind, id, initialFavorite }: { kind: "toy" | "position"; id: string; initialFavorite?: boolean }) {
+  const [isFavorite, setIsFavorite] = useState(Boolean(initialFavorite));
+  const [isPending, startTransition] = useTransition();
+
+  function toggleFavorite() {
+    startTransition(async () => {
+      const response = await fetch("/api/favorites", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind, id })
+      });
+      if (!response.ok) return;
+      const data = await response.json().catch(() => null) as { isFavorite?: boolean } | null;
+      setIsFavorite(Boolean(data?.isFavorite));
+    });
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={toggleFavorite}
+      disabled={isPending}
+      className={`focus-ring inline-flex min-h-10 items-center gap-2 rounded-md border border-line px-4 py-2 text-sm font-semibold transition disabled:cursor-wait disabled:opacity-70 ${isFavorite ? "bg-redbrand text-white hover:bg-redbrandHover" : "bg-surface text-ink hover:bg-paper"}`}
+    >
+      <Star className="h-4 w-4" />
+      {isPending ? "Wird gespeichert..." : isFavorite ? "Favorit" : "Als Favorit markieren"}
+    </button>
+  );
+}
+
 export function SortableToyList({ items, canSort = false }: { items: ToyItem[]; canSort?: boolean }) {
   const { ordered, dragId, setDragId, move, moveBy, isPending } = useReorder("toys", items);
   return (
@@ -133,10 +163,15 @@ export function SortableToyList({ items, canSort = false }: { items: ToyItem[]; 
                   ) : null}
                   <p className="mt-4 text-sm leading-6 text-graphite">{toy.description || "Keine Beschreibung hinterlegt."}</p>
                   <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <Link href={`/toys/${toy.slug}`} className="inline-flex min-h-10 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
+                    <Link href={`/toys/${toy.slug}/edit`} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
+                      <Pencil className="h-4 w-4" />
+                      Bearbeiten
+                    </Link>
+                    <FavoriteButton kind="toy" id={toy.id} initialFavorite={toy.isFavorite} />
+                    <Link href={`/toys/${toy.slug}`} className="inline-flex min-h-10 items-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink hover:bg-paper">
                       Detail öffnen
                     </Link>
-                    <span className="text-xs text-graphite">Detailseite mit QR-Code, Copy-Link, Verknüpfungen und Bearbeitung.</span>
+                    <span className="text-xs text-graphite">Direkt bearbeiten oder als Favorit markieren. Details bleiben für QR-Code, Copy-Link und Verknüpfungen verfügbar.</span>
                   </div>
                 </div>
               </div>
@@ -231,10 +266,15 @@ export function SortablePositionList({ items, canSort = false, showTools = true 
                     </div>
                   ) : null}
                   <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <Link href={`/positions/${position.slug}`} className="inline-flex min-h-10 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
+                    <Link href={`/positions/${position.slug}/edit`} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
+                      <Pencil className="h-4 w-4" />
+                      Bearbeiten
+                    </Link>
+                    <FavoriteButton kind="position" id={position.id} initialFavorite={position.isFavorite} />
+                    <Link href={`/positions/${position.slug}`} className="inline-flex min-h-10 items-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink hover:bg-paper">
                       Detail öffnen
                     </Link>
-                    <span className="text-xs text-graphite">Detailseite mit Bild, Verknüpfungen und Bearbeitung.</span>
+                    <span className="text-xs text-graphite">Direkt bearbeiten oder als Favorit markieren. Details bleiben für Bild und Verknüpfungen verfügbar.</span>
                   </div>
                 </div>
               </div>

@@ -65,6 +65,7 @@ export const knownAuditActions = [
   ["play_ready_liked", "Spielampel geliked"],
   ["play_ready_unliked", "Spielampel-Like entfernt"],
   ["position_favorited", "Szene favorisiert"],
+  ["position_unfavorited", "Szenen-Favorit entfernt"],
   ["self_bondage_order_accepted", "Self-Bondage-Auftrag angenommen"],
   ["self_bondage_order_completed", "Self-Bondage-Auftrag umgesetzt"],
   ["self_bondage_order_created", "Self-Bondage-Auftrag erteilt"],
@@ -90,6 +91,7 @@ export const knownAuditActions = [
   ["tracker_type_created", "Tracker angelegt"],
   ["tracker_type_updated", "Tracker bearbeitet"],
   ["toy_favorited", "Spielzeug favorisiert"],
+  ["toy_unfavorited", "Spielzeug-Favorit entfernt"],
   ["user_password_set", "Benutzerpasswort gesetzt"]
 ] as const;
 
