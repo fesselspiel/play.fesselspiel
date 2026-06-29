@@ -879,6 +879,7 @@ Details:
 - Die Ablaufzeit wird ab dem Speichern berechnet: Stunden stundenweise, Minuten in 15-Minuten-Schritten, maximal 12 Stunden.
 - Die Spielampel ist als eigenes Feature `playReady` konfigurierbar und blendet Startseitenbereich sowie Einstellungsmenüpunkt aus, wenn es deaktiviert ist.
 - Externe Systeme können die Spielampel über `/api/external/play-ready` mit API-Token abfragen oder setzen.
+- `/api/external/play-ready` liefert zusätzlich `people[]` für alle sichtbaren Personen der Seite bzw. des Kreises. Jeder Eintrag enthält `state`, `label`, `playReady`, optionale Zielzeiten (`expiresAt`, `readyAt`, `startupEndsAt`) sowie `remainingSeconds`, `remainingMinutes` und `remainingText`.
 - Die Startseite zeigt das Ablaufdatum nur bei grüner Ampel und nur dann, wenn es gesetzt ist.
 - Beim Laden der Startseite werden abgelaufene grüne Ampeln automatisch auf Rot gesetzt und als `play_ready_expired` protokolliert.
 

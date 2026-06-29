@@ -103,9 +103,9 @@ export const capabilities: readonly Capability[] = [
         key: "read",
         label: "Ampel anzeigen",
         type: "read",
-        description: "Liest den aktuellen Ampelstatus.",
+        description: "Liest den aktuellen Ampelstatus und sichtbare Ampeln aus Kreis oder Seite.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/play-ready?token=...", description: "Aktuellen Spielampelstatus abfragen." }
+          { method: "GET", path: "/api/external/play-ready?token=...", description: "Aktuellen Spielampelstatus inklusive `people[]` und Countdown-Feldern abfragen." }
         ],
         auditActions: ["play_ready_viewed"]
       },

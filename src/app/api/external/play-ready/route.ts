@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { accessibleOwnerIds } from "@/lib/access";
 import { logAction, userDisplayName } from "@/lib/audit";
 import { apiFeatureGate, requestValues, requireApiUser } from "@/lib/external-api";
 import { effectivePlayReadyState, nextPlayReadyState, playReadyLabel, playReadyRemainingText, playReadyStateToBoolean, type PlayReadyState } from "@/lib/play-ready";
@@ -7,6 +8,17 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 
 const maxDurationMinutes = 12 * 60;
+
+type ApiPlayReadyUser = {
+  id: string;
+  tenantId?: string | null;
+  circleId?: string | null;
+  role?: string | null;
+  email?: string | null;
+  username?: string | null;
+  name?: string | null;
+  profile?: { displayName?: string | null } | null;
+};
 
 function durationFromValues(values: Map<string, string>) {
   const directMinutes = Number(values.get("expiresMinutes") || values.get("durationMinutes") || "");
@@ -18,9 +30,14 @@ function durationFromValues(values: Map<string, string>) {
   return Math.min(maxDurationMinutes, Math.ceil(total / 15) * 15);
 }
 
-function remainingMinutes(expiresAt: Date | null | undefined, now = new Date()) {
+function remainingSeconds(expiresAt: Date | null | undefined, now = new Date()) {
   if (!expiresAt) return null;
-  return Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / 60_000));
+  return Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / 1000));
+}
+
+function remainingMinutes(expiresAt: Date | null | undefined, now = new Date()) {
+  const seconds = remainingSeconds(expiresAt, now);
+  return seconds === null ? null : Math.ceil(seconds / 60);
 }
 
 function stateFromValues(values: Map<string, string>, current: PlayReadyState): PlayReadyState | null {
@@ -31,6 +48,79 @@ function stateFromValues(values: Map<string, string>, current: PlayReadyState): 
   if (["red", "rot", "false", "0", "no", "off", "nicht"].includes(raw)) return "red";
   if (raw === "toggle" || raw === "switch") return nextPlayReadyState(current);
   return null;
+}
+
+function isoDate(value: Date | null | undefined) {
+  return value ? value.toISOString() : null;
+}
+
+function playReadyTargetForState(state: PlayReadyState, expiresAt: Date | null | undefined) {
+  return state === "green" ? expiresAt || null : null;
+}
+
+function playReadyPerson(
+  user: {
+    id: string;
+    name?: string | null;
+    username?: string | null;
+    email?: string | null;
+    profile?: { displayName?: string | null } | null;
+    settings?: { playReady?: boolean | null; playReadyState?: string | null; playReadyExpiresAt?: Date | null } | null;
+  },
+  now: Date
+) {
+  const state = effectivePlayReadyState(user.settings);
+  const targetAt = playReadyTargetForState(state, user.settings?.playReadyExpiresAt);
+  const seconds = targetAt ? remainingSeconds(targetAt, now) : null;
+  return {
+    id: user.id,
+    name: userDisplayName(user),
+    state,
+    label: playReadyLabel(state),
+    playReady: playReadyStateToBoolean(state),
+    expiresAt: isoDate(user.settings?.playReadyExpiresAt),
+    readyAt: isoDate(targetAt),
+    startupEndsAt: isoDate(targetAt),
+    remainingSeconds: seconds,
+    remainingMinutes: seconds === null ? null : Math.ceil(seconds / 60),
+    remainingText: targetAt ? playReadyRemainingText(targetAt, now) : null
+  };
+}
+
+async function visiblePlayReadyPeople(user: ApiPlayReadyUser, now: Date) {
+  const ownerIds = await accessibleOwnerIds(user);
+  const people = await prisma.user.findMany({
+    where: {
+      id: { in: ownerIds },
+      active: true,
+      ...(user.tenantId ? { memberships: { some: { tenantId: user.tenantId, active: true } } } : {})
+    },
+    include: { profile: true, settings: true },
+    orderBy: [{ name: "asc" }, { username: "asc" }, { email: "asc" }]
+  });
+  return people.map((person) => playReadyPerson(person, now));
+}
+
+async function playReadyPayload(user: ApiPlayReadyUser, now = new Date()) {
+  const current = await prisma.user.findUnique({
+    where: { id: user.id },
+    include: { profile: true, settings: true }
+  });
+  const currentPerson = playReadyPerson(current || user, now);
+  return {
+    ok: true,
+    user: { id: user.id, name: userDisplayName(current || user) },
+    playReady: currentPerson.playReady,
+    state: currentPerson.state,
+    label: currentPerson.label,
+    expiresAt: currentPerson.expiresAt,
+    readyAt: currentPerson.readyAt,
+    startupEndsAt: currentPerson.startupEndsAt,
+    remainingSeconds: currentPerson.remainingSeconds,
+    remainingMinutes: currentPerson.remainingMinutes,
+    remainingText: currentPerson.remainingText,
+    people: await visiblePlayReadyPeople(user, now)
+  };
 }
 
 async function handlePlayReady(request: NextRequest) {
@@ -44,17 +134,7 @@ async function handlePlayReady(request: NextRequest) {
   const next = stateFromValues(values, previous);
 
   if (next === null) {
-    const remaining = remainingMinutes(existing?.playReadyExpiresAt);
-    return NextResponse.json({
-      ok: true,
-      user: { id: auth.user.id, name: userDisplayName(auth.user) },
-      playReady: playReadyStateToBoolean(previous),
-      state: previous,
-      label: playReadyLabel(previous),
-      expiresAt: existing?.playReadyExpiresAt || null,
-      remainingMinutes: previous === "green" ? remaining : null,
-      remainingText: previous === "green" && existing?.playReadyExpiresAt ? playReadyRemainingText(existing.playReadyExpiresAt, new Date()) : null
-    });
+    return NextResponse.json(await playReadyPayload(auth.user));
   }
 
   const durationMinutes = durationFromValues(values);
@@ -83,15 +163,9 @@ async function handlePlayReady(request: NextRequest) {
     href: "/"
   });
   return NextResponse.json({
-    ok: true,
-    playReady: nextReady,
-    state: next,
-    label: playReadyLabel(next),
+    ...(await playReadyPayload(auth.user)),
     previous: playReadyLabel(previous),
-    expiresAt,
-    durationMinutes: expiresAt ? effectiveDurationMinutes : null,
-    remainingMinutes: expiresAt ? effectiveDurationMinutes : null,
-    remainingText: expiresAt ? playReadyRemainingText(expiresAt, new Date()) : null
+    durationMinutes: expiresAt ? effectiveDurationMinutes : null
   });
 }
 
