@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logAction, userDisplayName } from "@/lib/audit";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
+import { env } from "@/lib/env";
+import { normalizeHostname } from "@/lib/tenancy";
 import { createWebSessionBridgeToken } from "@/lib/web-session-bridge";
 
 export const runtime = "nodejs";
@@ -9,6 +11,27 @@ function redirectPath(value: unknown) {
   const path = String(value || "/").trim();
   if (!path || path.startsWith("//") || /^https?:\/\//i.test(path)) return "/";
   return path.startsWith("/") ? path : `/${path}`;
+}
+
+type TenantDomainSource = {
+  domains?: { hostname: string; primary: boolean; active: boolean }[];
+} | null | undefined;
+
+function primaryDomain(tenant: TenantDomainSource) {
+  return tenant?.domains?.find((domain) => domain.primary && domain.active)?.hostname
+    || tenant?.domains?.find((domain) => domain.active)?.hostname
+    || normalizeHostname(env.appUrl);
+}
+
+function publicBaseUrl(request: NextRequest, tenant: TenantDomainSource) {
+  const forwardedHost = normalizeHostname(request.headers.get("x-forwarded-host") || request.headers.get("host") || "");
+  const internalHosts = new Set(["0.0.0.0", "127.0.0.1", "localhost"]);
+  const host = forwardedHost && !internalHosts.has(forwardedHost)
+    ? forwardedHost
+    : primaryDomain(tenant);
+  const protoHeader = (request.headers.get("x-forwarded-proto") || "").split(",")[0]?.trim();
+  const protocol = protoHeader === "http" || protoHeader === "https" ? protoHeader : "https";
+  return `${protocol}://${host}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -26,7 +49,7 @@ export async function POST(request: NextRequest) {
     redirectTo,
     ttlSeconds
   });
-  const url = new URL("/api/auth/web-session", request.url);
+  const url = new URL("/api/auth/web-session", publicBaseUrl(request, auth.user.tenant));
   url.searchParams.set("token", token);
 
   await logAction({

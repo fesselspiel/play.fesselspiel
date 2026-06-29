@@ -40,7 +40,10 @@ export async function GET(request: NextRequest) {
     }
   });
 
-  const response = NextResponse.redirect(new URL(payload.redirectTo, request.url), { status: 303 });
+  const response = new NextResponse(null, {
+    status: 303,
+    headers: { Location: payload.redirectTo }
+  });
   setSessionCookie(response, createSessionToken(user.id, false), false);
   return response;
 }
