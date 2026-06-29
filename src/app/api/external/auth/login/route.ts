@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createApiToken } from "@/lib/api-tokens";
 import { login } from "@/lib/auth";
 import { logAction, userDisplayName } from "@/lib/audit";
-import { publicCapabilitySummary } from "@/lib/capabilities";
+import { publicCapabilitySummaryForTenant } from "@/lib/capability-runtime";
 import { featureEnabled } from "@/lib/features";
 import { currentTenant, primaryTenantDomain } from "@/lib/tenancy";
 import { prisma } from "@/lib/prisma";
@@ -52,6 +52,8 @@ export async function POST(request: NextRequest) {
     href: "/settings/api"
   });
 
+  const capabilities = await publicCapabilitySummaryForTenant(tenant.id, tenant.features);
+
   return NextResponse.json({
     ok: true,
     token,
@@ -69,6 +71,6 @@ export async function POST(request: NextRequest) {
       name: tenant.name,
       domain: primaryTenantDomain(tenant)
     },
-    capabilities: publicCapabilitySummary(tenant.features, featureEnabled)
+    capabilities
   });
 }

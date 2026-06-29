@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
-import { featureEnabled } from "@/lib/features";
-import { publicCapabilitySummary } from "@/lib/capabilities";
+import { publicCapabilitySummaryForTenant } from "@/lib/capability-runtime";
 
 export const runtime = "nodejs";
 
@@ -11,6 +10,8 @@ export async function GET(request: NextRequest) {
   const blocked = apiFeatureGate(auth.user, "externalApi");
   if (blocked) return blocked;
 
+  const capabilities = await publicCapabilitySummaryForTenant(auth.user.tenantId, auth.user.tenant?.features);
+
   return NextResponse.json({
     ok: true,
     tenantId: auth.user.tenantId,
@@ -19,6 +20,6 @@ export async function GET(request: NextRequest) {
       username: auth.user.username,
       name: auth.user.profile?.displayName || auth.user.name || auth.user.email
     },
-    capabilities: publicCapabilitySummary(auth.user.tenant?.features, featureEnabled)
+    capabilities
   });
 }
