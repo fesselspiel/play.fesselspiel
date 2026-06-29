@@ -59,6 +59,38 @@ Fehler:
 - `401 login_failed`: Benutzername/E-Mail oder Passwort falsch.
 - `403 feature_disabled`: Externe API ist fuer die aktuelle Seite nicht aktiv.
 
+## Web-Session Bridge fuer interne Browser
+
+Wenn die App eine Portal-Seite in einem internen Browser oeffnet, besitzt sie zwar den API-Token, aber noch keinen Web-Session-Cookie. Dafuer gibt es einen kurzlebigen Bridge-Endpunkt:
+
+```http
+POST /api/external/auth/web-session
+Authorization: Bearer fsp_...
+Content-Type: application/json
+```
+
+Body:
+
+```json
+{
+  "redirectTo": "/settings/push",
+  "ttlSeconds": 120
+}
+```
+
+Antwort:
+
+```json
+{
+  "ok": true,
+  "url": "https://playplaner.com/api/auth/web-session?token=...",
+  "expiresAt": "2026-06-29T12:00:00.000Z",
+  "ttlSeconds": 120
+}
+```
+
+Die App oeffnet `url` im internen Browser. Der Server prueft den signierten Kurzzeit-Token, setzt den normalen `fesselspiel_session` Cookie und leitet auf `redirectTo` weiter. `redirectTo` darf nur ein relativer Pfad sein; externe URLs werden auf `/` reduziert.
+
 ## Event Feed fuer Push
 
 Ereignisse basieren auf dem zentralen `AuditLog`. Alles, was im System sauber protokolliert wird, kann damit automatisch in der App sichtbar werden.
@@ -266,6 +298,7 @@ Der Eventfeed ist bewusst nicht global:
 Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter `/settings/api-control`:
 
 - `POST /api/external/auth/login`
+- `POST /api/external/auth/web-session`
 - `GET /api/external/events`
 - `GET /api/external/events/actions`
 - `GET /api/external/catalog/categories`

@@ -668,9 +668,10 @@ export const capabilities: readonly Capability[] = [
         type: "write",
         description: "Meldet einen Benutzer fuer native Apps an und erzeugt einen API-Token fuer die aktuelle Seite.",
         apiEndpoints: [
-          { method: "POST", path: "/api/external/auth/login", description: "Native App Anmeldung mit `identifier`, `password`, optional `deviceName`; Antwort enthaelt Bearer Token, Benutzer, Seite und Capabilities." }
+          { method: "POST", path: "/api/external/auth/login", description: "Native App Anmeldung mit `identifier`, `password`, optional `deviceName`; Antwort enthaelt Bearer Token, Benutzer, Seite und Capabilities." },
+          { method: "POST", path: "/api/external/auth/web-session", description: "Erzeugt mit Bearer Token einen kurzlebigen Web-Login-Link fuer interne Browser. Body optional: `redirectTo`, `ttlSeconds`." }
         ],
-        auditActions: ["api_mobile_login", "api_mobile_login_failed"]
+        auditActions: ["api_mobile_login", "api_mobile_login_failed", "api_web_session_link_created", "api_web_session_login"]
       },
       {
         key: "tokens",

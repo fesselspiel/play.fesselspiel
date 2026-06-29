@@ -37,6 +37,14 @@ const manualToolCatalog = ([
     category: "Portal"
   },
   {
+    id: "webSessionBridge",
+    method: "POST",
+    path: "/api/external/auth/web-session",
+    title: "Web-Login-Link",
+    description: "Erzeugt aus einem Bearer-Token einen kurzlebigen Web-Session-Link fuer interne Browser.",
+    category: "Portal"
+  },
+  {
     id: "playReady",
     method: "GET",
     methods: ["GET", "POST"],
