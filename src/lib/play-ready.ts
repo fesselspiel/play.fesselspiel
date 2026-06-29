@@ -21,9 +21,8 @@ export function playReadyStateToBoolean(state: PlayReadyState) {
 }
 
 export function nextPlayReadyState(state: PlayReadyState): PlayReadyState {
-  if (state === "red") return "green";
   if (state === "green") return "yellow";
-  return "red";
+  return "green";
 }
 
 export function playReadyLabel(state: PlayReadyState) {

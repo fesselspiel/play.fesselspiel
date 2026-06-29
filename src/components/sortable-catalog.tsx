@@ -163,14 +163,14 @@ export function SortableToyList({ items, canSort = false }: { items: ToyItem[]; 
                   ) : null}
                   <p className="mt-4 text-sm leading-6 text-graphite">{toy.description || "Keine Beschreibung hinterlegt."}</p>
                   <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <Link href={`/toys/${toy.slug}/edit`} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
+                    <Link href={`/toys/${toy.slug}`} className="inline-flex min-h-10 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
+                      Detail öffnen
+                    </Link>
+                    <Link href={`/toys/${toy.slug}/edit`} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink hover:bg-paper">
                       <Pencil className="h-4 w-4" />
                       Bearbeiten
                     </Link>
                     <FavoriteButton kind="toy" id={toy.id} initialFavorite={toy.isFavorite} />
-                    <Link href={`/toys/${toy.slug}`} className="inline-flex min-h-10 items-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink hover:bg-paper">
-                      Detail öffnen
-                    </Link>
                     <span className="text-xs text-graphite">Direkt bearbeiten oder als Favorit markieren. Details bleiben für QR-Code, Copy-Link und Verknüpfungen verfügbar.</span>
                   </div>
                 </div>
@@ -266,14 +266,14 @@ export function SortablePositionList({ items, canSort = false, showTools = true 
                     </div>
                   ) : null}
                   <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <Link href={`/positions/${position.slug}/edit`} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
+                    <Link href={`/positions/${position.slug}`} className="inline-flex min-h-10 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
+                      Detail öffnen
+                    </Link>
+                    <Link href={`/positions/${position.slug}/edit`} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink hover:bg-paper">
                       <Pencil className="h-4 w-4" />
                       Bearbeiten
                     </Link>
                     <FavoriteButton kind="position" id={position.id} initialFavorite={position.isFavorite} />
-                    <Link href={`/positions/${position.slug}`} className="inline-flex min-h-10 items-center rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink hover:bg-paper">
-                      Detail öffnen
-                    </Link>
                     <span className="text-xs text-graphite">Direkt bearbeiten oder als Favorit markieren. Details bleiben für Bild und Verknüpfungen verfügbar.</span>
                   </div>
                 </div>
