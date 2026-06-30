@@ -2,7 +2,7 @@ import { sign } from "crypto";
 import { connect } from "http2";
 import type { AuditLog, NativePushDevice } from "@prisma/client";
 import { decryptSecret } from "@/lib/crypto";
-import { actionLabel } from "@/lib/notification-actions";
+import { actionLabel, notificationActionAliases } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
 
 type AuditForPush = Pick<AuditLog, "id" | "actorId" | "action" | "title" | "href" | "entityType" | "entityId" | "details">;
@@ -411,7 +411,7 @@ function renderTemplate(template: string, audit: AuditForPush, actor: Parameters
 
 async function findRulesForAudit(audit: AuditForPush, tenantId: string) {
   return prisma.nativePushNotificationRule.findMany({
-    where: { tenantId, action: audit.action, active: true },
+    where: { tenantId, action: { in: notificationActionAliases(audit.action) }, active: true },
     include: {
       targetUser: { include: { profile: true } },
       targetCircle: true

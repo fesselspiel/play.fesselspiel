@@ -99,8 +99,43 @@ export function isLegacyAuditAction(action: string) {
   return legacyAuditActionPrefixes.some((prefix) => action.startsWith(prefix));
 }
 
+export function notificationActionAliases(action: string) {
+  const aliases = new Set<string>([action]);
+
+  const trackerMatch = action.match(/^tracker_(.+)_(started|stopped)_(api|control|telegram)$/);
+  if (trackerMatch) aliases.add(`tracker_${trackerMatch[1]}_${trackerMatch[2]}`);
+
+  const suffixes = [
+    "_telegram_agent",
+    "_via_control",
+    "_control",
+    "_telegram",
+    "_api"
+  ];
+  for (const suffix of suffixes) {
+    if (action.endsWith(suffix)) aliases.add(action.slice(0, -suffix.length));
+  }
+
+  return Array.from(aliases);
+}
+
+export function notificationRuleActionMatches(actions: string[]) {
+  const matches = new Set<string>();
+  for (const action of actions) {
+    if (!action) continue;
+    matches.add(action);
+    if (notificationActionAliases(action).length > 1) continue;
+    matches.add(`${action}_api`);
+    matches.add(`${action}_control`);
+    matches.add(`${action}_telegram`);
+    matches.add(`${action}_telegram_agent`);
+    matches.add(`${action}_via_control`);
+  }
+  return Array.from(matches);
+}
+
 function trackerActionLabel(action: string, trackerTitle?: string) {
-  const match = action.match(/^tracker_(.+)_(created|updated|deleted|started|stopped|started_api|stopped_api|started_telegram|stopped_telegram)$/);
+  const match = action.match(/^tracker_(.+)_(created|updated|deleted|started|stopped|started_api|stopped_api|started_control|stopped_control|started_telegram|stopped_telegram)$/);
   if (!match) return null;
   const title = trackerTitle || match[1];
   const labels: Record<string, string> = {
@@ -111,6 +146,8 @@ function trackerActionLabel(action: string, trackerTitle?: string) {
     stopped: "beendet",
     started_api: "per API gestartet",
     stopped_api: "per API beendet",
+    started_control: "per API-Steuerung gestartet",
+    stopped_control: "per API-Steuerung beendet",
     started_telegram: "per Telegram gestartet",
     stopped_telegram: "per Telegram beendet"
   };
@@ -198,6 +235,8 @@ export async function notificationActionOptions({
     [`tracker_${tracker.key}_stopped`, `${tracker.title} beendet`] as const,
     [`tracker_${tracker.key}_started_api`, `${tracker.title} per API gestartet`] as const,
     [`tracker_${tracker.key}_stopped_api`, `${tracker.title} per API beendet`] as const,
+    [`tracker_${tracker.key}_started_control`, `${tracker.title} per API-Steuerung gestartet`] as const,
+    [`tracker_${tracker.key}_stopped_control`, `${tracker.title} per API-Steuerung beendet`] as const,
     [`tracker_${tracker.key}_started_telegram`, `${tracker.title} per Telegram gestartet`] as const,
     [`tracker_${tracker.key}_stopped_telegram`, `${tracker.title} per Telegram beendet`] as const
   ]);

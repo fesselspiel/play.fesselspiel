@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { accessibleOwnerIds } from "@/lib/access";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
-import { actionLabel } from "@/lib/notification-actions";
+import { actionLabel, notificationActionAliases } from "@/lib/notification-actions";
 import { defaultFeedBodyTemplate, defaultFeedTitleTemplate, renderFeedTemplate } from "@/lib/feed";
 import { prisma } from "@/lib/prisma";
 
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
   });
   const pageEntries = entries.slice(0, limit);
   const nextCursor = entries.length > limit ? entries[limit]?.id || null : null;
-  const actionKeys = Array.from(new Set(pageEntries.map((entry) => entry.action)));
+  const actionKeys = Array.from(new Set(pageEntries.flatMap((entry) => notificationActionAliases(entry.action))));
   const feedRules = actionKeys.length && auth.user.tenantId
     ? await prisma.feedRule.findMany({
         where: { tenantId: auth.user.tenantId, active: true, action: { in: actionKeys } }
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
     },
     items: pageEntries.map((entry) => {
       const actor = entry.actor;
-      const rule = feedRuleByAction.get(entry.action);
+      const rule = notificationActionAliases(entry.action).map((action) => feedRuleByAction.get(action)).find(Boolean);
       const href = entry.href || null;
       const url = absoluteUrl(request, href);
       const notificationTitle = renderFeedTemplate(rule?.titleTemplate || defaultFeedTitleTemplate(), entry, actor);

@@ -13,6 +13,7 @@ import { currentUser } from "@/lib/auth";
 import { hasFeature, requireFeature } from "@/lib/features";
 import { feedDetailsText, renderFeedTemplate } from "@/lib/feed";
 import { homeSectionOrder } from "@/lib/home-layout";
+import { notificationActionAliases, notificationRuleActionMatches } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatDateTime, formatMinutes } from "@/lib/dates";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
@@ -422,10 +423,11 @@ export default async function DashboardPage() {
       : Promise.resolve([])
   ]);
   const feedRuleByAction = new Map(feedRules.map((rule) => [rule.action, rule]));
+  const feedEntryActions = notificationRuleActionMatches(feedRules.map((rule) => rule.action));
   const feedEntries = feedRules.length
     ? await prisma.auditLog.findMany({
         where: {
-          action: { in: feedRules.map((rule) => rule.action) },
+          action: { in: feedEntryActions },
           OR: [{ actorId: { in: auditAccessIds } }, { actorId: null }]
         },
         include: {
@@ -678,7 +680,7 @@ export default async function DashboardPage() {
             </div>
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               {feedEntries.map((entry) => {
-                const rule = feedRuleByAction.get(entry.action);
+                const rule = notificationActionAliases(entry.action).map((action) => feedRuleByAction.get(action)).find(Boolean);
                 const title = rule ? renderFeedTemplate(rule.titleTemplate, entry, entry.actor) : entry.title;
                 const body = rule ? renderFeedTemplate(rule.bodyTemplate, entry, entry.actor) : feedDetailsText(entry.details);
                 const actorName = entry.actor?.profile?.displayName || entry.actor?.name || entry.actor?.username || entry.actor?.email || "System";

@@ -1,6 +1,6 @@
 import type { AuditLog } from "@prisma/client";
 import { env } from "@/lib/env";
-import { actionLabel } from "@/lib/notification-actions";
+import { actionLabel, notificationActionAliases } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
 
 type AuditForPush = AuditLog;
@@ -48,7 +48,7 @@ export async function dispatchExternalPushNotifications(audit: AuditForPush) {
   const tenantId = await tenantIdForAudit(audit);
   if (!tenantId) return;
   const rules = await prisma.externalPushRule.findMany({
-    where: { tenantId, action: audit.action, active: true },
+    where: { tenantId, action: { in: notificationActionAliases(audit.action) }, active: true },
     orderBy: { createdAt: "asc" }
   });
   if (!rules.length) return;

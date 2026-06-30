@@ -1,6 +1,6 @@
 import type { AuditLog } from "@prisma/client";
 import { env } from "@/lib/env";
-import { actionLabel } from "@/lib/notification-actions";
+import { actionLabel, notificationActionAliases } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
 import { sendTelegramMessage, telegramHtml } from "@/lib/telegram";
 
@@ -41,7 +41,7 @@ function renderTemplate(template: string, audit: Pick<AuditForNotification, "act
 
 async function findRulesForAudit(audit: Pick<AuditForNotification, "action">) {
   return prisma.telegramNotificationRule.findMany({
-    where: { action: audit.action, active: true },
+    where: { action: { in: notificationActionAliases(audit.action) }, active: true },
     include: {
       settings: { include: { telegramChats: { where: { status: "ACTIVE" } } } },
       telegramSettings: { include: { telegramChats: { where: { status: "ACTIVE" } } } },

@@ -1,6 +1,6 @@
 import type { AuditLog } from "@prisma/client";
 import { env } from "@/lib/env";
-import { actionLabel } from "@/lib/notification-actions";
+import { actionLabel, notificationActionAliases } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
 import { sendTemplateEmail } from "@/lib/email";
 
@@ -43,7 +43,7 @@ function variablesForAudit(
 
 async function findRulesForAudit(audit: Pick<AuditForNotification, "action">) {
   return prisma.emailNotificationRule.findMany({
-    where: { action: audit.action, active: true },
+    where: { action: { in: notificationActionAliases(audit.action) }, active: true },
     include: {
       targetUser: { include: { profile: true } },
       targetCircle: true,
