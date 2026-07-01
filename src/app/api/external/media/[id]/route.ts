@@ -10,12 +10,20 @@ export const runtime = "nodejs";
 
 type MediaRouteParams = { params: { id: string } };
 
+function publicOrigin(request: NextRequest) {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host = forwardedHost || request.headers.get("host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
+  if (host && !host.startsWith("0.0.0.0")) return `${forwardedProto}://${host}`;
+  return process.env.NEXT_PUBLIC_BASE_URL || process.env.APP_URL || new URL(request.url).origin;
+}
+
 function absoluteUrl(request: NextRequest, path: string) {
-  return new URL(path, request.url).toString();
+  return new URL(path, publicOrigin(request)).toString();
 }
 
 function externalFileUrl(request: NextRequest, fileId: string) {
-  return new URL(`/api/external/files/${fileId}`, request.url).toString();
+  return new URL(`/api/external/files/${fileId}`, publicOrigin(request)).toString();
 }
 
 function parseVisibility(value: unknown) {
