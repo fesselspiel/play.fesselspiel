@@ -395,7 +395,9 @@ function actorName(actor?: { profile?: { displayName?: string | null } | null; n
 }
 
 function renderTemplate(template: string, audit: AuditForPush, actor: Parameters<typeof actorName>[0] | null) {
+  const detailsObject = auditDetails(audit);
   const details = audit.details ? JSON.stringify(audit.details) : "";
+  const message = stringDetail(detailsObject, ["text", "message", "body"]) || "";
   const values: Record<string, string> = {
     title: audit.title,
     actor: actorName(actor),
@@ -404,9 +406,29 @@ function renderTemplate(template: string, audit: AuditForPush, actor: Parameters
     entityType: audit.entityType || "",
     entityId: audit.entityId || "",
     url: audit.href || "",
+    message,
     details
   };
   return template.replace(/\{([a-zA-Z]+)\}/g, (match, key) => values[key] ?? match).trim();
+}
+
+function chatMessagePreview(audit: AuditForPush) {
+  const details = auditDetails(audit);
+  const text = stringDetail(details, ["text", "message", "body"]);
+  if (text) return text.length > 140 ? `${text.slice(0, 137)}...` : text;
+  const mimeType = stringDetail(details, ["fileMimeType", "mimeType"]);
+  if (mimeType?.startsWith("image/")) return "Bild gesendet";
+  if (mimeType?.startsWith("video/")) return "Video gesendet";
+  if (details.hasFile) return "Datei gesendet";
+  return audit.title;
+}
+
+function isChatPushAction(action: string) {
+  return action === "circle_chat_message_created" || action === "circle_chat_message_created_api";
+}
+
+function isLegacyChatPushTemplate(rule: Pick<NativePushRule, "titleTemplate" | "bodyTemplate">) {
+  return rule.titleTemplate === "Neue Chat-Nachricht" && rule.bodyTemplate === "{title}";
 }
 
 async function findRulesForAudit(audit: AuditForPush, tenantId: string) {
@@ -521,8 +543,9 @@ export async function dispatchNativePushNotifications(audit: AuditLog) {
       }
     });
     if (!devices.length) continue;
-    const title = renderTemplate(rule.titleTemplate, audit, actor) || actionLabel(audit.action);
-    const body = renderTemplate(rule.bodyTemplate, audit, actor) || audit.title;
+    const useChatDefault = isChatPushAction(audit.action) && isLegacyChatPushTemplate(rule);
+    const title = useChatDefault ? actorName(actor) : renderTemplate(rule.titleTemplate, audit, actor) || actionLabel(audit.action);
+    const body = useChatDefault ? chatMessagePreview(audit) : renderTemplate(rule.bodyTemplate, audit, actor) || audit.title;
     const delivery = { auditId: audit.id, action: audit.action, payload: payloadForAuditMessage(audit, title, body, rule.sound) };
     const results = await Promise.allSettled(devices.map((device) => sendToDevice(device, delivery, config, authorization)));
     results.forEach((result) => {

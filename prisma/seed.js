@@ -111,12 +111,13 @@ async function main() {
 
   const usersForMembership = await prisma.user.findMany({ select: { id: true, tenantId: true, circleId: true, role: true, active: true } });
   for (const user of usersForMembership) {
-    if (user.role === "SUPER_ADMIN") continue;
     const tenantId = user.tenantId || tenant.id;
+    if (user.role === "SUPER_ADMIN" && !user.tenantId) continue;
+    const membershipRole = user.role === "SUPER_ADMIN" ? "ADMIN" : user.role;
     await prisma.tenantMembership.upsert({
       where: { tenantId_userId: { tenantId, userId: user.id } },
-      update: { role: user.role, circleId: user.circleId, active: user.active },
-      create: { tenantId, userId: user.id, role: user.role, circleId: user.circleId, active: user.active }
+      update: { role: membershipRole, circleId: user.circleId, active: user.active },
+      create: { tenantId, userId: user.id, role: membershipRole, circleId: user.circleId, active: user.active }
     });
   }
   const ownerTenant = async (ownerId) => {
@@ -281,10 +282,15 @@ async function main() {
           tenantId: circle.tenantId,
           action: "circle_chat_message_created",
           targetCircleId: circle.id,
-          titleTemplate: "Neue Chat-Nachricht",
-          bodyTemplate: "{title}",
+          titleTemplate: "{actor}",
+          bodyTemplate: "{message}",
           active: true
         }
+      });
+    } else if (existingChatPushRule.titleTemplate === "Neue Chat-Nachricht" && existingChatPushRule.bodyTemplate === "{title}") {
+      await prisma.nativePushNotificationRule.update({
+        where: { id: existingChatPushRule.id },
+        data: { titleTemplate: "{actor}", bodyTemplate: "{message}" }
       });
     }
   }

@@ -49,6 +49,7 @@ export function CircleChatClient({
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
   const lastMessageAt = messages.at(-1)?.createdAt;
   const filePreview = useMemo(() => file && file.type.startsWith("image/") ? URL.createObjectURL(file) : "", [file]);
 
@@ -175,7 +176,7 @@ export function CircleChatClient({
             </div>
           </div>
         ) : null}
-        <form onSubmit={submit} className="border-t border-line bg-paper p-3">
+        <form ref={formRef} onSubmit={submit} className="border-t border-line bg-paper p-3">
           {error ? <div className="mb-2 rounded-md border border-redbrand/30 bg-redbrand/10 px-3 py-2 text-sm text-redbrand">{error}</div> : null}
           <div className="flex items-end gap-2">
             <input ref={fileInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={(event) => setFile(event.target.files?.[0] || null)} />
@@ -185,6 +186,12 @@ export function CircleChatClient({
             <textarea
               value={body}
               onChange={(event) => setBody(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  if (!sending) formRef.current?.requestSubmit();
+                }
+              }}
               rows={1}
               placeholder="Nachricht schreiben..."
               className="min-h-11 flex-1 resize-none rounded-md border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-redbrand dark:bg-black/20"
