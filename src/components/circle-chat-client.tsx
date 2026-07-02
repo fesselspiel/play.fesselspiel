@@ -101,7 +101,8 @@ export function CircleChatClient({
   }
 
   return (
-    <div className="grid min-h-[70vh] gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+    <section className="rounded-lg border border-line bg-surface p-3 shadow-soft sm:p-4">
+      <div className="grid min-h-[68vh] gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
       <aside className="rounded-md border border-line bg-paper p-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-graphite">Zirkel</h2>
         <div className="mt-4 grid gap-3">
@@ -124,7 +125,7 @@ export function CircleChatClient({
         </div>
       </aside>
 
-      <section className="flex min-h-[70vh] flex-col overflow-hidden rounded-md border border-line bg-surface">
+      <section className="flex min-h-[68vh] flex-col overflow-hidden rounded-md border border-line bg-canvas">
         <div className="border-b border-line bg-paper px-4 py-3">
           <div className="text-sm font-semibold text-ink">Zirkel-Chat</div>
           <div className="text-xs text-graphite">Live-Nachrichten, Bilder und später App-Push.</div>
@@ -195,6 +196,7 @@ export function CircleChatClient({
           </div>
         </form>
       </section>
-    </div>
+      </div>
+    </section>
   );
 }

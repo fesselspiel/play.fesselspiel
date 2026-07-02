@@ -40,6 +40,7 @@ async function main() {
     "ideas",
     "playReady",
     "invites",
+    "circleChat",
     "media",
     "activities",
     "orders",
@@ -264,6 +265,28 @@ async function main() {
         fieldValues: {}
       }
     });
+  }
+
+  for (const circle of await prisma.circle.findMany({ where: { tenantId: { not: null } }, select: { id: true, tenantId: true } })) {
+    const existingChatPushRule = await prisma.nativePushNotificationRule.findFirst({
+      where: {
+        tenantId: circle.tenantId,
+        action: "circle_chat_message_created",
+        targetCircleId: circle.id
+      }
+    });
+    if (!existingChatPushRule) {
+      await prisma.nativePushNotificationRule.create({
+        data: {
+          tenantId: circle.tenantId,
+          action: "circle_chat_message_created",
+          targetCircleId: circle.id,
+          titleTemplate: "Neue Chat-Nachricht",
+          bodyTemplate: "{title}",
+          active: true
+        }
+      });
+    }
   }
 
   if (!admin || process.env.SEED_DEMO_DATA !== "true" || process.env.SEED_ALLOW_DEMO_RECREATE !== "true") return;
