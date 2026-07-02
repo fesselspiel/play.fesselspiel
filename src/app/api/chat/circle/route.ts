@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
-import { requireCircleChatScope, serializeCircleChatMessage } from "@/lib/circle-chat";
+import { createCircleChatReceipts, requireCircleChatScope, serializeCircleChatMessage } from "@/lib/circle-chat";
 import { featureEnabled } from "@/lib/feature-utils";
 import { saveUploadedFile } from "@/lib/files";
 import { logAction, userDisplayName } from "@/lib/audit";
@@ -24,13 +24,13 @@ export async function GET(request: NextRequest) {
   };
   const messages = await prisma.circleChatMessage.findMany({
     where,
-    include: { sender: { include: { profile: true } }, file: true },
+    include: { sender: { include: { profile: true } }, file: true, receipts: { include: { user: { include: { profile: true } } } } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit
   });
   return NextResponse.json({
     ok: true,
-    items: messages.reverse().map((message) => serializeCircleChatMessage(message, user.id))
+    items: messages.reverse().map((message) => serializeCircleChatMessage(message, user.id, user.role))
   });
 }
 
@@ -53,7 +53,12 @@ export async function POST(request: NextRequest) {
       body: body || null,
       fileId: asset?.id || null
     },
-    include: { sender: { include: { profile: true } }, file: true }
+    include: { sender: { include: { profile: true } }, file: true, receipts: { include: { user: { include: { profile: true } } } } }
+  });
+  await createCircleChatReceipts(message.id, scope.tenantId, scope.circleId, user.id);
+  const messageWithReceipts = await prisma.circleChatMessage.findUniqueOrThrow({
+    where: { id: message.id },
+    include: { sender: { include: { profile: true } }, file: true, receipts: { include: { user: { include: { profile: true } } } } }
   });
   await logAction({
     actorId: user.id,
@@ -70,5 +75,5 @@ export async function POST(request: NextRequest) {
       excludeActorFromTargets: true
     }
   });
-  return NextResponse.json({ ok: true, message: serializeCircleChatMessage(message, user.id) });
+  return NextResponse.json({ ok: true, message: serializeCircleChatMessage(messageWithReceipts, user.id, user.role) });
 }

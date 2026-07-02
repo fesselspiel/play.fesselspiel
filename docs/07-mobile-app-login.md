@@ -188,6 +188,120 @@ Antwort:
 }
 ```
 
+## Zirkel-Chat
+
+Der Chat ist ein geschuetzter Echtzeit-Chat fuer den aktiven Zirkel des API-Benutzers. Die App nutzt Bearer Token.
+
+### Nachrichten lesen
+
+```http
+GET /api/external/chat/circle?limit=50
+Authorization: Bearer fsp_...
+```
+
+Antwortauszug:
+
+```json
+{
+  "ok": true,
+  "items": [
+    {
+      "id": "message_id",
+      "body": "Hallo",
+      "createdAt": "2026-07-02T20:00:00.000Z",
+      "deleted": false,
+      "own": true,
+      "canDelete": true,
+      "permissions": { "delete": true },
+      "sender": {
+        "id": "user_id",
+        "displayName": "Gabriel",
+        "imageUrl": "/api/files/..."
+      },
+      "file": {
+        "id": "file_id",
+        "url": "/api/files/file_id",
+        "downloadPath": "/api/files/file_id",
+        "originalName": "bild.png",
+        "mimeType": "image/png",
+        "sizeBytes": 12345,
+        "kind": "image"
+      },
+      "receipt": {
+        "deliveredAt": "2026-07-02T20:00:00.000Z",
+        "readAt": "2026-07-02T20:00:00.000Z"
+      },
+      "receipts": [
+        {
+          "userId": "user_id",
+          "displayName": "Maren",
+          "deliveredAt": "2026-07-02T20:00:00.000Z",
+          "readAt": null
+        }
+      ],
+      "readSummary": {
+        "recipients": 1,
+        "delivered": 1,
+        "read": 0,
+        "allDelivered": true,
+        "allRead": false
+      }
+    }
+  ]
+}
+```
+
+`readSummary` ist fuer WhatsApp-artige Haken gedacht: eigene Nachricht gesendet, an Empfaenger geliefert, von Empfaengern gelesen. Bei mehreren Zirkelmitgliedern sind die Werte aggregiert.
+
+### Nachricht senden
+
+```http
+POST /api/external/chat/circle
+Authorization: Bearer fsp_...
+Content-Type: application/json
+
+{ "body": "Hallo" }
+```
+
+Alternativ multipart:
+
+```http
+POST /api/external/chat/circle
+Authorization: Bearer fsp_...
+Content-Type: multipart/form-data
+
+body=Hallo
+file=@bild.png
+```
+
+Die Antwort liefert `item` und zur Abwaertskompatibilitaet auch `message`, beide mit demselben serialisierten Chat-Objekt.
+
+### Als gelesen markieren
+
+```http
+POST /api/external/chat/circle/read
+Authorization: Bearer fsp_...
+Content-Type: application/json
+
+{ "upToMessageId": "message_id" }
+```
+
+Alternativen:
+
+```json
+{ "messageIds": ["message_1", "message_2"] }
+{ "upToCreatedAt": "2026-07-02T20:00:00.000Z" }
+```
+
+### Nachricht loeschen
+
+```http
+DELETE /api/external/chat/circle/{messageId}
+Authorization: Bearer fsp_...
+```
+
+Eigene Nachrichten koennen geloescht werden; Admins koennen alle Nachrichten des eigenen Zirkels loeschen. Es ist ein Soft-Delete. Neue GET-Responses liefern geloeschte Nachrichten nicht mehr aus. Das Event heisst `circle_chat_message_deleted_api`.
+
 ## Katalog fuer native Apps
 
 Spielsachen, Szenen und deren Kategorien sind ueber eigene externe Endpunkte abrufbar. Alle Endpunkte nutzen denselben API-Token wie der Eventfeed.

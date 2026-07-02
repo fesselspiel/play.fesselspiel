@@ -118,6 +118,25 @@ export const capabilities: readonly Capability[] = [
           { method: "POST", path: "/api/external/chat/circle", description: "Nachricht per JSON `{ body }` oder multipart mit `body` und `file` senden." }
         ],
         auditActions: ["circle_chat_message_created", "circle_chat_message_created_api"]
+      },
+      {
+        key: "markRead",
+        label: "Nachrichten als gelesen markieren",
+        type: "write",
+        description: "Markiert einzelne Chat-Nachrichten oder alle Nachrichten bis zu einer Nachricht als gelesen.",
+        apiEndpoints: [
+          { method: "POST", path: "/api/external/chat/circle/read", description: "Body `{ messageIds?: string[], upToMessageId?: string, upToCreatedAt?: string }`." }
+        ]
+      },
+      {
+        key: "delete",
+        label: "Nachricht löschen",
+        type: "delete",
+        description: "Löscht eine eigene Nachricht oder als Admin eine beliebige Nachricht im Zirkel-Chat per Soft-Delete.",
+        apiEndpoints: [
+          { method: "DELETE", path: "/api/external/chat/circle/{messageId}", description: "Soft-Delete. GET-Responses liefern pro Nachricht `canDelete` und `permissions.delete`." }
+        ],
+        auditActions: ["circle_chat_message_deleted", "circle_chat_message_deleted_api"]
       }
     ]
   },

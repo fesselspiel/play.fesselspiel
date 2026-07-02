@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
             deletedAt: null,
             createdAt: { gt: new Date(lastSeen) }
           },
-          include: { sender: { include: { profile: true } }, file: true },
+          include: { sender: { include: { profile: true } }, file: true, receipts: { include: { user: { include: { profile: true } } } } },
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
           take: 50
         });
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
           controller.enqueue(encoder.encode(event({
             ok: true,
             type: "messages",
-            items: messages.map((message) => serializeCircleChatMessage(message, user.id))
+            items: messages.map((message) => serializeCircleChatMessage(message, user.id, user.role))
           })));
         } else {
           controller.enqueue(encoder.encode(": keepalive\n\n"));

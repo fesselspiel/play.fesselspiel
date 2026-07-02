@@ -22,6 +22,8 @@ export const knownAuditActions = [
   ["album_updated", "Album geändert"],
   ["circle_chat_message_created", "Chat-Nachricht gesendet"],
   ["circle_chat_message_created_api", "Chat-Nachricht per API gesendet"],
+  ["circle_chat_message_deleted", "Chat-Nachricht gelöscht"],
+  ["circle_chat_message_deleted_api", "Chat-Nachricht per API gelöscht"],
   ["circle_chat_viewed", "Chat geöffnet"],
   ["idea_created", "Idee festgehalten"],
   ["idea_liked", "Idee geliked"],

@@ -192,6 +192,7 @@ model User {
   nativePushDeliveries NativePushDelivery[]
   nativePushNotificationTargets NativePushNotificationRule[] @relation("NativePushNotificationTargetUser")
   circleChatMessages CircleChatMessage[] @relation("CircleChatSender")
+  circleChatReceipts CircleChatReceipt[]
 
   @@index([tenantId])
   @@index([circleId])
@@ -1131,10 +1132,27 @@ model CircleChatMessage {
   circle      Circle    @relation(fields: [circleId], references: [id], onDelete: Cascade)
   sender      User      @relation("CircleChatSender", fields: [senderId], references: [id], onDelete: Cascade)
   file        FileAsset? @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  receipts    CircleChatReceipt[]
 
   @@index([tenantId, circleId, createdAt])
   @@index([senderId, createdAt])
   @@index([fileId])
+}
+
+model CircleChatReceipt {
+  id          String    @id @default(cuid())
+  messageId   String
+  userId      String
+  deliveredAt DateTime?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  message     CircleChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId, readAt])
+  @@index([messageId, readAt])
 }
 
 model TelegramChat {
