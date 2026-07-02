@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { MessageCircle } from "lucide-react";
 import { CircleChatClient } from "@/components/circle-chat-client";
-import { PageGuide, PageHeader } from "@/components/ui";
+import { PageGuide, PageHeader, Panel } from "@/components/ui";
 import { currentUser } from "@/lib/auth";
 import { circleChatMembers, requireCircleChatScope, serializeCircleChatMessage } from "@/lib/circle-chat";
 import { requireFeature } from "@/lib/features";
@@ -14,7 +14,28 @@ export default async function CircleChatPage() {
   await requireFeature("circleChat");
   const user = await currentUser();
   if (!user) redirect("/login");
-  const scope = await requireCircleChatScope(user);
+  const scope = await requireCircleChatScope(user).catch(() => null);
+  if (!scope) {
+    return (
+      <>
+        <PageHeader
+          title="Chat"
+          subtitle={
+            <span className="inline-flex items-center gap-2">
+              <MessageCircle className="h-4 w-4 text-redbrand" />
+              Echtzeit-Chat für deinen Zirkel.
+            </span>
+          }
+        />
+        <Panel>
+          <h2 className="text-lg font-semibold text-ink">Kein Zirkel zugeordnet</h2>
+          <p className="mt-2 text-sm leading-6 text-graphite">
+            Diese Benutzeransicht ist aktuell keinem Zirkel zugeordnet. Der Chat wird sichtbar, sobald der Benutzer in der Benutzerverwaltung einem Zirkel zugeordnet ist.
+          </p>
+        </Panel>
+      </>
+    );
+  }
   const [messages, members] = await Promise.all([
     prisma.circleChatMessage.findMany({
       where: { tenantId: scope.tenantId, circleId: scope.circleId, deletedAt: null },
@@ -50,4 +71,3 @@ export default async function CircleChatPage() {
     </>
   );
 }
-

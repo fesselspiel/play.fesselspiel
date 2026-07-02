@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ ok: false, error: "Nicht angemeldet" }, { status: 401 });
   if (!featureEnabled(user.tenant?.features, "circleChat")) return NextResponse.json({ ok: false, error: "Feature deaktiviert" }, { status: 403 });
-  const scope = await requireCircleChatScope(user);
+  const scope = await requireCircleChatScope(user).catch(() => null);
+  if (!scope) return NextResponse.json({ ok: false, error: "Kein Zirkel für den Chat zugeordnet" }, { status: 403 });
   const limit = Math.min(100, Math.max(1, Number(request.nextUrl.searchParams.get("limit") || 50)));
   const after = request.nextUrl.searchParams.get("after");
   const where = {
@@ -37,7 +38,8 @@ export async function POST(request: NextRequest) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ ok: false, error: "Nicht angemeldet" }, { status: 401 });
   if (!featureEnabled(user.tenant?.features, "circleChat")) return NextResponse.json({ ok: false, error: "Feature deaktiviert" }, { status: 403 });
-  const scope = await requireCircleChatScope(user);
+  const scope = await requireCircleChatScope(user).catch(() => null);
+  if (!scope) return NextResponse.json({ ok: false, error: "Kein Zirkel für den Chat zugeordnet" }, { status: 403 });
   const formData = await request.formData();
   const body = String(formData.get("body") || "").trim();
   const file = formData.get("file") as File | null;

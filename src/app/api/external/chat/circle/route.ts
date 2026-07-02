@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "circleChat");
   if (blocked) return blocked;
-  const scope = await requireCircleChatScope(auth.user);
+  const scope = await requireCircleChatScope(auth.user).catch(() => null);
+  if (!scope) return NextResponse.json({ ok: false, error: "Kein Zirkel für den Chat zugeordnet" }, { status: 403 });
   const limit = Math.min(100, Math.max(1, Number(request.nextUrl.searchParams.get("limit") || 50)));
   const after = request.nextUrl.searchParams.get("after");
   const messages = await prisma.circleChatMessage.findMany({
@@ -37,7 +38,8 @@ export async function POST(request: NextRequest) {
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "circleChat");
   if (blocked) return blocked;
-  const scope = await requireCircleChatScope(auth.user);
+  const scope = await requireCircleChatScope(auth.user).catch(() => null);
+  if (!scope) return NextResponse.json({ ok: false, error: "Kein Zirkel für den Chat zugeordnet" }, { status: 403 });
   const contentType = request.headers.get("content-type") || "";
   let body = "";
   let file: File | null = null;
