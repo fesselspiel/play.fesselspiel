@@ -9,13 +9,15 @@ export async function POST(request: NextRequest) {
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "circleChat");
   if (blocked) return blocked;
-  const scope = await requireCircleChatScope(auth.user).catch(() => null);
-  if (!scope) return NextResponse.json({ ok: false, error: "Kein Zirkel für den Chat zugeordnet" }, { status: 403 });
   const payload = await request.json().catch(() => ({})) as {
+    circleId?: unknown;
     messageIds?: unknown;
     upToMessageId?: unknown;
     upToCreatedAt?: unknown;
   };
+  const requestedCircleId = typeof payload.circleId === "string" ? payload.circleId : request.nextUrl.searchParams.get("circleId");
+  const scope = await requireCircleChatScope(auth.user, requestedCircleId).catch(() => null);
+  if (!scope) return NextResponse.json({ ok: false, error: "Kein Zirkel für den Chat zugeordnet" }, { status: 403 });
   const messageIds = Array.isArray(payload.messageIds)
     ? payload.messageIds.map((id) => String(id)).filter(Boolean).slice(0, 200)
     : undefined;
@@ -27,5 +29,5 @@ export async function POST(request: NextRequest) {
     upToMessageId: typeof payload.upToMessageId === "string" ? payload.upToMessageId : null,
     upToCreatedAt: typeof payload.upToCreatedAt === "string" ? dateFromValue(payload.upToCreatedAt) : null
   });
-  return NextResponse.json({ ok: true, count: result.count, readAt: result.readAt.toISOString() });
+  return NextResponse.json({ ok: true, circle: { id: scope.circleId, name: scope.circleName }, count: result.count, readAt: result.readAt.toISOString() });
 }

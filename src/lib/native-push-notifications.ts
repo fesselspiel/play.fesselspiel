@@ -94,6 +94,7 @@ function targetScreenForAudit(audit: AuditForPush) {
   if (audit.href) {
     if (audit.href.startsWith("/settings/push")) return "setup";
     if (audit.href.startsWith("/settings")) return "setup";
+    if (audit.href.startsWith("/chat")) return "chat";
     if (audit.href.startsWith("/media")) return "media";
     if (audit.href.startsWith("/toys")) return "toys";
     if (audit.href.startsWith("/positions")) return "positions";
@@ -210,6 +211,8 @@ function payloadForAuditMessage(audit: AuditForPush, title: string, body: string
     auditId: audit.id,
     eventId: audit.entityType === "event" || audit.action.startsWith("event_") ? audit.entityId : null,
     threadId: stringDetail(auditDetails(audit), ["threadId", "telegramThreadId", "messageThreadId"]),
+    circleId: stringDetail(auditDetails(audit), ["circleId"]),
+    circleName: stringDetail(auditDetails(audit), ["circleName"]),
     imageUrl: imageUrlForAudit(audit),
     sound,
     action: audit.action,

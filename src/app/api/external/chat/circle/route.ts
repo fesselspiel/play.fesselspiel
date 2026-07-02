@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "circleChat");
   if (blocked) return blocked;
-  const scope = await requireCircleChatScope(auth.user).catch(() => null);
+  const requestedCircleId = request.nextUrl.searchParams.get("circleId");
+  const scope = await requireCircleChatScope(auth.user, requestedCircleId).catch(() => null);
   if (!scope) return NextResponse.json({ ok: false, error: "Kein Zirkel für den Chat zugeordnet" }, { status: 403 });
   const limit = Math.min(100, Math.max(1, Number(request.nextUrl.searchParams.get("limit") || 50)));
   const after = request.nextUrl.searchParams.get("after");
@@ -23,12 +24,13 @@ export async function GET(request: NextRequest) {
       deletedAt: null,
       ...(after ? { createdAt: { gt: new Date(after) } } : {})
     },
-    include: { sender: { include: { profile: true } }, file: true, receipts: { include: { user: { include: { profile: true } } } } },
+    include: { circle: true, sender: { include: { profile: true } }, file: true, receipts: { include: { user: { include: { profile: true } } } } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit
   });
   return NextResponse.json({
     ok: true,
+    circle: { id: scope.circleId, name: scope.circleName },
     items: messages.reverse().map((message) => serializeCircleChatMessage(message, auth.user.id, auth.user.role))
   });
 }
@@ -38,19 +40,22 @@ export async function POST(request: NextRequest) {
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "circleChat");
   if (blocked) return blocked;
-  const scope = await requireCircleChatScope(auth.user).catch(() => null);
-  if (!scope) return NextResponse.json({ ok: false, error: "Kein Zirkel für den Chat zugeordnet" }, { status: 403 });
   const contentType = request.headers.get("content-type") || "";
   let body = "";
   let file: File | null = null;
+  let requestedCircleId: string | null = null;
   if (contentType.includes("multipart/form-data")) {
     const formData = await request.formData();
     body = String(formData.get("body") || "").trim();
+    requestedCircleId = String(formData.get("circleId") || "").trim() || null;
     file = formData.get("file") as File | null;
   } else {
     const payload = await request.json().catch(() => ({}));
     body = String(payload.body || payload.text || "").trim();
+    requestedCircleId = String(payload.circleId || "").trim() || null;
   }
+  const scope = await requireCircleChatScope(auth.user, requestedCircleId).catch(() => null);
+  if (!scope) return NextResponse.json({ ok: false, error: "Kein Zirkel für den Chat zugeordnet" }, { status: 403 });
   if (!body && (!file || file.size === 0)) return NextResponse.json({ ok: false, error: "Nachricht oder Bild fehlt" }, { status: 400 });
   const asset = await saveUploadedFile(auth.user.id, file, scope.tenantId);
   const message = await prisma.circleChatMessage.create({
@@ -61,12 +66,12 @@ export async function POST(request: NextRequest) {
       body: body || null,
       fileId: asset?.id || null
     },
-    include: { sender: { include: { profile: true } }, file: true, receipts: { include: { user: { include: { profile: true } } } } }
+    include: { circle: true, sender: { include: { profile: true } }, file: true, receipts: { include: { user: { include: { profile: true } } } } }
   });
   await createCircleChatReceipts(message.id, scope.tenantId, scope.circleId, auth.user.id);
   const messageWithReceipts = await prisma.circleChatMessage.findUniqueOrThrow({
     where: { id: message.id },
-    include: { sender: { include: { profile: true } }, file: true, receipts: { include: { user: { include: { profile: true } } } } }
+    include: { circle: true, sender: { include: { profile: true } }, file: true, receipts: { include: { user: { include: { profile: true } } } } }
   });
   await logAction({
     actorId: auth.user.id,
@@ -77,6 +82,9 @@ export async function POST(request: NextRequest) {
     href: "/chat",
     details: {
       circleId: scope.circleId,
+      circleName: scope.circleName,
+      targetScreen: "chat",
+      targetId: scope.circleId,
       hasFile: Boolean(asset),
       fileMimeType: asset?.mimeType || null,
       text: body ? body.slice(0, 240) : null,

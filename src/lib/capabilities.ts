@@ -100,12 +100,21 @@ export const capabilities: readonly Capability[] = [
     route: "/chat",
     actions: [
       {
+        key: "circles",
+        label: "Chat-Zirkel auflisten",
+        type: "read",
+        description: "Liest alle fuer den API-Benutzer zugänglichen Chat-Zirkel inklusive ungelesener Nachrichten.",
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/chat/circles", description: "Zugängliche Zirkel mit id, name, memberCount, unreadCount und lastMessage." }
+        ]
+      },
+      {
         key: "list",
         label: "Chat lesen",
         type: "read",
         description: "Liest die letzten Nachrichten im eigenen Zirkel-Chat.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/chat/circle?token=...&limit=50", description: "Letzte Zirkel-Chat-Nachrichten inklusive Bildanhängen abrufen." }
+          { method: "GET", path: "/api/external/chat/circle?token=...&limit=50&circleId=...", description: "Letzte Zirkel-Chat-Nachrichten inklusive Bildanhängen abrufen. `circleId` ist optional und waehlt request-basiert einen konkreten Zirkel." }
         ],
         auditActions: ["circle_chat_viewed"]
       },
@@ -115,7 +124,7 @@ export const capabilities: readonly Capability[] = [
         type: "write",
         description: "Sendet eine Textnachricht oder ein Bild in den Zirkel-Chat.",
         apiEndpoints: [
-          { method: "POST", path: "/api/external/chat/circle", description: "Nachricht per JSON `{ body }` oder multipart mit `body` und `file` senden." }
+          { method: "POST", path: "/api/external/chat/circle", description: "Nachricht per JSON `{ body, circleId? }` oder multipart mit `body`, `circleId?` und `file` senden." }
         ],
         auditActions: ["circle_chat_message_created", "circle_chat_message_created_api"]
       },
@@ -125,7 +134,7 @@ export const capabilities: readonly Capability[] = [
         type: "write",
         description: "Markiert einzelne Chat-Nachrichten oder alle Nachrichten bis zu einer Nachricht als gelesen.",
         apiEndpoints: [
-          { method: "POST", path: "/api/external/chat/circle/read", description: "Body `{ messageIds?: string[], upToMessageId?: string, upToCreatedAt?: string }`." }
+          { method: "POST", path: "/api/external/chat/circle/read", description: "Body `{ circleId?: string, messageIds?: string[], upToMessageId?: string, upToCreatedAt?: string }`." }
         ]
       },
       {

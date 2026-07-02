@@ -192,10 +192,50 @@ Antwort:
 
 Der Chat ist ein geschuetzter Echtzeit-Chat fuer den aktiven Zirkel des API-Benutzers. Die App nutzt Bearer Token.
 
+### Chat-Zirkel auflisten
+
+```http
+GET /api/external/chat/circles
+Authorization: Bearer fsp_...
+```
+
+Antwortauszug:
+
+```json
+{
+  "ok": true,
+  "count": 2,
+  "currentCircleId": "circle_id",
+  "circles": [
+    {
+      "id": "circle_id",
+      "name": "Maren & Gabriel",
+      "current": true,
+      "default": true,
+      "memberCount": 2,
+      "unreadCount": 1,
+      "lastMessage": {
+        "id": "message_id",
+        "body": "Hallo",
+        "createdAt": "2026-07-02T20:00:00.000Z",
+        "hasFile": false,
+        "fileKind": null,
+        "sender": {
+          "id": "user_id",
+          "displayName": "Gabriel"
+        }
+      }
+    }
+  ]
+}
+```
+
+Normale Benutzer sehen aktuell die Zirkel, in denen sie in der Seite Mitglied sind. Admins sehen alle Zirkel der Seite. Die Chat-Endpunkte akzeptieren `circleId` request-basiert, damit die App nicht global auf dem Server umschalten muss.
+
 ### Nachrichten lesen
 
 ```http
-GET /api/external/chat/circle?limit=50
+GET /api/external/chat/circle?limit=50&circleId=circle_id
 Authorization: Bearer fsp_...
 ```
 
@@ -213,6 +253,10 @@ Antwortauszug:
       "own": true,
       "canDelete": true,
       "permissions": { "delete": true },
+      "circle": {
+        "id": "circle_id",
+        "name": "Maren & Gabriel"
+      },
       "sender": {
         "id": "user_id",
         "displayName": "Gabriel",
@@ -260,7 +304,7 @@ POST /api/external/chat/circle
 Authorization: Bearer fsp_...
 Content-Type: application/json
 
-{ "body": "Hallo" }
+{ "circleId": "circle_id", "body": "Hallo" }
 ```
 
 Alternativ multipart:
@@ -270,6 +314,7 @@ POST /api/external/chat/circle
 Authorization: Bearer fsp_...
 Content-Type: multipart/form-data
 
+circleId=circle_id
 body=Hallo
 file=@bild.png
 ```
@@ -283,7 +328,7 @@ POST /api/external/chat/circle/read
 Authorization: Bearer fsp_...
 Content-Type: application/json
 
-{ "upToMessageId": "message_id" }
+{ "circleId": "circle_id", "upToMessageId": "message_id" }
 ```
 
 Alternativen:
@@ -300,7 +345,9 @@ DELETE /api/external/chat/circle/{messageId}
 Authorization: Bearer fsp_...
 ```
 
-Eigene Nachrichten koennen geloescht werden; Admins koennen alle Nachrichten des eigenen Zirkels loeschen. Es ist ein Soft-Delete. Neue GET-Responses liefern geloeschte Nachrichten nicht mehr aus. Das Event heisst `circle_chat_message_deleted_api`.
+`circleId` kann optional als Query-Parameter mitgegeben werden. Fuer das Loeschen validiert das Backend aber immer am tatsaechlichen Zirkel der Nachricht. Eigene Nachrichten koennen geloescht werden; Admins koennen alle Nachrichten in zugaenglichen Zirkeln loeschen. Es ist ein Soft-Delete. Neue GET-Responses liefern geloeschte Nachrichten nicht mehr aus. Das Event heisst `circle_chat_message_deleted_api`.
+
+Chat-Events enthalten in `details` und in nativen Push-Payloads `circleId` und `circleName`. Fuer Push-Taps kann die App damit den richtigen Chat-Zirkel oeffnen.
 
 ## Katalog fuer native Apps
 

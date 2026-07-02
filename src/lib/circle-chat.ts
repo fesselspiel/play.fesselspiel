@@ -9,12 +9,26 @@ export type CircleChatUser = {
   role?: string | null;
 };
 
-export async function requireCircleChatScope(user: CircleChatUser) {
+export type CircleChatScope = {
+  tenantId: string;
+  circleId: string;
+  circleName: string;
+};
+
+export async function requireCircleChatScope(user: CircleChatUser, requestedCircleId?: string | null): Promise<CircleChatScope> {
   if (!user.tenantId) throw new Error("Keine Seite aktiv");
-  if (user.circleId) return { tenantId: user.tenantId, circleId: user.circleId };
+  if (requestedCircleId) {
+    const circle = await prisma.circle.findFirst({ where: { id: requestedCircleId, tenantId: user.tenantId }, select: { id: true, name: true } });
+    if (!circle || !(await canAccessCircleChat(user, circle.id))) throw new Error("Kein Zugriff auf diesen Zirkel");
+    return { tenantId: user.tenantId, circleId: circle.id, circleName: circle.name };
+  }
+  if (user.circleId) {
+    const circle = await prisma.circle.findFirst({ where: { id: user.circleId, tenantId: user.tenantId }, select: { id: true, name: true } });
+    if (circle) return { tenantId: user.tenantId, circleId: circle.id, circleName: circle.name };
+  }
   if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
-    const circle = await prisma.circle.findFirst({ where: { tenantId: user.tenantId }, orderBy: { createdAt: "asc" } });
-    if (circle) return { tenantId: user.tenantId, circleId: circle.id };
+    const circle = await prisma.circle.findFirst({ where: { tenantId: user.tenantId }, orderBy: { createdAt: "asc" }, select: { id: true, name: true } });
+    if (circle) return { tenantId: user.tenantId, circleId: circle.id, circleName: circle.name };
   }
   throw new Error("Kein Zirkel für den Chat gefunden");
 }
@@ -39,6 +53,62 @@ export async function circleChatMembers(tenantId: string, circleId: string) {
     orderBy: { createdAt: "asc" }
   });
   return memberships.map((membership) => membership.user);
+}
+
+export async function accessibleCircleChats(user: CircleChatUser) {
+  if (!user.tenantId) return [];
+  const circles = user.role === "ADMIN" || user.role === "SUPER_ADMIN"
+    ? await prisma.circle.findMany({
+        where: { tenantId: user.tenantId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, _count: { select: { memberships: { where: { active: true, user: { active: true } } } } } }
+      })
+    : await prisma.circle.findMany({
+        where: { tenantId: user.tenantId, memberships: { some: { userId: user.id, active: true, user: { active: true } } } },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, _count: { select: { memberships: { where: { active: true, user: { active: true } } } } } }
+      });
+  const summaries = await Promise.all(circles.map(async (circle) => {
+    const [lastMessage, unreadCount] = await Promise.all([
+      prisma.circleChatMessage.findFirst({
+        where: { tenantId: user.tenantId!, circleId: circle.id, deletedAt: null },
+        include: { sender: { include: { profile: true } }, file: true },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }]
+      }),
+      prisma.circleChatMessage.count({
+        where: {
+          tenantId: user.tenantId!,
+          circleId: circle.id,
+          deletedAt: null,
+          senderId: { not: user.id },
+          OR: [
+            { receipts: { none: { userId: user.id } } },
+            { receipts: { some: { userId: user.id, readAt: null } } }
+          ]
+        }
+      })
+    ]);
+    return {
+      id: circle.id,
+      name: circle.name,
+      current: circle.id === user.circleId,
+      default: circle.id === user.circleId,
+      memberCount: circle._count.memberships,
+      unreadCount,
+      lastMessage: lastMessage ? {
+        id: lastMessage.id,
+        body: lastMessage.body || "",
+        createdAt: lastMessage.createdAt.toISOString(),
+        hasFile: Boolean(lastMessage.fileId),
+        fileKind: lastMessage.file?.mimeType.startsWith("image/") ? "image" : lastMessage.file?.mimeType.startsWith("video/") ? "video" : lastMessage.file ? "file" : null,
+        sender: {
+          id: lastMessage.sender.id,
+          displayName: userDisplayName(lastMessage.sender)
+        }
+      } : null
+    };
+  }));
+  return summaries;
 }
 
 export async function createCircleChatReceipts(messageId: string, tenantId: string, circleId: string, senderId: string) {
@@ -109,6 +179,7 @@ export function serializeCircleChatMessage(
     updatedAt: Date;
     deletedAt: Date | null;
     file?: { id: string; originalName: string; mimeType: string; sizeBytes: number } | null;
+    circle?: { id: string; name: string } | null;
     sender: { id: string; username: string | null; name: string | null; email: string | null; profile?: { displayName: string | null; imageUrl: string | null } | null };
     receipts?: {
       deliveredAt: Date | null;
@@ -135,6 +206,10 @@ export function serializeCircleChatMessage(
     own: message.sender.id === currentUserId,
     canDelete,
     permissions: { delete: canDelete },
+    circle: message.circle ? {
+      id: message.circle.id,
+      name: message.circle.name
+    } : null,
     sender: {
       id: message.sender.id,
       username: message.sender.username,
