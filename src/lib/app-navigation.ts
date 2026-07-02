@@ -68,7 +68,10 @@ export const mainNavigationSections: readonly AppNavSection[] = [
   },
   {
     id: "media",
-    items: [{ label: "Bilder", href: "/media", icon: Images, feature: "media" }]
+    items: [
+      { label: "Chat", href: "/chat", icon: MessageCircle, feature: "circleChat" },
+      { label: "Bilder", href: "/media", icon: Images, feature: "media" }
+    ]
   }
 ] as const;
 

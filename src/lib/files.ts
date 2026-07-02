@@ -195,7 +195,20 @@ export async function fileAssetForAccess(user: AccessUser, id: string) {
     },
     select: { id: true }
   });
-  return visibleActivityImage ? sharedAsset : null;
+  if (visibleActivityImage) return sharedAsset;
+
+  const visibleChatMessage = await prisma.circleChatMessage.findFirst({
+    where: {
+      fileId: id,
+      deletedAt: null,
+      ...(user.tenantId ? { tenantId: user.tenantId } : {}),
+      ...(user.role === "ADMIN" || user.role === "SUPER_ADMIN"
+        ? {}
+        : user.circleId ? { circleId: user.circleId } : { senderId: user.id })
+    },
+    select: { id: true }
+  });
+  return visibleChatMessage ? sharedAsset : null;
 }
 
 export function absolutePathForAsset(storagePath: string) {

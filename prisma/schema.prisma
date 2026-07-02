@@ -101,6 +101,7 @@ model Tenant {
   scheduledRuleRuns ScheduledRuleRun[]
   playReadyLikes PlayReadyLike[]
   activityLikes ActivityLike[]
+  circleChatMessages CircleChatMessage[]
   invites UserInvite[]
 
   @@index([status])
@@ -190,6 +191,7 @@ model User {
   nativePushDevices NativePushDevice[]
   nativePushDeliveries NativePushDelivery[]
   nativePushNotificationTargets NativePushNotificationRule[] @relation("NativePushNotificationTargetUser")
+  circleChatMessages CircleChatMessage[] @relation("CircleChatSender")
 
   @@index([tenantId])
   @@index([circleId])
@@ -256,6 +258,7 @@ model Circle {
   emailNotificationTargets EmailNotificationRule[] @relation("EmailNotificationTargetCircle")
   nativePushNotificationTargets NativePushNotificationRule[] @relation("NativePushNotificationTargetCircle")
   bondageSystemTargets BondageSystemItem[] @relation("BondageSystemTargetCircle")
+  chatMessages CircleChatMessage[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -273,6 +276,7 @@ model FileAsset {
   tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   activityImages ActivityImage[]
+  circleChatMessages CircleChatMessage[]
 
   @@index([tenantId, ownerId, createdAt])
   @@index([ownerId, createdAt])
@@ -1111,6 +1115,26 @@ model Message {
   createdAt   DateTime  @default(now())
   sender      User      @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   recipient   User?     @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+}
+
+model CircleChatMessage {
+  id          String    @id @default(cuid())
+  tenantId    String
+  circleId    String
+  senderId    String
+  body        String?
+  fileId      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  circle      Circle    @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  sender      User      @relation("CircleChatSender", fields: [senderId], references: [id], onDelete: Cascade)
+  file        FileAsset? @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, circleId, createdAt])
+  @@index([senderId, createdAt])
+  @@index([fileId])
 }
 
 model TelegramChat {

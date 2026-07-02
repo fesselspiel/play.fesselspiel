@@ -92,6 +92,36 @@ export const capabilities: readonly Capability[] = [
     ]
   },
   {
+    key: "circleChat",
+    label: "Zirkel-Chat",
+    featureKey: "circleChat",
+    aliases: ["chat", "zirkelchat", "nachrichten", "whatsapp"],
+    intents: ["chat öffnen", "nachricht schreiben", "zirkel chat", "bilder im chat"],
+    route: "/chat",
+    actions: [
+      {
+        key: "list",
+        label: "Chat lesen",
+        type: "read",
+        description: "Liest die letzten Nachrichten im eigenen Zirkel-Chat.",
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/chat/circle?token=...&limit=50", description: "Letzte Zirkel-Chat-Nachrichten inklusive Bildanhängen abrufen." }
+        ],
+        auditActions: ["circle_chat_viewed"]
+      },
+      {
+        key: "send",
+        label: "Nachricht senden",
+        type: "write",
+        description: "Sendet eine Textnachricht oder ein Bild in den Zirkel-Chat.",
+        apiEndpoints: [
+          { method: "POST", path: "/api/external/chat/circle", description: "Nachricht per JSON `{ body }` oder multipart mit `body` und `file` senden." }
+        ],
+        auditActions: ["circle_chat_message_created", "circle_chat_message_created_api"]
+      }
+    ]
+  },
+  {
     key: "playReady",
     label: "Spielampel",
     featureKey: "playReady",
@@ -644,6 +674,7 @@ export const featureCatalog = [
   { key: "ideas", label: capabilityLabelByFeature.get("ideas") || "Ideensammlung" },
   { key: "playReady", label: capabilityLabelByFeature.get("playReady") || "Spielampel" },
   { key: "invites", label: capabilityLabelByFeature.get("invites") || "Einladungen" },
+  { key: "circleChat", label: capabilityLabelByFeature.get("circleChat") || "Zirkel-Chat" },
   { key: "media", label: capabilityLabelByFeature.get("media") || "Bilder" },
   { key: "activities", label: capabilityLabelByFeature.get("activities") || "Spielplanung" },
   { key: "orders", label: capabilityLabelByFeature.get("orders") || "Aufträge" },
