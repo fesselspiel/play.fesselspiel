@@ -76,6 +76,6 @@ export async function POST(request: NextRequest) {
       excludeActorFromTargets: true
     }
   });
-  return NextResponse.json({ ok: true, message: serializeCircleChatMessage(message, auth.user.id) });
+  const item = serializeCircleChatMessage(message, auth.user.id);
+  return NextResponse.json({ ok: true, item, message: item });
 }
-

@@ -4,6 +4,7 @@ import { accessibleOwnerIds } from "@/lib/access";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { actionLabel, notificationActionAliases } from "@/lib/notification-actions";
 import { defaultFeedBodyTemplate, defaultFeedTitleTemplate, renderFeedTemplate } from "@/lib/feed";
+import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -12,10 +13,18 @@ function displayName(user?: { profile?: { displayName?: string | null } | null; 
   return user?.profile?.displayName || user?.name || user?.username || user?.email || null;
 }
 
+function publicOrigin(request: NextRequest) {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host = forwardedHost || request.headers.get("host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
+  if (host && !host.startsWith("0.0.0.0")) return `${forwardedProto}://${host}`;
+  return env.appUrl || new URL(request.url).origin;
+}
+
 function absoluteUrl(request: NextRequest, href?: string | null) {
   if (!href) return null;
   if (/^https?:\/\//i.test(href)) return href;
-  return new URL(href.startsWith("/") ? href : `/${href}`, request.url).toString();
+  return new URL(href.startsWith("/") ? href : `/${href}`, publicOrigin(request)).toString();
 }
 
 function actionFilter(searchParams: URLSearchParams) {
