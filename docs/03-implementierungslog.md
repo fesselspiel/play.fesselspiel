@@ -933,6 +933,13 @@ Details:
 - Öffnungen werden als `item_share_opened` protokolliert und enthalten Kanal, Zielbenutzer und den ursprünglichen Eintrag.
 - Admins, Super-Admins und eigene Absender können Chat-Nachrichten im Webchat unaufdringlich löschen. Der Löschbutton erscheint erst bei Hover/Fokus auf der Nachricht und nutzt die vorhandene Soft-Delete-API.
 
+## Öffentliche Feature-Webseite
+
+- Die Login-Seite ist jetzt eine öffentliche Feature-Webseite mit prominentem Login, Menü und mobilen App-Vorschauen.
+- Jedes zentrale Feature hat eine eigene öffentliche Detailseite unter `/features/<slug>`, z. B. `/features/tracker`.
+- Die Feature-Seiten enthalten einfache Beschreibung, Highlights, Walkthrough-Schritte und eine mobile App-Mockup-Ansicht ohne private Daten.
+- Die Inhalte werden zentral aus `publicFeatures` erzeugt, damit Übersicht, Detailseiten und Navigation konsistent bleiben.
+
 ### Externe Bild-API fuer native Apps
 
 - `GET /api/external/media?token=...&kind=IMAGE&limit=50` liefert die geschuetzte Bildergalerie als JSON-Feed.
