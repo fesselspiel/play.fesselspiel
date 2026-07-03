@@ -188,6 +188,63 @@ Antwort:
 }
 ```
 
+## Packlisten API
+
+Packlisten sind ein eigenes Feature (`packingLists`) und werden ueber die externe API mit Bearer Token genutzt. Pack-Events sind der organisatorische Rahmen, Packlisten enthalten die konkreten Spielsachen.
+
+```http
+GET /api/external/packing/events
+Authorization: Bearer fsp_...
+```
+
+```http
+POST /api/external/packing/events
+Authorization: Bearer fsp_...
+Content-Type: application/json
+
+{
+  "title": "Studioabend",
+  "eventId": "optional_event_id",
+  "startsAt": "2026-07-10T18:00:00.000Z",
+  "visibility": "PARTNER",
+  "location": "Studio",
+  "description": "Alles fuer den Abend vorbereiten"
+}
+```
+
+```http
+GET /api/external/packing/lists
+Authorization: Bearer fsp_...
+```
+
+```http
+POST /api/external/packing/lists
+Authorization: Bearer fsp_...
+Content-Type: application/json
+
+{
+  "title": "Studio-Tasche",
+  "packingEventId": "optional_packing_event_id",
+  "eventId": "optional_event_id",
+  "visibility": "PARTNER",
+  "note": "Ladegeraete nicht vergessen",
+  "toyIds": ["toy_id_1", "toy_id_2"]
+}
+```
+
+Weitere Endpunkte:
+
+- `GET /api/external/packing/events/{id}`: einzelnes Pack-Event lesen.
+- `PATCH /api/external/packing/events/{id}`: Pack-Event aendern.
+- `DELETE /api/external/packing/events/{id}`: Pack-Event loeschen.
+- `GET /api/external/packing/lists/{id}`: einzelne Packliste lesen.
+- `PATCH /api/external/packing/lists/{id}`: Packliste aendern.
+- `DELETE /api/external/packing/lists/{id}`: Packliste loeschen.
+- `POST /api/external/packing/lists/{id}/items`: Spielzeug hinzufuegen. Body: `toyId`, `quantity?`, `note?`.
+- `PATCH /api/external/packing/lists/{id}/items/{itemId}`: Packstatus setzen. Body: `packed: true|false`.
+
+Antworten enthalten `progress`, `items`, `packingEvent`, `event`, `owner`, `visibility` und bei Spielzeugen die vorhandenen geschuetzten Bild-URLs.
+
 ## Zirkel-Chat
 
 Der Chat ist ein geschuetzter Echtzeit-Chat fuer den aktiven Zirkel des API-Benutzers. Die App nutzt Bearer Token.

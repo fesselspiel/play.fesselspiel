@@ -44,6 +44,7 @@ async function main() {
     "media",
     "activities",
     "orders",
+    "packingLists",
     "selfBondage",
     "trackers",
     "tracker.segufix",

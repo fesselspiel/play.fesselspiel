@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   DatabaseBackup,
   FileText,
+  ListChecks,
   Images,
   KeyRound,
   Lightbulb,
@@ -63,6 +64,7 @@ export const mainNavigationSections: readonly AppNavSection[] = [
     id: "work",
     items: [
       { label: "Aufträge", href: "/orders", icon: ClipboardCheck, feature: "orders" },
+      { label: "Packlisten", href: "/packing", icon: ListChecks, feature: "packingLists" },
       { label: "Sessions", href: "/sessions", icon: Timer, feature: "trackers" }
     ]
   },

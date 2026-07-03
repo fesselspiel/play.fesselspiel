@@ -417,6 +417,49 @@ export const capabilities: readonly Capability[] = [
     ]
   },
   {
+    key: "packingLists",
+    label: "Packlisten",
+    featureKey: "packingLists",
+    aliases: ["packliste", "packlisten", "pack event", "packevent", "packing event"],
+    intents: ["packliste anzeigen", "spielzeug einpacken", "pack event planen"],
+    route: "/packing",
+    actions: [
+      {
+        key: "list",
+        label: "Packlisten anzeigen",
+        type: "read",
+        description: "Listet Pack-Events, Packlisten und eingepackte Spielsachen.",
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/packing/lists?token=...", description: "Packlisten inklusive Packstatus, Pack-Event, Event und Spielzeug abrufen." },
+          { method: "GET", path: "/api/external/packing/events?token=...", description: "Pack-Events inklusive verknüpfter Events und Fortschritt abrufen." }
+        ],
+        auditActions: ["packing_list_created", "packing_item_packed", "packing_item_unpacked"]
+      },
+      {
+        key: "create",
+        label: "Packliste erstellen",
+        type: "write",
+        description: "Erstellt Pack-Events und Packlisten mit Spielsachen.",
+        apiEndpoints: [
+          { method: "POST", path: "/api/external/packing/events", description: "Pack-Event erstellen. Body: title, eventId?, startsAt?, visibility?, location?, description?." },
+          { method: "POST", path: "/api/external/packing/lists", description: "Packliste erstellen. Body: title, packingEventId?, eventId?, note?, visibility?, toyIds?." }
+        ],
+        auditActions: ["packing_event_created", "packing_list_created"]
+      },
+      {
+        key: "pack",
+        label: "Packstatus ändern",
+        type: "write",
+        description: "Fügt Spielzeuge hinzu oder setzt deren Packstatus.",
+        apiEndpoints: [
+          { method: "POST", path: "/api/external/packing/lists/{id}/items", description: "Spielzeug zu Packliste hinzufügen. Body: toyId, quantity?, note?." },
+          { method: "PATCH", path: "/api/external/packing/lists/{id}/items/{itemId}", description: "Packstatus ändern. Body: packed true/false." }
+        ],
+        auditActions: ["packing_item_added", "packing_item_packed", "packing_item_unpacked"]
+      }
+    ]
+  },
+  {
     key: "trackers",
     label: "Tracker",
     featureKey: "trackers",
@@ -706,6 +749,7 @@ export const featureCatalog = [
   { key: "media", label: capabilityLabelByFeature.get("media") || "Bilder" },
   { key: "activities", label: capabilityLabelByFeature.get("activities") || "Spielplanung" },
   { key: "orders", label: capabilityLabelByFeature.get("orders") || "Aufträge" },
+  { key: "packingLists", label: capabilityLabelByFeature.get("packingLists") || "Packlisten" },
   { key: "selfBondage", label: "Self-Bondage" },
   { key: "trackers", label: capabilityLabelByFeature.get("trackers") || "Tracker" },
   { key: "telegram", label: capabilityLabelByFeature.get("telegram") || "Telegram" },
@@ -741,7 +785,7 @@ export const apiEndpointSpecs = capabilities.flatMap((capability) =>
   capability.actions.flatMap((action) => action.apiEndpoints?.map((endpoint) => ({ ...endpoint, capability: capability.label, action: action.label })) || [])
 );
 
-export const apiVariableNames = ["token", "id", "trackerKey", "fileId", "albumId", "kind", "categoryId", "positionId", "toyId", "status", "action", "limit", "cursor", "q", "includeRelations", "selfBondage", "note", "title", "scheduledAt", "plannedAt", "startTime", "date", "allDay", "state", "hours", "minutes", "expiresMinutes", "name", "email"];
+export const apiVariableNames = ["token", "id", "trackerKey", "fileId", "albumId", "kind", "categoryId", "positionId", "toyId", "packingEventId", "eventId", "itemId", "status", "action", "limit", "cursor", "q", "includeRelations", "selfBondage", "note", "title", "scheduledAt", "plannedAt", "startTime", "date", "allDay", "state", "hours", "minutes", "expiresMinutes", "name", "email"];
 
 export const telegramCommandSpecs = capabilities.flatMap((capability) =>
   capability.actions.flatMap((action) =>

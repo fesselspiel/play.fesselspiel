@@ -103,6 +103,8 @@ model Tenant {
   activityLikes ActivityLike[]
   circleChatMessages CircleChatMessage[]
   invites UserInvite[]
+  packingEvents PackingEvent[]
+  packingLists PackingList[]
 
   @@index([status])
 }
@@ -193,6 +195,9 @@ model User {
   nativePushNotificationTargets NativePushNotificationRule[] @relation("NativePushNotificationTargetUser")
   circleChatMessages CircleChatMessage[] @relation("CircleChatSender")
   circleChatReceipts CircleChatReceipt[]
+  packingEvents PackingEvent[]
+  packingLists PackingList[]
+  packedItems PackingListItem[] @relation("PackingItemPackedBy")
 
   @@index([tenantId])
   @@index([circleId])
@@ -723,6 +728,7 @@ model Toy {
   activities  ActivityPlan[] @relation("ActivityTools")
   trackerEntries TrackerEntry[] @relation("TrackerEntryToys")
   favorites   ToyFavorite[]
+  packingItems PackingListItem[]
 
   @@unique([tenantId, slug])
   @@index([categoryId, sortOrder, title])
@@ -1092,8 +1098,82 @@ model Event {
   tenant      Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   checkIns    CheckIn[]
+  packingEvents PackingEvent[]
+  packingLists PackingList[]
 
   @@index([tenantId, startsAt])
+}
+
+model PackingEvent {
+  id          String     @id @default(cuid())
+  tenantId    String?
+  ownerId     String
+  eventId     String?
+  title       String
+  slug        String
+  description String?
+  location    String?
+  startsAt    DateTime?
+  visibility  Visibility @default(PARTNER)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  tenant      Tenant?    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  event       Event?     @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  lists       PackingList[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, startsAt])
+  @@index([ownerId, startsAt])
+  @@index([eventId])
+}
+
+model PackingList {
+  id          String     @id @default(cuid())
+  tenantId    String?
+  ownerId     String
+  packingEventId String?
+  eventId     String?
+  title       String
+  slug        String
+  note        String?
+  visibility  Visibility @default(PARTNER)
+  sortOrder   Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  tenant      Tenant?    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  packingEvent PackingEvent? @relation(fields: [packingEventId], references: [id], onDelete: SetNull)
+  event       Event?     @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  items       PackingListItem[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, sortOrder, title])
+  @@index([ownerId, sortOrder, title])
+  @@index([packingEventId])
+  @@index([eventId])
+}
+
+model PackingListItem {
+  id          String   @id @default(cuid())
+  listId      String
+  toyId       String
+  note        String?
+  quantity    Int      @default(1)
+  packed      Boolean  @default(false)
+  packedAt    DateTime?
+  packedById  String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  list        PackingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  toy         Toy      @relation(fields: [toyId], references: [id], onDelete: Cascade)
+  packedBy    User?    @relation("PackingItemPackedBy", fields: [packedById], references: [id], onDelete: SetNull)
+
+  @@unique([listId, toyId])
+  @@index([listId, sortOrder])
+  @@index([toyId])
+  @@index([packedById])
 }
 
 model CheckIn {

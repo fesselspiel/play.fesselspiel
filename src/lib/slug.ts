@@ -19,7 +19,7 @@ export function normalizeSlug(value: string, fallback: string) {
   return slugify(value || fallback) || "eintrag";
 }
 
-type SlugKind = "toy" | "position" | "activityPlan" | "shopifyProduct";
+type SlugKind = "toy" | "position" | "activityPlan" | "shopifyProduct" | "packingEvent" | "packingList";
 
 export async function uniqueSlug(kind: SlugKind, base: string, tenantId?: string | null) {
   let slug = normalizeSlug(base, "eintrag");
@@ -31,10 +31,14 @@ export async function uniqueSlug(kind: SlugKind, base: string, tenantId?: string
         : kind === "position"
           ? await prisma.position.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
           : kind === "activityPlan"
-            ? await prisma.activityPlan.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
-            : tenantId
-              ? await prisma.shopifyProduct.findUnique({ where: { tenantId_slug: { tenantId, slug } } })
-              : await prisma.shopifyProduct.findFirst({ where: { slug } });
+          ? await prisma.activityPlan.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
+          : kind === "packingEvent"
+            ? await prisma.packingEvent.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
+            : kind === "packingList"
+              ? await prisma.packingList.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
+              : tenantId
+                ? await prisma.shopifyProduct.findUnique({ where: { tenantId_slug: { tenantId, slug } } })
+                : await prisma.shopifyProduct.findFirst({ where: { slug } });
     if (!existing) return slug;
     slug = `${normalizeSlug(base, "eintrag")}-${counter++}`;
   }
@@ -50,10 +54,14 @@ export async function uniqueSlugForUpdate(kind: SlugKind, base: string, currentI
         : kind === "position"
           ? await prisma.position.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
           : kind === "activityPlan"
-            ? await prisma.activityPlan.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
-            : tenantId
-              ? await prisma.shopifyProduct.findUnique({ where: { tenantId_slug: { tenantId, slug } } })
-              : await prisma.shopifyProduct.findFirst({ where: { slug } });
+          ? await prisma.activityPlan.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
+          : kind === "packingEvent"
+            ? await prisma.packingEvent.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
+            : kind === "packingList"
+              ? await prisma.packingList.findFirst({ where: { slug, ...(tenantId ? { tenantId } : {}) } })
+              : tenantId
+                ? await prisma.shopifyProduct.findUnique({ where: { tenantId_slug: { tenantId, slug } } })
+                : await prisma.shopifyProduct.findFirst({ where: { slug } });
     if (!existing || existing.id === currentId) return slug;
     slug = `${normalizeSlug(base, "eintrag")}-${counter++}`;
   }
