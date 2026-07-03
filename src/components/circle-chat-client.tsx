@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ImagePlus, SendHorizonal, Trash2, X } from "lucide-react";
 
 export type CircleChatMessageView = {
@@ -26,8 +26,26 @@ type MemberView = {
   imageUrl?: string | null;
 };
 
+const timeFormatter = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
+const dayKeyFormatter = new Intl.DateTimeFormat("sv-SE", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/Berlin" });
+const dayFormatter = new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Berlin" });
+
 function timeLabel(value: string) {
-  return new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+  return timeFormatter.format(new Date(value));
+}
+
+function dayKey(value: string | Date) {
+  return dayKeyFormatter.format(new Date(value));
+}
+
+function dayLabel(value: string) {
+  const date = new Date(value);
+  const today = dayKey(new Date());
+  const yesterday = dayKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  const key = dayKey(date);
+  if (key === today) return "Heute";
+  if (key === yesterday) return "Gestern";
+  return dayFormatter.format(date);
 }
 
 function mergeMessages(current: CircleChatMessageView[], incoming: CircleChatMessageView[]) {
@@ -51,12 +69,18 @@ export function CircleChatClient({
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
-  const lastMessageAt = messages.at(-1)?.createdAt;
+  const latestMessageAtRef = useRef(messages.at(-1)?.createdAt || "");
   const filePreview = useMemo(() => file && file.type.startsWith("image/") ? URL.createObjectURL(file) : "", [file]);
+
+  function appendMessages(incoming: CircleChatMessageView[]) {
+    if (!incoming.length) return;
+    setMessages((current) => mergeMessages(current, incoming));
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [messages.length]);
+    latestMessageAtRef.current = messages.at(-1)?.createdAt || "";
+  }, [messages]);
 
   useEffect(() => {
     return () => {
@@ -65,20 +89,52 @@ export function CircleChatClient({
   }, [filePreview]);
 
   useEffect(() => {
-    const params = new URLSearchParams();
-    if (lastMessageAt) params.set("after", lastMessageAt);
-    const source = new EventSource(`/api/chat/circle/stream?${params.toString()}`);
-    source.onmessage = (event) => {
-      const payload = JSON.parse(event.data);
-      if (payload.type === "messages" && Array.isArray(payload.items)) {
-        setMessages((current) => mergeMessages(current, payload.items));
-      }
+    function streamUrl() {
+      const params = new URLSearchParams();
+      if (latestMessageAtRef.current) params.set("after", latestMessageAtRef.current);
+      return `/api/chat/circle/stream?${params.toString()}`;
+    }
+
+    let stopped = false;
+    let source: EventSource | null = null;
+    let reconnectTimer: number | undefined;
+
+    async function fetchLatest() {
+      const params = new URLSearchParams();
+      if (latestMessageAtRef.current) params.set("after", latestMessageAtRef.current);
+      const response = await fetch(`/api/chat/circle?${params.toString()}`, { cache: "no-store", credentials: "same-origin" }).catch(() => null);
+      if (!response?.ok) return;
+      const payload = await response.json().catch(() => null);
+      if (payload?.ok && Array.isArray(payload.items)) appendMessages(payload.items);
+    }
+
+    function connect() {
+      if (stopped) return;
+      source?.close();
+      source = new EventSource(streamUrl());
+      source.onmessage = (event) => {
+        const payload = JSON.parse(event.data);
+        if (payload.type === "messages" && Array.isArray(payload.items)) appendMessages(payload.items);
+      };
+      source.onerror = () => {
+        source?.close();
+        source = null;
+        if (!stopped) {
+          reconnectTimer = window.setTimeout(connect, 2000);
+        }
+      };
+    }
+
+    connect();
+    const interval = window.setInterval(fetchLatest, 2500);
+    fetchLatest();
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      source?.close();
     };
-    source.onerror = () => {
-      source.close();
-    };
-    return () => source.close();
-  }, [lastMessageAt]);
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -146,8 +202,19 @@ export function CircleChatClient({
         <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-5">
           {messages.length ? (
             <div className="grid gap-3">
-              {messages.map((message) => (
-                <article key={message.id} className={`group flex ${message.own ? "justify-end" : "justify-start"}`}>
+              {messages.map((message, index) => {
+                const previous = messages[index - 1];
+                const showDay = !previous || dayKey(previous.createdAt) !== dayKey(message.createdAt);
+                return (
+                <Fragment key={message.id}>
+                  {showDay ? (
+                    <div className="sticky top-2 z-10 my-2 flex justify-center">
+                      <span className="rounded-full border border-line bg-surface/95 px-3 py-1 text-xs font-semibold text-graphite shadow-sm backdrop-blur">
+                        {dayLabel(message.createdAt)}
+                      </span>
+                    </div>
+                  ) : null}
+                <article className={`group flex ${message.own ? "justify-end" : "justify-start"}`}>
                   <div className={`relative max-w-[86%] rounded-2xl px-4 py-3 shadow-sm sm:max-w-[68%] ${message.own ? "bg-redbrand text-white" : "border border-line bg-paper text-ink"}`}>
                     {message.canDelete ? (
                       <button
@@ -167,11 +234,13 @@ export function CircleChatClient({
                     ) : message.file ? (
                       <a href={message.file.url} className={`mb-2 block text-sm font-semibold underline ${message.own ? "text-white" : "text-redbrand"}`}>{message.file.originalName}</a>
                     ) : null}
-                    {message.body ? <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.body}</p> : null}
-                    <div className={`mt-1 text-right text-[11px] ${message.own ? "text-white/75" : "text-graphite"}`}>{timeLabel(message.createdAt)}</div>
+                    {message.body ? <p className="whitespace-pre-wrap pr-12 text-sm leading-relaxed">{message.body}</p> : null}
+                    <div className={`float-right -mb-1 ml-3 mt-1 text-[11px] leading-4 ${message.own ? "text-white/75" : "text-graphite"}`}>{timeLabel(message.createdAt)}</div>
                   </div>
                 </article>
-              ))}
+                </Fragment>
+              );
+              })}
               <div ref={bottomRef} />
             </div>
           ) : (

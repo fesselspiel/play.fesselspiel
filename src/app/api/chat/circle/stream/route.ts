@@ -62,6 +62,8 @@ export async function GET(request: NextRequest) {
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
+      "Content-Encoding": "none",
+      "X-Accel-Buffering": "no",
       Connection: "keep-alive"
     }
   });
