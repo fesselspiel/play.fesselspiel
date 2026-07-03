@@ -2,12 +2,14 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { MapPin, Pencil, Save } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { ShareButton } from "@/components/share-button";
 import { Button, Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { logAction, userDisplayName } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
+import { shareTargetsForUser } from "@/lib/share";
 
 async function createEvent(formData: FormData) {
   "use server";
@@ -62,7 +64,10 @@ async function checkIn(formData: FormData) {
 export default async function EventsPage() {
   const user = await currentUser();
   if (!user) redirect("/login");
-  const events = await prisma.event.findMany({ where: await ownerScope(user), include: { checkIns: true }, orderBy: { startsAt: "asc" } });
+  const [events, shareTargets] = await Promise.all([
+    prisma.event.findMany({ where: await ownerScope(user), include: { checkIns: true }, orderBy: { startsAt: "asc" } }),
+    shareTargetsForUser(user)
+  ]);
   return (
     <AppShell>
       <PageHeader title="Events" />
@@ -93,6 +98,9 @@ export default async function EventsPage() {
               <p className="mt-1 text-sm text-graphite">{formatDateTime(event.startsAt)}</p>
               {event.location ? <p className="mt-1 flex items-center gap-2 text-sm text-graphite"><MapPin className="h-4 w-4" /> {event.location}</p> : null}
               <p className="mt-3 text-sm text-graphite">{event.description}</p>
+              <div className="mt-3">
+                <ShareButton entityType="event" entityId={event.id} title={event.title} href={`/events/${event.id}/edit`} text={event.description} targets={shareTargets} defaultChannel={user.settings?.shareDefaultChannel} messageTemplate={user.settings?.shareMessageTemplate} />
+              </div>
               <form action={checkIn} className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <input name="eventId" value={event.id} type="hidden" />
                 <input className={inputClass} name="note" placeholder="Check-in Notiz" />

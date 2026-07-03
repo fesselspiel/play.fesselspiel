@@ -4,6 +4,7 @@ import { ImagePlus, Pencil, Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { CopySubtitle } from "@/components/copy-subtitle";
 import { FileUploadField } from "@/components/file-upload-field";
+import { ShareButton } from "@/components/share-button";
 import { SubmitButton } from "@/components/submit-button";
 import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { confirmRequestedActivity } from "@/lib/activity-actions";
@@ -17,6 +18,7 @@ import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
 import { logAction } from "@/lib/audit";
+import { shareTargetsForUser } from "@/lib/share";
 
 async function addActivityImage(formData: FormData) {
   "use server";
@@ -185,6 +187,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
   ];
   const path = isIdea ? `/ideas/${activity.slug}` : `/activities/${activity.slug}`;
   const url = `${env.appUrl}${path}`;
+  const shareTargets = await shareTargetsForUser(user);
   return (
     <AppShell>
       <PageHeader
@@ -329,6 +332,9 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
           <Pencil className="h-4 w-4" />
           Bearbeiten
         </Link>
+        <div className="mt-3">
+          <ShareButton entityType="activity" entityId={activity.id} title={activity.title} href={path} text={activity.note} targets={shareTargets} defaultChannel={user.settings?.shareDefaultChannel} messageTemplate={user.settings?.shareMessageTemplate} />
+        </div>
       </Panel>
     </AppShell>
   );

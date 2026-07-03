@@ -65,7 +65,7 @@ export default async function CircleChatPage() {
     <>
       <ChatHeader />
       <CircleChatClient
-        initialMessages={messages.reverse().map((message) => serializeCircleChatMessage(message, user.id))}
+        initialMessages={messages.reverse().map((message) => serializeCircleChatMessage(message, user.id, user.role))}
         members={members.map((member) => ({
           id: member.id,
           name: userDisplayName(member),

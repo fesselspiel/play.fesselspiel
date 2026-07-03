@@ -2,12 +2,14 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Pencil, Star } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { ShareButton } from "@/components/share-button";
 import { Badge, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { isAccessibleOwner, contentTenantScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
 import { hasFeature, requireFeature } from "@/lib/features";
 import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
+import { shareTargetsForUser } from "@/lib/share";
 
 async function togglePositionFavorite(formData: FormData) {
   "use server";
@@ -51,6 +53,7 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
     include: { product: true },
     orderBy: [{ sortOrder: "asc" }, { product: { title: "asc" } }]
   }) : [];
+  const shareTargets = await shareTargetsForUser(user);
   return (
     <AppShell>
       <PageHeader
@@ -117,6 +120,7 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
             <Pencil className="h-4 w-4" />
             Bearbeiten
           </Link>
+          <ShareButton entityType="position" entityId={position.id} title={position.name} href={`/positions/${position.slug}`} text={position.description} targets={shareTargets} defaultChannel={user.settings?.shareDefaultChannel} messageTemplate={user.settings?.shareMessageTemplate} />
         </div>
         {position.favorites.length ? <p className="mt-3 text-xs text-graphite">{position.favorites.length} Favorit{position.favorites.length === 1 ? "" : "en"}</p> : null}
       </Panel>

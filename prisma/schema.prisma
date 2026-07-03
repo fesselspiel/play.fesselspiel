@@ -310,6 +310,8 @@ model UserSettings {
   playReadyUpdatedAt  DateTime?
   playReadyExpiresAt  DateTime?
   playReadyExpiryMinutes Int?           @default(360)
+  shareDefaultChannel String            @default("all")
+  shareMessageTemplate String           @default("Schau dir das an: {title}\n{url}")
   inviteQuota         Int            @default(3)
   timeOffsetMinutes   Int            @default(0)
   telegramBotTokenEnc String?

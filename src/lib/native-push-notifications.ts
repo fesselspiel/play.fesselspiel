@@ -19,6 +19,7 @@ type TestPushInput = {
   title?: string;
   body?: string;
   sound?: string;
+  action?: string;
 };
 type ApnsResponse = {
   ok: boolean;
@@ -625,7 +626,7 @@ export async function sendNativeTestPush(input: TestPushInput) {
   if (!devices.length) return { sent: 0, failed: 0, devices: 0, error: "missing_devices" };
   const delivery = {
     auditId: null,
-    action: "native_push_test",
+    action: input.action || "native_push_test",
     payload: payloadForTest({
       tenantId: input.tenantId,
       actorId: input.actorId,

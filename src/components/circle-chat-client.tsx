@@ -1,12 +1,13 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ImagePlus, SendHorizonal, X } from "lucide-react";
+import { ImagePlus, SendHorizonal, Trash2, X } from "lucide-react";
 
 export type CircleChatMessageView = {
   id: string;
   body: string;
   createdAt: string;
+  canDelete?: boolean;
   own: boolean;
   sender: { id: string; displayName: string; imageUrl?: string | null };
   file?: {
@@ -101,6 +102,17 @@ export function CircleChatClient({
     setSending(false);
   }
 
+  async function deleteMessage(messageId: string) {
+    if (!confirm("Diese Chat-Nachricht löschen?")) return;
+    const response = await fetch(`/api/chat/circle/${messageId}`, { method: "DELETE" });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) {
+      setError(payload?.error || "Nachricht konnte nicht gelöscht werden.");
+      return;
+    }
+    setMessages((current) => current.filter((message) => message.id !== messageId));
+  }
+
   return (
     <section className="rounded-lg border border-line bg-surface p-3 shadow-soft sm:p-4">
       <div className="grid min-h-[68vh] gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
@@ -135,8 +147,19 @@ export function CircleChatClient({
           {messages.length ? (
             <div className="grid gap-3">
               {messages.map((message) => (
-                <article key={message.id} className={`flex ${message.own ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[86%] rounded-2xl px-4 py-3 shadow-sm sm:max-w-[68%] ${message.own ? "bg-redbrand text-white" : "border border-line bg-paper text-ink"}`}>
+                <article key={message.id} className={`group flex ${message.own ? "justify-end" : "justify-start"}`}>
+                  <div className={`relative max-w-[86%] rounded-2xl px-4 py-3 shadow-sm sm:max-w-[68%] ${message.own ? "bg-redbrand text-white" : "border border-line bg-paper text-ink"}`}>
+                    {message.canDelete ? (
+                      <button
+                        type="button"
+                        onClick={() => deleteMessage(message.id)}
+                        className={`absolute -top-2 ${message.own ? "-left-2" : "-right-2"} flex h-7 w-7 items-center justify-center rounded-full border border-line bg-surface text-graphite opacity-0 shadow-sm transition hover:text-redbrand focus:opacity-100 group-hover:opacity-100`}
+                        aria-label="Nachricht löschen"
+                        title="Nachricht löschen"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
                     {!message.own ? <div className="mb-1 text-xs font-semibold text-redbrand">{message.sender.displayName}</div> : null}
                     {message.file?.kind === "image" ? (
                       // eslint-disable-next-line @next/next/no-img-element

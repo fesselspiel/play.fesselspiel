@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Download, Pencil, Printer, Star } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { CopyLink } from "@/components/copy-link";
+import { ShareButton } from "@/components/share-button";
 import { PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { isAccessibleOwner, contentTenantScope } from "@/lib/access";
 import { currentUser } from "@/lib/auth";
@@ -11,6 +12,7 @@ import { hasFeature, requireFeature } from "@/lib/features";
 import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/dates";
+import { shareTargetsForUser } from "@/lib/share";
 
 async function toggleToyFavorite(formData: FormData) {
   "use server";
@@ -47,6 +49,7 @@ export default async function ToyDetailPage({ params }: { params: { slug: string
   const url = `${env.appUrl}/toys/${toy.slug}`;
   const displayUrl = url.replace(/^https?:\/\//, "");
   const isFavorite = toy.favorites.some((favorite) => favorite.userId === user.id);
+  const shareTargets = await shareTargetsForUser(user);
 
   return (
     <AppShell>
@@ -115,6 +118,7 @@ export default async function ToyDetailPage({ params }: { params: { slug: string
             <Pencil className="h-4 w-4" />
             Bearbeiten
           </Link>
+          <ShareButton entityType="toy" entityId={toy.id} title={toy.title} href={`/toys/${toy.slug}`} text={toy.description} targets={shareTargets} defaultChannel={user.settings?.shareDefaultChannel} messageTemplate={user.settings?.shareMessageTemplate} />
           <CopyLink value={displayUrl} label={displayUrl} />
         </div>
         {toy.favorites.length ? <p className="mt-3 text-xs text-graphite">{toy.favorites.length} Favorit{toy.favorites.length === 1 ? "" : "en"}</p> : null}

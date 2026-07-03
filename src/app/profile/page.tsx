@@ -64,11 +64,15 @@ async function saveProfile(formData: FormData) {
         upsert: {
           update: {
             theme: normalizeTheme(String(formData.get("theme") || "")),
-            darkMode: normalizeThemeMode(String(formData.get("darkMode") || "")) === "dark"
+            darkMode: normalizeThemeMode(String(formData.get("darkMode") || "")) === "dark",
+            shareDefaultChannel: String(formData.get("shareDefaultChannel") || "all"),
+            shareMessageTemplate: String(formData.get("shareMessageTemplate") || "").trim() || "Schau dir das an: {title}\n{url}"
           },
           create: {
             theme: normalizeTheme(String(formData.get("theme") || "")),
-            darkMode: normalizeThemeMode(String(formData.get("darkMode") || "")) === "dark"
+            darkMode: normalizeThemeMode(String(formData.get("darkMode") || "")) === "dark",
+            shareDefaultChannel: String(formData.get("shareDefaultChannel") || "all"),
+            shareMessageTemplate: String(formData.get("shareMessageTemplate") || "").trim() || "Schau dir das an: {title}\n{url}"
           }
         }
       }
@@ -184,6 +188,23 @@ export default async function ProfilePage({ searchParams }: { searchParams?: { e
             imageCropAspect="square"
           />
           <ThemePicker activeTheme={activeTheme} activeMode={activeMode} />
+          <details className="rounded-lg border border-line bg-paper p-4">
+            <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Teilen konfigurieren</summary>
+            <div className="mt-4 grid gap-4">
+              <Field label="Standardkanal">
+                <select className={inputClass} name="shareDefaultChannel" defaultValue={user.settings?.shareDefaultChannel || "all"}>
+                  <option value="all">Alles</option>
+                  <option value="telegram">Telegram</option>
+                  <option value="push">Push</option>
+                  <option value="email">E-Mail</option>
+                </select>
+              </Field>
+              <Field label="Persönliche Teilen-Vorlage">
+                <textarea className={inputClass} name="shareMessageTemplate" rows={4} defaultValue={user.settings?.shareMessageTemplate || "Schau dir das an: {title}\n{url}"} />
+              </Field>
+              <p className="text-xs leading-5 text-graphite">Verfügbare Variablen: {"{title}"}, {"{url}"}, {"{type}"}.</p>
+            </div>
+          </details>
           <SubmitButton pendingLabel="Profil wird gespeichert..."><Save className="h-4 w-4" /> Profil speichern</SubmitButton>
         </form>
       </Panel>

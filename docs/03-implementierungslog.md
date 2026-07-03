@@ -921,6 +921,16 @@ Details:
 - Das Protokoll kann serverseitig nach Benutzer gefiltert werden.
 - API-Tokens zeigen eine vollständigere Endpunktübersicht inklusive generischer Tracker-Endpunkte und Kontingentabfrage.
 
+## Teilen und Chat-Moderation
+
+- Detailseiten und wichtige Listen zeigen einen kleinen Instagram-ähnlichen Teilen-Button.
+- Teilen unterstützt E-Mail, Telegram, native Push oder alle Kanäle gleichzeitig.
+- Beim Teilen wird Zieltyp und Ziel ausgewählt: einzelner Benutzer oder Zirkel.
+- Persönliche Teilen-Defaults stehen im Profil: Standardkanal und Nachrichtenvorlage mit `{title}`, `{url}` und `{type}`.
+- E-Mail nutzt das konfigurierbare Template `item_share`; Telegram und Push werden direkt mit dem gerenderten Inhalt versendet.
+- Jeder Teilvorgang erzeugt das zentrale Protokollereignis `item_shared`, damit Feed-, Telegram-, E-Mail-, Push- und externe Regeln darauf reagieren können.
+- Admins, Super-Admins und eigene Absender können Chat-Nachrichten im Webchat unaufdringlich löschen. Der Löschbutton erscheint erst bei Hover/Fokus auf der Nachricht und nutzt die vorhandene Soft-Delete-API.
+
 ### Externe Bild-API fuer native Apps
 
 - `GET /api/external/media?token=...&kind=IMAGE&limit=50` liefert die geschuetzte Bildergalerie als JSON-Feed.

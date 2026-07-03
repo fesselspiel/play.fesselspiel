@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft, CheckCircle2, Plus } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { ShareButton } from "@/components/share-button";
 import { Button, EmptyState, Field, PageGuide, PageHeader, Panel, inputClass, selectClass } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
@@ -10,6 +11,7 @@ import { currentUser } from "@/lib/auth";
 import { requireFeature } from "@/lib/features";
 import { packingListInclude, packingVisibilityScope, serializePackingList } from "@/lib/packing";
 import { prisma } from "@/lib/prisma";
+import { shareTargetsForUser } from "@/lib/share";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +60,10 @@ export default async function PackingDetailPage({ params }: { params: { slug: st
   const list = await prisma.packingList.findFirst({ where: { slug: params.slug, ...packingVisibilityScope(user) }, include: packingListInclude });
   if (!list) redirect("/packing");
   const view = serializePackingList(list, user);
-  const toys = await prisma.toy.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { title: "asc" }], include: { category: true } });
+  const [toys, shareTargets] = await Promise.all([
+    prisma.toy.findMany({ where: await ownerScope(user), orderBy: [{ sortOrder: "asc" }, { title: "asc" }], include: { category: true } }),
+    shareTargetsForUser(user)
+  ]);
 
   return (
     <AppShell>
@@ -113,6 +118,9 @@ export default async function PackingDetailPage({ params }: { params: { slug: st
               <span>Sichtbarkeit: {view.visibility}</span>
               {view.packingEvent ? <span>Pack-Event: {view.packingEvent.title}</span> : null}
               {view.event ? <span>Event: {view.event.title}</span> : null}
+            </div>
+            <div className="mt-4">
+              <ShareButton entityType="packingList" entityId={view.id} title={view.title} href={view.href} text={view.note} targets={shareTargets} defaultChannel={user.settings?.shareDefaultChannel} messageTemplate={user.settings?.shareMessageTemplate} />
             </div>
           </Panel>
           <Panel>

@@ -39,6 +39,13 @@ export const defaultEmailTemplates = [
     subject: "Passwort zurücksetzen",
     body:
       "Hallo {{userName}},\n\nfür dein Konto wurde ein Link zum Zurücksetzen des Passworts angefordert.\n\nLogin: {{loginIdentifier}}\nNeues Passwort setzen: {{resetUrl}}\n\nFalls du das nicht warst, ignoriere diese E-Mail.\n\nViele Grüße\nFesselspiel"
+  },
+  {
+    key: "item_share",
+    title: "Eintrag teilen",
+    subject: "{{actor}} teilt: {{title}}",
+    body:
+      "Hallo {{userName}},\n\n{{actor}} hat einen Eintrag mit dir geteilt:\n\n{{title}}\n\n{{text}}\n\nÖffnen: {{url}}\n\nViele Grüße\nPlayplaner"
   }
 ] as const;
 
@@ -253,7 +260,7 @@ export async function ensureEmailSetup() {
       prisma.emailTemplate.upsert({
         where: { key: template.key },
         update: {},
-        create: { ...template, enabled: false }
+        create: { ...template, enabled: template.key === "item_share" }
       })
     )
   );

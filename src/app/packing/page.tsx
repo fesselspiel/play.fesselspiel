@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { CalendarDays, CheckCircle2, Luggage, PackagePlus, Plus, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { ShareButton } from "@/components/share-button";
 import { Button, EmptyState, Field, PageGuide, PageHeader, Panel, inputClass, selectClass } from "@/components/ui";
 import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
@@ -10,6 +11,7 @@ import { currentUser } from "@/lib/auth";
 import { requireFeature } from "@/lib/features";
 import { packingEventInclude, packingListInclude, packingVisibilityScope, serializePackingEvent, serializePackingList } from "@/lib/packing";
 import { prisma } from "@/lib/prisma";
+import { shareTargetsForUser } from "@/lib/share";
 import { uniqueSlug } from "@/lib/slug";
 
 export const dynamic = "force-dynamic";
@@ -136,11 +138,12 @@ export default async function PackingPage({ searchParams }: { searchParams?: { p
   if (!user) redirect("/login");
   await requireFeature("packingLists");
   const scope = await ownerScope(user);
-  const [packingEvents, lists, toys, events] = await Promise.all([
+  const [packingEvents, lists, toys, events, shareTargets] = await Promise.all([
     prisma.packingEvent.findMany({ where: packingVisibilityScope(user), include: packingEventInclude, orderBy: [{ startsAt: "asc" }, { createdAt: "desc" }] }),
     prisma.packingList.findMany({ where: packingVisibilityScope(user), include: packingListInclude, orderBy: [{ sortOrder: "asc" }, { updatedAt: "desc" }] }),
     prisma.toy.findMany({ where: scope, orderBy: [{ sortOrder: "asc" }, { title: "asc" }], include: { category: true } }),
-    prisma.event.findMany({ where: scope, orderBy: { startsAt: "asc" }, take: 50 })
+    prisma.event.findMany({ where: scope, orderBy: { startsAt: "asc" }, take: 50 }),
+    shareTargetsForUser(user)
   ]);
   const eventViews = packingEvents.map((entry) => serializePackingEvent(entry, user));
   const listViews = lists.map((list) => serializePackingList(list, user));
@@ -207,6 +210,7 @@ export default async function PackingPage({ searchParams }: { searchParams?: { p
                   {entry.description ? <p className="text-sm leading-6 text-graphite">{entry.description}</p> : null}
                   <div className="grid gap-2 text-sm text-graphite"><span>{entry.progress.lists} Listen · {entry.progress.open} offen</span>{entry.location ? <span>Ort: {entry.location}</span> : null}</div>
                   <div className="grid gap-2">{entry.lists.map((list: any) => <Link key={list.id} href={list.href} className="rounded-md bg-paper px-3 py-2 text-sm font-semibold hover:text-redbrand">{list.title} · {list.packed}/{list.total}</Link>)}</div>
+                  <ShareButton entityType="packingEvent" entityId={entry.id} title={entry.title} href={`/packing?packingEvent=${entry.id}`} text={entry.description} targets={shareTargets} defaultChannel={user.settings?.shareDefaultChannel} messageTemplate={user.settings?.shareMessageTemplate} />
                 </div>
               </details>
             ))}
@@ -276,6 +280,7 @@ export default async function PackingPage({ searchParams }: { searchParams?: { p
               </div>
               <div className="space-y-3">
                 <Link href={list.href} className="inline-flex min-h-10 w-full items-center justify-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white">Detail öffnen</Link>
+                <ShareButton entityType="packingList" entityId={list.id} title={list.title} href={list.href} text={list.note} targets={shareTargets} defaultChannel={user.settings?.shareDefaultChannel} messageTemplate={user.settings?.shareMessageTemplate} />
                 <details className="rounded-md border border-line bg-paper p-3">
                   <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Spielzeug hinzufügen</summary>
                   <form action={addItem} className="mt-3 grid gap-2">
