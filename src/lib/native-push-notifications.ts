@@ -20,6 +20,11 @@ type TestPushInput = {
   body?: string;
   sound?: string;
   action?: string;
+  href?: string;
+  targetScreen?: string;
+  targetId?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
 };
 type ApnsResponse = {
   ok: boolean;
@@ -223,8 +228,11 @@ function payloadForAuditMessage(audit: AuditForPush, title: string, body: string
   };
 }
 
-function payloadForTest(input: Required<Pick<TestPushInput, "title" | "body">> & Pick<TestPushInput, "tenantId" | "actorId" | "sound">) {
+function payloadForTest(input: Required<Pick<TestPushInput, "title" | "body">> & Pick<TestPushInput, "tenantId" | "actorId" | "sound" | "action" | "href" | "targetScreen" | "targetId" | "entityType" | "entityId">) {
   const sound = normalizeSound(input.sound);
+  const href = input.href || "/settings/push";
+  const entityType = input.entityType || "tenant";
+  const entityId = input.entityId || input.tenantId;
   return {
     aps: {
       alert: {
@@ -233,20 +241,20 @@ function payloadForTest(input: Required<Pick<TestPushInput, "title" | "body">> &
       },
       sound
     },
-    type: "test",
+    type: pushTypeForAction(input.action || "native_push_test"),
     target: {
-      screen: "setup",
-      id: input.tenantId,
-      href: "/settings/push"
+      screen: input.targetScreen || "setup",
+      id: input.targetId ?? entityId,
+      href
     },
     eventId: null,
     threadId: null,
     imageUrl: null,
     sound,
-    action: "native_push_test",
-    entityType: "tenant",
-    entityId: input.tenantId,
-    href: "/settings/push",
+    action: input.action || "native_push_test",
+    entityType,
+    entityId,
+    href,
     actorId: input.actorId
   };
 }
@@ -632,7 +640,13 @@ export async function sendNativeTestPush(input: TestPushInput) {
       actorId: input.actorId,
       title: input.title?.trim() || "Playplaner Test",
       body: input.body?.trim() || "Wenn du das siehst, ist native Push eingerichtet.",
-      sound: input.sound
+      sound: input.sound,
+      action: input.action,
+      href: input.href,
+      targetScreen: input.targetScreen,
+      targetId: input.targetId,
+      entityType: input.entityType,
+      entityId: input.entityId
     })
   };
   let authorization: string;

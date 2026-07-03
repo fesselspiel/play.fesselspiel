@@ -99,6 +99,7 @@ model Tenant {
   nativePushNotificationRules NativePushNotificationRule[]
   scheduledRules ScheduledRule[]
   scheduledRuleRuns ScheduledRuleRun[]
+  shareDeliveries ShareDelivery[]
   playReadyLikes PlayReadyLike[]
   activityLikes ActivityLike[]
   circleChatMessages CircleChatMessage[]
@@ -193,6 +194,8 @@ model User {
   nativePushDevices NativePushDevice[]
   nativePushDeliveries NativePushDelivery[]
   nativePushNotificationTargets NativePushNotificationRule[] @relation("NativePushNotificationTargetUser")
+  shareDeliveriesSent ShareDelivery[] @relation("ShareDeliveryActor")
+  shareDeliveriesReceived ShareDelivery[] @relation("ShareDeliveryTargetUser")
   circleChatMessages CircleChatMessage[] @relation("CircleChatSender")
   circleChatReceipts CircleChatReceipt[]
   packingEvents PackingEvent[]
@@ -597,6 +600,33 @@ model NativePushNotificationRule {
   @@index([tenantId, action, active])
   @@index([targetUserId])
   @@index([targetCircleId])
+}
+
+model ShareDelivery {
+  id           String    @id @default(cuid())
+  token        String    @unique
+  tenantId     String?
+  actorId      String
+  targetUserId String
+  channel      String
+  entityType   String
+  entityId     String
+  title        String
+  href         String
+  text         String?
+  openCount    Int       @default(0)
+  openedAt     DateTime?
+  lastOpenedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  tenant       Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor        User      @relation("ShareDeliveryActor", fields: [actorId], references: [id], onDelete: Cascade)
+  targetUser   User      @relation("ShareDeliveryTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([channel, openedAt])
 }
 
 model ScheduledRule {

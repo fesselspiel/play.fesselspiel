@@ -46,6 +46,13 @@ export const defaultEmailTemplates = [
     subject: "{{actor}} teilt: {{title}}",
     body:
       "Hallo {{userName}},\n\n{{actor}} hat einen Eintrag mit dir geteilt:\n\n{{title}}\n\n{{text}}\n\nÖffnen: {{url}}\n\nViele Grüße\nPlayplaner"
+  },
+  {
+    key: "item_share_opened",
+    title: "Geteilter Eintrag geöffnet",
+    subject: "{{opener}} hat geöffnet: {{title}}",
+    body:
+      "Hallo {{userName}},\n\n{{opener}} hat deinen geteilten Eintrag geöffnet:\n\n{{title}}\n\nDirekt öffnen: {{url}}\n\nViele Grüße\nPlayplaner"
   }
 ] as const;
 
@@ -260,7 +267,7 @@ export async function ensureEmailSetup() {
       prisma.emailTemplate.upsert({
         where: { key: template.key },
         update: {},
-        create: { ...template, enabled: template.key === "item_share" }
+        create: { ...template, enabled: template.key === "item_share" || template.key === "item_share_opened" }
       })
     )
   );

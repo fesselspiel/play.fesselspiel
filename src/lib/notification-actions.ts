@@ -36,6 +36,7 @@ export const knownAuditActions = [
   ["invite_email_resent", "Einladungsmail erneut gesendet"],
   ["invite_revoked", "Einladung widerrufen"],
   ["invite_sent_telegram", "Einladung per Telegram verschickt"],
+  ["item_share_opened", "Geteilter Eintrag geöffnet"],
   ["item_shared", "Eintrag geteilt"],
   ["email_failed", "E-Mail fehlgeschlagen"],
   ["email_sent", "E-Mail gesendet"],
