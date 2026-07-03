@@ -40,9 +40,9 @@ export const publicFeatures: PublicFeature[] = [
     mockup: {
       title: "Start",
       subtitle: "Heute im Kreis",
-      primary: "Gabriel ist grün",
+      primary: "Lina ist grün",
       rows: [
-        { label: "Maren", value: "flexibel", tone: "blue" },
+        { label: "Mika", value: "flexibel", tone: "blue" },
         { label: "Offener Auftrag", value: "1", tone: "red" },
         { label: "Tracker-Todo", value: "2 h offen", tone: "neutral" }
       ]
@@ -132,7 +132,7 @@ export const publicFeatures: PublicFeature[] = [
       subtitle: "Kategorie geöffnet",
       primary: "Leder-Manschetten",
       rows: [
-        { label: "Favorit", value: "Anna", tone: "red" },
+        { label: "Favorit", value: "Lina", tone: "red" },
         { label: "Szenen", value: "2 verknüpft", tone: "blue" },
         { label: "Shopify", value: "optional", tone: "neutral" }
       ]
@@ -223,7 +223,7 @@ export const publicFeatures: PublicFeature[] = [
       primary: "Foto-Session im Studio",
       rows: [
         { label: "Bilder", value: "3", tone: "blue" },
-        { label: "Like", value: "Anna", tone: "red" },
+        { label: "Like", value: "Mika", tone: "red" },
         { label: "Status", value: "offen", tone: "neutral" }
       ]
     }
@@ -282,7 +282,7 @@ export const publicFeatures: PublicFeature[] = [
       subtitle: "Kreis",
       primary: "Neue Nachricht",
       rows: [
-        { label: "Manuel", value: "Hallo", tone: "blue" },
+        { label: "Noah", value: "Hallo", tone: "blue" },
         { label: "Push", value: "gesendet", tone: "green" },
         { label: "Teilen", value: "geöffnet", tone: "red" }
       ]
@@ -340,7 +340,7 @@ export const publicFeatures: PublicFeature[] = [
     mockup: {
       title: "Kreise",
       subtitle: "Seite",
-      primary: "Anna und Gabriel",
+      primary: "Lina und Mika",
       rows: [
         { label: "Feature", value: "Bilder an", tone: "green" },
         { label: "Domain", value: "playplaner", tone: "blue" },

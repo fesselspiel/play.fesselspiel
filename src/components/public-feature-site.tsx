@@ -101,32 +101,55 @@ function PhoneMockup({ feature }: { feature: PublicFeature }) {
     neutral: "bg-paper text-graphite"
   };
   return (
-    <div className="mx-auto w-full max-w-[310px] rounded-[2rem] border border-line bg-ink p-3 shadow-soft">
-      <div className="rounded-[1.5rem] bg-surface p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="h-2 w-16 rounded-full bg-line" />
-          <div className="text-[10px] font-semibold text-graphite">9:41</div>
-        </div>
-        <div className="rounded-2xl bg-paper p-4">
-          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-redbrand text-white">
-            <FeatureIcon name={feature.icon} />
+    <div className="mx-auto w-full max-w-[320px] rounded-[2.25rem] bg-[linear-gradient(145deg,#111111,#3a3a3a)] p-3 shadow-[0_24px_70px_rgba(17,17,17,0.22)]">
+      <div className="relative overflow-hidden rounded-[1.7rem] bg-canvas">
+        <div className="absolute inset-x-8 top-0 h-6 rounded-b-2xl bg-ink" />
+        <div className="flex items-center justify-between px-5 pb-3 pt-8">
+          <div className="text-[10px] font-bold text-ink">9:41</div>
+          <div className="flex items-center gap-1">
+            <span className="h-2 w-3 rounded-sm bg-ink/80" />
+            <span className="h-2 w-2 rounded-full bg-ink/80" />
+            <span className="h-2 w-4 rounded-sm bg-redbrand" />
           </div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-graphite">{feature.mockup.title}</div>
-          <div className="mt-1 text-xl font-semibold leading-7">{feature.mockup.primary}</div>
-          <div className="mt-1 text-xs leading-5 text-graphite">{feature.mockup.subtitle}</div>
         </div>
-        <div className="mt-4 space-y-2">
-          {feature.mockup.rows.map((row) => (
-            <div key={row.label} className="flex items-center justify-between rounded-xl border border-line bg-surface p-3">
-              <span className="text-xs font-semibold text-graphite">{row.label}</span>
-              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${tones[row.tone || "neutral"]}`}>{row.value}</span>
+        <div className="px-4 pb-4">
+          <div className="rounded-2xl border border-line bg-surface p-3 shadow-soft">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-graphite">{feature.mockup.title}</div>
+                <div className="mt-1 text-xs text-graphite">{feature.mockup.subtitle}</div>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-redbrand text-white shadow-soft">
+                <FeatureIcon name={feature.icon} className="h-4 w-4" />
+              </div>
             </div>
-          ))}
-        </div>
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <div className="h-12 rounded-xl bg-paper" />
-          <div className="h-12 rounded-xl bg-redbrand" />
-          <div className="h-12 rounded-xl bg-paper" />
+            <div className="mt-4 rounded-2xl bg-[linear-gradient(135deg,rgba(227,6,19,0.16),rgba(14,165,233,0.12))] p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-redbrand">{feature.eyebrow}</div>
+              <div className="mt-1 text-xl font-semibold leading-7">{feature.mockup.primary}</div>
+            </div>
+          </div>
+          <div className="mt-3 space-y-2">
+            {feature.mockup.rows.map((row) => (
+              <div key={row.label} className="flex items-center justify-between rounded-xl border border-line bg-surface p-3 shadow-[0_6px_18px_rgba(17,17,17,0.04)]">
+                <span className="text-xs font-semibold text-graphite">{row.label}</span>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${tones[row.tone || "neutral"]}`}>{row.value}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="h-14 rounded-xl border border-line bg-surface p-2">
+              <div className="h-2 w-7 rounded-full bg-line" />
+              <div className="mt-2 h-2 w-10 rounded-full bg-line/70" />
+            </div>
+            <div className="flex h-14 items-center justify-center rounded-xl bg-redbrand text-white shadow-soft">
+              <FeatureIcon name={feature.icon} className="h-5 w-5" />
+            </div>
+            <div className="h-14 rounded-xl border border-line bg-surface p-2">
+              <div className="h-2 w-7 rounded-full bg-line" />
+              <div className="mt-2 h-2 w-10 rounded-full bg-line/70" />
+            </div>
+          </div>
+          <div className="mx-auto mt-4 h-1.5 w-20 rounded-full bg-ink/20" />
         </div>
       </div>
     </div>
