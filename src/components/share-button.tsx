@@ -95,7 +95,9 @@ export function ShareButton({
         {label}
       </button>
       {open ? (
-        <div className="absolute right-0 top-full z-40 mt-2 w-[min(92vw,360px)] rounded-lg border border-line bg-surface p-3 text-left shadow-xl">
+        <>
+        <button type="button" aria-label="Teilen schließen" onClick={() => setOpen(false)} className="fixed inset-0 z-[70] bg-black/20 sm:hidden" />
+        <div className="fixed inset-x-3 bottom-3 z-[80] max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-lg border border-line bg-surface p-3 text-left shadow-xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:z-40 sm:mt-2 sm:w-[min(92vw,360px)]">
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-ink">Teilen als</div>
@@ -150,6 +152,7 @@ export function ShareButton({
             {sending ? "Wird geteilt..." : "Teilen"}
           </button>
         </div>
+        </>
       ) : null}
     </div>
   );
