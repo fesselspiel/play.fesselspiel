@@ -10,13 +10,14 @@ export async function POST(request: NextRequest) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ ok: false, error: "Nicht angemeldet" }, { status: 401 });
   if (!featureEnabled(user.tenant?.features, "circleChat")) return NextResponse.json({ ok: false, error: "Feature deaktiviert" }, { status: 403 });
-  const scope = await requireCircleChatScope(user).catch(() => null);
-  if (!scope) return NextResponse.json({ ok: false, error: "Kein Zirkel für den Chat zugeordnet" }, { status: 403 });
   const payload = await request.json().catch(() => ({})) as {
+    circleId?: unknown;
     messageIds?: unknown;
     upToMessageId?: unknown;
     upToCreatedAt?: unknown;
   };
+  const scope = await requireCircleChatScope(user, typeof payload.circleId === "string" ? payload.circleId : request.nextUrl.searchParams.get("circleId")).catch(() => null);
+  if (!scope) return NextResponse.json({ ok: false, error: "Kein Zirkel für den Chat zugeordnet" }, { status: 403 });
   const messageIds = Array.isArray(payload.messageIds)
     ? payload.messageIds.map((id) => String(id)).filter(Boolean).slice(0, 200)
     : undefined;

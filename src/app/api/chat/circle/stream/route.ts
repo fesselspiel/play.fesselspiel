@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const user = await currentUser();
   if (!user) return new Response("Nicht angemeldet", { status: 401 });
   if (!featureEnabled(user.tenant?.features, "circleChat")) return new Response("Feature deaktiviert", { status: 403 });
-  const scope = await requireCircleChatScope(user).catch(() => null);
+  const scope = await requireCircleChatScope(user, request.nextUrl.searchParams.get("circleId")).catch(() => null);
   if (!scope) return new Response("Kein Zirkel für den Chat zugeordnet", { status: 403 });
   const encoder = new TextEncoder();
   let lastSeen = request.nextUrl.searchParams.get("after") || new Date(Date.now() - 30_000).toISOString();

@@ -7,11 +7,11 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-export async function DELETE(_request: NextRequest, { params }: { params: { messageId: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: { messageId: string } }) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ ok: false, error: "Nicht angemeldet" }, { status: 401 });
   if (!featureEnabled(user.tenant?.features, "circleChat")) return NextResponse.json({ ok: false, error: "Feature deaktiviert" }, { status: 403 });
-  const scope = await requireCircleChatScope(user).catch(() => null);
+  const scope = await requireCircleChatScope(user, request.nextUrl.searchParams.get("circleId")).catch(() => null);
   if (!scope) return NextResponse.json({ ok: false, error: "Kein Zirkel für den Chat zugeordnet" }, { status: 403 });
   const message = await prisma.circleChatMessage.findFirst({
     where: { id: params.messageId, tenantId: scope.tenantId, circleId: scope.circleId, deletedAt: null },
@@ -28,7 +28,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: { mess
     entityType: "circleChatMessage",
     entityId: message.id,
     title: `Chat-Nachricht gelöscht von ${userDisplayName(user)}`,
-    href: "/chat",
+    href: `/chat?circleId=${encodeURIComponent(scope.circleId)}`,
     details: {
       circleId: scope.circleId,
       hadFile: Boolean(message.fileId),

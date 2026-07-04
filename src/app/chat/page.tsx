@@ -4,7 +4,7 @@ import { MessageCircle } from "lucide-react";
 import { CircleChatClient } from "@/components/circle-chat-client";
 import { PageGuide, Panel } from "@/components/ui";
 import { currentUser } from "@/lib/auth";
-import { circleChatMembers, requireCircleChatScope, serializeCircleChatMessage } from "@/lib/circle-chat";
+import { accessibleCircleChats, circleChatMembers, requireCircleChatScope, serializeCircleChatMessage } from "@/lib/circle-chat";
 import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { userDisplayName } from "@/lib/audit";
@@ -33,11 +33,12 @@ function ChatHeader() {
   );
 }
 
-export default async function CircleChatPage() {
+export default async function CircleChatPage({ searchParams }: { searchParams?: { circleId?: string } }) {
   await requireFeature("circleChat");
   const user = await currentUser();
   if (!user) redirect("/login");
-  const scope = await requireCircleChatScope(user).catch(() => null);
+  const requestedCircleId = typeof searchParams?.circleId === "string" ? searchParams.circleId : null;
+  const scope = await requireCircleChatScope(user, requestedCircleId).catch(() => null);
   if (!scope) {
     return (
       <>
@@ -51,20 +52,32 @@ export default async function CircleChatPage() {
       </>
     );
   }
-  const [messages, members] = await Promise.all([
+  const [messages, members, circles] = await Promise.all([
     prisma.circleChatMessage.findMany({
       where: { tenantId: scope.tenantId, circleId: scope.circleId, deletedAt: null },
-      include: { sender: { include: { profile: true } }, file: true },
+      include: { sender: { include: { profile: true } }, file: true, receipts: { include: { user: { include: { profile: true } } } } },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 50
     }),
-    circleChatMembers(scope.tenantId, scope.circleId)
+    circleChatMembers(scope.tenantId, scope.circleId),
+    accessibleCircleChats(user)
   ]);
 
   return (
     <>
       <ChatHeader />
       <CircleChatClient
+        key={scope.circleId}
+        circleId={scope.circleId}
+        circleName={scope.circleName}
+        circles={circles.map((circle) => ({
+          id: circle.id,
+          name: circle.name,
+          memberCount: circle.memberCount,
+          unreadCount: circle.unreadCount,
+          selected: circle.id === scope.circleId,
+          lastMessage: circle.lastMessage
+        }))}
         initialMessages={messages.reverse().map((message) => serializeCircleChatMessage(message, user.id, user.role))}
         members={members.map((member) => ({
           id: member.id,
