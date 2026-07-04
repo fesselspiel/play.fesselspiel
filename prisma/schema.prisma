@@ -72,6 +72,8 @@ model Tenant {
   domains     TenantDomain[]
   features    TenantFeature[]
   memberships TenantMembership[]
+  pointRules  PointRule[]
+  pointEntries PointEntry[]
   users       User[]
   circles     Circle[]
   files       FileAsset[]
@@ -182,6 +184,7 @@ model User {
   auditLogs         AuditLog[]
   feedComments      FeedComment[]
   feedLikes         FeedLike[]
+  pointEntries      PointEntry[]
   activityLikes     ActivityLike[]
   trackerEntries    TrackerEntry[]
   favoriteToys      ToyFavorite[]
@@ -408,10 +411,45 @@ model AuditLog {
   actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
   feedComments FeedComment[]
   feedLikes     FeedLike[]
+  pointEntries  PointEntry[]
 
   @@index([actorId, createdAt])
   @@index([createdAt])
   @@index([entityType, entityId])
+}
+
+model PointRule {
+  id        String   @id @default(cuid())
+  tenantId  String
+  action    String
+  points    Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, action])
+  @@index([tenantId, active])
+  @@index([action])
+}
+
+model PointEntry {
+  id         String    @id @default(cuid())
+  tenantId   String
+  userId     String
+  auditLogId String?
+  action     String
+  points     Int
+  note       String?
+  createdAt  DateTime  @default(now())
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  auditLog   AuditLog? @relation(fields: [auditLogId], references: [id], onDelete: SetNull)
+
+  @@unique([auditLogId, userId])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, userId, createdAt])
+  @@index([tenantId, action, createdAt])
 }
 
 model FeedComment {

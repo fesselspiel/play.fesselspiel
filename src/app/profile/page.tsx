@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
-import { KeyRound, MailCheck, Save } from "lucide-react";
+import { KeyRound, MailCheck, Save, Trophy } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { FileUploadField } from "@/components/file-upload-field";
 import { SubmitButton } from "@/components/submit-button";
@@ -12,6 +12,7 @@ import { formatDateTime } from "@/lib/dates";
 import { sendEmailConfirmation } from "@/lib/email-confirmation";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
+import { userPointTotal } from "@/lib/points";
 import { normalizeTheme, normalizeThemeMode } from "@/lib/themes";
 
 async function existingProfileImageUrl(ownerId: string, url?: string | null) {
@@ -126,12 +127,24 @@ export default async function ProfilePage({ searchParams }: { searchParams?: { e
   const activeTheme = normalizeTheme(user.settings?.theme);
   const activeMode = normalizeThemeMode(user.settings?.darkMode);
   const profileImageUrl = await existingProfileImageUrl(user.id, user.profile?.imageUrl);
+  const points = user.tenantId ? await userPointTotal(user.id, user.tenantId) : 0;
   return (
     <AppShell>
       <PageHeader title="Profil & Einstellungen" />
       <PageGuide title="Profilinformationen und persönliches Erscheinungsbild">
         Hier pflegst du sichtbare Profilangaben und persönliche Einstellungen. Ändere Basisdaten, Profiltext, Profilbild und teste Farbschemas direkt im Theme-Picker, bevor du speicherst.
       </PageGuide>
+      <Panel className="mb-4 max-w-3xl">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-redbrand text-white">
+            <Trophy className="h-5 w-5" />
+          </span>
+          <div>
+            <div className="text-2xl font-semibold text-ink">{points}</div>
+            <div className="text-sm text-graphite">deine Punkte auf dieser Seite</div>
+          </div>
+        </div>
+      </Panel>
       <Panel className="max-w-3xl">
         {searchParams?.error ? (
           <div className="mb-4 rounded-md border border-redbrand bg-redbrand/10 px-4 py-3 text-sm font-semibold text-redbrand">

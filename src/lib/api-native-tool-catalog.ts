@@ -37,6 +37,23 @@ const manualToolCatalog = ([
     category: "Portal"
   },
   {
+    id: "points",
+    method: "GET",
+    path: "/api/external/points",
+    title: "Punkte",
+    description: "Punktestand, Leaderboard und eigene Punktbuchungen lesen.",
+    category: "Portal"
+  },
+  {
+    id: "pointRules",
+    method: "GET",
+    methods: ["GET", "POST"],
+    path: "/api/external/points/rules",
+    title: "Punkteregeln",
+    description: "Admin-Endpunkt zum Lesen und Setzen von Punkten pro Aktion.",
+    category: "Portal"
+  },
+  {
     id: "webSessionBridge",
     method: "POST",
     path: "/api/external/auth/web-session",

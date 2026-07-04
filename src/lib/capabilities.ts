@@ -70,6 +70,18 @@ export const capabilities: readonly Capability[] = [
         auditActions: ["login", "logout", "portal_status_requested"]
       },
       {
+        key: "points",
+        label: "Punkte anzeigen",
+        type: "read",
+        description: "Zeigt Punktestand, Leaderboard und Punktbuchungen.",
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/points", description: "Eigene Punkte, Leaderboard und letzte Buchungen lesen." },
+          { method: "GET", path: "/api/external/points/rules", description: "Admin: Punkteregeln pro Aktion lesen." },
+          { method: "POST", path: "/api/external/points/rules", description: "Admin: Punkte pro Aktion setzen. JSON: `action`, `points`, `active`." }
+        ],
+        auditActions: ["point_rules_updated", "point_rule_updated_api"]
+      },
+      {
         key: "search",
         label: "Portal durchsuchen",
         type: "read",

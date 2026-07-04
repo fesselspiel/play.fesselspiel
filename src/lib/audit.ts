@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { dispatchEmailAuditNotifications } from "@/lib/email-notifications";
 import { dispatchExternalPushNotifications } from "@/lib/external-push-notifications";
 import { dispatchNativePushNotifications } from "@/lib/native-push-notifications";
+import { awardPointsForAudit } from "@/lib/points";
 import { dispatchAuditNotifications } from "@/lib/telegram-notifications";
 
 export type AuditActionInput = {
@@ -27,6 +28,12 @@ export async function logAction(input: AuditActionInput) {
         details: input.details ?? undefined,
         href: input.href || null
       }
+    });
+    await awardPointsForAudit({
+      auditLogId: audit.id,
+      actorId: audit.actorId,
+      action: audit.action,
+      title: audit.title
     });
     await Promise.all([
       dispatchAuditNotifications(audit),

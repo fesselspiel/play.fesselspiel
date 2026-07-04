@@ -533,6 +533,8 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 
 - `POST /api/external/auth/login`
 - `POST /api/external/auth/web-session`
+- `GET /api/external/points`
+- `GET|POST /api/external/points/rules`
 - `GET /api/external/events`
 - `GET /api/external/events/actions`
 - `GET /api/external/catalog/categories`
@@ -551,6 +553,47 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `GET /api/external/bondage-system/{id}`
 
 Die API-Control-Seite zeigt Beispielpayloads, Curl-Vorlagen und Hinweise. Fuer echte App-Tests sollte der Bearer-Header genutzt werden.
+
+## Punktesystem
+
+Admins konfigurieren im Backend unter `Einstellungen -> Punkte`, welche Audit-Aktion wie viele Punkte gibt oder abzieht. Die Vergabe haengt zentral an `logAction`: sobald eine Aktion protokolliert wird und eine aktive Punkteregel mit ungleich `0` existiert, entsteht eine Punktbuchung fuer den ausloesenden Benutzer.
+
+### Punkte lesen
+
+```http
+GET /api/external/points?limit=30
+Authorization: Bearer fsp_...
+```
+
+Antwort:
+
+```json
+{
+  "ok": true,
+  "user": { "id": "user-id", "displayName": "Name", "points": 42 },
+  "leaderboard": [
+    { "userId": "user-id", "displayName": "Name", "points": 42, "entries": 5 }
+  ],
+  "entries": [
+    { "action": "toy_created", "points": 5, "title": "Spielzeug angelegt", "href": "/toys/..." }
+  ]
+}
+```
+
+### Punkteregeln verwalten
+
+Nur Admin-/Superadmin-Tokens:
+
+```http
+GET /api/external/points/rules
+POST /api/external/points/rules
+Authorization: Bearer fsp_...
+Content-Type: application/json
+
+{ "action": "toy_created", "points": 5, "active": true }
+```
+
+`GET` liefert alle bekannten Aktionen mit lesbarer Beschriftung, aktuellem Punktwert und Aktivstatus. `POST` setzt oder aktualisiert genau eine Regel.
 
 ## Hinweise fuer Weiterentwicklung
 

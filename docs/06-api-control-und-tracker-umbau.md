@@ -74,8 +74,17 @@ Ergaenzt wurden POST-Varianten in der Capability-Beschreibung fuer:
 - Tracker starten
 - Tracker stoppen
 - Einladungen erstellen
+- Punkte lesen und Punkteregeln verwalten
 
 Das beschreibt die bereits naheliegende native App-Nutzung besser, weil mobile Clients nicht alle Schreibaktionen ueber GET-URLs abbilden sollten.
+
+Punkte-Endpunkte:
+
+- `GET /api/external/points`
+- `GET /api/external/points/rules`
+- `POST /api/external/points/rules`
+
+`GET /api/external/points` liefert den eigenen Punktestand, sichtbares Leaderboard und letzte eigene Buchungen. Admins koennen ueber `/points/rules` Punkte pro Audit-Aktion lesen und setzen.
 
 Ergaenzt wurden ausserdem Katalog-Endpunkte fuer native Apps:
 
