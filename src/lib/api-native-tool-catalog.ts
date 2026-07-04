@@ -202,9 +202,10 @@ const manualToolCatalog = ([
   {
     id: "catalogToys",
     method: "GET",
+    methods: ["GET", "POST"],
     path: "/api/external/catalog/toys",
     title: "Spielsachen",
-    description: "Spielsachen inklusive Kategorien, Bildern, Favoriten und Verknuepfungen.",
+    description: "Spielsachen inklusive Kategorien, Bildern, Favoriten und Verknuepfungen lesen oder neu anlegen.",
     category: "Katalog"
   },
   {

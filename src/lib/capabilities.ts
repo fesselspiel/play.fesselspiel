@@ -209,6 +209,7 @@ export const capabilities: readonly Capability[] = [
         telegramCommands: [{ command: "/toys", description: "Spielzeuge anzeigen" }],
         apiEndpoints: [
           { method: "GET", path: "/api/external/catalog/toys?limit=100", description: "Listet Spielsachen inklusive Kategorie, Bild, Favoriten und Verknüpfungen." },
+          { method: "POST", path: "/api/external/catalog/toys", description: "Legt ein Spielzeug per API an. JSON: `title`, optional `description`, `categoryId`/`category`, `positionIds[]`, `imageUrl`." },
           { method: "GET", path: "/api/external/catalog/categories?kind=toy", description: "Listet Spielzeug-Kategorien." }
         ]
       },
@@ -256,7 +257,7 @@ export const capabilities: readonly Capability[] = [
           }
         },
         telegramCommands: [{ command: "/toy_new Name", description: "neues Spielzeug mit Dialog anlegen" }],
-        auditActions: ["toy_created", "toy_updated", "toy_deleted"]
+        auditActions: ["toy_created", "toy_created_api", "toy_updated", "toy_deleted"]
       },
       {
         key: "update",

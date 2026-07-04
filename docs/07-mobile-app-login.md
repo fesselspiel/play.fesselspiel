@@ -428,6 +428,7 @@ Die Antwort enthaelt eine flache `categories`-Liste und `groups` nach `toy` und 
 ```http
 GET /api/external/catalog/toys?limit=100
 GET /api/external/catalog/toys/{id}
+POST /api/external/catalog/toys
 Authorization: Bearer fsp_...
 ```
 
@@ -441,6 +442,21 @@ Parameter:
 
 Jeder Eintrag enthaelt `category`, `image`, `favorites`, `isFavorite`, `positions` und `activities`.
 Der Detail-Endpunkt akzeptiert die interne ID oder den Slug.
+
+`POST /api/external/catalog/toys` legt eine neue Spielsache an und gibt `201` mit `ok:true,item:{...}` im gleichen Katalog-Shape zurueck. Minimaler JSON-Body:
+
+```json
+{
+  "title": "Neue Spielsache",
+  "description": "Optionale Beschreibung",
+  "categoryId": "optional-vorhandene-kategorie",
+  "category": "oder neue Kategorie",
+  "positionIds": ["optionale-szenen-id"],
+  "imageUrl": "optional-bestehende-geschuetzte-bild-url"
+}
+```
+
+Wenn `categoryId` fehlt oder ungueltig ist, wird `category`/`categoryName` verwendet oder die Standardkategorie `Allgemein` genutzt. `positionIds` werden nur verbunden, wenn das Szenen-Feature aktiv ist und die Szenen fuer den Benutzer sichtbar sind.
 
 ### Szenen
 
@@ -520,7 +536,7 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `GET /api/external/events`
 - `GET /api/external/events/actions`
 - `GET /api/external/catalog/categories`
-- `GET /api/external/catalog/toys`
+- `GET|POST /api/external/catalog/toys`
 - `GET /api/external/catalog/toys/{id}`
 - `GET /api/external/catalog/positions`
 - `GET /api/external/catalog/positions/{id}`

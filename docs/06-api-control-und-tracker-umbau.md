@@ -81,9 +81,10 @@ Ergaenzt wurden ausserdem Katalog-Endpunkte fuer native Apps:
 
 - `GET /api/external/catalog/categories?kind=all`
 - `GET /api/external/catalog/toys?limit=100`
+- `POST /api/external/catalog/toys`
 - `GET /api/external/catalog/positions?limit=100`
 
-Diese Endpunkte liefern Kategorien, Bilder, Favoriten und Verknuepfungen fuer Spielsachen und Szenen. Sie verwenden denselben Bearer-Token wie die restliche externe API und respektieren Mandant, Berechtigungen und Feature-Schalter.
+Diese Endpunkte liefern Kategorien, Bilder, Favoriten und Verknuepfungen fuer Spielsachen und Szenen. `POST /api/external/catalog/toys` legt eine Spielsache mit `title`, optionaler `description`, `categoryId`/`category`, `positionIds[]` und `imageUrl` an und gibt das normale Katalog-Item-Shape zurueck. Sie verwenden denselben Bearer-Token wie die restliche externe API und respektieren Mandant, Berechtigungen und Feature-Schalter.
 
 ## Build-Fixes waehrend Docker-Verifikation
 
