@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import bcrypt from "bcryptjs";
-import { KeyRound, MailCheck, Save, Trophy } from "lucide-react";
+import { ChevronDown, KeyRound, MailCheck, Save, Trophy } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { FileUploadField } from "@/components/file-upload-field";
 import { SubmitButton } from "@/components/submit-button";
 import { ThemePicker } from "@/components/theme-picker";
-import { Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
+import { Badge, Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
 import { logAction, userDisplayName } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
@@ -13,6 +14,7 @@ import { sendEmailConfirmation } from "@/lib/email-confirmation";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { userPointTotal } from "@/lib/points";
+import { actionLabel } from "@/lib/notification-actions";
 import { normalizeTheme, normalizeThemeMode } from "@/lib/themes";
 
 async function existingProfileImageUrl(ownerId: string, url?: string | null) {
@@ -128,6 +130,14 @@ export default async function ProfilePage({ searchParams }: { searchParams?: { e
   const activeMode = normalizeThemeMode(user.settings?.darkMode);
   const profileImageUrl = await existingProfileImageUrl(user.id, user.profile?.imageUrl);
   const points = user.tenantId ? await userPointTotal(user.id, user.tenantId) : 0;
+  const pointEntries = user.tenantId
+    ? await prisma.pointEntry.findMany({
+        where: { userId: user.id, tenantId: user.tenantId },
+        include: { auditLog: { select: { href: true, title: true, action: true, createdAt: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 20
+      })
+    : [];
   return (
     <AppShell>
       <PageHeader title="Profil & Einstellungen" />
@@ -135,15 +145,46 @@ export default async function ProfilePage({ searchParams }: { searchParams?: { e
         Hier pflegst du sichtbare Profilangaben und persönliche Einstellungen. Ändere Basisdaten, Profiltext, Profilbild und teste Farbschemas direkt im Theme-Picker, bevor du speicherst.
       </PageGuide>
       <Panel className="mb-4 max-w-3xl">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-redbrand text-white">
-            <Trophy className="h-5 w-5" />
-          </span>
-          <div>
-            <div className="text-2xl font-semibold text-ink">{points}</div>
-            <div className="text-sm text-graphite">deine Punkte auf dieser Seite</div>
+        <details>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+            <span className="flex items-center gap-3">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-redbrand text-white">
+                <Trophy className="h-5 w-5" />
+              </span>
+              <span>
+                <span className="block text-2xl font-semibold text-ink">{points}</span>
+                <span className="block text-sm text-graphite">deine Punkte auf dieser Seite</span>
+              </span>
+            </span>
+            <ChevronDown className="h-5 w-5 shrink-0 text-graphite" />
+          </summary>
+          <div className="mt-4 border-t border-line pt-4">
+            {pointEntries.length ? (
+              <div className="space-y-2">
+                {pointEntries.map((entry) => (
+                  <div key={entry.id} className="rounded-md bg-paper p-3 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-ink">{entry.note || entry.auditLog?.title || actionLabel(entry.action)}</div>
+                        <div className="mt-1 text-xs text-graphite">
+                          {formatDateTime(entry.createdAt)} · {actionLabel(entry.auditLog?.action || entry.action)}
+                        </div>
+                      </div>
+                      <Badge tone={entry.points >= 0 ? "green" : "red"}>{entry.points > 0 ? "+" : ""}{entry.points}</Badge>
+                    </div>
+                    {entry.auditLog?.href ? (
+                      <Link href={entry.auditLog.href} className="mt-2 inline-block text-xs font-semibold text-redbrand hover:underline">
+                        Aktion öffnen
+                      </Link>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-graphite">Noch keine Punkte gebucht.</p>
+            )}
           </div>
-        </div>
+        </details>
       </Panel>
       <Panel className="max-w-3xl">
         {searchParams?.error ? (
