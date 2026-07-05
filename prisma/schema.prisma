@@ -108,6 +108,7 @@ model Tenant {
   invites UserInvite[]
   packingEvents PackingEvent[]
   packingLists PackingList[]
+  wikiPages WikiPage[]
 
   @@index([status])
 }
@@ -204,6 +205,8 @@ model User {
   packingEvents PackingEvent[]
   packingLists PackingList[]
   packedItems PackingListItem[] @relation("PackingItemPackedBy")
+  wikiPages WikiPage[]
+  wikiPageShares WikiPageShare[]
 
   @@index([tenantId])
   @@index([circleId])
@@ -271,6 +274,7 @@ model Circle {
   nativePushNotificationTargets NativePushNotificationRule[] @relation("NativePushNotificationTargetCircle")
   bondageSystemTargets BondageSystemItem[] @relation("BondageSystemTargetCircle")
   chatMessages CircleChatMessage[]
+  wikiPageShares WikiPageShare[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -874,6 +878,43 @@ model PositionFavorite {
   @@unique([positionId, userId])
   @@index([userId, createdAt])
   @@index([positionId, createdAt])
+}
+
+model WikiPage {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  ownerId     String
+  title       String
+  slug        String
+  summary     String?
+  content     String   @default("")
+  visibility  Visibility @default(PRIVATE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  shares      WikiPageShare[]
+
+  @@unique([tenantId, ownerId, slug])
+  @@index([tenantId, ownerId, updatedAt])
+  @@index([ownerId, updatedAt])
+  @@index([visibility])
+}
+
+model WikiPageShare {
+  id             String   @id @default(cuid())
+  pageId         String
+  targetUserId   String?
+  targetCircleId String?
+  createdAt      DateTime @default(now())
+  page           WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  targetUser     User?    @relation(fields: [targetUserId], references: [id], onDelete: Cascade)
+  targetCircle   Circle?  @relation(fields: [targetCircleId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, targetUserId])
+  @@unique([pageId, targetCircleId])
+  @@index([targetUserId])
+  @@index([targetCircleId])
 }
 
 model ActivityPlan {

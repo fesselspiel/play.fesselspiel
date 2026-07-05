@@ -8,6 +8,7 @@ import { absolutePathForAsset, fileAssetUrl, fileIdFromUrl, saveFileBuffer } fro
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
 import { uniqueSessionSlug } from "@/lib/session-slug";
+import { uniqueWikiSlug } from "@/lib/wiki";
 
 type ExportRecord = Record<string, unknown>;
 
@@ -26,6 +27,7 @@ type TransferData = {
   albums: ExportRecord[];
   media: ExportRecord[];
   mediaComments: ExportRecord[];
+  wikiPages: ExportRecord[];
   events: ExportRecord[];
   checkIns: ExportRecord[];
   feedRules: ExportRecord[];
@@ -92,6 +94,7 @@ export async function buildDataExport(user: AccessUser) {
     albums,
     media,
     mediaComments,
+    wikiPages,
     events,
     checkIns,
     feedRules
@@ -107,6 +110,7 @@ export async function buildDataExport(user: AccessUser) {
     prisma.album.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
     prisma.media.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
     prisma.mediaComment.findMany({ where: { ownerId: { in: ownerIds } }, orderBy: { createdAt: "asc" } }),
+    prisma.wikiPage.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
     prisma.event.findMany({ where: ownerScope, orderBy: { startsAt: "asc" } }),
     prisma.checkIn.findMany({ where: { userId: { in: ownerIds } }, orderBy: { createdAt: "asc" } }),
     user.tenantId && (user.role === "ADMIN" || user.role === "SUPER_ADMIN")
@@ -158,6 +162,7 @@ export async function buildDataExport(user: AccessUser) {
     albums: albums.map(withoutOwner),
     media: media.map(withoutOwner),
     mediaComments: mediaComments.map(({ ownerId: _ownerId, ...entry }) => entry),
+    wikiPages: wikiPages.map(withoutOwner),
     events: events.map(withoutOwner),
     checkIns: checkIns.map(({ userId: _userId, ...entry }) => entry),
     feedRules: feedRules.map(({ tenantId: _tenantId, ...entry }) => entry)
@@ -413,6 +418,24 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     await prisma.mediaComment.create({ data: { mediaId, ownerId: user.id, body } });
   }
 
+  let wikiCount = 0;
+  for (const entry of records(data.wikiPages)) {
+    const title = String(entry.title || "Importierte Wiki-Seite");
+    const slug = await uniqueWikiSlug(user.id, user.tenantId, String(entry.slug || title), title);
+    await prisma.wikiPage.create({
+      data: {
+        ownerId: user.id,
+        tenantId: user.tenantId || undefined,
+        title,
+        slug,
+        summary: typeof entry.summary === "string" ? entry.summary : null,
+        content: typeof entry.content === "string" ? entry.content : "",
+        visibility: String(entry.visibility || "PRIVATE") as "PRIVATE" | "PARTNER" | "SHARED"
+      }
+    });
+    wikiCount += 1;
+  }
+
   const eventMap = new Map<string, string>();
   for (const entry of records(data.events)) {
     const startsAt = toDate(entry.startsAt);
@@ -448,6 +471,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     activityImages: activityImageMap.size,
     albums: albumMap.size,
     media: mediaMap.size,
+    wikiPages: wikiCount,
     events: eventMap.size
   };
 }

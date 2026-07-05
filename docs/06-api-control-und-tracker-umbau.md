@@ -86,6 +86,16 @@ Punkte-Endpunkte:
 
 `GET /api/external/points` liefert den eigenen Punktestand, sichtbares Leaderboard und letzte eigene Buchungen. Admins koennen ueber `/points/rules` Punkte pro Audit-Aktion lesen und setzen.
 
+Wiki-Endpunkte:
+
+- `GET /api/external/wiki`
+- `POST /api/external/wiki`
+- `GET /api/external/wiki/{id}`
+- `PATCH /api/external/wiki/{id}`
+- `DELETE /api/external/wiki/{id}`
+
+Das Wiki ist ein eigenes Feature (`wiki`) mit Benutzer-Namensraeumen unter `/wiki/{benutzerSlug}`. Inhalte werden als MediaWiki-kompatibler Rohtext gespeichert. Die Webansicht rendert Ueberschriften, Listen, fett/kursiv und interne Links. Der Web-Export einer Seite liegt unter `/wiki/{benutzerSlug}/{seitenSlug}/export` und liefert eine `.wiki`-Datei. API-Antworten enthalten `content` und `mediaWikiExport`.
+
 Ergaenzt wurden ausserdem Katalog-Endpunkte fuer native Apps:
 
 - `GET /api/external/catalog/categories?kind=all`

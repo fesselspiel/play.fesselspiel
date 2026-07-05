@@ -535,6 +535,8 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `POST /api/external/auth/web-session`
 - `GET /api/external/points`
 - `GET|POST /api/external/points/rules`
+- `GET|POST /api/external/wiki`
+- `GET|PATCH|DELETE /api/external/wiki/{id}`
 - `GET /api/external/events`
 - `GET /api/external/events/actions`
 - `GET /api/external/catalog/categories`
@@ -594,6 +596,44 @@ Content-Type: application/json
 ```
 
 `GET` liefert alle bekannten Aktionen mit lesbarer Beschriftung, aktuellem Punktwert und Aktivstatus. `POST` setzt oder aktualisiert genau eine Regel.
+
+## Wiki
+
+Das Wiki ist ein eigenes Feature (`wiki`) und nutzt in der Weboberflaeche Benutzer-Namensraeume statt technischer IDs:
+
+- `/wiki`
+- `/wiki/{benutzerSlug}`
+- `/wiki/{benutzerSlug}/{seitenSlug}`
+
+Native Apps nutzen die IDs aus der API, bekommen aber die lesbaren Webpfade mitgeliefert:
+
+```http
+GET /api/external/wiki?limit=50&q=...
+POST /api/external/wiki
+GET /api/external/wiki/{id}
+PATCH /api/external/wiki/{id}
+DELETE /api/external/wiki/{id}
+```
+
+Beispiel fuer `POST /api/external/wiki`:
+
+```json
+{
+  "title": "Ablauf",
+  "slug": "ablauf",
+  "summary": "Kurze Zusammenfassung",
+  "content": "== Ueberschrift ==\n\n'''Wichtig''' und [[Interner Link]]",
+  "visibility": "PRIVATE"
+}
+```
+
+Sichtbarkeit:
+
+- `PRIVATE`: Besitzer und Admins
+- `PARTNER`: eigener Zirkel
+- `SHARED`: sichtbare Benutzer der Seite
+
+`GET /api/external/wiki/{id}` liefert `content` als MediaWiki-Rohtext und `mediaWikiExport` als exportierbaren `.wiki`-Text. Die Weboberflaeche kann `.wiki`-Dateien importieren und exportieren.
 
 ## Hinweise fuer Weiterentwicklung
 

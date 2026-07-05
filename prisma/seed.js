@@ -38,6 +38,7 @@ async function main() {
     "positions",
     "toys",
     "ideas",
+    "wiki",
     "playReady",
     "invites",
     "circleChat",

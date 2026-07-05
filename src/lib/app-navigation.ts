@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type { LucideProps } from "lucide-react";
 import {
   BellRing,
+  BookOpenText,
   ClipboardCheck,
   DatabaseBackup,
   FileText,
@@ -59,7 +60,10 @@ export const mainNavigationSections: readonly AppNavSection[] = [
   },
   {
     id: "ideas",
-    items: [{ label: "Ideensammlung", href: "/ideas", icon: Lightbulb, feature: "ideas" }]
+    items: [
+      { label: "Ideensammlung", href: "/ideas", icon: Lightbulb, feature: "ideas" },
+      { label: "Wiki", href: "/wiki", icon: BookOpenText, feature: "wiki" }
+    ]
   },
   {
     id: "work",

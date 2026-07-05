@@ -614,6 +614,39 @@ export const capabilities: readonly Capability[] = [
     ]
   },
   {
+    key: "wiki",
+    label: "Wiki",
+    featureKey: "wiki",
+    aliases: ["wiki", "notizen", "wissen", "anleitung"],
+    intents: ["wiki anzeigen", "wiki seite anlegen", "notiz schreiben", "mediawiki import"],
+    route: "/wiki",
+    actions: [
+      {
+        key: "list",
+        label: "Wiki anzeigen",
+        type: "read",
+        description: "Listet sichtbare Wiki-Seiten im eigenen oder freigegebenen Benutzer-Namensraum.",
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/wiki?token=...", description: "Sichtbare Wiki-Seiten lesen." },
+          { method: "GET", path: "/api/external/wiki/{id}?token=...", description: "Eine Wiki-Seite inklusive MediaWiki-Text lesen." }
+        ],
+        auditActions: ["wiki_page_viewed"]
+      },
+      {
+        key: "manage",
+        label: "Wiki verwalten",
+        type: "write",
+        description: "Legt MediaWiki-kompatible Seiten an, importiert Text und steuert Freigaben.",
+        apiEndpoints: [
+          { method: "POST", path: "/api/external/wiki", description: "Wiki-Seite anlegen. Body: title, content, summary?, slug?, visibility?." },
+          { method: "PATCH", path: "/api/external/wiki/{id}", description: "Wiki-Seite ändern. Body: title?, content?, summary?, slug?, visibility?." },
+          { method: "DELETE", path: "/api/external/wiki/{id}", description: "Eigene Wiki-Seite löschen." }
+        ],
+        auditActions: ["wiki_page_created", "wiki_page_updated", "wiki_page_deleted", "wiki_page_imported"]
+      }
+    ]
+  },
+  {
     key: "shopifyBondageSystem",
     label: "Bondage-System",
     featureKey: "shopifyBondageSystem",
@@ -756,6 +789,7 @@ export const featureCatalog = [
   { key: "toys", label: capabilityLabelByFeature.get("toys") || "Spielsachen" },
   { key: "shopifyBondageSystem", label: capabilityLabelByFeature.get("shopifyBondageSystem") || "Bondage-System" },
   { key: "ideas", label: capabilityLabelByFeature.get("ideas") || "Ideensammlung" },
+  { key: "wiki", label: capabilityLabelByFeature.get("wiki") || "Wiki" },
   { key: "playReady", label: capabilityLabelByFeature.get("playReady") || "Spielampel" },
   { key: "invites", label: capabilityLabelByFeature.get("invites") || "Einladungen" },
   { key: "circleChat", label: capabilityLabelByFeature.get("circleChat") || "Zirkel-Chat" },
