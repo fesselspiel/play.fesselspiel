@@ -354,6 +354,53 @@ Antwortauszug:
 
 `readSummary` ist fuer WhatsApp-artige Haken gedacht: eigene Nachricht gesendet, an Empfaenger geliefert, von Empfaengern gelesen. Bei mehreren Zirkelmitgliedern sind die Werte aggregiert.
 
+### Echtzeit-Stream
+
+```http
+GET /api/external/chat/circle/stream?circleId=circle_id&after=2026-07-02T20:00:00.000Z
+Authorization: Bearer fsp_...
+Accept: text/event-stream
+```
+
+Alternativ kann der Token als Query-Parameter uebergeben werden:
+
+```http
+GET /api/external/chat/circle/stream?token=fsp_...&circleId=circle_id&after=2026-07-02T20:00:00.000Z
+```
+
+Der Stream sendet Server-Sent-Events. Beim Verbinden kommt:
+
+```json
+{ "ok": true, "type": "connected", "circle": { "id": "circle_id", "name": "Maren & Gabriel" } }
+```
+
+Neue Nachrichten kommen als:
+
+```json
+{
+  "ok": true,
+  "type": "messages",
+  "circle": { "id": "circle_id", "name": "Maren & Gabriel" },
+  "items": [
+    {
+      "id": "message_id",
+      "body": "Hallo",
+      "createdAt": "2026-07-02T20:00:00.000Z",
+      "sender": { "id": "user_id", "displayName": "Gabriel" }
+    }
+  ]
+}
+```
+
+Die App soll initial `GET /api/external/chat/circle` laden, danach den Stream mit `after=<createdAt der letzten Nachricht>` oeffnen und bei Verbindungsabbruch automatisch neu verbinden. Als Fallback kann alle 2-3 Sekunden der Listen-Endpunkt mit `after` abgefragt werden. Die Web-App macht genau diese Kombination.
+
+Fuer die Datumsanzeige liefert jede Nachricht `createdAt` als ISO-Zeitpunkt. Die App bildet daraus Tagesgruppen wie in der Web-App:
+
+- gleicher lokaler Tag wie heute: `Heute`
+- lokaler Tag gestern: `Gestern`
+- sonst formatiertes Datum, z. B. `Donnerstag, 02.07.2026`
+- an der Nachricht selbst die lokale Uhrzeit, z. B. `22:00`
+
 ### Nachricht senden
 
 ```http

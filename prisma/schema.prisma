@@ -109,6 +109,7 @@ model Tenant {
   packingEvents PackingEvent[]
   packingLists PackingList[]
   wikiPages WikiPage[]
+  publicContentOverrides PublicContentOverride[]
 
   @@index([status])
 }
@@ -208,6 +209,7 @@ model User {
   wikiPages WikiPage[]
   wikiPageShares WikiPageShare[]
   wikiPageRevisions WikiPageRevision[]
+  publicContentOverrides PublicContentOverride[]
 
   @@index([tenantId])
   @@index([circleId])
@@ -903,6 +905,22 @@ model WikiPage {
   @@index([tenantId, ownerId, updatedAt])
   @@index([ownerId, updatedAt])
   @@index([visibility])
+}
+
+model PublicContentOverride {
+  id          String   @id @default(cuid())
+  tenantId    String
+  key         String
+  value       Json
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, key])
+  @@index([tenantId, updatedAt])
+  @@index([updatedById])
 }
 
 model WikiPageRevision {

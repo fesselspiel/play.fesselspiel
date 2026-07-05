@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   Bot,
   Briefcase,
@@ -11,6 +12,7 @@ import {
   LockKeyhole,
   MessageCircle,
   PanelsTopLeft,
+  Pencil,
   ShieldCheck,
   Signal,
   Sparkles,
@@ -21,6 +23,8 @@ import {
 } from "lucide-react";
 import { LoginForm } from "@/components/login-form";
 import { Panel } from "@/components/ui";
+import { savePublicContent } from "@/app/public-content-actions";
+import { landingContent as defaultLandingContent } from "@/lib/public-content";
 import { PublicFeature, publicFeatures } from "@/lib/public-features";
 
 const icons = {
@@ -43,7 +47,49 @@ function FeatureIcon({ name, className = "h-5 w-5" }: { name: string; className?
   return <Icon className={className} />;
 }
 
-function PublicHeader({ tenantName, tenantDomain }: { tenantName: string; tenantDomain: string }) {
+type LandingContent = ReturnType<typeof defaultLandingContent>;
+
+function EditableField({
+  editable,
+  fieldKey,
+  value,
+  mode = "text",
+  path,
+  children
+}: {
+  editable?: boolean;
+  fieldKey: string;
+  value: string | string[];
+  mode?: "text" | "lines";
+  path: string;
+  children: ReactNode;
+}) {
+  if (!editable) return <>{children}</>;
+  const textValue = Array.isArray(value) ? value.join("\n") : value;
+  return (
+    <div className="group relative rounded-md">
+      <details className="absolute -left-2 -top-2 z-20">
+        <summary className="focus-ring flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md border border-line bg-surface text-redbrand shadow-soft hover:bg-paper [&::-webkit-details-marker]:hidden">
+          <Pencil className="h-4 w-4" />
+          <span className="sr-only">Inhalt bearbeiten</span>
+        </summary>
+        <form action={savePublicContent} className="mt-2 w-[min(88vw,420px)] space-y-3 rounded-lg border border-line bg-surface p-4 shadow-xl">
+          <input type="hidden" name="key" value={fieldKey} />
+          <input type="hidden" name="path" value={path} />
+          <input type="hidden" name="mode" value={mode} />
+          <label className="block text-xs font-semibold text-graphite">
+            Inhalt bearbeiten
+            <textarea name="value" rows={mode === "lines" ? 8 : 4} defaultValue={textValue} className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2 text-sm text-ink" />
+          </label>
+          <button className="inline-flex min-h-9 items-center rounded-md bg-redbrand px-3 py-2 text-sm font-semibold text-white">Speichern</button>
+        </form>
+      </details>
+      {children}
+    </div>
+  );
+}
+
+function PublicHeader({ tenantName, tenantDomain, features = publicFeatures }: { tenantName: string; tenantDomain: string; features?: PublicFeature[] }) {
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-surface/92 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3 lg:px-8">
@@ -52,7 +98,7 @@ function PublicHeader({ tenantName, tenantDomain }: { tenantName: string; tenant
           <span className="block text-xs text-graphite">{tenantDomain}</span>
         </Link>
         <nav className="hidden max-w-3xl items-center gap-1 overflow-x-auto lg:flex">
-          {publicFeatures.slice(0, 8).map((feature) => (
+          {features.slice(0, 8).map((feature) => (
             <Link key={feature.slug} href={`/features/${feature.slug}`} className="focus-ring whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold text-graphite hover:bg-paper hover:text-ink">
               {feature.navTitle}
             </Link>
@@ -64,7 +110,7 @@ function PublicHeader({ tenantName, tenantDomain }: { tenantName: string; tenant
         </a>
       </div>
       <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-5 pb-3 lg:hidden">
-        {publicFeatures.map((feature) => (
+        {features.map((feature) => (
           <Link key={feature.slug} href={`/features/${feature.slug}`} className="focus-ring whitespace-nowrap rounded-md border border-line bg-surface px-3 py-2 text-xs font-semibold text-graphite">
             {feature.navTitle}
           </Link>
@@ -156,10 +202,10 @@ function PhoneMockup({ feature }: { feature: PublicFeature }) {
   );
 }
 
-function FeatureNavGrid() {
+function FeatureNavGrid({ features = publicFeatures }: { features?: PublicFeature[] }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {publicFeatures.map((feature) => (
+      {features.map((feature) => (
         <Link key={feature.slug} href={`/features/${feature.slug}`} className="focus-ring group rounded-lg border border-line bg-surface p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg">
           <div className="mb-4 flex items-center justify-between">
             <span className="flex h-11 w-11 items-center justify-center rounded-md bg-redbrand text-white">
@@ -205,25 +251,25 @@ function Footer({ tenantName, tenantDomain }: { tenantName: string; tenantDomain
   );
 }
 
-export function PublicLandingPage({ tenantName, tenantDomain, confirmed, reset, returnTo }: { tenantName: string; tenantDomain: string; confirmed?: string; reset?: string; returnTo?: string }) {
-  const primary = publicFeatures[0];
+export function PublicLandingPage({ tenantName, tenantDomain, confirmed, reset, returnTo, features = publicFeatures, content = defaultLandingContent({}), editable = false }: { tenantName: string; tenantDomain: string; confirmed?: string; reset?: string; returnTo?: string; features?: PublicFeature[]; content?: LandingContent; editable?: boolean }) {
+  const primary = features[0] || publicFeatures[0];
   return (
     <main className="min-h-screen bg-canvas text-ink">
-      <PublicHeader tenantName={tenantName} tenantDomain={tenantDomain} />
+      <PublicHeader tenantName={tenantName} tenantDomain={tenantDomain} features={features} />
       <section className="relative overflow-hidden border-b border-line bg-surface">
         <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(227,6,19,0.08),transparent_34%,rgba(14,165,233,0.08))]" />
         <div className="relative mx-auto grid min-h-[calc(100vh-72px)] max-w-7xl gap-10 px-5 py-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-8">
           <div>
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-redbrand/20 bg-redbrand/10 px-4 py-2 text-sm font-semibold text-redbrand">
               <Sparkles className="h-4 w-4" />
-              Private Planung für Paare, Kreise und Seiten
+              <EditableField editable={editable} fieldKey="landing.heroEyebrow" value={content.heroEyebrow} path="/login">{content.heroEyebrow}</EditableField>
             </div>
-            <h1 className="max-w-4xl text-4xl font-semibold tracking-normal text-ink sm:text-5xl lg:text-6xl">
-              Eine App für alles, was ihr plant, teilt, dokumentiert und später wiederfinden wollt.
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-graphite">
-              Playplaner bündelt Spielplanung, Szenen, Ausrüstung, Bilder, Tracker, Telegram-Agent, Chat, Packlisten und Automationen in einem geschützten privaten Bereich.
-            </p>
+            <EditableField editable={editable} fieldKey="landing.heroTitle" value={content.heroTitle} path="/login">
+              <h1 className="max-w-4xl text-4xl font-semibold tracking-normal text-ink sm:text-5xl lg:text-6xl">{content.heroTitle}</h1>
+            </EditableField>
+            <EditableField editable={editable} fieldKey="landing.heroText" value={content.heroText} path="/login">
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-graphite">{content.heroText}</p>
+            </EditableField>
             <div className="mt-8 flex flex-wrap gap-3">
               <a href="#login" className="focus-ring inline-flex min-h-12 items-center gap-2 rounded-md bg-redbrand px-5 py-3 text-sm font-semibold text-white shadow-soft hover:bg-redbrandHover">
                 <KeyRound className="h-4 w-4" />
@@ -235,7 +281,7 @@ export function PublicLandingPage({ tenantName, tenantDomain, confirmed, reset, 
               </a>
             </div>
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              {publicFeatures.slice(0, 3).map((feature) => (
+              {features.slice(0, 3).map((feature) => (
                 <Link key={feature.slug} href={`/features/${feature.slug}`} className="focus-ring rounded-lg border border-line bg-paper p-4 hover:bg-surface">
                   <FeatureIcon name={feature.icon} className="mb-3 h-5 w-5 text-redbrand" />
                   <strong className="block text-sm">{feature.navTitle}</strong>
@@ -252,20 +298,24 @@ export function PublicLandingPage({ tenantName, tenantDomain, confirmed, reset, 
       </section>
       <section id="funktionen" className="mx-auto max-w-7xl px-5 py-14 lg:px-8">
         <div className="mb-8 max-w-3xl">
-          <h2 className="text-3xl font-semibold tracking-normal">Alle Funktionen als eigene Bereiche</h2>
-          <p className="mt-3 text-base leading-7 text-graphite">
-            Jede Funktion hat ihre eigene Seite mit einfacher Erklärung, mobiler Vorschau und Walkthrough. Die echten Inhalte bleiben geschützt und erscheinen erst nach dem Login.
-          </p>
+          <EditableField editable={editable} fieldKey="landing.featuresTitle" value={content.featuresTitle} path="/login">
+            <h2 className="text-3xl font-semibold tracking-normal">{content.featuresTitle}</h2>
+          </EditableField>
+          <EditableField editable={editable} fieldKey="landing.featuresText" value={content.featuresText} path="/login">
+            <p className="mt-3 text-base leading-7 text-graphite">{content.featuresText}</p>
+          </EditableField>
         </div>
-        <FeatureNavGrid />
+        <FeatureNavGrid features={features} />
       </section>
       <section className="border-y border-line bg-paper">
         <div className="mx-auto grid max-w-7xl gap-8 px-5 py-14 lg:grid-cols-[0.85fr_1.15fr] lg:px-8">
           <div>
-            <h2 className="text-3xl font-semibold tracking-normal">Vom Impuls zur dokumentierten Session.</h2>
-            <p className="mt-3 text-base leading-7 text-graphite">
-              Die Webseite erklärt öffentlich, was möglich ist. Nach dem Login führt die App Schritt für Schritt durch Planung, Bilder, Tracker, Chat und Automationen.
-            </p>
+            <EditableField editable={editable} fieldKey="landing.workflowTitle" value={content.workflowTitle} path="/login">
+              <h2 className="text-3xl font-semibold tracking-normal">{content.workflowTitle}</h2>
+            </EditableField>
+            <EditableField editable={editable} fieldKey="landing.workflowText" value={content.workflowText} path="/login">
+              <p className="mt-3 text-base leading-7 text-graphite">{content.workflowText}</p>
+            </EditableField>
           </div>
           <Walkthrough feature={primary} />
         </div>
@@ -275,20 +325,26 @@ export function PublicLandingPage({ tenantName, tenantDomain, confirmed, reset, 
   );
 }
 
-export function PublicFeaturePage({ feature, tenantName, tenantDomain }: { feature: PublicFeature; tenantName: string; tenantDomain: string }) {
+export function PublicFeaturePage({ feature, tenantName, tenantDomain, features = publicFeatures, editable = false }: { feature: PublicFeature; tenantName: string; tenantDomain: string; features?: PublicFeature[]; editable?: boolean }) {
+  const prefix = `feature.${feature.slug}`;
+  const path = `/features/${feature.slug}`;
   return (
     <main className="min-h-screen bg-canvas text-ink">
-      <PublicHeader tenantName={tenantName} tenantDomain={tenantDomain} />
+      <PublicHeader tenantName={tenantName} tenantDomain={tenantDomain} features={features} />
       <section className="relative overflow-hidden border-b border-line bg-surface">
         <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(227,6,19,0.08),transparent_40%,rgba(14,165,233,0.08))]" />
         <div className="relative mx-auto grid max-w-7xl gap-10 px-5 py-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-8">
           <div>
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-redbrand/20 bg-redbrand/10 px-4 py-2 text-sm font-semibold text-redbrand">
               <FeatureIcon name={feature.icon} className="h-4 w-4" />
-              {feature.eyebrow}
+              <EditableField editable={editable} fieldKey={`${prefix}.eyebrow`} value={feature.eyebrow} path={path}>{feature.eyebrow}</EditableField>
             </div>
-            <h1 className="max-w-4xl text-4xl font-semibold tracking-normal text-ink sm:text-5xl">{feature.title}</h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-graphite">{feature.summary}</p>
+            <EditableField editable={editable} fieldKey={`${prefix}.title`} value={feature.title} path={path}>
+              <h1 className="max-w-4xl text-4xl font-semibold tracking-normal text-ink sm:text-5xl">{feature.title}</h1>
+            </EditableField>
+            <EditableField editable={editable} fieldKey={`${prefix}.summary`} value={feature.summary} path={path}>
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-graphite">{feature.summary}</p>
+            </EditableField>
             <div className="mt-8 flex flex-wrap gap-3">
               <a href="#login" className="focus-ring inline-flex min-h-12 items-center gap-2 rounded-md bg-redbrand px-5 py-3 text-sm font-semibold text-white shadow-soft hover:bg-redbrandHover">
                 <KeyRound className="h-4 w-4" />
@@ -308,18 +364,22 @@ export function PublicFeaturePage({ feature, tenantName, tenantDomain }: { featu
       <section className="mx-auto grid max-w-7xl gap-8 px-5 py-14 lg:grid-cols-[1fr_0.9fr] lg:px-8">
         <div>
           <h2 className="text-3xl font-semibold tracking-normal">Was du damit machen kannst</h2>
-          <div className="mt-5 space-y-4 text-base leading-7 text-graphite">
-            {feature.description.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
-          </div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {feature.highlights.map((highlight) => (
-            <div key={highlight} className="rounded-lg border border-line bg-surface p-4 shadow-soft">
-              <CheckCircle2 className="mb-3 h-5 w-5 text-redbrand" />
-              <div className="font-semibold">{highlight}</div>
+          <EditableField editable={editable} fieldKey={`${prefix}.description`} value={feature.description} mode="lines" path={path}>
+            <div className="mt-5 space-y-4 text-base leading-7 text-graphite">
+              {feature.description.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
             </div>
-          ))}
+          </EditableField>
         </div>
+        <EditableField editable={editable} fieldKey={`${prefix}.highlights`} value={feature.highlights} mode="lines" path={path}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {feature.highlights.map((highlight) => (
+              <div key={highlight} className="rounded-lg border border-line bg-surface p-4 shadow-soft">
+                <CheckCircle2 className="mb-3 h-5 w-5 text-redbrand" />
+                <div className="font-semibold">{highlight}</div>
+              </div>
+            ))}
+          </div>
+        </EditableField>
       </section>
       <section id="walkthrough" className="border-y border-line bg-paper">
         <div className="mx-auto grid max-w-7xl gap-8 px-5 py-14 lg:grid-cols-[0.8fr_1.2fr] lg:px-8">
@@ -329,7 +389,9 @@ export function PublicFeaturePage({ feature, tenantName, tenantDomain }: { featu
               So kommst du vom Wunsch zur passenden Aktion. Die echten Buttons erscheinen nach dem Login in deinem geschützten Bereich.
             </p>
           </div>
-          <Walkthrough feature={feature} />
+          <EditableField editable={editable} fieldKey={`${prefix}.walkthrough`} value={feature.walkthrough} mode="lines" path={path}>
+            <Walkthrough feature={feature} />
+          </EditableField>
         </div>
       </section>
       <section className="mx-auto max-w-7xl px-5 py-14 lg:px-8">
@@ -343,7 +405,7 @@ export function PublicFeaturePage({ feature, tenantName, tenantDomain }: { featu
             <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
-        <FeatureNavGrid />
+        <FeatureNavGrid features={features} />
       </section>
       <Footer tenantName={tenantName} tenantDomain={tenantDomain} />
     </main>

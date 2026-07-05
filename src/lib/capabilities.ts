@@ -67,7 +67,7 @@ export const capabilities: readonly Capability[] = [
           { method: "GET", path: "/api/external/status?token=...", description: "Status, Benutzer und Grunddaten prüfen." },
           { method: "GET", path: "/api/external/capabilities?token=...", description: "Aktive Fähigkeiten, Befehle und externe Endpunkte der aktuellen Seite abfragen." }
         ],
-        auditActions: ["login", "logout", "portal_status_requested", "password_reset_requested"]
+        auditActions: ["login", "logout", "portal_status_requested", "password_reset_requested", "public_content_updated"]
       },
       {
         key: "points",
@@ -126,7 +126,8 @@ export const capabilities: readonly Capability[] = [
         type: "read",
         description: "Liest die letzten Nachrichten im eigenen Zirkel-Chat.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/chat/circle?token=...&limit=50&circleId=...", description: "Letzte Zirkel-Chat-Nachrichten inklusive Bildanhängen abrufen. `circleId` ist optional und waehlt request-basiert einen konkreten Zirkel." }
+          { method: "GET", path: "/api/external/chat/circle?token=...&limit=50&circleId=...", description: "Letzte Zirkel-Chat-Nachrichten inklusive Bildanhängen abrufen. `circleId` ist optional und waehlt request-basiert einen konkreten Zirkel." },
+          { method: "GET", path: "/api/external/chat/circle/stream?token=...&circleId=...&after=...", description: "Server-Sent-Events fuer echte Chat-Aktualisierung ohne Reload. Events liefern `type=messages` und `items[]` im selben Format wie der Listen-Endpunkt." }
         ],
         auditActions: ["circle_chat_viewed"]
       },

@@ -89,6 +89,7 @@ export const knownAuditActions = [
   ["play_ready_unliked", "Spielampel-Like entfernt"],
   ["position_favorited", "Szene favorisiert"],
   ["position_unfavorited", "Szenen-Favorit entfernt"],
+  ["public_content_updated", "Öffentliche Startseiteninhalte geändert"],
   ["self_bondage_order_accepted", "Self-Bondage-Auftrag angenommen"],
   ["self_bondage_order_completed", "Self-Bondage-Auftrag umgesetzt"],
   ["self_bondage_order_created", "Self-Bondage-Auftrag erteilt"],
@@ -115,7 +116,16 @@ export const knownAuditActions = [
   ["tracker_type_updated", "Tracker bearbeitet"],
   ["toy_favorited", "Spielzeug favorisiert"],
   ["toy_unfavorited", "Spielzeug-Favorit entfernt"],
-  ["user_password_set", "Benutzerpasswort gesetzt"]
+  ["user_password_set", "Benutzerpasswort gesetzt"],
+  ["wiki_page_created", "Wiki-Seite angelegt"],
+  ["wiki_page_created_api", "Wiki-Seite per API angelegt"],
+  ["wiki_page_deleted", "Wiki-Seite gelöscht"],
+  ["wiki_page_deleted_api", "Wiki-Seite per API gelöscht"],
+  ["wiki_page_imported", "Wiki-Seite importiert"],
+  ["wiki_page_updated", "Wiki-Seite geändert"],
+  ["wiki_page_updated_api", "Wiki-Seite per API geändert"],
+  ["wiki_page_viewed", "Wiki-Seite geöffnet"],
+  ["wiki_page_viewed_api", "Wiki-Seite per API geöffnet"]
 ] as const;
 
 export function isLegacyAuditAction(action: string) {

@@ -939,6 +939,20 @@ Details:
 - Jedes zentrale Feature hat eine eigene öffentliche Detailseite unter `/features/<slug>`, z. B. `/features/tracker`.
 - Die Feature-Seiten enthalten einfache Beschreibung, Highlights, Walkthrough-Schritte und eine mobile App-Mockup-Ansicht ohne private Daten.
 - Die Inhalte werden zentral aus `publicFeatures` erzeugt, damit Übersicht, Detailseiten und Navigation konsistent bleiben.
+- Admins können öffentliche Startseiten- und Featuretexte direkt inline bearbeiten. Die Werte werden pro Seite als `PublicContentOverride` gespeichert und über `public_content_updated` protokolliert.
+
+## Chat-Echtzeit fuer Apps
+
+- Die Web-App nutzt schon Server-Sent-Events unter `/api/chat/circle/stream` und zusätzlich Polling als Fallback.
+- Für native Apps gibt es jetzt analog `GET /api/external/chat/circle/stream?token=...&circleId=...&after=...`.
+- Der Stream liefert `connected` und `messages`-Events; `items[]` entspricht dem JSON-Format von `/api/external/chat/circle`.
+- Jede Nachricht enthält `createdAt`, daraus bilden Apps Tagestrenner wie `Heute`, `Gestern` oder ein formatiertes Datum sowie die Uhrzeit an der Nachricht.
+
+## Wiki-Protokoll
+
+- Das Wiki-Änderungsprotokoll zeigt Revisionen jetzt aufklappbar mit Feldänderungen und zeilenweisem Inhaltsvergleich.
+- Angelegte Seiten zeigen ihre erste Revision als Änderung von leerem Inhalt auf den neuen Inhalt.
+- Der gerenderte Wiki-Inhalt entfernt den oberen Abstand des ersten Elements, damit die Überschrift nicht versetzt wirkt.
 
 ### Externe Bild-API fuer native Apps
 
@@ -951,3 +965,4 @@ Details:
 - Die Ideensammlung ist als eigenes Feature `ideas` konfigurierbar.
 - Shopify-Credentials können von Superadmins aus anderen Seiten übernommen werden.
 - Tenant-Erkennung nutzt zusätzlich den Subdomain-Slug für `*.playplaner.com`; Loginseite und HTML-Metadaten zeigen den aktuellen Seitennamen und die aktuelle Domain.
+- Ganztägige Tracker-Einträge werden in der Jahresübersicht anhand des App-Datums (`Europe/Berlin`, `YYYY-MM-DD`) gruppiert. Dadurch erscheinen Einträge ohne Uhrzeit zuverlässig im Kalenderfeld.

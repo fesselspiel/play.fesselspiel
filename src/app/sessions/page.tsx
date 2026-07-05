@@ -144,8 +144,8 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
   const requestedYear = Number(searchParams.year || "");
   const year = Number.isFinite(requestedYear) && requestedYear >= 2000 ? requestedYear : new Date().getFullYear();
   const now = new Date();
-  const yearStart = new Date(year, 0, 1);
-  const yearEnd = new Date(year + 1, 0, 1);
+  const yearStart = parseDateInput(`${year}-01-01`) || new Date(year, 0, 1);
+  const yearEnd = parseDateInput(`${year + 1}-01-01`) || new Date(year + 1, 0, 1);
   const scope = await ownerScope(user);
   const trackers = await prisma.trackerType.findMany({
     where: {
@@ -201,7 +201,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
   const quickPanelCardsReturnTo = `/sessions?tracker=${activeTracker.key}&year=${year}`;
   const activeTrackerRunningMinutes = open && !open.allDay ? Math.max(0, Math.floor((now.getTime() - open.startTime.getTime()) / 60000)) : 0;
   for (const entry of activeTracker.entries) {
-    const key = `${entry.startTime.getMonth()}-${entry.startTime.getDate()}`;
+    const key = formatDateInput(entry.startTime);
     byDay.set(key, [...(byDay.get(key) || []), entry]);
   }
 
@@ -376,7 +376,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: { y
                           const date = new Date(year, monthIndex, day + 1);
                           const validDay = date.getMonth() === monthIndex;
                           const dateValue = `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day + 1).padStart(2, "0")}`;
-                          const entries = byDay.get(`${monthIndex}-${day + 1}`) || [];
+                          const entries = byDay.get(dateValue) || [];
                           const firstEntry = entries[0];
                           const cellStyle = { backgroundColor: entries.length ? activeTracker.color : "transparent", opacity: validDay ? entries.length ? 0.85 : 1 : 0.25 };
                           return firstEntry ? (
