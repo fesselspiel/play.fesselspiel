@@ -27,7 +27,7 @@ export async function ensurePersonalTelegramSettings(tenantId: string, userId: s
   });
 }
 
-export async function ensureLegacyUserSettings(userId: string) {
+export async function ensureUserSettings(userId: string) {
   return prisma.userSettings.upsert({
     where: { userId },
     update: {},
@@ -36,11 +36,11 @@ export async function ensureLegacyUserSettings(userId: string) {
 }
 
 export async function tenantTelegramSettingsForUser(tenantId: string, userId: string) {
-  const [telegramSettings, legacySettings] = await Promise.all([
+  const [telegramSettings, userSettings] = await Promise.all([
     ensureTenantTelegramSettings(tenantId),
-    ensureLegacyUserSettings(userId)
+    ensureUserSettings(userId)
   ]);
-  return { telegramSettings, legacySettings };
+  return { telegramSettings, userSettings };
 }
 
 export async function resolveTelegramSettingsForScope(tenantId: string, userId: string, input: { scope?: string | null; botId?: string | null }) {

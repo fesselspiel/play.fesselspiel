@@ -16,6 +16,106 @@ function slugify(value) {
     .replace(/^-+|-+$/g, "");
 }
 
+async function defaultTelegramSettingsForTenant(tenantId) {
+  return prisma.tenantTelegramSettings.upsert({
+    where: { tenantId_key: { tenantId, key: "default" } },
+    update: {},
+    create: { tenantId, key: "default", name: "Standard-Bot", scope: "TENANT", isDefault: true }
+  });
+}
+
+async function migrateTelegramUserSettingsToTenantSettings(fallbackTenantId) {
+  const userSettingsRows = await prisma.userSettings.findMany({
+    include: {
+      user: {
+        include: {
+          memberships: { where: { active: true }, select: { tenantId: true } }
+        }
+      },
+      telegramUserMappings: { where: { telegramSettingsId: null } },
+      telegramKnownUsers: { where: { telegramSettingsId: null } }
+    }
+  });
+
+  for (const settings of userSettingsRows) {
+    const tenantIds = Array.from(new Set([
+      settings.user.tenantId,
+      ...settings.user.memberships.map((membership) => membership.tenantId),
+      fallbackTenantId
+    ].filter(Boolean)));
+    if (!tenantIds.length) continue;
+
+    for (const tenantId of tenantIds) {
+      const telegramSettings = await defaultTelegramSettingsForTenant(tenantId);
+      for (const mapping of settings.telegramUserMappings) {
+        const where = {
+          telegramSettingsId: telegramSettings.id,
+          OR: [
+            { telegramUsername: mapping.telegramUsername },
+            ...(mapping.telegramUserId ? [{ telegramUserId: mapping.telegramUserId }] : [])
+          ]
+        };
+        const existing = await prisma.telegramUserMapping.findFirst({ where });
+        if (existing) {
+          await prisma.telegramUserMapping.update({
+            where: { id: existing.id },
+            data: {
+              settingsId: null,
+              telegramUsername: mapping.telegramUsername,
+              telegramUserId: mapping.telegramUserId,
+              appUserId: mapping.appUserId
+            }
+          });
+        } else {
+          await prisma.telegramUserMapping.create({
+            data: {
+              telegramSettingsId: telegramSettings.id,
+              telegramUsername: mapping.telegramUsername,
+              telegramUserId: mapping.telegramUserId,
+              appUserId: mapping.appUserId
+            }
+          });
+        }
+      }
+
+      for (const known of settings.telegramKnownUsers) {
+        const existing = await prisma.telegramKnownUser.findFirst({
+          where: { telegramSettingsId: telegramSettings.id, telegramUserId: known.telegramUserId }
+        });
+        const data = {
+          settingsId: null,
+          telegramSettingsId: telegramSettings.id,
+          telegramUserId: known.telegramUserId,
+          telegramUsername: known.telegramUsername,
+          firstName: known.firstName,
+          lastName: known.lastName,
+          membershipStatus: known.membershipStatus,
+          source: known.source,
+          lastChatId: known.lastChatId,
+          lastChatTitle: known.lastChatTitle,
+          lastMessageAt: known.lastMessageAt
+        };
+        if (existing) {
+          await prisma.telegramKnownUser.update({ where: { id: existing.id }, data });
+        } else {
+          await prisma.telegramKnownUser.create({ data });
+        }
+      }
+    }
+
+    if (settings.telegramUserMappings.length) {
+      await prisma.telegramUserMapping.deleteMany({
+        where: { id: { in: settings.telegramUserMappings.map((entry) => entry.id) }, telegramSettingsId: null }
+      });
+    }
+    if (settings.telegramKnownUsers.length) {
+      await prisma.telegramKnownUser.deleteMany({
+        where: { id: { in: settings.telegramKnownUsers.map((entry) => entry.id) }, telegramSettingsId: null }
+      });
+    }
+  }
+}
+
 async function main() {
   const tenant = await prisma.tenant.upsert({
     where: { slug: "playplaner" },
@@ -122,6 +222,7 @@ async function main() {
       create: { tenantId, userId: user.id, role: membershipRole, circleId: user.circleId, active: user.active }
     });
   }
+  await migrateTelegramUserSettingsToTenantSettings(tenant.id);
   const ownerTenant = async (ownerId) => {
     const owner = await prisma.user.findUnique({ where: { id: ownerId }, select: { tenantId: true } });
     return owner?.tenantId || tenant.id;

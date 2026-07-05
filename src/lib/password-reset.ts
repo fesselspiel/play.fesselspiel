@@ -74,7 +74,7 @@ async function directTelegramTargets(userId: string) {
   if (chats.length) {
     return chats
       .map((chat) => ({
-        tokenEnc: chat.telegramSettings?.telegramBotTokenEnc || chat.settings.telegramBotTokenEnc,
+        tokenEnc: chat.telegramSettings?.telegramBotTokenEnc || chat.settings?.telegramBotTokenEnc,
         chatId: chat.chatId,
         source: "direct_chat"
       }))
@@ -88,7 +88,7 @@ async function directTelegramTargets(userId: string) {
   });
   return mappings
     .map((mapping) => ({
-      tokenEnc: mapping.telegramSettings?.telegramBotTokenEnc || mapping.settings.telegramBotTokenEnc,
+      tokenEnc: mapping.telegramSettings?.telegramBotTokenEnc,
       chatId: mapping.telegramUserId || "",
       source: "user_mapping"
     }))

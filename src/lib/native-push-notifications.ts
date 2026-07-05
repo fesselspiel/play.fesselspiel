@@ -6,11 +6,20 @@ import { actionLabel, notificationActionAliases } from "@/lib/notification-actio
 import { prisma } from "@/lib/prisma";
 
 type AuditForPush = Pick<AuditLog, "id" | "actorId" | "action" | "title" | "href" | "entityType" | "entityId" | "details">;
-type PushConfig = {
+type ApnsConfig = {
   teamId: string;
   keyId: string;
   bundleId: string;
   privateKey: string;
+};
+type FcmConfig = {
+  projectId: string;
+  clientEmail: string;
+  privateKey: string;
+};
+type PushConfig = {
+  apns: ApnsConfig | null;
+  fcm: FcmConfig | null;
 };
 type TestPushInput = {
   tenantId: string;
@@ -60,7 +69,7 @@ function apnsHost(environment: string) {
   return environment === "sandbox" ? "https://api.sandbox.push.apple.com" : "https://api.push.apple.com";
 }
 
-function apnsJwt(config: PushConfig) {
+function apnsJwt(config: ApnsConfig) {
   const header = base64url(JSON.stringify({ alg: "ES256", kid: config.keyId }));
   const claims = base64url(JSON.stringify({ iss: config.teamId, iat: Math.floor(Date.now() / 1000) }));
   const data = `${header}.${claims}`;
@@ -186,14 +195,38 @@ async function tenantIdForAudit(audit: AuditForPush) {
 
 async function pushConfigForTenant(tenantId: string): Promise<PushConfig | null> {
   const settings = await prisma.nativePushSettings.findUnique({ where: { tenantId } });
-  if (!settings?.enabled || !settings.teamId || !settings.keyId || !settings.bundleId || !settings.privateKeyEnc) return null;
-  const privateKey = decryptSecret(settings.privateKeyEnc).replace(/\\n/g, "\n");
-  if (!privateKey) return null;
+  if (!settings?.enabled) return null;
+  const privateKey = settings.privateKeyEnc ? decryptSecret(settings.privateKeyEnc).replace(/\\n/g, "\n") : "";
+  const apns = settings.teamId && settings.keyId && settings.bundleId && privateKey
+    ? {
+        teamId: settings.teamId,
+        keyId: settings.keyId,
+        bundleId: settings.bundleId,
+        privateKey
+      }
+    : null;
+  let fcm: FcmConfig | null = null;
+  if (settings.fcmProjectId && settings.fcmServiceAccountJsonEnc) {
+    const raw = decryptSecret(settings.fcmServiceAccountJsonEnc);
+    try {
+      const serviceAccount = JSON.parse(raw) as { project_id?: string; client_email?: string; private_key?: string };
+      const fcmPrivateKey = String(serviceAccount.private_key || "").replace(/\\n/g, "\n");
+      const clientEmail = String(serviceAccount.client_email || "").trim();
+      if (settings.fcmProjectId && clientEmail && fcmPrivateKey) {
+        fcm = {
+          projectId: settings.fcmProjectId,
+          clientEmail,
+          privateKey: fcmPrivateKey
+        };
+      }
+    } catch {
+      fcm = null;
+    }
+  }
+  if (!apns && !fcm) return null;
   return {
-    teamId: settings.teamId,
-    keyId: settings.keyId,
-    bundleId: settings.bundleId,
-    privateKey
+    apns,
+    fcm
   };
 }
 
@@ -360,10 +393,109 @@ function sendApnsHttp2(input: { environment: string; deviceToken: string; author
   });
 }
 
+function fcmJwt(config: FcmConfig, issuedAtSeconds?: number) {
+  const now = issuedAtSeconds || Math.floor(Date.now() / 1000);
+  const header = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const claims = base64url(JSON.stringify({
+    iss: config.clientEmail,
+    scope: "https://www.googleapis.com/auth/firebase.messaging",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600
+  }));
+  const data = `${header}.${claims}`;
+  const signature = sign("RSA-SHA256", Buffer.from(data), config.privateKey);
+  return `${data}.${base64url(signature)}`;
+}
+
+async function fcmAccessToken(config: FcmConfig) {
+  async function requestToken(jwt: string) {
+    return fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        assertion: jwt
+      })
+    });
+  }
+
+  let response = await requestToken(fcmJwt(config));
+  let payload = await response.json().catch(() => ({})) as { access_token?: string; error?: string; error_description?: string };
+  if (!response.ok && payload.error === "invalid_grant") {
+    const googleDate = response.headers.get("date");
+    const googleTime = googleDate ? Math.floor(new Date(googleDate).getTime() / 1000) : 0;
+    if (googleTime > 0) {
+      response = await requestToken(fcmJwt(config, googleTime));
+      payload = await response.json().catch(() => ({})) as { access_token?: string; error?: string; error_description?: string };
+    }
+  }
+  if (!response.ok || !payload.access_token) {
+    throw new Error(payload.error_description || payload.error || `FCM OAuth HTTP ${response.status}`);
+  }
+  return payload.access_token;
+}
+
+function stringPayloadValue(value: unknown) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  return JSON.stringify(value);
+}
+
+function fcmMessageFromPayload(deviceToken: string, payload: unknown) {
+  const data = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
+  const aps = data.aps && typeof data.aps === "object" && !Array.isArray(data.aps) ? data.aps as { alert?: { title?: string; body?: string }; sound?: string } : {};
+  const alert = aps.alert || {};
+  const notification = {
+    title: String(alert.title || "Playplaner"),
+    body: String(alert.body || "")
+  };
+  return {
+    message: {
+      token: deviceToken,
+      notification,
+      data: Object.fromEntries(Object.entries(data)
+        .filter(([key]) => key !== "aps")
+        .map(([key, value]) => [key, stringPayloadValue(value)])),
+      android: {
+        notification: {
+          channel_id: "playplaner_events",
+          sound: String(data.sound || aps.sound || "default").replace(/\\.caf$/i, "")
+        }
+      }
+    }
+  };
+}
+
+async function sendFcmHttp(input: { config: FcmConfig; accessToken: string; deviceToken: string; payload: unknown }) {
+  const response = await fetch(`https://fcm.googleapis.com/v1/projects/${encodeURIComponent(input.config.projectId)}/messages:send`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${input.accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(fcmMessageFromPayload(input.deviceToken, input.payload))
+  });
+  const body = await response.text();
+  return {
+    ok: response.ok,
+    status: response.status,
+    messageId: response.ok ? (() => {
+      try {
+        const parsed = JSON.parse(body) as { name?: string };
+        return parsed.name || null;
+      } catch {
+        return null;
+      }
+    })() : null,
+    body: body || null
+  };
+}
+
 async function sendToDevice(
   device: NativePushDevice,
   delivery: { auditId?: string | null; action: string; payload: unknown },
-  config: PushConfig,
+  config: ApnsConfig,
   authorization: string
 ) {
   try {
@@ -400,6 +532,106 @@ async function sendToDevice(
     await writeFailedDelivery(device, delivery, `HTTP/2-Transportfehler vor APNs-Antwort: ${errorMessage(error)}`);
     return false;
   }
+}
+
+async function sendToAndroidDevice(
+  device: NativePushDevice,
+  delivery: { auditId?: string | null; action: string; payload: unknown },
+  config: FcmConfig,
+  accessToken: string
+) {
+  try {
+    const response = await sendFcmHttp({
+      config,
+      accessToken,
+      deviceToken: device.deviceToken,
+      payload: delivery.payload
+    });
+    const rawError = response.ok ? null : response.body?.slice(0, 1000) || null;
+    await prisma.nativePushDelivery.create({
+      data: {
+        tenantId: device.tenantId,
+        userId: device.userId,
+        deviceId: device.id,
+        auditId: delivery.auditId,
+        action: delivery.action,
+        status: response.ok ? "SENT" : "FAILED",
+        apnsId: response.messageId,
+        statusCode: response.status,
+        error: rawError
+      }
+    });
+    if (response.status === 404 || response.status === 400) {
+      const reason = rawError || "";
+      if (reason.includes("UNREGISTERED") || reason.includes("registration-token-not-registered") || reason.includes("INVALID_ARGUMENT")) {
+        await prisma.nativePushDevice.update({ where: { id: device.id }, data: { disabledAt: new Date() } });
+      }
+    }
+    return response.ok;
+  } catch (error) {
+    await writeFailedDelivery(device, delivery, `FCM-Transportfehler: ${errorMessage(error)}`);
+    return false;
+  }
+}
+
+async function sendToNativeDevices(
+  devices: NativePushDevice[],
+  delivery: { auditId?: string | null; action: string; payload: unknown },
+  config: PushConfig
+) {
+  const iosDevices = devices.filter((device) => device.platform === "ios");
+  const androidDevices = devices.filter((device) => device.platform === "android");
+  const results: boolean[] = [];
+
+  if (iosDevices.length) {
+    if (!config.apns) {
+      await writeFailedDeliveries(iosDevices, delivery, "APNs-Konfiguration fehlt.");
+      results.push(...iosDevices.map(() => false));
+    } else {
+      let authorization = "";
+      try {
+        authorization = `bearer ${apnsJwt(config.apns)}`;
+      } catch (error) {
+        await writeFailedDeliveries(iosDevices, delivery, `Provider-Token konnte nicht erzeugt werden: ${errorMessage(error)}`);
+        results.push(...iosDevices.map(() => false));
+      }
+      if (authorization) {
+        const iosResults = await Promise.allSettled(iosDevices.map((device) => sendToDevice(device, delivery, config.apns!, authorization)));
+        iosResults.forEach((result) => {
+          if (result.status === "rejected") console.error("native push failed", result.reason);
+          results.push(result.status === "fulfilled" && result.value);
+        });
+      }
+    }
+  }
+
+  if (androidDevices.length) {
+    if (!config.fcm) {
+      await writeFailedDeliveries(androidDevices, delivery, "FCM-Konfiguration fehlt.");
+      results.push(...androidDevices.map(() => false));
+    } else {
+      let accessToken = "";
+      try {
+        accessToken = await fcmAccessToken(config.fcm);
+      } catch (error) {
+        await writeFailedDeliveries(androidDevices, delivery, `FCM Access Token konnte nicht erzeugt werden: ${errorMessage(error)}`);
+        results.push(...androidDevices.map(() => false));
+      }
+      if (accessToken) {
+        const androidResults = await Promise.allSettled(androidDevices.map((device) => sendToAndroidDevice(device, delivery, config.fcm!, accessToken)));
+        androidResults.forEach((result) => {
+          if (result.status === "rejected") console.error("native push failed", result.reason);
+          results.push(result.status === "fulfilled" && result.value);
+        });
+      }
+    }
+  }
+
+  return {
+    sent: results.filter(Boolean).length,
+    failed: results.filter((value) => !value).length,
+    devices: devices.length
+  };
 }
 
 function actorName(actor?: { profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null } | null) {
@@ -534,15 +766,6 @@ export async function dispatchNativePushNotifications(audit: AuditLog) {
   const actor = audit.actorId
     ? await prisma.user.findUnique({ where: { id: audit.actorId }, include: { profile: true } })
     : null;
-  let authorization: string;
-  try {
-    authorization = `bearer ${apnsJwt(config)}`;
-  } catch (error) {
-    const userIds = Array.from(new Set((await Promise.all(rules.map((rule) => userIdsForRule(rule, audit, audit.actorId)))).flat()));
-    const devices = userIds.length ? await prisma.nativePushDevice.findMany({ where: { tenantId, userId: { in: userIds }, platform: "ios", disabledAt: null } }) : [];
-    await writeFailedDeliveries(devices, { auditId: audit.id, action: audit.action }, `Provider-Token konnte nicht erzeugt werden: ${errorMessage(error)}`);
-    return;
-  }
   for (const rule of rules) {
     const userIds = await userIdsForRule(rule, audit, audit.actorId);
     if (!userIds.length) continue;
@@ -550,7 +773,6 @@ export async function dispatchNativePushNotifications(audit: AuditLog) {
       where: {
         tenantId,
         userId: { in: userIds },
-        platform: "ios",
         disabledAt: null
       }
     });
@@ -559,19 +781,16 @@ export async function dispatchNativePushNotifications(audit: AuditLog) {
     const title = useChatDefault ? actorName(actor) : renderTemplate(rule.titleTemplate, audit, actor) || actionLabel(audit.action);
     const body = useChatDefault ? chatMessagePreview(audit) : renderTemplate(rule.bodyTemplate, audit, actor) || audit.title;
     const delivery = { auditId: audit.id, action: audit.action, payload: payloadForAuditMessage(audit, title, body, rule.sound) };
-    const results = await Promise.allSettled(devices.map((device) => sendToDevice(device, delivery, config, authorization)));
-    results.forEach((result) => {
-      if (result.status === "rejected") console.error("native push failed", result.reason);
-    });
+    const result = await sendToNativeDevices(devices, delivery, config);
     await writeRuleAudit({
       actorId: audit.actorId,
       rule,
       audit,
       title,
       body,
-      sent: results.filter((result) => result.status === "fulfilled" && result.value).length,
-      failed: results.filter((result) => result.status === "rejected" || (result.status === "fulfilled" && !result.value)).length,
-      devices: devices.length
+      sent: result.sent,
+      failed: result.failed,
+      devices: result.devices
     });
   }
 }
@@ -597,23 +816,15 @@ export async function testNativePushNotificationRule(ruleId: string, actorId: st
   if (!config) return { sent: 0, failed: 0, devices: 0, error: "missing_config" };
   const userIds = await userIdsForRule(rule, audit, actorId);
   if (!userIds.length) return { sent: 0, failed: 0, devices: 0, error: "missing_targets" };
-  const devices = await prisma.nativePushDevice.findMany({ where: { tenantId: rule.tenantId, userId: { in: userIds }, platform: "ios", disabledAt: null } });
+  const devices = await prisma.nativePushDevice.findMany({ where: { tenantId: rule.tenantId, userId: { in: userIds }, disabledAt: null } });
   if (!devices.length) return { sent: 0, failed: 0, devices: 0, error: "missing_devices" };
-  let authorization: string;
-  try {
-    authorization = `bearer ${apnsJwt(config)}`;
-  } catch (error) {
-    const delivery = { auditId: null, action: rule.action };
-    await writeFailedDeliveries(devices, delivery, `Provider-Token konnte nicht erzeugt werden: ${errorMessage(error)}`);
-    return { sent: 0, failed: devices.length, devices: devices.length, error: null };
-  }
   const title = renderTemplate(rule.titleTemplate, audit, actor) || actionLabel(rule.action);
   const body = renderTemplate(rule.bodyTemplate, audit, actor) || audit.title;
-  const results = await Promise.allSettled(devices.map((device) => sendToDevice(device, { auditId: null, action: rule.action, payload: payloadForAuditMessage(audit, title, body, rule.sound) }, config, authorization)));
+  const result = await sendToNativeDevices(devices, { auditId: null, action: rule.action, payload: payloadForAuditMessage(audit, title, body, rule.sound) }, config);
   return {
-    sent: results.filter((result) => result.status === "fulfilled" && result.value).length,
-    failed: results.filter((result) => result.status === "rejected" || (result.status === "fulfilled" && !result.value)).length,
-    devices: devices.length,
+    sent: result.sent,
+    failed: result.failed,
+    devices: result.devices,
     error: null
   };
 }
@@ -627,7 +838,6 @@ export async function sendNativeTestPush(input: TestPushInput) {
     where: {
       tenantId: input.tenantId,
       userId: { in: uniqueUserIds },
-      platform: "ios",
       disabledAt: null
     }
   });
@@ -649,18 +859,11 @@ export async function sendNativeTestPush(input: TestPushInput) {
       entityId: input.entityId
     })
   };
-  let authorization: string;
-  try {
-    authorization = `bearer ${apnsJwt(config)}`;
-  } catch (error) {
-    await writeFailedDeliveries(devices, delivery, `Provider-Token konnte nicht erzeugt werden: ${errorMessage(error)}`);
-    return { sent: 0, failed: devices.length, devices: devices.length, error: null };
-  }
-  const results = await Promise.allSettled(devices.map((device) => sendToDevice(device, delivery, config, authorization)));
+  const result = await sendToNativeDevices(devices, delivery, config);
   return {
-    sent: results.filter((result) => result.status === "fulfilled" && result.value).length,
-    failed: results.filter((result) => result.status === "rejected" || (result.status === "fulfilled" && !result.value)).length,
-    devices: devices.length,
+    sent: result.sent,
+    failed: result.failed,
+    devices: result.devices,
     error: null
   };
 }

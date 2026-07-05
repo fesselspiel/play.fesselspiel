@@ -567,17 +567,19 @@ model ExternalPushLog {
 }
 
 model NativePushSettings {
-  id            String   @id @default(cuid())
-  tenantId      String   @unique
-  enabled       Boolean  @default(false)
-  teamId        String?
-  keyId         String?
-  bundleId      String   @default("fspiel.playplaner")
-  privateKeyEnc String?
-  environment   String   @default("production")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                       String   @id @default(cuid())
+  tenantId                 String   @unique
+  enabled                  Boolean  @default(false)
+  teamId                   String?
+  keyId                    String?
+  bundleId                 String   @default("fspiel.playplaner")
+  privateKeyEnc            String?
+  environment              String   @default("production")
+  fcmProjectId             String?
+  fcmServiceAccountJsonEnc String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  tenant                   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([enabled])
 }
@@ -1431,14 +1433,14 @@ model TelegramChat {
 
 model TelegramUserMapping {
   id               String       @id @default(cuid())
-  settingsId       String
+  settingsId       String?
   telegramSettingsId String?
   telegramUsername String
   telegramUserId   String?
   appUserId        String
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-  settings         UserSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  settings         UserSettings? @relation(fields: [settingsId], references: [id], onDelete: Cascade)
   telegramSettings TenantTelegramSettings? @relation(fields: [telegramSettingsId], references: [id], onDelete: Cascade)
   appUser          User         @relation("TelegramMappedAppUser", fields: [appUserId], references: [id], onDelete: Cascade)
 
@@ -1451,7 +1453,7 @@ model TelegramUserMapping {
 
 model TelegramKnownUser {
   id               String       @id @default(cuid())
-  settingsId       String
+  settingsId       String?
   telegramSettingsId String?
   telegramUserId   String
   telegramUsername String?
@@ -1464,7 +1466,7 @@ model TelegramKnownUser {
   lastMessageAt    DateTime     @default(now())
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-  settings         UserSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  settings         UserSettings? @relation(fields: [settingsId], references: [id], onDelete: Cascade)
   telegramSettings TenantTelegramSettings? @relation(fields: [telegramSettingsId], references: [id], onDelete: Cascade)
 
   @@unique([settingsId, telegramUserId])

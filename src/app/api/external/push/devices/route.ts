@@ -4,11 +4,16 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-const platforms = new Set(["ios"]);
+const platforms = new Set(["ios", "android"]);
 const environments = new Set(["sandbox", "production"]);
 
-function cleanDeviceToken(value: string) {
+function cleanIosDeviceToken(value: string) {
   return value.replace(/[^a-fA-F0-9]/g, "").toLowerCase();
+}
+
+function cleanDeviceToken(platform: string, value: string) {
+  const raw = String(value || "").trim();
+  return platform === "ios" ? cleanIosDeviceToken(raw) : raw;
 }
 
 export async function POST(request: NextRequest) {
@@ -19,10 +24,10 @@ export async function POST(request: NextRequest) {
   const values = await requestValues(request);
   const platform = String(values.get("platform") || "ios").toLowerCase();
   const environment = String(values.get("environment") || "production").toLowerCase();
-  const deviceToken = cleanDeviceToken(String(values.get("deviceToken") || ""));
   if (!platforms.has(platform)) return NextResponse.json({ ok: false, error: "unsupported_platform" }, { status: 400 });
   if (!environments.has(environment)) return NextResponse.json({ ok: false, error: "unsupported_environment" }, { status: 400 });
-  if (deviceToken.length < 32) return NextResponse.json({ ok: false, error: "invalid_device_token" }, { status: 400 });
+  const deviceToken = cleanDeviceToken(platform, String(values.get("deviceToken") || ""));
+  if (deviceToken.length < (platform === "ios" ? 32 : 16)) return NextResponse.json({ ok: false, error: "invalid_device_token" }, { status: 400 });
   const device = await prisma.nativePushDevice.upsert({
     where: { platform_deviceToken: { platform, deviceToken } },
     update: {
@@ -52,7 +57,8 @@ export async function DELETE(request: NextRequest) {
   if ("response" in auth) return auth.response;
   const values = await requestValues(request);
   const platform = String(values.get("platform") || "ios").toLowerCase();
-  const deviceToken = cleanDeviceToken(String(values.get("deviceToken") || ""));
+  if (!platforms.has(platform)) return NextResponse.json({ ok: false, error: "unsupported_platform" }, { status: 400 });
+  const deviceToken = cleanDeviceToken(platform, String(values.get("deviceToken") || ""));
   if (!deviceToken) return NextResponse.json({ ok: false, error: "invalid_device_token" }, { status: 400 });
   await prisma.nativePushDevice.updateMany({
     where: { userId: auth.user.id, platform, deviceToken },

@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 type KnownTelegramUserInput = {
-  settingsId: string;
+  settingsId?: string | null;
   telegramSettingsId?: string | null;
   telegramUserId: string;
   telegramUsername?: string | null;
@@ -16,7 +16,7 @@ type KnownTelegramUserInput = {
 
 function knownUserData(input: KnownTelegramUserInput) {
   return {
-    settingsId: input.settingsId,
+    settingsId: input.settingsId || null,
     telegramSettingsId: input.telegramSettingsId || null,
     telegramUserId: input.telegramUserId,
     telegramUsername: input.telegramUsername ? input.telegramUsername.toLowerCase() : null,
@@ -34,7 +34,7 @@ function knownUserWhere(input: KnownTelegramUserInput): Prisma.TelegramKnownUser
   return {
     telegramUserId: input.telegramUserId,
     OR: [
-      { settingsId: input.settingsId },
+      input.settingsId ? { settingsId: input.settingsId } : null,
       input.telegramSettingsId ? { telegramSettingsId: input.telegramSettingsId } : null
     ].filter(Boolean) as Prisma.TelegramKnownUserWhereInput[]
   };

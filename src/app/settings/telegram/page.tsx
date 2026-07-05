@@ -14,7 +14,7 @@ import { requireFeature } from "@/lib/features";
 import { actionLabel, defaultNotificationTemplate, notificationActionOptions } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
-import { DEFAULT_TENANT_BOT_KEY, ensureLegacyUserSettings, ensurePersonalTelegramSettings, ensureTenantTelegramSettings, extraBotKey, tenantTelegramSettingsForUser } from "@/lib/tenant-telegram";
+import { DEFAULT_TENANT_BOT_KEY, ensureUserSettings, ensurePersonalTelegramSettings, ensureTenantTelegramSettings, extraBotKey, tenantTelegramSettingsForUser } from "@/lib/tenant-telegram";
 import { getTelegramChatAdministrators, setTelegramWebhook } from "@/lib/telegram";
 import { rememberKnownTelegramUser } from "@/lib/telegram-known-users";
 import { testTelegramNotificationRule } from "@/lib/telegram-notifications";
@@ -283,7 +283,7 @@ async function createTelegramUserMapping(formData: FormData) {
   "use server";
   const user = await currentAdminUser();
   const tenant = await currentTenant();
-  const { telegramSettings, legacySettings } = await tenantTelegramSettingsForUser(tenant.id, user.id);
+  const telegramSettings = await ensureTenantTelegramSettings(tenant.id);
   const telegramUserId = String(formData.get("telegramUserId") || "").trim() || null;
   const telegramUsernameRaw = normalizeTelegramUsername(String(formData.get("telegramUsername") || ""));
   const telegramUsername = telegramUsernameRaw || (telegramUserId ? `id:${telegramUserId}` : "");
@@ -293,16 +293,44 @@ async function createTelegramUserMapping(formData: FormData) {
     where: {
       id: appUserId,
       active: true,
-      ...(user.role === "ADMIN" ? {} : { OR: [{ id: user.id }, ...(user.circleId ? [{ circleId: user.circleId }] : [])] })
+      ...(user.role === "ADMIN" || user.role === "SUPER_ADMIN" ? {} : { OR: [{ id: user.id }, ...(user.circleId ? [{ circleId: user.circleId }] : [])] })
     },
     select: { id: true }
   });
   if (!appUser) redirect("/settings/telegram");
-  await prisma.telegramUserMapping.upsert({
-    where: { telegramSettingsId_telegramUsername: { telegramSettingsId: telegramSettings.id, telegramUsername } },
-    update: { appUserId: appUser.id, telegramUserId },
-    create: { settingsId: legacySettings.id, telegramSettingsId: telegramSettings.id, telegramUsername, telegramUserId, appUserId: appUser.id }
+  const existingMappings = await prisma.telegramUserMapping.findMany({
+    where: {
+      OR: [
+        { telegramSettingsId: telegramSettings.id, telegramUsername },
+        ...(telegramUserId ? [
+          { telegramSettingsId: telegramSettings.id, telegramUserId }
+        ] : [])
+      ]
+    },
+    orderBy: [{ telegramSettingsId: "desc" }, { updatedAt: "desc" }]
   });
+  const primary = existingMappings.find((entry) => entry.telegramSettingsId === telegramSettings.id)
+    || existingMappings[0];
+  if (primary) {
+    const duplicateIds = existingMappings.filter((entry) => entry.id !== primary.id).map((entry) => entry.id);
+    await prisma.$transaction([
+      ...(duplicateIds.length ? [prisma.telegramUserMapping.deleteMany({ where: { id: { in: duplicateIds } } })] : []),
+      prisma.telegramUserMapping.update({
+        where: { id: primary.id },
+        data: {
+          settingsId: null,
+          telegramSettingsId: telegramSettings.id,
+          telegramUsername,
+          telegramUserId,
+          appUserId: appUser.id
+        }
+      })
+    ]);
+  } else {
+    await prisma.telegramUserMapping.create({
+      data: { telegramSettingsId: telegramSettings.id, telegramUsername, telegramUserId, appUserId: appUser.id }
+    });
+  }
   redirect("/settings/telegram#mappings");
 }
 
@@ -336,7 +364,6 @@ async function syncTelegramAdministrators() {
       for (const admin of admins) {
         if (!admin.user.id || admin.user.is_bot) continue;
         await rememberKnownTelegramUser({
-          settingsId: (await ensureLegacyUserSettings(user.id)).id,
           telegramSettingsId: settings.id,
           telegramUserId: String(admin.user.id),
           telegramUsername: admin.user.username || null,
@@ -424,7 +451,7 @@ async function createNotificationRule(formData: FormData) {
   const user = await currentAdminUser();
   if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/settings/telegram");
   const tenant = await currentTenant();
-  const { telegramSettings, legacySettings } = await tenantTelegramSettingsForUser(tenant.id, user.id);
+  const { telegramSettings, userSettings } = await tenantTelegramSettingsForUser(tenant.id, user.id);
   const action = String(formData.get("action") || "").trim();
   const message = String(formData.get("message") || "").trim();
   const targetData = await readTargetData(user, formData);
@@ -432,7 +459,7 @@ async function createNotificationRule(formData: FormData) {
   if (!action || !message || (!targetData.targetUserId && !targetData.targetCircleId && !outputChat)) redirect("/settings/telegram#notifications");
   await prisma.telegramNotificationRule.create({
     data: {
-      settingsId: outputChat?.settingsId || legacySettings.id,
+      settingsId: outputChat?.settingsId || userSettings.id,
       telegramSettingsId: outputChat?.telegramSettingsId || telegramSettings.id,
       action,
       message,
@@ -502,7 +529,7 @@ async function activateDetectedChat(formData: FormData) {
   "use server";
   const user = await currentAdminUser();
   const tenant = await currentTenant();
-  const legacySettings = await ensureLegacyUserSettings(user.id);
+  const userSettings = await ensureUserSettings(user.id);
   const chat = await prisma.telegramChat.findFirst({
     where: {
       id: String(formData.get("chatId") || ""),
@@ -511,7 +538,7 @@ async function activateDetectedChat(formData: FormData) {
   });
   if (!chat) redirect("/settings/telegram");
   const telegramSettingsId = chat.telegramSettingsId || (await ensureTenantTelegramSettings(tenant.id)).id;
-  const settingsId = chat.settingsId || legacySettings.id;
+  const settingsId = chat.settingsId || userSettings.id;
   const scope = String(formData.get("scope") || "thread");
   const targetData = await readTargetData(user, formData);
   if (scope === "chat") {
@@ -802,7 +829,10 @@ export default async function TelegramPage({ searchParams }: { searchParams?: { 
       fromProtocol: true
     }))
     .filter((entry) => entry.telegramUserId);
-  const knownUsers = [...(settings?.telegramKnownUsers || []).map((entry) => ({ ...entry, fromProtocol: false })), ...knownUsersFromLogs]
+  const knownUsers = [
+    ...(settings?.telegramKnownUsers || []).map((entry) => ({ ...entry, fromProtocol: false })),
+    ...knownUsersFromLogs
+  ]
     .filter((entry, index, list) => list.findIndex((candidate) => candidate.telegramUserId === entry.telegramUserId) === index);
   const notificationRules = await prisma.telegramNotificationRule.findMany({
     where: { telegramSettings: { tenantId: tenant.id } },

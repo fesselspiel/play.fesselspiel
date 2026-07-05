@@ -29,6 +29,17 @@ const emailTemplateVariables = [
   { token: "{{details}}", label: "Details" }
 ];
 
+function emailTemplateKey(input: string) {
+  return input
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 60);
+}
+
 type TargetUser = {
   id: string;
   email: string;
@@ -125,6 +136,31 @@ async function saveEmailTemplate(formData: FormData) {
       enabled: formData.get("enabled") === "on",
       subject: String(formData.get("subject") || "").trim(),
       body: String(formData.get("body") || "").trim()
+    }
+  });
+  redirect(`/settings/email?saved=template#template-${key}`);
+}
+
+async function createEmailTemplate(formData: FormData) {
+  "use server";
+  await requireAdmin();
+  await requireFeature("email");
+  await ensureEmailSetup();
+  const title = String(formData.get("title") || "").trim();
+  const rawKey = String(formData.get("key") || "").trim() || title;
+  const key = emailTemplateKey(rawKey);
+  const subject = String(formData.get("subject") || "").trim();
+  const body = String(formData.get("body") || "").trim();
+  if (!title || !key || !subject || !body) redirect("/settings/email?error=missing-template-fields#templates");
+  const existing = await prisma.emailTemplate.findUnique({ where: { key }, select: { id: true } });
+  if (existing) redirect("/settings/email?error=duplicate-template#templates");
+  await prisma.emailTemplate.create({
+    data: {
+      key,
+      title,
+      subject,
+      body,
+      enabled: formData.get("enabled") === "on"
     }
   });
   redirect(`/settings/email?saved=template#template-${key}`);
@@ -259,7 +295,17 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
       {searchParams?.saved ? <div className="mb-4 rounded-md border border-line bg-paper px-4 py-3 text-sm font-semibold text-graphite">Gespeichert.</div> : null}
       {searchParams?.test === "sent" ? <div className="mb-4 rounded-md border border-emerald-500 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-700">Testmail wurde an Postfix übergeben{testTemplateLabel ? `: ${testTemplateLabel}` : ""}.</div> : null}
       {searchParams?.test === "skipped" ? <div className="mb-4 rounded-md border border-line bg-paper px-4 py-3 text-sm font-semibold text-graphite">Testmail wurde nicht gesendet{testTemplateLabel ? `: ${testTemplateLabel}` : ""}. Prüfe System- und Template-Schalter.</div> : null}
-      {searchParams?.error ? <div className="mb-4 rounded-md border border-redbrand bg-redbrand/10 px-4 py-3 text-sm font-semibold text-redbrand">{searchParams.error === "missing-test-template" ? "Bitte eine gültige Vorlage auswählen." : "Bitte eine Empfängeradresse angeben."}</div> : null}
+      {searchParams?.error ? (
+        <div className="mb-4 rounded-md border border-redbrand bg-redbrand/10 px-4 py-3 text-sm font-semibold text-redbrand">
+          {searchParams.error === "missing-test-template"
+            ? "Bitte eine gültige Vorlage auswählen."
+            : searchParams.error === "missing-template-fields"
+              ? "Bitte Titel, Kürzel, Betreff und Text für die neue Vorlage ausfüllen."
+              : searchParams.error === "duplicate-template"
+                ? "Dieses Template-Kürzel existiert bereits."
+                : "Bitte eine Empfängeradresse angeben."}
+        </div>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <div className="space-y-6">
@@ -385,12 +431,38 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
         </div>
 
         <div className="space-y-6">
-          <Panel className="p-0">
+          <Panel className="p-0" id="templates">
             <details open>
               <summary className="focus-ring flex min-h-14 cursor-pointer list-none items-center gap-2 px-5 py-4 text-lg font-semibold [&::-webkit-details-marker]:hidden">
                 <Mail className="h-5 w-5 text-redbrand" /> Templates
               </summary>
               <div className="space-y-3 border-t border-line p-5">
+              <details className="overflow-hidden rounded-md border border-line bg-paper">
+                <summary className="focus-ring flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold hover:bg-surface [&::-webkit-details-marker]:hidden">
+                  <span>Neue E-Mail-Vorlage anlegen</span>
+                  <Badge tone="green">neu</Badge>
+                </summary>
+                <form action={createEmailTemplate} className="space-y-4 border-t border-line bg-surface p-3">
+                  <label className="flex items-center gap-2 text-sm font-semibold">
+                    <input name="enabled" type="checkbox" defaultChecked className="h-4 w-4 accent-redbrand" />
+                    Vorlage sofort aktivieren
+                  </label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Titel"><input className={inputClass} name="title" placeholder="Einladung angenommen" required /></Field>
+                    <Field label="Kürzel"><input className={inputClass} name="key" placeholder="wird aus dem Titel erzeugt" /></Field>
+                  </div>
+                  <Field label="Betreff"><input className={inputClass} name="subject" placeholder="{{event}}: {{title}}" required /></Field>
+                  <TemplateVariableTextarea
+                    label="Textvorlage"
+                    name="body"
+                    rows={8}
+                    defaultValue={"Hallo {{userName}},\n\n{{details}}\n\n{{url}}"}
+                    variables={emailTemplateVariables}
+                    textareaClassName="min-h-48 font-mono text-xs leading-5"
+                  />
+                  <SubmitButton pendingLabel="Vorlage wird angelegt..."><Save className="h-4 w-4" /> Vorlage anlegen</SubmitButton>
+                </form>
+              </details>
               {templates.map((template) => (
                 <details key={template.id} id={`template-${template.key}`} className="overflow-hidden rounded-md border border-line bg-paper">
                   <summary className="focus-ring flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold hover:bg-surface [&::-webkit-details-marker]:hidden">

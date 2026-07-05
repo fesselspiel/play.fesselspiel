@@ -954,6 +954,16 @@ Details:
 - Angelegte Seiten zeigen ihre erste Revision als Änderung von leerem Inhalt auf den neuen Inhalt.
 - Der gerenderte Wiki-Inhalt entfernt den oberen Abstand des ersten Elements, damit die Überschrift nicht versetzt wirkt.
 
+## Android Native Push
+
+- `/api/external/push/devices` akzeptiert jetzt `platform=android`.
+- Android-FCM-Registration-Tokens werden nicht wie APNs-Tokens hex-normalisiert, sondern unverändert gespeichert.
+- FCM Project ID und Firebase Service Account JSON/Base64 werden pro Seite unter `Einstellungen -> Push` gespeichert und verschlüsselt in der Datenbank abgelegt.
+- Der Native-Push-Dispatcher sendet iOS-Geräte weiter über APNs und Android-Geräte über FCM HTTP v1.
+- APNs- und FCM-Konfiguration sind unabhängig: fehlt ein Provider, wird nur dessen Plattform als fehlgeschlagen protokolliert.
+- E-Mail-Aktionsregeln können direkt auf derselben Einstellungsseite eigene neue Templates anlegen, die danach in Testmail und Regeln auswählbar sind.
+- Telegram-Benutzerzuordnungen werden beim Seed aus alten UserSettings-Zeilen in die seitenbasierte Telegram-Konfiguration migriert; neue Zuordnungen speichern direkt gegen den Seiten-Bot.
+
 ### Externe Bild-API fuer native Apps
 
 - `GET /api/external/media?token=...&kind=IMAGE&limit=50` liefert die geschuetzte Bildergalerie als JSON-Feed.

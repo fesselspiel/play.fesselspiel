@@ -20,6 +20,17 @@ function normalizePrivateKey(value: string) {
   return value.trim().replace(/\\n/g, "\n");
 }
 
+function normalizeFcmServiceAccount(value: string) {
+  const raw = value.trim();
+  if (!raw) return "";
+  if (raw.startsWith("{")) return raw;
+  try {
+    return Buffer.from(raw, "base64").toString("utf8").trim();
+  } catch {
+    return raw;
+  }
+}
+
 function userLabel(user: { profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null }) {
   return user.profile?.displayName || user.name || user.username || user.email || "Unbekannter Benutzer";
 }
@@ -133,6 +144,8 @@ async function savePushSettings(formData: FormData) {
   const keyId = String(formData.get("keyId") || "").trim();
   const bundleId = String(formData.get("bundleId") || "fspiel.playplaner").trim() || "fspiel.playplaner";
   const environment = String(formData.get("environment") || "production") === "sandbox" ? "sandbox" : "production";
+  const fcmProjectId = String(formData.get("fcmProjectId") || "").trim();
+  const fcmServiceAccountJson = normalizeFcmServiceAccount(String(formData.get("fcmServiceAccountJson") || ""));
 
   await prisma.nativePushSettings.upsert({
     where: { tenantId: tenant.id },
@@ -142,7 +155,9 @@ async function savePushSettings(formData: FormData) {
       keyId,
       bundleId,
       environment,
-      ...(privateKey ? { privateKeyEnc: encryptSecret(privateKey) } : {})
+      fcmProjectId,
+      ...(privateKey ? { privateKeyEnc: encryptSecret(privateKey) } : {}),
+      ...(fcmServiceAccountJson ? { fcmServiceAccountJsonEnc: encryptSecret(fcmServiceAccountJson) } : {})
     },
     create: {
       tenantId: tenant.id,
@@ -151,7 +166,9 @@ async function savePushSettings(formData: FormData) {
       keyId,
       bundleId,
       environment,
-      privateKeyEnc: encryptSecret(privateKey)
+      privateKeyEnc: privateKey ? encryptSecret(privateKey) : null,
+      fcmProjectId,
+      fcmServiceAccountJsonEnc: fcmServiceAccountJson ? encryptSecret(fcmServiceAccountJson) : null
     }
   });
 
@@ -168,7 +185,9 @@ async function savePushSettings(formData: FormData) {
       hasKeyId: Boolean(keyId),
       hasBundleId: Boolean(bundleId),
       hasPrivateKey: Boolean(privateKey || existing?.privateKeyEnc),
-      environment
+      environment,
+      hasFcmProjectId: Boolean(fcmProjectId),
+      hasFcmServiceAccount: Boolean(fcmServiceAccountJson || existing?.fcmServiceAccountJsonEnc)
     }
   });
   redirect("/settings/push?saved=1");
@@ -281,7 +300,7 @@ export default async function PushSettingsPage({ searchParams }: { searchParams:
   const actionOptions = await notificationActionOptions({ tenantId: tenant.id, auditActions: [...auditActions.map((entry) => entry.action), ...rules.map((rule) => rule.action)], requestedAction });
   const testText = searchParams.test
     ? searchParams.test === "missing_config"
-      ? "Test nicht gesendet: Push ist nicht aktiv oder APNs-Daten sind unvollständig."
+      ? "Test nicht gesendet: Push ist nicht aktiv oder APNs/FCM-Daten sind unvollständig."
       : searchParams.test === "missing_targets"
         ? "Test nicht gesendet: kein Ziel ausgewählt."
         : searchParams.test === "missing_devices"
@@ -290,7 +309,7 @@ export default async function PushSettingsPage({ searchParams }: { searchParams:
     : "";
   const ruleTestText = searchParams.ruleTest
     ? searchParams.ruleTest === "missing_config"
-      ? "Regeltest nicht gesendet: Push ist nicht aktiv oder APNs-Daten sind unvollständig."
+      ? "Regeltest nicht gesendet: Push ist nicht aktiv oder APNs/FCM-Daten sind unvollständig."
       : searchParams.ruleTest === "missing_targets"
         ? "Regeltest nicht gesendet: kein Ziel ausgewählt."
         : searchParams.ruleTest === "missing_devices"
@@ -303,7 +322,7 @@ export default async function PushSettingsPage({ searchParams }: { searchParams:
     <AppShell>
       <PageHeader title="Push" subtitle="Native Pushnachrichten für die mobile App dieser Seite." />
       <PageGuide title="Native Pushnachrichten">
-        APNs-Daten werden pro Seite verschlüsselt gespeichert. Aktionsregeln entscheiden, welches Event an welchen Benutzer, Kreis oder alle Geräte gepusht wird.
+        APNs- und FCM-Daten werden pro Seite verschlüsselt gespeichert. Aktionsregeln entscheiden, welches Event an welchen Benutzer, Kreis oder alle Geräte gepusht wird.
       </PageGuide>
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <div className="space-y-6">
@@ -321,15 +340,17 @@ export default async function PushSettingsPage({ searchParams }: { searchParams:
         <Panel className="p-0">
           <details open>
             <summary className="focus-ring flex min-h-14 cursor-pointer list-none items-center gap-2 px-5 py-4 text-lg font-semibold [&::-webkit-details-marker]:hidden">
-              <ChevronDown className="h-5 w-5 text-redbrand" /> APNs-Konfiguration
+              <ChevronDown className="h-5 w-5 text-redbrand" /> Provider-Konfiguration
             </summary>
             <div className="space-y-5 border-t border-line p-5">
               {searchParams.saved ? <p className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">Push-Einstellungen gespeichert.</p> : null}
               <form action={savePushSettings} className="space-y-5">
                 <label className="flex items-start gap-3 rounded-lg border border-line bg-paper p-4 text-sm text-graphite">
                   <input name="enabled" type="checkbox" defaultChecked={settings?.enabled || false} className="mt-1 h-4 w-4 accent-redbrand" />
-                  <span><strong className="block text-ink">Native Pushnachrichten aktivieren</strong><span>Wenn diese Option aus ist oder Daten fehlen, werden Geräte registriert, aber es wird nichts an APNs gesendet.</span></span>
+                  <span><strong className="block text-ink">Native Pushnachrichten aktivieren</strong><span>Wenn diese Option aus ist oder Provider-Daten fehlen, werden Geräte registriert, aber es wird nichts an APNs oder FCM gesendet.</span></span>
                 </label>
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold text-ink">Apple APNs für iPhone und iPad</h3>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Apple Team ID"><input className={inputClass} name="teamId" defaultValue={settings?.teamId || ""} /></Field>
                   <Field label="Key ID"><input className={inputClass} name="keyId" defaultValue={settings?.keyId || ""} /></Field>
@@ -344,6 +365,21 @@ export default async function PushSettingsPage({ searchParams }: { searchParams:
                 <Field label={`APNs Private Key (${secretPreview(settings?.privateKeyEnc)})`}>
                   <textarea className={inputClass} name="privateKey" rows={8} placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----" />
                 </Field>
+                </div>
+                <div className="rounded-lg border border-line bg-paper p-4">
+                  <h3 className="mb-3 text-sm font-semibold text-ink">Firebase FCM für Android</h3>
+                  <div className="grid gap-4">
+                    <Field label="FCM Project ID">
+                      <input className={inputClass} name="fcmProjectId" defaultValue={settings?.fcmProjectId || ""} placeholder="playplaner-efc74" />
+                    </Field>
+                    <Field label={`Firebase Service Account JSON oder Base64 (${secretPreview(settings?.fcmServiceAccountJsonEnc)})`}>
+                      <textarea className={inputClass} name="fcmServiceAccountJson" rows={8} placeholder='{"type":"service_account","project_id":"...","private_key":"...","client_email":"..."}' />
+                    </Field>
+                    <p className="text-xs leading-5 text-graphite">
+                      Der Service Account wird verschlüsselt in der Datenbank der Seite gespeichert. Keine FCM-Zugangsdaten werden über Docker-ENV oder Repository-Dateien benötigt.
+                    </p>
+                  </div>
+                </div>
                 <SubmitButton pendingLabel="Push wird gespeichert..."><Save className="h-4 w-4" /> Push speichern</SubmitButton>
               </form>
             </div>
@@ -490,13 +526,13 @@ export default async function PushSettingsPage({ searchParams }: { searchParams:
               {devices.map((device) => (
                 <div key={device.id} className="rounded-md border border-line bg-paper p-3 text-sm">
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div><strong className="block text-ink">{device.deviceName || "iOS-Gerät"}</strong><span className="text-graphite">{userLabel(device.user)} · {device.environment} · Token endet auf {device.deviceToken.slice(-6)}</span></div>
+                    <div><strong className="block text-ink">{device.deviceName || (device.platform === "android" ? "Android-Gerät" : "iOS-Gerät")}</strong><span className="text-graphite">{userLabel(device.user)} · {device.platform} · {device.environment} · Token endet auf {device.deviceToken.slice(-6)}</span></div>
                     <Badge tone={device.disabledAt ? "red" : "green"}>{device.disabledAt ? "deaktiviert" : "aktiv"}</Badge>
                   </div>
                   <div className="mt-2 text-xs text-graphite">Letzter Kontakt: {formatDateTime(device.lastSeenAt)} · App: {device.appVersion || "-"}</div>
                 </div>
               ))}
-              {!devices.length ? <p className="rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite">Noch kein iPhone oder iPad registriert.</p> : null}
+              {!devices.length ? <p className="rounded-md border border-dashed border-line bg-paper p-4 text-sm text-graphite">Noch kein mobiles Gerät registriert.</p> : null}
             </div>
           </details>
         </Panel>
@@ -526,8 +562,8 @@ export default async function PushSettingsPage({ searchParams }: { searchParams:
                                 <Badge tone={deliveryTone(delivery.status)}>{delivery.status}</Badge>
                               </summary>
                               <div className="mt-3 space-y-1 border-t border-line pt-3 text-xs text-graphite">
-                                <div>APNs-ID: {delivery.apnsId || "-"}</div>
-                                <div>Gerät: {delivery.device?.deviceName || "-"} · {delivery.device?.environment || "-"}</div>
+                                <div>Provider-ID: {delivery.apnsId || "-"}</div>
+                                <div>Gerät: {delivery.device?.deviceName || "-"} · {delivery.device?.platform || "-"} · {delivery.device?.environment || "-"}</div>
                                 {delivery.error ? <pre className="mt-2 whitespace-pre-wrap rounded-md bg-surface p-3 text-xs text-ink">{delivery.error}</pre> : null}
                               </div>
                             </details>

@@ -79,4 +79,4 @@ Die Pushnachrichten verwenden benannte iOS-Sounds. Die App muss diese Dateien im
 
 ## Betrieb
 
-APNs-Zugangsdaten werden nicht als Umgebungsvariablen gepflegt. Administratoren speichern Team ID, Key ID, Bundle ID, Umgebung und Private Key pro Seite unter `Einstellungen -> Push`. Der Private Key bleibt verschlüsselt in der Datenbank und darf nicht ins Repository.
+APNs- und FCM-Zugangsdaten werden nicht als Umgebungsvariablen gepflegt. Administratoren speichern Apple Team ID, Key ID, Bundle ID, Umgebung, Private Key sowie FCM Project ID und Firebase Service Account JSON pro Seite unter `Einstellungen -> Push`. Private Key und Service Account bleiben verschlüsselt in der Datenbank und dürfen nicht ins Repository.

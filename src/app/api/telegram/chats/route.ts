@@ -4,7 +4,7 @@ import { currentUser } from "@/lib/auth";
 import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
-import { ensureLegacyUserSettings, resolveTelegramSettingsForScope } from "@/lib/tenant-telegram";
+import { ensureUserSettings, resolveTelegramSettingsForScope } from "@/lib/tenant-telegram";
 import { rememberKnownTelegramUser } from "@/lib/telegram-known-users";
 
 const Body = z.object({
@@ -32,9 +32,9 @@ export async function POST(request: Request) {
   const scope = parsed.data.scope === "user" ? "user" : "tenant";
   const tenant = await currentTenant();
   try {
-  const [telegramSettings, legacySettings] = await Promise.all([
+  const [telegramSettings, userSettings] = await Promise.all([
     resolveTelegramSettingsForScope(tenant.id, user.id, { scope, botId: parsed.data.botId }),
-    ensureLegacyUserSettings(user.id)
+    ensureUserSettings(user.id)
   ]);
   const membership = await prisma.tenantMembership.findUnique({
     where: { tenantId_userId: { tenantId: tenant.id, userId: user.id } },
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       threadId,
       OR: [
         { telegramSettingsId: telegramSettings.id },
-        { settingsId: legacySettings.id }
+        { settingsId: userSettings.id }
       ]
     }
   });
@@ -71,14 +71,14 @@ export async function POST(request: Request) {
           chatType: chatType || existing.chatType,
           status: "ACTIVE",
           targetUserId: existing.targetUserId || targetUserId,
-          settingsId: legacySettings.id,
+          settingsId: userSettings.id,
           telegramSettingsId: activeTelegramSettingsId,
           ...detectedMessage
         }
       })
     : await prisma.telegramChat.create({
         data: {
-          settingsId: legacySettings.id,
+          settingsId: userSettings.id,
           telegramSettingsId: activeTelegramSettingsId,
           targetUserId,
           chatId: parsed.data.chatId,
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
       });
   if (parsed.data.fromId) {
     await rememberKnownTelegramUser({
-      settingsId: legacySettings.id,
+      settingsId: userSettings.id,
       telegramSettingsId: activeTelegramSettingsId,
       telegramUserId: parsed.data.fromId,
       telegramUsername: parsed.data.fromUsername || null,
