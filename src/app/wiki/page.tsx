@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BookOpenText, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, EmptyState, PageGuide, PageHeader } from "@/components/ui";
 import { userDisplayName } from "@/lib/audit";
@@ -43,12 +43,6 @@ export default async function WikiPage() {
           </Link>
         }
       />
-      <div className="mb-5 rounded-lg border border-line bg-paper p-4">
-        <Link href={`/wiki/${wikiOwnerSlug(user)}`} className="inline-flex items-center gap-2 text-sm font-semibold text-redbrand hover:underline">
-          <BookOpenText className="h-4 w-4" />
-          Eigenen Wiki-Namensraum öffnen: /wiki/{wikiOwnerSlug(user)}
-        </Link>
-      </div>
       {pages.length ? (
         <div className="space-y-4">
           {groups.map((group) => (
@@ -67,7 +61,6 @@ export default async function WikiPage() {
                       </div>
                       <Badge>{visibilityLabel(page.visibility)}</Badge>
                     </div>
-                    {page.summary ? <p className="mt-3 line-clamp-2 text-sm leading-6 text-graphite">{page.summary}</p> : null}
                     <p className="mt-3 text-xs text-graphite">Von {userDisplayName(page.owner)} · {page.updatedAt.toLocaleDateString("de-DE")}</p>
                   </Link>
                 ))}

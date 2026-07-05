@@ -67,7 +67,7 @@ export const capabilities: readonly Capability[] = [
           { method: "GET", path: "/api/external/status?token=...", description: "Status, Benutzer und Grunddaten prüfen." },
           { method: "GET", path: "/api/external/capabilities?token=...", description: "Aktive Fähigkeiten, Befehle und externe Endpunkte der aktuellen Seite abfragen." }
         ],
-        auditActions: ["login", "logout", "portal_status_requested"]
+        auditActions: ["login", "logout", "portal_status_requested", "password_reset_requested"]
       },
       {
         key: "points",

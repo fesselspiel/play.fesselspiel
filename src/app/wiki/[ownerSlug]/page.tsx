@@ -40,7 +40,6 @@ export default async function WikiOwnerPage({ params }: { params: { ownerSlug: s
                 <h2 className="text-base font-semibold text-ink">{page.title}</h2>
                 <Badge>{page.visibility === "SHARED" ? "Alle" : page.visibility === "PARTNER" ? "Zirkel" : "Privat"}</Badge>
               </div>
-              {page.summary ? <p className="mt-3 line-clamp-2 text-sm leading-6 text-graphite">{page.summary}</p> : null}
               <p className="mt-3 text-xs text-graphite">/{page.slug}</p>
             </Link>
           ))}

@@ -1,5 +1,6 @@
 import type { Circle, User, WikiPage, WikiPageShare } from "@prisma/client";
 import { Save } from "lucide-react";
+import { FileUploadField } from "@/components/file-upload-field";
 import { Button, Field, inputClass, selectClass } from "@/components/ui";
 
 type UserWithProfile = User & { profile?: { displayName?: string | null } | null };
@@ -25,17 +26,14 @@ export function WikiForm({
   return (
     <form action={action} className="max-w-4xl space-y-4">
       {page ? <input type="hidden" name="id" value={page.id} /> : null}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Titel">
-          <input className={inputClass} name="title" required defaultValue={page?.title || ""} placeholder="Hausregeln, Ideen, Ablauf ..." />
-        </Field>
-        <Field label="URL-Slug">
-          <input className={inputClass} name="slug" pattern="[a-z0-9-]*" defaultValue={page?.slug || ""} placeholder="hausregeln" />
-        </Field>
-      </div>
-      <Field label="Kurzbeschreibung">
-        <input className={inputClass} name="summary" defaultValue={page?.summary || ""} placeholder="Worum geht es auf dieser Seite?" />
+      <Field label="Titel">
+        <input className={inputClass} name="title" required defaultValue={page?.title || ""} placeholder="Hausregeln, Ideen, Ablauf ..." />
       </Field>
+      <input type="hidden" name="summary" value="" />
+      <Field label="Inhalt">
+        <textarea className={`${inputClass} font-mono leading-6`} name="content" rows={16} defaultValue={page?.content || ""} placeholder={"== Überschrift ==\n\n'''Wichtig''' und ''kursiv''.\n\n* Punkt eins\n* Punkt zwei\n\n[[Andere Seite]]"} />
+      </Field>
+      <FileUploadField name="image" uploadedUrlName="imageUploadedUrl" label="Bild einbinden" accept="image/*" help="Das Bild wird als geschützter Anhang dieser Wiki-Seite gespeichert." imageCropAspect="free" />
       <Field label="Sichtbarkeit">
         <select className={selectClass} name="visibility" defaultValue={page?.visibility || "PRIVATE"}>
           <option value="PRIVATE">Nur für mich</option>
@@ -69,9 +67,6 @@ export function WikiForm({
           </div>
         </div>
       </div>
-      <Field label="MediaWiki-Text">
-        <textarea className={`${inputClass} font-mono leading-6`} name="content" rows={16} defaultValue={page?.content || ""} placeholder={"== Überschrift ==\n\n'''Wichtig''' und ''kursiv''.\n\n* Punkt eins\n* Punkt zwei\n\n[[Andere Seite]]"} />
-      </Field>
       <Button>
         <Save className="h-4 w-4" />
         Speichern

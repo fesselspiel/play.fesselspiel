@@ -28,6 +28,7 @@ type TransferData = {
   media: ExportRecord[];
   mediaComments: ExportRecord[];
   wikiPages: ExportRecord[];
+  wikiImages: ExportRecord[];
   events: ExportRecord[];
   checkIns: ExportRecord[];
   feedRules: ExportRecord[];
@@ -95,6 +96,7 @@ export async function buildDataExport(user: AccessUser) {
     media,
     mediaComments,
     wikiPages,
+    wikiImages,
     events,
     checkIns,
     feedRules
@@ -111,6 +113,7 @@ export async function buildDataExport(user: AccessUser) {
     prisma.media.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
     prisma.mediaComment.findMany({ where: { ownerId: { in: ownerIds } }, orderBy: { createdAt: "asc" } }),
     prisma.wikiPage.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
+    prisma.wikiPageImage.findMany({ where: { page: ownerScope }, orderBy: { createdAt: "asc" } }),
     prisma.event.findMany({ where: ownerScope, orderBy: { startsAt: "asc" } }),
     prisma.checkIn.findMany({ where: { userId: { in: ownerIds } }, orderBy: { createdAt: "asc" } }),
     user.tenantId && (user.role === "ADMIN" || user.role === "SUPER_ADMIN")
@@ -163,6 +166,13 @@ export async function buildDataExport(user: AccessUser) {
     media: media.map(withoutOwner),
     mediaComments: mediaComments.map(({ ownerId: _ownerId, ...entry }) => entry),
     wikiPages: wikiPages.map(withoutOwner),
+    wikiImages: wikiImages.map((entry) => ({
+      id: entry.id,
+      pageId: entry.pageId,
+      fileId: entry.fileId,
+      title: entry.title,
+      createdAt: entry.createdAt
+    })),
     events: events.map(withoutOwner),
     checkIns: checkIns.map(({ userId: _userId, ...entry }) => entry),
     feedRules: feedRules.map(({ tenantId: _tenantId, ...entry }) => entry)
@@ -419,10 +429,11 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
   }
 
   let wikiCount = 0;
+  const wikiMap = new Map<string, string>();
   for (const entry of records(data.wikiPages)) {
     const title = String(entry.title || "Importierte Wiki-Seite");
     const slug = await uniqueWikiSlug(user.id, user.tenantId, String(entry.slug || title), title);
-    await prisma.wikiPage.create({
+    const created = await prisma.wikiPage.create({
       data: {
         ownerId: user.id,
         tenantId: user.tenantId || undefined,
@@ -433,7 +444,22 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
         visibility: String(entry.visibility || "PRIVATE") as "PRIVATE" | "PARTNER" | "SHARED"
       }
     });
+    wikiMap.set(String(entry.id || ""), created.id);
     wikiCount += 1;
+  }
+  let wikiImageCount = 0;
+  for (const entry of records(data.wikiImages)) {
+    const pageId = wikiMap.get(String(entry.pageId || ""));
+    const fileId = fileMap.get(String(entry.fileId || ""));
+    if (!pageId || !fileId) continue;
+    await prisma.wikiPageImage.create({
+      data: {
+        pageId,
+        fileId,
+        title: typeof entry.title === "string" ? entry.title : null
+      }
+    });
+    wikiImageCount += 1;
   }
 
   const eventMap = new Map<string, string>();
@@ -472,6 +498,7 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     albums: albumMap.size,
     media: mediaMap.size,
     wikiPages: wikiCount,
+    wikiImages: wikiImageCount,
     events: eventMap.size
   };
 }

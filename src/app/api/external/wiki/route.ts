@@ -35,7 +35,6 @@ export async function GET(request: NextRequest) {
       ownerSlug: wikiOwnerSlug(page.owner),
       namespacePath: `/wiki/${wikiOwnerSlug(page.owner)}`,
       path: `/wiki/${wikiOwnerSlug(page.owner)}/${page.slug}`,
-      summary: page.summary,
       visibility: page.visibility,
       updatedAt: page.updatedAt.toISOString(),
       owner: {
@@ -55,14 +54,14 @@ export async function POST(request: NextRequest) {
   const values = await requestValues(request);
   const title = String(values.get("title") || "").trim();
   if (!title) return NextResponse.json({ ok: false, error: "title_required" }, { status: 400 });
-  const slug = await uniqueWikiSlug(auth.user.id, auth.user.tenantId, values.get("slug") || "", title);
+  const slug = await uniqueWikiSlug(auth.user.id, auth.user.tenantId, title, title);
   const page = await prisma.wikiPage.create({
     data: {
       tenantId: auth.user.tenantId || undefined,
       ownerId: auth.user.id,
       title,
       slug,
-      summary: String(values.get("summary") || "").trim(),
+      summary: "",
       content: String(values.get("content") || "").trim(),
       visibility: visibility(values.get("visibility"))
     },

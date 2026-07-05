@@ -18,7 +18,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     include: {
       owner: { include: { profile: true } },
       shares: true,
-      revisions: { include: { actor: { include: { profile: true } } }, orderBy: { createdAt: "desc" }, take: 20 }
+      revisions: { include: { actor: { include: { profile: true } } }, orderBy: { createdAt: "desc" }, take: 20 },
+      images: { include: { file: true }, orderBy: { createdAt: "asc" } }
     }
   });
   if (!page) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
@@ -30,6 +31,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     title: `Wiki-Seite per API gelesen: ${page.title}`,
     href: `/wiki/${wikiOwnerSlug(page.owner)}/${page.slug}`
   });
+  const revisions = page.revisions.length
+    ? page.revisions
+    : [{
+        id: "created-fallback",
+        action: "created",
+        createdAt: page.createdAt,
+        actor: page.owner
+      }];
   return NextResponse.json({
     ok: true,
     item: {
@@ -38,13 +47,21 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       slug: page.slug,
       ownerSlug: wikiOwnerSlug(page.owner),
       path: `/wiki/${wikiOwnerSlug(page.owner)}/${page.slug}`,
-      summary: page.summary,
       content: page.content,
       mediaWikiExport: wikiExportText(page),
       visibility: page.visibility,
+      images: page.images.map((image) => ({
+        id: image.id,
+        fileId: image.fileId,
+        title: image.title,
+        url: `/api/external/files/${image.fileId}`,
+        protectedUrl: `/api/files/${image.fileId}`,
+        mimeType: image.file.mimeType,
+        createdAt: image.createdAt.toISOString()
+      })),
       createdAt: page.createdAt.toISOString(),
       updatedAt: page.updatedAt.toISOString(),
-      revisions: page.revisions.map((revision) => ({
+      revisions: revisions.map((revision) => ({
         id: revision.id,
         action: revision.action,
         createdAt: revision.createdAt.toISOString(),
@@ -75,8 +92,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (!page) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   const values = await requestValues(request);
   const title = values.has("title") ? String(values.get("title") || "").trim() || page.title : page.title;
-  const nextSlug = values.has("slug") || values.has("title")
-    ? await uniqueWikiSlug(page.ownerId, auth.user.tenantId, values.get("slug") || page.slug, title, page.id)
+  const nextSlug = values.has("title")
+    ? await uniqueWikiSlug(page.ownerId, auth.user.tenantId, title, title, page.id)
     : page.slug;
   const nextVisibility = visibility(values.get("visibility"));
   const updated = await prisma.wikiPage.update({
@@ -84,7 +101,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     data: {
       title,
       slug: nextSlug,
-      ...(values.has("summary") ? { summary: String(values.get("summary") || "").trim() } : {}),
+      ...(values.has("summary") ? { summary: "" } : {}),
       ...(values.has("content") ? { content: String(values.get("content") || "").trim() } : {}),
       ...(nextVisibility ? { visibility: nextVisibility } : {})
     },

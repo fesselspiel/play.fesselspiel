@@ -208,7 +208,25 @@ export async function fileAssetForAccess(user: AccessUser, id: string) {
     },
     select: { id: true }
   });
-  return visibleChatMessage ? sharedAsset : null;
+  if (visibleChatMessage) return sharedAsset;
+
+  const visibleWikiImage = await prisma.wikiPageImage.findFirst({
+    where: {
+      fileId: id,
+      page: {
+        ...(user.tenantId ? { tenantId: user.tenantId } : {}),
+        OR: [
+          { ownerId: user.id },
+          { visibility: "SHARED" },
+          ...(user.circleId ? [{ visibility: "PARTNER" as const }] : []),
+          { shares: { some: { targetUserId: user.id } } },
+          ...(user.circleId ? [{ shares: { some: { targetCircleId: user.circleId } } }] : [])
+        ]
+      }
+    },
+    select: { id: true }
+  });
+  return visibleWikiImage ? sharedAsset : null;
 }
 
 export function absolutePathForAsset(storagePath: string) {

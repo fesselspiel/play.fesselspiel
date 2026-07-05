@@ -21,12 +21,21 @@ export default async function WikiDetailPage({ params }: { params: { ownerSlug: 
     include: {
       owner: { include: { profile: true } },
       shares: { include: { targetUser: { include: { profile: true } }, targetCircle: true } },
-      revisions: { include: { actor: { include: { profile: true } } }, orderBy: { createdAt: "desc" }, take: 20 }
+      revisions: { include: { actor: { include: { profile: true } } }, orderBy: { createdAt: "desc" }, take: 20 },
+      images: { include: { file: true }, orderBy: { createdAt: "asc" } }
     }
   });
   if (!page) notFound();
   const canEdit = page.ownerId === user.id || user.role === "ADMIN" || user.role === "SUPER_ADMIN";
   const ownerSlug = wikiOwnerSlug(page.owner);
+  const revisions = page.revisions.length
+    ? page.revisions
+    : [{
+        id: "created-fallback",
+        action: "created",
+        createdAt: page.createdAt,
+        actor: page.owner
+      }];
   return (
     <AppShell>
       <PageHeader
@@ -47,12 +56,22 @@ export default async function WikiDetailPage({ params }: { params: { ownerSlug: 
           </div>
         }
       />
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="space-y-5">
         <article className="rounded-lg border border-line bg-surface p-5">
-          {page.summary ? <p className="mb-5 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">{page.summary}</p> : null}
           <div className="space-y-3" dangerouslySetInnerHTML={{ __html: renderWikiHtml(page.content || "_Noch kein Inhalt._", ownerSlug) }} />
+          {page.images.length ? (
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {page.images.map((image) => (
+                <figure key={image.id} className="overflow-hidden rounded-lg border border-line bg-paper">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/api/files/${image.fileId}`} alt={image.title || page.title} className="w-full object-contain" />
+                  {image.title ? <figcaption className="px-3 py-2 text-xs text-graphite">{image.title}</figcaption> : null}
+                </figure>
+              ))}
+            </div>
+          ) : null}
         </article>
-        <aside className="space-y-4">
+        <aside className="grid gap-4 lg:grid-cols-2">
           <section className="rounded-lg border border-line bg-surface p-4 text-sm text-graphite">
             <h2 className="mb-2 font-semibold text-ink">Freigabe</h2>
             <p>{page.visibility === "SHARED" ? "Alle sichtbaren Benutzer" : page.visibility === "PARTNER" ? "Zirkel" : "Privat"}</p>
@@ -89,9 +108,9 @@ export default async function WikiDetailPage({ params }: { params: { ownerSlug: 
           ) : null}
           <section className="rounded-lg border border-line bg-surface p-4 text-sm">
             <h2 className="mb-3 font-semibold text-ink">Änderungsprotokoll</h2>
-            {page.revisions.length ? (
+            {revisions.length ? (
               <div className="space-y-2">
-                {page.revisions.map((revision) => (
+                {revisions.map((revision) => (
                   <div key={revision.id} className="rounded-md bg-paper p-3">
                     <div className="font-medium text-ink">
                       {revision.action === "created" || revision.action === "created_api"

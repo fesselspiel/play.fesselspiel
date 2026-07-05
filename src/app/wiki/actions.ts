@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { requireFeature } from "@/lib/features";
+import { fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { createWikiRevision, uniqueWikiSlug, wikiEditablePage, wikiOwnerSlug } from "@/lib/wiki";
 
@@ -29,13 +30,28 @@ async function updateShares(pageId: string, formData: FormData) {
   });
 }
 
+async function attachWikiImage(pageId: string, userId: string, formData: FormData) {
+  const uploadedImageUrl = String(formData.get("imageUploadedUrl") || "").trim();
+  const uploadedFileId = fileIdFromUrl(uploadedImageUrl);
+  const fallbackFile = uploadedFileId ? null : await saveUploadedFile(userId, formData.get("image") as File | null);
+  const fileId = uploadedFileId || fallbackFile?.id;
+  if (!fileId) return;
+  await prisma.wikiPageImage.create({
+    data: {
+      pageId,
+      fileId,
+      title: String(formData.get("title") || "Wiki-Bild").trim()
+    }
+  });
+}
+
 export async function createWikiPage(formData: FormData) {
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("wiki");
   const title = String(formData.get("title") || "").trim();
   if (!title) redirect("/wiki/new");
-  const slug = await uniqueWikiSlug(user.id, user.tenantId, String(formData.get("slug") || ""), title);
+  const slug = await uniqueWikiSlug(user.id, user.tenantId, title, title);
   const page = await prisma.wikiPage.create({
     data: {
       tenantId: user.tenantId || undefined,
@@ -48,6 +64,7 @@ export async function createWikiPage(formData: FormData) {
     }
   });
   await updateShares(page.id, formData);
+  await attachWikiImage(page.id, user.id, formData);
   await createWikiRevision(page.id, user.id, "created");
   await logAction({
     actorId: user.id,
@@ -68,7 +85,7 @@ export async function updateWikiPage(formData: FormData) {
   const page = await wikiEditablePage(user, id);
   if (!page) redirect("/wiki");
   const title = String(formData.get("title") || "").trim() || page.title;
-  const slug = await uniqueWikiSlug(page.ownerId, user.tenantId, String(formData.get("slug") || ""), title, page.id);
+  const slug = await uniqueWikiSlug(page.ownerId, user.tenantId, title, title, page.id);
   const updated = await prisma.wikiPage.update({
     where: { id: page.id },
     data: {
@@ -81,6 +98,7 @@ export async function updateWikiPage(formData: FormData) {
     include: { owner: { include: { profile: true } } }
   });
   await updateShares(page.id, formData);
+  await attachWikiImage(page.id, user.id, formData);
   await createWikiRevision(updated.id, user.id, "updated");
   await logAction({
     actorId: user.id,

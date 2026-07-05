@@ -65,6 +65,7 @@ export const knownAuditActions = [
   ["native_push_notification_failed", "Native Push Benachrichtigung fehlgeschlagen"],
   ["native_push_notification_sent", "Native Push Benachrichtigung gesendet"],
   ["password_changed", "Eigenes Passwort geändert"],
+  ["password_reset_requested", "Passwort-Reset angefordert"],
   ["packing_event_created", "Pack-Event angelegt"],
   ["packing_event_created_api", "Pack-Event per API angelegt"],
   ["packing_event_updated_api", "Pack-Event per API geändert"],

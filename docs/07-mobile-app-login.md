@@ -620,8 +620,6 @@ Beispiel fuer `POST /api/external/wiki`:
 ```json
 {
   "title": "Ablauf",
-  "slug": "ablauf",
-  "summary": "Kurze Zusammenfassung",
   "content": "== Ueberschrift ==\n\n'''Wichtig''' und [[Interner Link]]",
   "visibility": "PRIVATE"
 }
@@ -633,7 +631,7 @@ Sichtbarkeit:
 - `PARTNER`: eigener Zirkel
 - `SHARED`: sichtbare Benutzer der Seite
 
-`GET /api/external/wiki/{id}` liefert `content` als MediaWiki-Rohtext, `mediaWikiExport` als exportierbaren `.wiki`-Text und `revisions[]` als kompaktes Aenderungsprotokoll. Die Weboberflaeche kann `.wiki`-Dateien importieren und exportieren.
+Der Seiten-Slug wird automatisch aus dem Titel erzeugt. `GET /api/external/wiki/{id}` liefert `content` als MediaWiki-Rohtext, `mediaWikiExport` als exportierbaren `.wiki`-Text, `revisions[]` als kompaktes Aenderungsprotokoll und `images[]` fuer angehaengte Wiki-Bilder. Die Weboberflaeche kann `.wiki`-Dateien importieren und exportieren.
 
 ## Hinweise fuer Weiterentwicklung
 

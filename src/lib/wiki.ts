@@ -18,7 +18,7 @@ export async function wikiOwnerBySlug(ownerSlug: string, viewer: AccessUser) {
     where: { id: { in: ownerIds }, active: true, ...(viewer.tenantId ? { memberships: { some: { tenantId: viewer.tenantId, active: true } } } : {}) },
     include: { profile: true }
   });
-  return users.find((entry) => wikiOwnerSlug(entry) === ownerSlug || slugify(entry.username || "") === ownerSlug) || null;
+  return users.find((entry) => wikiOwnerSlug(entry) === ownerSlug) || null;
 }
 
 export async function wikiPageAccessWhere(user: AccessUser): Promise<Prisma.WikiPageWhereInput> {

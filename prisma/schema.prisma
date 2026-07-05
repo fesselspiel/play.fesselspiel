@@ -294,6 +294,7 @@ model FileAsset {
   owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   activityImages ActivityImage[]
   circleChatMessages CircleChatMessage[]
+  wikiImages WikiPageImage[]
 
   @@index([tenantId, ownerId, createdAt])
   @@index([ownerId, createdAt])
@@ -896,6 +897,7 @@ model WikiPage {
   owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   shares      WikiPageShare[]
   revisions   WikiPageRevision[]
+  images      WikiPageImage[]
 
   @@unique([tenantId, ownerId, slug])
   @@index([tenantId, ownerId, updatedAt])
@@ -918,6 +920,19 @@ model WikiPageRevision {
 
   @@index([pageId, createdAt])
   @@index([actorId, createdAt])
+}
+
+model WikiPageImage {
+  id        String   @id @default(cuid())
+  pageId    String
+  fileId    String
+  title     String?
+  createdAt DateTime @default(now())
+  page      WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  file      FileAsset @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, createdAt])
+  @@index([fileId])
 }
 
 model WikiPageShare {

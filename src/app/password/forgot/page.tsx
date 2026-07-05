@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { KeyRound } from "lucide-react";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, inputClass, Panel } from "@/components/ui";
-import { createPasswordReset } from "@/lib/password-reset";
+import { createPasswordReset, notifyPasswordReset } from "@/lib/password-reset";
 import { sendTemplateEmail } from "@/lib/email";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
@@ -37,6 +37,7 @@ async function requestPasswordReset(formData: FormData) {
         resetUrl: reset.resetUrl
       }
     });
+    await notifyPasswordReset(user, reset);
   }
   redirect("/password/forgot?sent=1");
 }
