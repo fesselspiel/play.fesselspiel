@@ -5,7 +5,7 @@ import { logAction } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
-import { uniqueWikiSlug, wikiEditablePage, wikiOwnerSlug } from "@/lib/wiki";
+import { createWikiRevision, uniqueWikiSlug, wikiEditablePage, wikiOwnerSlug } from "@/lib/wiki";
 
 function visibilityFromForm(value: FormDataEntryValue | null) {
   const raw = String(value || "PRIVATE");
@@ -48,6 +48,7 @@ export async function createWikiPage(formData: FormData) {
     }
   });
   await updateShares(page.id, formData);
+  await createWikiRevision(page.id, user.id, "created");
   await logAction({
     actorId: user.id,
     action: "wiki_page_created",
@@ -80,6 +81,7 @@ export async function updateWikiPage(formData: FormData) {
     include: { owner: { include: { profile: true } } }
   });
   await updateShares(page.id, formData);
+  await createWikiRevision(updated.id, user.id, "updated");
   await logAction({
     actorId: user.id,
     action: "wiki_page_updated",
@@ -104,6 +106,7 @@ export async function importWikiPage(formData: FormData) {
   if (!text.trim()) redirect(`/wiki/${wikiOwnerSlug(page.owner)}/${page.slug}`);
   const withoutTopTitle = text.replace(/^=\s+[^=\n]+?\s+=\s*/m, "").replace(/<!--\s*summary:[\s\S]*?-->\s*/m, "").trim();
   await prisma.wikiPage.update({ where: { id: page.id }, data: { content: withoutTopTitle } });
+  await createWikiRevision(page.id, user.id, "imported");
   await logAction({
     actorId: user.id,
     action: "wiki_page_imported",

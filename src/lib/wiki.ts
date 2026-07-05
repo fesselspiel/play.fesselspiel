@@ -9,7 +9,7 @@ export function wikiOwnerSlug(user: {
   name?: string | null;
   email?: string | null;
 }) {
-  return slugify(user.username || user.profile?.displayName || user.name || user.email?.split("@")[0] || "benutzer");
+  return slugify(user.profile?.displayName || user.name || user.username || user.email?.split("@")[0] || "benutzer");
 }
 
 export async function wikiOwnerBySlug(ownerSlug: string, viewer: AccessUser) {
@@ -18,7 +18,7 @@ export async function wikiOwnerBySlug(ownerSlug: string, viewer: AccessUser) {
     where: { id: { in: ownerIds }, active: true, ...(viewer.tenantId ? { memberships: { some: { tenantId: viewer.tenantId, active: true } } } : {}) },
     include: { profile: true }
   });
-  return users.find((entry) => wikiOwnerSlug(entry) === ownerSlug) || null;
+  return users.find((entry) => wikiOwnerSlug(entry) === ownerSlug || slugify(entry.username || "") === ownerSlug) || null;
 }
 
 export async function wikiPageAccessWhere(user: AccessUser): Promise<Prisma.WikiPageWhereInput> {
@@ -118,4 +118,20 @@ export function renderWikiHtml(content: string, ownerSlug: string) {
 export function wikiExportText(page: { title: string; summary?: string | null; content: string }) {
   const summary = page.summary ? `<!-- summary: ${page.summary.replace(/-->/g, "")} -->\n\n` : "";
   return `= ${page.title} =\n\n${summary}${page.content}`;
+}
+
+export async function createWikiRevision(pageId: string, actorId: string | null | undefined, action: string) {
+  const page = await prisma.wikiPage.findUnique({ where: { id: pageId } });
+  if (!page) return;
+  await prisma.wikiPageRevision.create({
+    data: {
+      pageId: page.id,
+      actorId: actorId || null,
+      title: page.title,
+      slug: page.slug,
+      summary: page.summary,
+      content: page.content,
+      action
+    }
+  });
 }

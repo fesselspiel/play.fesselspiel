@@ -207,6 +207,7 @@ model User {
   packedItems PackingListItem[] @relation("PackingItemPackedBy")
   wikiPages WikiPage[]
   wikiPageShares WikiPageShare[]
+  wikiPageRevisions WikiPageRevision[]
 
   @@index([tenantId])
   @@index([circleId])
@@ -894,11 +895,29 @@ model WikiPage {
   tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   shares      WikiPageShare[]
+  revisions   WikiPageRevision[]
 
   @@unique([tenantId, ownerId, slug])
   @@index([tenantId, ownerId, updatedAt])
   @@index([ownerId, updatedAt])
   @@index([visibility])
+}
+
+model WikiPageRevision {
+  id        String   @id @default(cuid())
+  pageId    String
+  actorId   String?
+  title     String
+  slug      String
+  summary   String?
+  content   String
+  action    String   @default("updated")
+  createdAt DateTime @default(now())
+  page      WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([pageId, createdAt])
+  @@index([actorId, createdAt])
 }
 
 model WikiPageShare {

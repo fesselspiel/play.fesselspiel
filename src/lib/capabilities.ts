@@ -630,7 +630,7 @@ export const capabilities: readonly Capability[] = [
           { method: "GET", path: "/api/external/wiki?token=...", description: "Sichtbare Wiki-Seiten lesen." },
           { method: "GET", path: "/api/external/wiki/{id}?token=...", description: "Eine Wiki-Seite inklusive MediaWiki-Text lesen." }
         ],
-        auditActions: ["wiki_page_viewed"]
+        auditActions: ["wiki_page_viewed", "wiki_page_viewed_api"]
       },
       {
         key: "manage",
@@ -642,7 +642,7 @@ export const capabilities: readonly Capability[] = [
           { method: "PATCH", path: "/api/external/wiki/{id}", description: "Wiki-Seite ändern. Body: title?, content?, summary?, slug?, visibility?." },
           { method: "DELETE", path: "/api/external/wiki/{id}", description: "Eigene Wiki-Seite löschen." }
         ],
-        auditActions: ["wiki_page_created", "wiki_page_updated", "wiki_page_deleted", "wiki_page_imported"]
+        auditActions: ["wiki_page_created", "wiki_page_updated", "wiki_page_deleted", "wiki_page_imported", "wiki_page_created_api", "wiki_page_updated_api", "wiki_page_deleted_api"]
       }
     ]
   },

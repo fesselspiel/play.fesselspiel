@@ -18,7 +18,11 @@ export default async function WikiDetailPage({ params }: { params: { ownerSlug: 
   if (!owner) notFound();
   const page = await prisma.wikiPage.findFirst({
     where: { AND: [await wikiPageAccessWhere(user), { ownerId: owner.id, slug: params.slug }] },
-    include: { owner: { include: { profile: true } }, shares: { include: { targetUser: { include: { profile: true } }, targetCircle: true } } }
+    include: {
+      owner: { include: { profile: true } },
+      shares: { include: { targetUser: { include: { profile: true } }, targetCircle: true } },
+      revisions: { include: { actor: { include: { profile: true } } }, orderBy: { createdAt: "desc" }, take: 20 }
+    }
   });
   if (!page) notFound();
   const canEdit = page.ownerId === user.id || user.role === "ADMIN" || user.role === "SUPER_ADMIN";
@@ -83,6 +87,29 @@ export default async function WikiDetailPage({ params }: { params: { ownerSlug: 
               </details>
             </section>
           ) : null}
+          <section className="rounded-lg border border-line bg-surface p-4 text-sm">
+            <h2 className="mb-3 font-semibold text-ink">Änderungsprotokoll</h2>
+            {page.revisions.length ? (
+              <div className="space-y-2">
+                {page.revisions.map((revision) => (
+                  <div key={revision.id} className="rounded-md bg-paper p-3">
+                    <div className="font-medium text-ink">
+                      {revision.action === "created" || revision.action === "created_api"
+                        ? "Angelegt"
+                        : revision.action === "imported"
+                          ? "Importiert"
+                          : "Geändert"}
+                    </div>
+                    <div className="mt-1 text-xs leading-5 text-graphite">
+                      {revision.actor ? userDisplayName(revision.actor) : "System"} · {revision.createdAt.toLocaleDateString("de-DE")}, {revision.createdAt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-graphite">Noch keine protokollierten Änderungen vorhanden.</p>
+            )}
+          </section>
           {canEdit ? (
             <form action={deleteWikiPage} className="rounded-lg border border-line bg-surface p-4">
               <input type="hidden" name="id" value={page.id} />

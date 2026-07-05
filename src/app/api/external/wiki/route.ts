@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requestValues, requireApiUser } from "@/lib/external-api";
 import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
-import { uniqueWikiSlug, wikiOwnerSlug, wikiPageAccessWhere } from "@/lib/wiki";
+import { createWikiRevision, uniqueWikiSlug, wikiOwnerSlug, wikiPageAccessWhere } from "@/lib/wiki";
 
 function visibility(value?: string | null) {
   return value === "PARTNER" || value === "SHARED" ? value : "PRIVATE";
@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
     },
     include: { owner: { include: { profile: true } } }
   });
+  await createWikiRevision(page.id, auth.user.id, "created_api");
   await logAction({
     actorId: auth.user.id,
     action: "wiki_page_created_api",

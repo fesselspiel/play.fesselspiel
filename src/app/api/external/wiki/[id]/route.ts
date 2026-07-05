@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requestValues, requireApiUser } from "@/lib/external-api";
 import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
-import { uniqueWikiSlug, wikiExportText, wikiOwnerSlug, wikiPageAccessWhere } from "@/lib/wiki";
+import { createWikiRevision, uniqueWikiSlug, wikiExportText, wikiOwnerSlug, wikiPageAccessWhere } from "@/lib/wiki";
 
 function visibility(value?: string | null) {
   return value === "PARTNER" || value === "SHARED" ? value : value === "PRIVATE" ? value : undefined;
@@ -15,7 +15,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   if (blocked) return blocked;
   const page = await prisma.wikiPage.findFirst({
     where: { AND: [await wikiPageAccessWhere(auth.user), { id: params.id }] },
-    include: { owner: { include: { profile: true } }, shares: true }
+    include: {
+      owner: { include: { profile: true } },
+      shares: true,
+      revisions: { include: { actor: { include: { profile: true } } }, orderBy: { createdAt: "desc" }, take: 20 }
+    }
   });
   if (!page) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   await logAction({
@@ -40,6 +44,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       visibility: page.visibility,
       createdAt: page.createdAt.toISOString(),
       updatedAt: page.updatedAt.toISOString(),
+      revisions: page.revisions.map((revision) => ({
+        id: revision.id,
+        action: revision.action,
+        createdAt: revision.createdAt.toISOString(),
+        actor: revision.actor ? {
+          id: revision.actor.id,
+          username: revision.actor.username,
+          displayName: revision.actor.profile?.displayName || revision.actor.name || revision.actor.username || revision.actor.email
+        } : null
+      })),
       canEdit: page.ownerId === auth.user.id || auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN"
     }
   });
@@ -76,6 +90,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     },
     include: { owner: { include: { profile: true } } }
   });
+  await createWikiRevision(updated.id, auth.user.id, "updated_api");
   await logAction({
     actorId: auth.user.id,
     action: "wiki_page_updated_api",

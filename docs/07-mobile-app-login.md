@@ -633,7 +633,7 @@ Sichtbarkeit:
 - `PARTNER`: eigener Zirkel
 - `SHARED`: sichtbare Benutzer der Seite
 
-`GET /api/external/wiki/{id}` liefert `content` als MediaWiki-Rohtext und `mediaWikiExport` als exportierbaren `.wiki`-Text. Die Weboberflaeche kann `.wiki`-Dateien importieren und exportieren.
+`GET /api/external/wiki/{id}` liefert `content` als MediaWiki-Rohtext, `mediaWikiExport` als exportierbaren `.wiki`-Text und `revisions[]` als kompaktes Aenderungsprotokoll. Die Weboberflaeche kann `.wiki`-Dateien importieren und exportieren.
 
 ## Hinweise fuer Weiterentwicklung
 
