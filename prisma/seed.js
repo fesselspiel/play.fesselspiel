@@ -16,6 +16,50 @@ function slugify(value) {
     .replace(/^-+|-+$/g, "");
 }
 
+function normalizeUsername(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-_]+|[-_]+$/g, "");
+  return normalized && normalized.length >= 2 ? normalized.slice(0, 40).replace(/^[-_]+|[-_]+$/g, "") : null;
+}
+
+async function migrateUsernames() {
+  const users = await prisma.user.findMany({
+    where: { username: { not: null } },
+    select: { id: true, username: true },
+    orderBy: { createdAt: "asc" }
+  });
+  const planned = [];
+  const used = new Set();
+  for (const user of users) {
+    const base = normalizeUsername(user.username);
+    if (!base) {
+      planned.push({ id: user.id, current: user.username, next: null });
+      continue;
+    }
+    let next = base;
+    let counter = 2;
+    while (used.has(next)) {
+      const suffix = `-${counter++}`;
+      next = `${base.slice(0, 40 - suffix.length)}${suffix}`;
+    }
+    used.add(next);
+    planned.push({ id: user.id, current: user.username, next });
+  }
+  const changing = planned.filter((entry) => entry.next !== entry.current);
+  for (const entry of changing) {
+    await prisma.user.update({ where: { id: entry.id }, data: { username: `tmp-${entry.id.slice(-20)}` } });
+  }
+  for (const entry of changing) {
+    await prisma.user.update({ where: { id: entry.id }, data: { username: entry.next } });
+  }
+}
+
 async function defaultTelegramSettingsForTenant(tenantId) {
   return prisma.tenantTelegramSettings.upsert({
     where: { tenantId_key: { tenantId, key: "default" } },
@@ -167,14 +211,16 @@ async function main() {
 
   const email = process.env.ADMIN_EMAIL || "admin@fesselspiel.com";
   const username = process.env.ADMIN_USERNAME || "admin";
+  const normalizedAdminUsername = normalizeUsername(username);
   const password = process.env.ADMIN_PASSWORD || "bitte_ändern";
   const passwordHash = await bcrypt.hash(password, 12);
   const adminRole = process.env.ADMIN_IS_SUPER_ADMIN === "false" ? "ADMIN" : "SUPER_ADMIN";
 
   const existingAdmin = await prisma.user.findUnique({ where: { email } });
   const userCount = await prisma.user.count();
-  const usernameOwner = username ? await prisma.user.findUnique({ where: { username }, select: { id: true } }) : null;
-  const nextUsername = usernameOwner && usernameOwner.id !== existingAdmin?.id ? existingAdmin?.username || null : username;
+  await migrateUsernames();
+  const usernameOwner = normalizedAdminUsername ? await prisma.user.findUnique({ where: { username: normalizedAdminUsername }, select: { id: true } }) : null;
+  const nextUsername = usernameOwner && usernameOwner.id !== existingAdmin?.id ? existingAdmin?.username || null : normalizedAdminUsername;
   const admin = existingAdmin
     ? await prisma.user.update({
         where: { id: existingAdmin.id },

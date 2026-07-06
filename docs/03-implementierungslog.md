@@ -963,6 +963,9 @@ Details:
 - APNs- und FCM-Konfiguration sind unabhängig: fehlt ein Provider, wird nur dessen Plattform als fehlgeschlagen protokolliert.
 - E-Mail-Aktionsregeln können direkt auf derselben Einstellungsseite eigene neue Templates anlegen, die danach in Testmail und Regeln auswählbar sind.
 - Telegram-Benutzerzuordnungen werden beim Seed aus alten UserSettings-Zeilen in die seitenbasierte Telegram-Konfiguration migriert; neue Zuordnungen speichern direkt gegen den Seiten-Bot.
+- Benutzernamen sind jetzt technische Login-Namen: sie werden normalisiert kleingeschrieben, case-insensitive eindeutig behandelt und können im eigenen Profil sowie durch Admins in der Benutzerverwaltung geändert werden.
+- Der Wiki-Namensraum verwendet den technischen Benutzernamen; intern bleiben Wiki-Seiten weiter per Benutzer-ID verknüpft.
+- Der Seed migriert vorhandene Benutzernamen auf das neue Format und löst reine Case-Dubletten mit einem Suffix auf.
 
 ### Externe Bild-API fuer native Apps
 

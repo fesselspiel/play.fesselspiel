@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import { FileUploadField } from "@/components/file-upload-field";
 import { SubmitButton } from "@/components/submit-button";
 import { ThemePicker } from "@/components/theme-picker";
+import { UsernameField } from "@/components/username-field";
 import { Badge, Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
 import { logAction, userDisplayName } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
@@ -16,6 +17,7 @@ import { prisma } from "@/lib/prisma";
 import { userPointTotal } from "@/lib/points";
 import { actionLabel } from "@/lib/notification-actions";
 import { normalizeTheme, normalizeThemeMode } from "@/lib/themes";
+import { isValidUsername, normalizeUsername } from "@/lib/usernames";
 
 async function existingProfileImageUrl(ownerId: string, url?: string | null) {
   const fileId = fileIdFromUrl(url);
@@ -30,6 +32,12 @@ async function saveProfile(formData: FormData) {
   if (!user) redirect("/login");
   const nextEmail = String(formData.get("email") || "").trim().toLowerCase();
   if (!nextEmail || !nextEmail.includes("@")) redirect("/profile?error=email-invalid");
+  const nextUsername = normalizeUsername(String(formData.get("username") || ""));
+  if (nextUsername && !isValidUsername(nextUsername)) redirect("/profile?error=username-invalid");
+  if (nextUsername !== user.username) {
+    const duplicateUsername = nextUsername ? await prisma.user.findUnique({ where: { username: nextUsername }, select: { id: true } }) : null;
+    if (duplicateUsername && duplicateUsername.id !== user.id) redirect("/profile?error=username-exists");
+  }
   const emailChanged = nextEmail !== user.email;
   if (emailChanged) {
     const existingEmail = await prisma.user.findFirst({ where: { email: nextEmail, id: { not: user.id } }, select: { id: true } });
@@ -47,6 +55,7 @@ async function saveProfile(formData: FormData) {
     where: { id: user.id },
     data: {
       email: nextEmail,
+      username: nextUsername,
       emailVerifiedAt: emailChanged ? null : user.emailVerifiedAt,
       name: String(formData.get("name") || "").trim(),
       profile: {
@@ -189,7 +198,13 @@ export default async function ProfilePage({ searchParams }: { searchParams?: { e
       <Panel className="max-w-3xl">
         {searchParams?.error ? (
           <div className="mb-4 rounded-md border border-redbrand bg-redbrand/10 px-4 py-3 text-sm font-semibold text-redbrand">
-            {searchParams.error === "email-exists" ? "Diese E-Mail-Adresse wird bereits verwendet." : "Bitte eine gültige E-Mail-Adresse angeben."}
+            {searchParams.error === "email-exists"
+              ? "Diese E-Mail-Adresse wird bereits verwendet."
+              : searchParams.error === "username-exists"
+                ? "Dieser Benutzername wird bereits verwendet."
+                : searchParams.error === "username-invalid"
+                  ? "Der Benutzername darf nur Kleinbuchstaben, Zahlen, Bindestrich und Unterstrich enthalten und muss 2 bis 40 Zeichen lang sein."
+                  : "Bitte eine gültige E-Mail-Adresse angeben."}
           </div>
         ) : null}
         {searchParams?.sent === "email-confirmation" ? (
@@ -215,6 +230,7 @@ export default async function ProfilePage({ searchParams }: { searchParams?: { e
           ) : null}
           <Field label="Name"><input className={inputClass} name="name" defaultValue={user.name || ""} /></Field>
           <Field label="Anzeigename"><input className={inputClass} name="displayName" defaultValue={user.profile?.displayName || ""} /></Field>
+          <Field label="Benutzername"><UsernameField defaultValue={user.username || ""} excludeId={user.id} /></Field>
           <Field label="E-Mail-Adresse"><input className={inputClass} name="email" type="email" defaultValue={user.email || ""} required /></Field>
           <p className="rounded-md bg-paper px-3 py-2 text-sm text-graphite">
             {user.emailVerifiedAt ? `E-Mail bestätigt: ${user.email}` : "E-Mail noch nicht bestätigt. Wenn du die Adresse änderst, senden wir automatisch einen neuen Bestätigungslink."}

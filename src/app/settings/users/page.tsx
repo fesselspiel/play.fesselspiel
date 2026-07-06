@@ -15,6 +15,7 @@ import { sendTemplateEmail } from "@/lib/email";
 import { env } from "@/lib/env";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
+import { isValidUsername, normalizeUsername } from "@/lib/usernames";
 
 async function adoptUploadedProfileImage(targetUserId: string, uploadedUrl: string) {
   const fileId = fileIdFromUrl(uploadedUrl);
@@ -33,13 +34,14 @@ async function createUser(formData: FormData) {
   const { tenant } = await currentSessionContext();
   if (!tenant) redirect("/settings/users?error=tenant");
   const rawEmail = String(formData.get("email") || "").trim().toLowerCase();
-  const username = String(formData.get("username") || "").trim() || null;
+  const username = normalizeUsername(String(formData.get("username") || ""));
   if (!rawEmail && !username) redirect("/settings/users?error=missing-login");
   if (rawEmail) {
     const existingEmail = await prisma.user.findUnique({ where: { email: rawEmail } });
     if (existingEmail) redirect("/settings/users?error=email-exists");
   }
   if (username) {
+    if (!isValidUsername(username)) redirect("/settings/users?error=username-invalid");
     const existing = await prisma.user.findUnique({ where: { username } });
     if (existing) redirect("/settings/users?error=username-exists");
   }
@@ -137,6 +139,12 @@ async function updateUser(formData: FormData) {
   if (!membership) redirect("/settings/users?error=user-delete");
   const existing = await prisma.user.findUnique({ where: { id }, include: { profile: true } });
   if (!existing) redirect("/settings/users");
+  const nextUsername = normalizeUsername(String(formData.get("username") || ""));
+  if (nextUsername && !isValidUsername(nextUsername)) redirect(`/settings/users?error=username-invalid#user-${id}`);
+  if (nextUsername !== existing.username) {
+    const duplicateUsername = nextUsername ? await prisma.user.findUnique({ where: { username: nextUsername }, select: { id: true } }) : null;
+    if (duplicateUsername && duplicateUsername.id !== id) redirect(`/settings/users?error=username-exists#user-${id}`);
+  }
   const nextEmail = String(formData.get("email") || "").trim().toLowerCase();
   if (!nextEmail || !nextEmail.includes("@")) redirect("/settings/users?error=email-invalid");
   const emailChanged = nextEmail !== existing.email;
@@ -148,6 +156,7 @@ async function updateUser(formData: FormData) {
     where: { id },
     data: {
       email: nextEmail,
+      username: nextUsername,
       emailVerifiedAt: emailChanged ? (nextEmail.endsWith("@local.fesselspiel") ? new Date() : null) : existing.emailVerifiedAt,
       active: formData.get("active") === "on"
     },
@@ -340,7 +349,9 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
         <div className="mb-4 rounded-md border border-redbrand bg-redbrand/10 px-4 py-3 text-sm font-semibold text-redbrand">
           {searchParams.error === "username-exists"
             ? "Der Benutzername ist bereits vergeben."
-            : searchParams.error === "email-exists"
+            : searchParams.error === "username-invalid"
+              ? "Der Benutzername darf nur Kleinbuchstaben, Zahlen, Bindestrich und Unterstrich enthalten und muss 2 bis 40 Zeichen lang sein."
+              : searchParams.error === "email-exists"
               ? "Die E-Mail-Adresse ist bereits vergeben."
               : searchParams.error === "email-invalid"
                 ? "Bitte eine gültige E-Mail-Adresse angeben."
@@ -554,6 +565,7 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
                     <span className="min-w-0">
                       <strong className="block truncate">{entry.profile?.displayName || entry.name || entry.email}</strong>
                       <span className="block truncate text-xs text-graphite">{entry.email}</span>
+                      <span className="block truncate text-xs text-graphite">Login: {entry.username || "kein Benutzername"}</span>
                       <span className="block truncate text-xs text-graphite">{entry.lastLoginAt ? `Letzter Login: ${formatDateTime(entry.lastLoginAt)}` : "Noch kein Login"}</span>
                     </span>
                   </span>
@@ -564,7 +576,7 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
                 </summary>
               <form action={updateUser} className="space-y-4 border-t border-line bg-surface p-3">
                 <input name="id" value={entry.id} type="hidden" />
-                <div className="grid gap-3 xl:grid-cols-[1fr_220px_140px_180px_110px_auto] xl:items-center">
+                <div className="grid gap-3 xl:grid-cols-[1fr_180px_220px_140px_180px_110px_auto] xl:items-center">
                   <div className="flex min-w-0 items-center gap-3">
                     {entry.profile?.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -575,11 +587,13 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
                     <div className="min-w-0">
                       <strong className="block truncate">{entry.profile?.displayName || entry.name || entry.email}</strong>
                       <p className="truncate text-sm text-graphite">{entry.email}</p>
+                      <p className="truncate text-xs text-graphite">Login: {entry.username || "kein Benutzername"}</p>
                       <p className="truncate text-xs text-graphite">{entry.circle?.name || "Kein Kreis"}</p>
                       <p className="truncate text-xs text-graphite">{entry.emailVerifiedAt ? `E-Mail bestätigt: ${formatDateTime(entry.emailVerifiedAt)}` : "E-Mail noch nicht bestätigt"}</p>
                       <p className="truncate text-xs text-graphite">{entry.lastLoginAt ? `Letzter Login: ${formatDateTime(entry.lastLoginAt)}` : "Noch kein Login"}</p>
                     </div>
                   </div>
+                  <UsernameField defaultValue={entry.username || ""} excludeId={entry.id} />
                   <input className={inputClass} name="email" type="email" defaultValue={entry.email} required />
                   <select className={selectClass} name="role" defaultValue={entry.role}>
                     <option value="USER">Benutzer</option>

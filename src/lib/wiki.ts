@@ -2,6 +2,7 @@ import type { Prisma, Visibility } from "@prisma/client";
 import { accessibleOwnerIds, type AccessUser } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, slugify } from "@/lib/slug";
+import { normalizeUsername } from "@/lib/usernames";
 
 export function wikiOwnerSlug(user: {
   username?: string | null;
@@ -9,16 +10,17 @@ export function wikiOwnerSlug(user: {
   name?: string | null;
   email?: string | null;
 }) {
-  return slugify(user.profile?.displayName || user.name || user.username || user.email?.split("@")[0] || "benutzer");
+  return normalizeUsername(user.username) || slugify(user.email?.split("@")[0] || user.name || user.profile?.displayName || "benutzer");
 }
 
 export async function wikiOwnerBySlug(ownerSlug: string, viewer: AccessUser) {
+  const normalizedOwnerSlug = normalizeUsername(ownerSlug) || slugify(ownerSlug);
   const ownerIds = await accessibleOwnerIds(viewer);
   const users = await prisma.user.findMany({
     where: { id: { in: ownerIds }, active: true, ...(viewer.tenantId ? { memberships: { some: { tenantId: viewer.tenantId, active: true } } } : {}) },
     include: { profile: true }
   });
-  return users.find((entry) => wikiOwnerSlug(entry) === ownerSlug) || null;
+  return users.find((entry) => wikiOwnerSlug(entry) === normalizedOwnerSlug) || null;
 }
 
 export async function wikiPageAccessWhere(user: AccessUser): Promise<Prisma.WikiPageWhereInput> {

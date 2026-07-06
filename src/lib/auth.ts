@@ -6,6 +6,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { currentTenant } from "@/lib/tenancy";
+import { normalizeUsername } from "@/lib/usernames";
 
 export const SESSION_COOKIE = "fesselspiel_session";
 
@@ -54,11 +55,16 @@ export function verifySessionToken(token?: string | null): SessionPayload | null
 
 export async function login(identifier: string, password: string, remember: boolean) {
   const tenant = await currentTenant();
+  const normalizedIdentifier = identifier.trim();
+  const normalizedUsername = normalizeUsername(normalizedIdentifier);
   const user = await prisma.user.findFirst({
     where: {
       active: true,
       AND: [{
-        OR: [{ email: identifier.toLowerCase() }, { username: identifier }]
+        OR: [
+          { email: normalizedIdentifier.toLowerCase() },
+          ...(normalizedUsername ? [{ username: normalizedUsername }] : [])
+        ]
       }]
     }
   });
