@@ -133,6 +133,7 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `src/app/api/external/status/route.ts`
 - `src/app/api/external/trackers/[trackerKey]/start/route.ts`
 - `src/app/api/external/trackers/[trackerKey]/stop/route.ts`
+- `src/app/api/external/trackers/history/route.ts`
 - `src/app/api/external/trackers/quotas/route.ts`
 - `src/app/api/external/media/route.ts`
 - `src/app/api/external/images/route.ts`

@@ -79,6 +79,14 @@ const manualToolCatalog = ([
     category: "Tracker"
   },
   {
+    id: "trackersHistory",
+    method: "GET",
+    path: "/api/external/trackers/history",
+    title: "Tracker-Historie",
+    description: "Echte Tracker-Einträge im Datumsbereich fuer Kalender und native Apps.",
+    category: "Tracker"
+  },
+  {
     id: "trackerStart",
     method: "GET",
     methods: ["GET", "POST"],
@@ -222,7 +230,7 @@ const manualToolCatalog = ([
     methods: ["GET", "POST"],
     path: "/api/external/catalog/toys",
     title: "Spielsachen",
-    description: "Spielsachen inklusive Kategorien, Bildern, Favoriten und Verknuepfungen lesen oder neu anlegen.",
+    description: "Spielsachen inklusive Kategorien, Bildern, Favoriten und Verknuepfungen lesen oder per JSON/Multipart mit Datei-Feld file neu anlegen.",
     category: "Katalog"
   },
   {

@@ -6,7 +6,7 @@ import { logAction } from "@/lib/audit";
 import { getOrCreateCatalogCategory } from "@/lib/catalog-categories";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { featureEnabled } from "@/lib/features";
-import { fileIdFromUrl } from "@/lib/files";
+import { fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
 
@@ -151,6 +151,9 @@ export async function POST(request: NextRequest) {
     : null;
   const categoryId = category?.id || (await getOrCreateCatalogCategory("toy", auth.user.tenantId, categoryName)).id;
   const slug = await uniqueSlug("toy", normalizeSlug(text(payload.slug), title), auth.user.tenantId);
+  const uploadedFile = payload.file instanceof File && payload.file.size > 0 ? payload.file : null;
+  const uploadedAsset = uploadedFile ? await saveUploadedFile(auth.user.id, uploadedFile, auth.user.tenantId) : null;
+  const nextImageUrl = uploadedAsset ? fileAssetUrl(uploadedAsset.id) : text(payload.imageUrl) || null;
   const positionsEnabled = featureEnabled(auth.user.tenant?.features, "positions");
   const positionIds = positionsEnabled ? stringArray(payload.positionIds ?? payload.positions) : [];
   const positions = positionIds.length
@@ -168,7 +171,7 @@ export async function POST(request: NextRequest) {
       title,
       slug,
       description: text(payload.description) || null,
-      imageUrl: text(payload.imageUrl) || null,
+      imageUrl: nextImageUrl,
       selfBondageCapable: booleanValue(payload.selfBondageCapable),
       ...(positionsEnabled ? { positions: { connect: positions.map((position) => ({ id: position.id })) } } : {})
     },
@@ -188,7 +191,7 @@ export async function POST(request: NextRequest) {
     entityId: toy.id,
     title: `Spielzeug per API angelegt: ${toy.title}`,
     href: `/toys/${toy.slug}`,
-    details: { categoryId, positionIds: positions.map((position) => position.id) }
+    details: { categoryId, positionIds: positions.map((position) => position.id), imageFileId: uploadedAsset?.id || null, multipart: Boolean(uploadedAsset) }
   });
 
   const fileId = fileIdFromUrl(toy.imageUrl);

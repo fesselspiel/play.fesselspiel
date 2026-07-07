@@ -503,6 +503,18 @@ Der Detail-Endpunkt akzeptiert die interne ID oder den Slug.
 }
 ```
 
+Fuer native Apps kann derselbe Endpunkt auch `multipart/form-data` verarbeiten. Pflichtfeld ist `title`; optional sind `description`, `categoryId`/`category`, `positionIds` und das Datei-Feld `file`. Die Datei wird geschuetzt gespeichert und im Rueckgabe-Shape als normales `image`-Objekt geliefert.
+
+### Tracker-Historie
+
+```http
+GET /api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD
+GET /api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD&trackerKey=segufix
+Authorization: Bearer fsp_...
+```
+
+Der Endpunkt liefert echte Tracker-Eintraege fuer Kalenderansichten, keine Protokoll-, Reminder- oder Kontingent-Ereignisse. Die Antwort enthaelt `ok`, `items[]` und optional `nextCursor`. Jedes Item liefert kompatible Alias-Felder wie `trackerKey`/`key`, `trackerTitle`/`trackerName`, `startedAt`/`startTime`, `date`/`calendarDate`, `endedAt`/`endTime`, `durationMinutes`/`minutes` und `allDay`.
+
 Wenn `categoryId` fehlt oder ungueltig ist, wird `category`/`categoryName` verwendet oder die Standardkategorie `Allgemein` genutzt. `positionIds` werden nur verbunden, wenn das Szenen-Feature aktiv ist und die Szenen fuer den Benutzer sichtbar sind.
 
 ### Szenen
@@ -586,6 +598,8 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `GET|PATCH|DELETE /api/external/wiki/{id}`
 - `GET /api/external/events`
 - `GET /api/external/events/actions`
+- `GET /api/external/trackers/history`
+- `GET /api/external/trackers/quotas`
 - `GET /api/external/catalog/categories`
 - `GET|POST /api/external/catalog/toys`
 - `GET /api/external/catalog/toys/{id}`

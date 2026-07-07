@@ -103,7 +103,14 @@ Ergaenzt wurden ausserdem Katalog-Endpunkte fuer native Apps:
 - `POST /api/external/catalog/toys`
 - `GET /api/external/catalog/positions?limit=100`
 
-Diese Endpunkte liefern Kategorien, Bilder, Favoriten und Verknuepfungen fuer Spielsachen und Szenen. `POST /api/external/catalog/toys` legt eine Spielsache mit `title`, optionaler `description`, `categoryId`/`category`, `positionIds[]` und `imageUrl` an und gibt das normale Katalog-Item-Shape zurueck. Sie verwenden denselben Bearer-Token wie die restliche externe API und respektieren Mandant, Berechtigungen und Feature-Schalter.
+Diese Endpunkte liefern Kategorien, Bilder, Favoriten und Verknuepfungen fuer Spielsachen und Szenen. `POST /api/external/catalog/toys` legt eine Spielsache mit `title`, optionaler `description`, `categoryId`/`category`, `positionIds[]` und `imageUrl` an. Alternativ akzeptiert der Endpunkt `multipart/form-data` mit Datei-Feld `file`; die Datei wird als geschuetztes FileAsset gespeichert und als normales Spielzeugbild zurueckgegeben. Der Endpunkt gibt das normale Katalog-Item-Shape zurueck. Sie verwenden denselben Bearer-Token wie die restliche externe API und respektieren Mandant, Berechtigungen und Feature-Schalter.
+
+Tracker-Historie fuer native Kalender:
+
+- `GET /api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD`
+- optional `trackerKey={key}`
+
+Der Endpunkt liefert echte `TrackerEntry`-Datensaetze im Zeitraum, keine Protokoll- oder Reminder-Ereignisse. Das Shape enthaelt bewusst Alias-Felder fuer native Apps: `trackerKey`/`key`, `trackerTitle`/`trackerName`, `startedAt`/`startTime`, `date`/`calendarDate`, `endedAt`/`endTime`, `durationMinutes`/`minutes` und `allDay`.
 
 ## Build-Fixes waehrend Docker-Verifikation
 

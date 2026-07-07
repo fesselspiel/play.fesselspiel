@@ -222,7 +222,7 @@ export const capabilities: readonly Capability[] = [
         telegramCommands: [{ command: "/toys", description: "Spielzeuge anzeigen" }],
         apiEndpoints: [
           { method: "GET", path: "/api/external/catalog/toys?limit=100", description: "Listet Spielsachen inklusive Kategorie, Bild, Favoriten und Verknüpfungen." },
-          { method: "POST", path: "/api/external/catalog/toys", description: "Legt ein Spielzeug per API an. JSON: `title`, optional `description`, `categoryId`/`category`, `positionIds[]`, `imageUrl`." },
+          { method: "POST", path: "/api/external/catalog/toys", description: "Legt ein Spielzeug per API an. JSON oder Multipart: `title`, optional `description`, `categoryId`/`category`, `positionIds[]`, `imageUrl` oder Datei-Feld `file`." },
           { method: "GET", path: "/api/external/catalog/categories?kind=toy", description: "Listet Spielzeug-Kategorien." }
         ]
       },
@@ -503,7 +503,8 @@ export const capabilities: readonly Capability[] = [
         telegramCommands: [{ command: "/kontingent", description: "Tracker-Kontingente und offene Todos anzeigen", aliases: ["/quota", "/quotas"] }],
         apiEndpoints: [
           { method: "GET", path: "/api/external/trackers/quotas?token=...", description: "Kontingente und offene Tracker-Todos abfragen." },
-          { method: "GET", path: "/api/external/trackers/quotas?token=...&trackerKey={trackerKey}", description: "Kontingent eines bestimmten Trackers abfragen, z. B. für Alexa." }
+          { method: "GET", path: "/api/external/trackers/quotas?token=...&trackerKey={trackerKey}", description: "Kontingent eines bestimmten Trackers abfragen, z. B. für Alexa." },
+          { method: "GET", path: "/api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD", description: "Echte Tracker-Einträge im Zeitraum für Kalender und native Apps abfragen." }
         ],
         auditActions: ["tracker_quota_viewed"]
       },
