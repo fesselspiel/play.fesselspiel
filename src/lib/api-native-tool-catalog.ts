@@ -225,6 +225,15 @@ const manualToolCatalog = ([
     category: "Katalog"
   },
   {
+    id: "catalogToyCategories",
+    method: "GET",
+    methods: ["GET", "POST", "PATCH"],
+    path: "/api/external/catalog/toy-categories",
+    title: "Spielzeug-Kategorien",
+    description: "Echte Spielzeug-Kategorien fuer native Apps listen, mit name anlegen und per /{id} umbenennen.",
+    category: "Katalog"
+  },
+  {
     id: "catalogToys",
     method: "GET",
     methods: ["GET", "POST", "PATCH"],

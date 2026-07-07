@@ -224,6 +224,9 @@ export const capabilities: readonly Capability[] = [
           { method: "GET", path: "/api/external/catalog/toys?limit=100", description: "Listet Spielsachen inklusive Kategorie, Bild, Favoriten und Verknüpfungen." },
           { method: "POST", path: "/api/external/catalog/toys", description: "Legt ein Spielzeug per API an. JSON oder Multipart: `title`, optional `description`, `categoryId`/`category`, `positionIds[]`, `imageUrl` oder Datei-Feld `file`." },
           { method: "PATCH", path: "/api/external/catalog/toys/{id}", description: "Ändert ein Spielzeug per JSON oder Multipart inklusive Datei-Feld `file` für Bildwechsel." },
+          { method: "GET", path: "/api/external/catalog/toy-categories", description: "Listet echte Spielzeug-Kategorien ohne virtuellen Default." },
+          { method: "POST", path: "/api/external/catalog/toy-categories", description: "Legt eine Spielzeug-Kategorie mit `name` an." },
+          { method: "PATCH", path: "/api/external/catalog/toy-categories/{id}", description: "Benennt eine Spielzeug-Kategorie mit `name` um." },
           { method: "GET", path: "/api/external/catalog/categories?kind=toy", description: "Listet Spielzeug-Kategorien." }
         ]
       },

@@ -470,6 +470,17 @@ Parameter:
 
 Die Antwort enthaelt eine flache `categories`-Liste und `groups` nach `toy` und `position`.
 
+Fuer native Spielzeug-Kategorieverwaltung gibt es zusaetzlich einfache Endpunkte:
+
+```http
+GET /api/external/catalog/toy-categories
+POST /api/external/catalog/toy-categories
+PATCH /api/external/catalog/toy-categories/{id}
+Authorization: Bearer fsp_...
+```
+
+`GET` liefert `{ ok:true, items:[{ id, name, sortOrder }] }` und blendet den virtuellen Default `Allgemein` aus. `POST` erwartet JSON `{ "name": "Sensorik" }` und gibt `{ ok:true, item:{ id, name, sortOrder } }` zurueck. `PATCH` erwartet ebenfalls `{ "name": "..." }` und benennt die Kategorie um. Leere Namen werden mit `400 name_required` abgelehnt; doppelte Namen beim Umbenennen liefern `409 category_exists`.
+
 ### Spielsachen
 
 ```http
@@ -604,6 +615,8 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `GET /api/external/trackers/history`
 - `GET /api/external/trackers/quotas`
 - `GET /api/external/catalog/categories`
+- `GET|POST /api/external/catalog/toy-categories`
+- `PATCH /api/external/catalog/toy-categories/{id}`
 - `GET|POST /api/external/catalog/toys`
 - `GET|PATCH /api/external/catalog/toys/{id}`
 - `GET /api/external/catalog/positions`
