@@ -14,7 +14,7 @@ import { formatDateTimeLocal } from "@/lib/dates";
 import { hasFeature, requireFeature } from "@/lib/features";
 import { deleteOwnedFile, fileIdFromUrl } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
-import { normalizeSlug, uniqueSlugForUpdate } from "@/lib/slug";
+import { uniqueSlugForUpdate } from "@/lib/slug";
 
 function positionNoteValue(note?: string | null) {
   const match = String(note || "").match(/^(?:Szene|Stellung):\s*(.+)$/m);
@@ -55,7 +55,7 @@ async function updateActivity(formData: FormData) {
   const idea = activity.category === "IDEA_COLLECTION";
 
   const title = String(formData.get("title") || "").trim();
-  const slug = selfBondageOrder || idea ? activity.slug : await uniqueSlugForUpdate("activityPlan", normalizeSlug(String(formData.get("slug") || ""), title), activity.id, user.tenantId);
+  const slug = await uniqueSlugForUpdate("activityPlan", title, activity.id, user.tenantId);
   const plannedAtRaw = String(formData.get("plannedAt") || "");
   const withoutSchedule = selfBondageOrder && formData.get("noSchedule") === "on";
   if (selfBondageOrder) await requireFeature("orders");
@@ -179,16 +179,13 @@ export default async function EditActivityPage({ params, searchParams }: { param
           ? "Passe hier Auftrag, Termin, Status, Anweisung und die ausgewählten Self-Bondage-fähigen Szenen an. Löschen entfernt nur diesen Auftrag."
           : isIdea
             ? "Passe hier Titel, Beschreibung, Status und Bausteine dieser Idee an. Bilder verwaltest du direkt auf der Ideendetailseite."
-          : "Passe hier Titel, Slug, Termin, Status, Notiz und die verknüpften Spielsachen oder Szenen an. Löschen entfernt nur diesen Plan, nicht die verwendeten Bausteine."}
+          : "Passe hier Titel, Termin, Status, Notiz und die verknüpften Spielsachen oder Szenen an. Die URL wird automatisch aus dem Titel gebildet. Löschen entfernt nur diesen Plan, nicht die verwendeten Bausteine."}
       </PageGuide>
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
         <form action={updateActivity} className="grid gap-6 xl:grid-cols-[1fr_420px]">
           <input type="hidden" name="id" value={activity.id} />
           <div className="space-y-4">
             <Field label={isSelfBondageOrder ? "Auftrag" : isIdea ? "Idee" : "Spielidee"}><input className={inputClass} name="title" required defaultValue={activity.title} /></Field>
-            {isSelfBondageOrder || isIdea ? null : (
-              <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" defaultValue={activity.slug} /></Field>
-            )}
             {isSelfBondageOrder ? (
               <SelfBondageScheduleFields
                 mode="edit"

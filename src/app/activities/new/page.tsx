@@ -13,7 +13,7 @@ import { hasFeature, requireFeature } from "@/lib/features";
 import { fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { selfBondageCategory } from "@/lib/activity-orders";
 import { prisma } from "@/lib/prisma";
-import { normalizeSlug, uniqueSlug } from "@/lib/slug";
+import { uniqueSlug } from "@/lib/slug";
 
 function selfBondagePositionNote(choice: string, customText: string) {
   if (choice === "custom") return `Szene: ${customText}`;
@@ -35,7 +35,7 @@ async function createActivity(formData: FormData) {
   const ideaTemplate = String(formData.get("template") || "") === "idea";
   if (selfBondageTemplate) await requireFeature("orders");
   const title = String(formData.get("title") || "").trim();
-  const slug = await uniqueSlug("activityPlan", normalizeSlug(String(formData.get("slug") || ""), title), user.tenantId);
+  const slug = await uniqueSlug("activityPlan", title, user.tenantId);
   const date = String(formData.get("date") || "");
   const time = String(formData.get("time") || "");
   const withoutSchedule = selfBondageTemplate && formData.get("noSchedule") === "on";
@@ -183,9 +183,6 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
         {ideaTemplate ? <input type="hidden" name="template" value="idea" /> : null}
         <div className="space-y-4">
           <Field label={selfBondageTemplate ? "Auftrag" : ideaTemplate ? "Idee" : "Spieltermin"}><input className={inputClass} name="title" required placeholder={selfBondageTemplate ? "Self-Bondage-Auftrag" : ideaTemplate ? "Das wollen wir ausprobieren" : "Entspannungsabend"} defaultValue={defaultTitle} /></Field>
-          {selfBondageTemplate || ideaTemplate ? null : (
-            <Field label="URL-Slug"><input className={inputClass} name="slug" pattern="[a-z0-9-]*" placeholder="entspannungsabend" /></Field>
-          )}
           {selfBondageTemplate ? (
             <SelfBondageScheduleFields
               mode="new"
