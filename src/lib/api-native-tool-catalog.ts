@@ -227,18 +227,19 @@ const manualToolCatalog = ([
   {
     id: "catalogToys",
     method: "GET",
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PATCH"],
     path: "/api/external/catalog/toys",
     title: "Spielsachen",
-    description: "Spielsachen inklusive Kategorien, Bildern, Favoriten und Verknuepfungen lesen oder per JSON/Multipart mit Datei-Feld file neu anlegen.",
+    description: "Spielsachen inklusive Kategorien, Bildern, Favoriten und Verknuepfungen lesen, neu anlegen oder per /{id} mit JSON/Multipart und Datei-Feld file aendern.",
     category: "Katalog"
   },
   {
     id: "catalogToyDetail",
     method: "GET",
+    methods: ["GET", "PATCH"],
     path: "/api/external/catalog/toys/{id}",
     title: "Spielsache Detail",
-    description: "Spielsache per ID oder Slug inklusive Bild, Favoriten und Verknuepfungen lesen.",
+    description: "Spielsache per ID oder Slug inklusive Bild, Favoriten und Verknuepfungen lesen oder aendern.",
     category: "Katalog"
   },
   {
@@ -252,9 +253,10 @@ const manualToolCatalog = ([
   {
     id: "catalogPositionDetail",
     method: "GET",
+    methods: ["GET", "PATCH"],
     path: "/api/external/catalog/positions/{id}",
     title: "Szene Detail",
-    description: "Szene per ID oder Slug inklusive Bild, Favoriten und Verknuepfungen lesen.",
+    description: "Szene per ID oder Slug inklusive Bild, Favoriten und Verknuepfungen lesen oder per JSON/Multipart mit Datei-Feld file aendern.",
     category: "Katalog"
   },
   {

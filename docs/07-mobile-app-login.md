@@ -476,6 +476,7 @@ Die Antwort enthaelt eine flache `categories`-Liste und `groups` nach `toy` und 
 GET /api/external/catalog/toys?limit=100
 GET /api/external/catalog/toys/{id}
 POST /api/external/catalog/toys
+PATCH /api/external/catalog/toys/{id}
 Authorization: Bearer fsp_...
 ```
 
@@ -504,6 +505,8 @@ Der Detail-Endpunkt akzeptiert die interne ID oder den Slug.
 ```
 
 Fuer native Apps kann derselbe Endpunkt auch `multipart/form-data` verarbeiten. Pflichtfeld ist `title`; optional sind `description`, `categoryId`/`category`, `positionIds` und das Datei-Feld `file`. Die Datei wird geschuetzt gespeichert und im Rueckgabe-Shape als normales `image`-Objekt geliefert.
+
+`PATCH /api/external/catalog/toys/{id}` aendert bestehende Spielsachen. Ohne Bild akzeptiert er JSON mit `title`, `description`, `categoryId` oder `category`. Mit Bild akzeptiert er `multipart/form-data` mit denselben Feldern und Datei-Feld `file`. Das Rueckgabe-Shape ist identisch zu `GET`.
 
 ### Tracker-Historie
 
@@ -602,9 +605,9 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `GET /api/external/trackers/quotas`
 - `GET /api/external/catalog/categories`
 - `GET|POST /api/external/catalog/toys`
-- `GET /api/external/catalog/toys/{id}`
+- `GET|PATCH /api/external/catalog/toys/{id}`
 - `GET /api/external/catalog/positions`
-- `GET /api/external/catalog/positions/{id}`
+- `GET|PATCH /api/external/catalog/positions/{id}`
 - `GET|POST /api/external/sessions`
 - `GET|PATCH|DELETE /api/external/sessions/{id}`
 - `GET|POST /api/external/ideas`

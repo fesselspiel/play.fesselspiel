@@ -101,9 +101,11 @@ Ergaenzt wurden ausserdem Katalog-Endpunkte fuer native Apps:
 - `GET /api/external/catalog/categories?kind=all`
 - `GET /api/external/catalog/toys?limit=100`
 - `POST /api/external/catalog/toys`
+- `PATCH /api/external/catalog/toys/{id}`
 - `GET /api/external/catalog/positions?limit=100`
+- `PATCH /api/external/catalog/positions/{id}`
 
-Diese Endpunkte liefern Kategorien, Bilder, Favoriten und Verknuepfungen fuer Spielsachen und Szenen. `POST /api/external/catalog/toys` legt eine Spielsache mit `title`, optionaler `description`, `categoryId`/`category`, `positionIds[]` und `imageUrl` an. Alternativ akzeptiert der Endpunkt `multipart/form-data` mit Datei-Feld `file`; die Datei wird als geschuetztes FileAsset gespeichert und als normales Spielzeugbild zurueckgegeben. Der Endpunkt gibt das normale Katalog-Item-Shape zurueck. Sie verwenden denselben Bearer-Token wie die restliche externe API und respektieren Mandant, Berechtigungen und Feature-Schalter.
+Diese Endpunkte liefern Kategorien, Bilder, Favoriten und Verknuepfungen fuer Spielsachen und Szenen. `POST /api/external/catalog/toys` legt eine Spielsache mit `title`, optionaler `description`, `categoryId`/`category`, `positionIds[]` und `imageUrl` an. Alternativ akzeptiert der Endpunkt `multipart/form-data` mit Datei-Feld `file`; die Datei wird als geschuetztes FileAsset gespeichert und als normales Spielzeugbild zurueckgegeben. `PATCH /api/external/catalog/toys/{id}` und `PATCH /api/external/catalog/positions/{id}` aendern bestehende Eintraege per JSON oder Multipart inklusive Datei-Feld `file` fuer Bildwechsel. Die Endpunkte geben das normale Katalog-Item-Shape zurueck. Sie verwenden denselben Bearer-Token wie die restliche externe API und respektieren Mandant, Berechtigungen und Feature-Schalter.
 
 Tracker-Historie fuer native Kalender:
 

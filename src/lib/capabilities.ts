@@ -223,6 +223,7 @@ export const capabilities: readonly Capability[] = [
         apiEndpoints: [
           { method: "GET", path: "/api/external/catalog/toys?limit=100", description: "Listet Spielsachen inklusive Kategorie, Bild, Favoriten und Verknüpfungen." },
           { method: "POST", path: "/api/external/catalog/toys", description: "Legt ein Spielzeug per API an. JSON oder Multipart: `title`, optional `description`, `categoryId`/`category`, `positionIds[]`, `imageUrl` oder Datei-Feld `file`." },
+          { method: "PATCH", path: "/api/external/catalog/toys/{id}", description: "Ändert ein Spielzeug per JSON oder Multipart inklusive Datei-Feld `file` für Bildwechsel." },
           { method: "GET", path: "/api/external/catalog/categories?kind=toy", description: "Listet Spielzeug-Kategorien." }
         ]
       },
@@ -314,6 +315,7 @@ export const capabilities: readonly Capability[] = [
         telegramCommands: [{ command: "/positions", description: "Szenen anzeigen" }],
         apiEndpoints: [
           { method: "GET", path: "/api/external/catalog/positions?limit=100", description: "Listet Szenen inklusive Kategorie, Bild, Favoriten, Self-Bondage-Flag und Verknüpfungen." },
+          { method: "PATCH", path: "/api/external/catalog/positions/{id}", description: "Ändert eine Szene per JSON oder Multipart inklusive Datei-Feld `file` für Bildwechsel." },
           { method: "GET", path: "/api/external/catalog/categories?kind=position", description: "Listet Szenen-Kategorien." }
         ]
       },
