@@ -25,6 +25,7 @@ export const knownAuditActions = [
   ["circle_chat_message_deleted", "Chat-Nachricht gelöscht"],
   ["circle_chat_message_deleted_api", "Chat-Nachricht per API gelöscht"],
   ["circle_chat_viewed", "Chat geöffnet"],
+  ["chat_notification_failed", "Chat-Ereignis fehlgeschlagen"],
   ["idea_created", "Idee festgehalten"],
   ["idea_liked", "Idee geliked"],
   ["idea_media_uploaded", "Bilder zur Idee hochgeladen"],

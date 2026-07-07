@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { dispatchChatAuditNotifications } from "@/lib/chat-notifications";
 import { dispatchEmailAuditNotifications } from "@/lib/email-notifications";
 import { dispatchExternalPushNotifications } from "@/lib/external-push-notifications";
 import { dispatchNativePushNotifications } from "@/lib/native-push-notifications";
@@ -37,6 +38,7 @@ export async function logAction(input: AuditActionInput) {
     });
     await Promise.all([
       dispatchAuditNotifications(audit),
+      dispatchChatAuditNotifications(audit),
       dispatchEmailAuditNotifications(audit),
       dispatchExternalPushNotifications(audit),
       dispatchNativePushNotifications(audit)

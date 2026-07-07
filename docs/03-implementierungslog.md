@@ -979,3 +979,12 @@ Details:
 - Shopify-Credentials können von Superadmins aus anderen Seiten übernommen werden.
 - Tenant-Erkennung nutzt zusätzlich den Subdomain-Slug für `*.playplaner.com`; Loginseite und HTML-Metadaten zeigen den aktuellen Seitennamen und die aktuelle Domain.
 - Ganztägige Tracker-Einträge werden in der Jahresübersicht anhand des App-Datums (`Europe/Berlin`, `YYYY-MM-DD`) gruppiert. Dadurch erscheinen Einträge ohne Uhrzeit zuverlässig im Kalenderfeld.
+
+## Chat-Ereignisse
+
+- Admins können unter `Einstellungen -> Chat` Aktionsregeln anlegen, die Protokollereignisse als echte Zirkel-Chatnachrichten schreiben.
+- Eine Regel besteht aus Aktion, Zielzirkel, aktiv/inaktiv und einer Chatnachrichten-Vorlage mit Variablen wie `{actor}`, `{event}`, `{title}`, `{url}` und `{details}`.
+- Beim Auslösen einer passenden Aktion wird der auslösende Benutzer als Chat-Absender verwendet, sofern er in den Zielzirkel schreiben darf. Andernfalls nutzt das System ein aktives Zirkelmitglied als technischen Absender.
+- Die erzeugte Chatnachricht schreibt wiederum das normale Ereignis `circle_chat_message_created`. Dadurch greifen vorhandene Chat-Pushregeln, native App-Streams und Chat-Protokolle ohne Sonderweg.
+- Chat-Ereignisse ignorieren selbst erzeugte Chat-Aktionen, damit keine Endlosschleifen entstehen.
+- Auf der Protokollseite gibt es zusätzlich zu Feed, Telegram, E-Mail und Push einen Link `Chat`, der die passende Aktion in der Chat-Regelverwaltung vorauswählt.

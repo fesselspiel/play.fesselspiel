@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BellRing, ChevronRight, Clock3, ExternalLink, History, Mail, Newspaper, Save, Trash2 } from "lucide-react";
+import { BellRing, ChevronRight, Clock3, ExternalLink, History, Mail, MessageCircle, Newspaper, Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ProtocolSearch } from "@/components/protocol-search";
 import { TemplateVariableTextarea } from "@/components/template-variable-textarea";
@@ -389,6 +389,12 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
                                     className="focus-ring inline-flex min-h-9 items-center gap-1 rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-paper hover:text-redbrand"
                                   >
                                     Push <BellRing className="h-3.5 w-3.5" />
+                                  </Link>
+                                  <Link
+                                    href={`/settings/chat?action=${encodeURIComponent(entry.action)}#notifications`}
+                                    className="focus-ring inline-flex min-h-9 items-center gap-1 rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-paper hover:text-redbrand"
+                                  >
+                                    Chat <MessageCircle className="h-3.5 w-3.5" />
                                   </Link>
                                 </>
                               ) : null}

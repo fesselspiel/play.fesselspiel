@@ -99,6 +99,7 @@ model Tenant {
   nativePushDevices NativePushDevice[]
   nativePushDeliveries NativePushDelivery[]
   nativePushNotificationRules NativePushNotificationRule[]
+  chatNotificationRules ChatNotificationRule[]
   scheduledRules ScheduledRule[]
   scheduledRuleRuns ScheduledRuleRun[]
   shareDeliveries ShareDelivery[]
@@ -275,6 +276,7 @@ model Circle {
   telegramNotificationTargets TelegramNotificationRule[] @relation("TelegramNotificationTargetCircle")
   emailNotificationTargets EmailNotificationRule[] @relation("EmailNotificationTargetCircle")
   nativePushNotificationTargets NativePushNotificationRule[] @relation("NativePushNotificationTargetCircle")
+  chatNotificationTargets ChatNotificationRule[] @relation("ChatNotificationTargetCircle")
   bondageSystemTargets BondageSystemItem[] @relation("BondageSystemTargetCircle")
   chatMessages CircleChatMessage[]
   wikiPageShares WikiPageShare[]
@@ -1398,6 +1400,22 @@ model CircleChatReceipt {
   @@unique([messageId, userId])
   @@index([userId, readAt])
   @@index([messageId, readAt])
+}
+
+model ChatNotificationRule {
+  id             String   @id @default(cuid())
+  tenantId       String
+  action         String
+  targetCircleId String
+  message        String   @default("{actor}: {event}\n{title}\n{url}")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  targetCircle   Circle   @relation("ChatNotificationTargetCircle", fields: [targetCircleId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, action, active])
+  @@index([targetCircleId])
 }
 
 model TelegramChat {

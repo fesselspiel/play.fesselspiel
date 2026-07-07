@@ -100,6 +100,7 @@ export const settingsNavigationItems = {
     { label: "Telegram", href: "/settings/telegram", icon: Settings, feature: null },
     { label: "E-Mail", href: "/settings/email", icon: Mail, feature: null },
     { label: "Push", href: "/settings/push", icon: BellRing, feature: null },
+    { label: "Chat", href: "/settings/chat", icon: MessageCircle, feature: "circleChat" },
     { label: "API Kontrolle", href: "/settings/api-control", icon: Network, feature: null },
     { label: "Anleitung", href: "/settings/help", icon: FileText, feature: null },
     { label: "Daten", href: "/settings/data", icon: DatabaseBackup, feature: null },
