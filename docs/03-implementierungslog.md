@@ -993,3 +993,13 @@ Details:
 - Die erzeugte Chatnachricht schreibt wiederum das normale Ereignis `circle_chat_message_created`. Dadurch greifen vorhandene Chat-Pushregeln, native App-Streams und Chat-Protokolle ohne Sonderweg.
 - Chat-Ereignisse ignorieren selbst erzeugte Chat-Aktionen, damit keine Endlosschleifen entstehen.
 - Auf der Protokollseite gibt es zusätzlich zu Feed, Telegram, E-Mail und Push einen Link `Chat`, der die passende Aktion in der Chat-Regelverwaltung vorauswählt.
+
+## Katalogdaten zwischen Seiten übernehmen
+
+- Super-Admins können unter `Einstellungen -> Seiten` pro Zielseite gezielt Szenen und Spielsachen aus einer anderen Seite übernehmen.
+- Die Auswahl ist einzeln möglich; zusätzlich gibt es pro Liste `Alle auswählen` und `Alle abwählen`.
+- Übernommene Einträge sind echte Kopien. Kategorien, geschützte Bilddateien und Szenen-Spielsachen-Verknüpfungen werden in die Zielseite kopiert, spätere Änderungen bleiben auf die Zielseite beschränkt.
+- Szenen ziehen ihre verknüpften Spielsachen automatisch mit, damit kopierte Szenen keine leeren Verweise bekommen.
+- Die Modelle `Toy` und `Position` speichern `sourceTenantId` und die jeweilige Quell-ID. Damit kann `Bereits übernommene Einträge aus der Quelle aktualisieren` vorhandene Kopien gezielt mit dem aktuellen Quellstand überschreiben.
+- Weitere Modi sind `Nur fehlende Einträge kopieren` und `Auswahl als neue Kopie anlegen`.
+- Jeder Lauf schreibt das Ereignis `tenant_catalog_copied` oder `tenant_catalog_refreshed` ins Protokoll.

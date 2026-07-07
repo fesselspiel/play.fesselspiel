@@ -24,6 +24,7 @@
 - `src/lib/env.ts`: Environment-Parsing.
 - `src/lib/files.ts`: Upload speichern, FileAsset-URL, Datei-ID aus URL, Datei löschen.
 - `src/lib/slug.ts`: Slugify, normalizeSlug, uniqueSlug, uniqueSlugForUpdate.
+- `src/lib/tenant-catalog-copy.ts`: Super-Admin-Übernahme von Szenen und Spielsachen zwischen Seiten inklusive Bildkopie, Kategorien, Verknüpfungen und Quell-Aktualisierung.
 - `src/lib/dates.ts`: Datumsformatierung, `datetime-local`, Dauerberechnung.
 - `src/lib/audit.ts`: Fehlertolerantes Schreiben von Audit-/Protokolleinträgen.
 - `src/lib/moods.ts`: Labels und Scores für Session-Stimmungen.

@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import { ChevronDown, Globe2, Plus, Save, Trash2 } from "lucide-react";
+import { ChevronDown, CopyPlus, Globe2, Plus, Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
+import { TenantCatalogCopyPicker, type CatalogCopySource } from "@/components/tenant-catalog-copy-picker";
 import { Button, Field, inputClass, PageGuide, PageHeader, Panel, selectClass } from "@/components/ui";
 import { featureCatalog } from "@/lib/features";
 import { currentSessionContext } from "@/lib/auth";
@@ -9,6 +10,7 @@ import { logAction, userDisplayName } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_TENANT_SLUG, normalizeHostname } from "@/lib/tenancy";
 import { slugify } from "@/lib/slug";
+import { copyCatalogBetweenTenants, type TenantCatalogCopyMode } from "@/lib/tenant-catalog-copy";
 
 const defaultDisabledText =
   "Dieses Feature ist auf dieser Seite momentan nicht eingeschaltet. Falls du es erwartest, sprich kurz mit der Person, die diese Seite verwaltet. Eure vorhandenen Daten bleiben dabei erhalten.";
@@ -184,17 +186,55 @@ async function deleteSite(formData: FormData) {
   redirect("/settings/sites?deleted=1");
 }
 
-export default async function SitesPage({ searchParams }: { searchParams: { saved?: string; deleted?: string; disabled?: string; domainSkipped?: string; error?: string } }) {
+async function copyCatalogToSite(formData: FormData) {
+  "use server";
+  const actor = await requireSuperAdmin();
+  const sourceTenantId = formText(formData, "sourceTenantId");
+  const targetTenantId = formText(formData, "targetTenantId");
+  const toyIds = formData.getAll("toyIds").map(String);
+  const positionIds = formData.getAll("positionIds").map(String);
+  const modeValue = formText(formData, "copyMode", "missing");
+  const mode: TenantCatalogCopyMode = modeValue === "refresh" || modeValue === "duplicate" ? modeValue : "missing";
+  if (!sourceTenantId || !targetTenantId || sourceTenantId === targetTenantId || (!toyIds.length && !positionIds.length)) {
+    redirect("/settings/sites?error=catalog-copy");
+  }
+  try {
+    const result = await copyCatalogBetweenTenants({ actorId: actor.id, sourceTenantId, targetTenantId, toyIds, positionIds, mode });
+    const copied = result.copiedToys + result.copiedPositions + result.updatedToys + result.updatedPositions;
+    const skipped = result.skippedToys + result.skippedPositions;
+    redirect(`/settings/sites?catalogCopied=${copied}&catalogSkipped=${skipped}`);
+  } catch (error) {
+    console.error("tenant catalog copy failed", error);
+    redirect("/settings/sites?error=catalog-copy");
+  }
+}
+
+export default async function SitesPage({ searchParams }: { searchParams: { saved?: string; deleted?: string; disabled?: string; domainSkipped?: string; catalogCopied?: string; catalogSkipped?: string; error?: string } }) {
   await requireSuperAdmin();
   const sites = await prisma.tenant.findMany({
     include: {
       domains: { orderBy: [{ primary: "desc" }, { hostname: "asc" }] },
       features: true,
       trackerTypes: { orderBy: { title: "asc" } },
-      _count: { select: { users: true, circles: true, trackerTypes: true } }
+      toys: { include: { category: true }, orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }, { title: "asc" }] },
+      positions: { include: { category: true, tools: { select: { id: true } } }, orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }, { name: "asc" }] },
+      _count: { select: { users: true, circles: true, trackerTypes: true, toys: true, positions: true } }
     },
     orderBy: [{ slug: "asc" }, { name: "asc" }]
   });
+  const catalogSources: CatalogCopySource[] = sites.map((site) => ({
+    id: site.id,
+    name: site.name,
+    toyCount: site._count.toys,
+    positionCount: site._count.positions,
+    toys: site.toys.map((toy) => ({ id: toy.id, title: toy.title, categoryName: toy.category?.name || "Allgemein" })),
+    positions: site.positions.map((position) => ({
+      id: position.id,
+      name: position.name,
+      categoryName: position.category?.name || "Allgemein",
+      toolCount: position.tools.length
+    }))
+  }));
   return (
     <AppShell>
       <PageHeader title="Seiten" />
@@ -204,6 +244,7 @@ export default async function SitesPage({ searchParams }: { searchParams: { save
           {searchParams.domainSkipped ? <Panel className="text-sm text-graphite">Die Domain ist bereits einer anderen Seite zugeordnet. Die neue Seite wurde ohne eigene Domain angelegt und ist über die Fallback-Route erreichbar.</Panel> : null}
           {searchParams.deleted ? <Panel className="text-sm text-graphite">Leere Seite gelöscht.</Panel> : null}
           {searchParams.disabled ? <Panel className="text-sm text-graphite">Die Seite enthält noch Daten und wurde deshalb deaktiviert.</Panel> : null}
+          {searchParams.catalogCopied ? <Panel className="text-sm text-graphite">Katalog übernommen: {searchParams.catalogCopied} kopiert, {searchParams.catalogSkipped || "0"} vorhandene Einträge übersprungen.</Panel> : null}
           {searchParams.error ? (
             <Panel className="text-sm text-redbrand">
               {searchParams.error === "domain-exists"
@@ -212,6 +253,8 @@ export default async function SitesPage({ searchParams }: { searchParams: { save
                   ? "Dieser Kurzname wird bereits verwendet."
                   : searchParams.error === "missing"
                     ? "Bitte mindestens Name und Kurzname angeben."
+                    : searchParams.error === "catalog-copy"
+                      ? "Der Katalog konnte nicht übernommen werden. Bitte Quelle, Ziel und Auswahl prüfen."
                     : `Die Aktion konnte nicht ausgeführt werden: ${searchParams.error}`}
             </Panel>
           ) : null}
@@ -262,7 +305,7 @@ export default async function SitesPage({ searchParams }: { searchParams: { save
                         <p className="text-sm text-graphite">
                           {site.domains.find((domain) => domain.primary)?.hostname || site.domains[0]?.hostname || `/seite/${site.slug}`} · {site.status === "ACTIVE" ? "aktiv" : "deaktiviert"} · {site._count.users} Benutzer
                         </p>
-                        <p className="mt-1 text-xs text-graphite">Fallback: /seite/{site.slug}</p>
+                        <p className="mt-1 text-xs text-graphite">Fallback: /seite/{site.slug} · {site._count.positions} Szenen · {site._count.toys} Spielsachen</p>
                       </div>
                       <span className="flex shrink-0 items-center gap-2">
                         <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-graphite">{site.slug}</span>
@@ -316,6 +359,18 @@ export default async function SitesPage({ searchParams }: { searchParams: { save
                       </details>
                       <SubmitButton pendingLabel="Seite wird gespeichert..."><Save className="h-4 w-4" /> Seite speichern</SubmitButton>
                     </form>
+
+                    <details className="rounded-md border border-line bg-paper p-4">
+                      <summary className="cursor-pointer font-semibold text-ink">Katalog aus anderer Seite übernehmen</summary>
+                      <form action={copyCatalogToSite} className="mt-4 space-y-4">
+                        <input type="hidden" name="targetTenantId" value={site.id} />
+                        <p className="text-sm leading-6 text-graphite">
+                          Erstellt echte Kopien in dieser Seite. Kategorien, Bilder und Verknüpfungen werden übernommen; spätere Änderungen bleiben auf dieser Seite isoliert.
+                        </p>
+                        <TenantCatalogCopyPicker sources={catalogSources.filter((sourceSite) => sourceSite.id !== site.id)} />
+                        <SubmitButton pendingLabel="Katalog wird übernommen..."><CopyPlus className="h-4 w-4" /> Katalog übernehmen</SubmitButton>
+                      </form>
+                    </details>
 
                     <div className="rounded-md border border-line bg-paper p-4">
                       <h3 className="mb-3 flex items-center gap-2 font-semibold text-ink"><Globe2 className="h-4 w-4" /> Domains</h3>

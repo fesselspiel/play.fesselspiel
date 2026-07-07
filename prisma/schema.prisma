@@ -799,6 +799,8 @@ model Toy {
   slug        String
   description String?
   imageUrl    String?
+  sourceTenantId String?
+  sourceToyId String?
   selfBondageCapable Boolean @default(false)
   sortOrder   Int            @default(0)
   createdAt   DateTime       @default(now())
@@ -813,6 +815,8 @@ model Toy {
   packingItems PackingListItem[]
 
   @@unique([tenantId, slug])
+  @@index([tenantId, sourceToyId])
+  @@index([sourceTenantId])
   @@index([categoryId, sortOrder, title])
   @@index([tenantId, sortOrder, title])
   @@index([ownerId, sortOrder, title])
@@ -840,6 +844,8 @@ model Position {
   slug        String
   description String?
   imageUrl    String?
+  sourceTenantId String?
+  sourcePositionId String?
   selfBondageCapable Boolean @default(false)
   sortOrder   Int            @default(0)
   createdAt   DateTime       @default(now())
@@ -854,6 +860,8 @@ model Position {
   favorites   PositionFavorite[]
 
   @@unique([tenantId, slug])
+  @@index([tenantId, sourcePositionId])
+  @@index([sourceTenantId])
   @@index([categoryId, sortOrder, name])
   @@index([tenantId, sortOrder, name])
   @@index([ownerId, sortOrder, name])
