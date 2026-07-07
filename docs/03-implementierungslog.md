@@ -852,6 +852,7 @@ Details:
 - `POST /api/external/catalog/toys` akzeptiert zusätzlich `multipart/form-data` mit Datei-Feld `file`, damit native Apps Spielsachen inklusive Bild in einem Request anlegen können.
 - `PATCH /api/external/catalog/toys/{id}` und `PATCH /api/external/catalog/positions/{id}` erlauben nativen Apps, Spielsachen und Szenen inklusive Bildwechsel per JSON oder Multipart zu bearbeiten.
 - `GET|POST /api/external/catalog/toy-categories` und `PATCH /api/external/catalog/toy-categories/{id}` stellen Spielzeug-Kategorien für native Apps bereit; `Allgemein` bleibt dabei ein virtueller Default und wird nicht als echte Kategorie gelistet.
+- `POST /api/external/catalog/positions` und die Endpunkte `GET|POST /api/external/catalog/position-categories` sowie `PATCH /api/external/catalog/position-categories/{id}` ziehen die gleiche native Create-/Kategorie-Logik für Szenen nach.
 - Der Docker-Service `cron` ruft alle 15 Minuten `/api/cron/trackers` auf. Der Endpoint erzeugt `tracker_quota_reminder`-Protokolleinträge, wenn Kontingente offen sind.
 - Externe Push-Regeln stehen im Protokoll unter `Externe Push-Regeln`. Sie senden Protokollereignisse per HTTP-Webhooks an ioBroker, Node-RED, Home Assistant oder eine MQTT-Bridge.
 - Externe Pushes schreiben ein eigenes Versandprotokoll und zusätzlich normale Protokolleinträge `external_push_sent` oder `external_push_failed` mit Ziel-URL, Statuscode und gekürztem Payload zur Fehlersuche.

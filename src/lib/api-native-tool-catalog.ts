@@ -254,9 +254,19 @@ const manualToolCatalog = ([
   {
     id: "catalogPositions",
     method: "GET",
+    methods: ["GET", "POST"],
     path: "/api/external/catalog/positions",
     title: "Szenen",
-    description: "Szenen inklusive Kategorien, Bildern, Favoriten, Self-Bondage-Flag und Verknuepfungen.",
+    description: "Szenen inklusive Kategorien, Bildern, Favoriten, Self-Bondage-Flag und Verknuepfungen lesen oder per JSON/Multipart neu anlegen.",
+    category: "Katalog"
+  },
+  {
+    id: "catalogPositionCategories",
+    method: "GET",
+    methods: ["GET", "POST", "PATCH"],
+    path: "/api/external/catalog/position-categories",
+    title: "Szenen-Kategorien",
+    description: "Echte Szenen-Kategorien fuer native Apps listen, mit name anlegen und per /{id} umbenennen.",
     category: "Katalog"
   },
   {

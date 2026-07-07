@@ -39,6 +39,14 @@ function trackerUrl(key: string, slug?: string | null, id?: string) {
   return `/trackers/${key}/${slug || id}`;
 }
 
+function publicOrigin(request: NextRequest) {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host = forwardedHost || request.headers.get("host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
+  if (host && !host.startsWith("0.0.0.0")) return `${forwardedProto}://${host}`;
+  return process.env.NEXT_PUBLIC_BASE_URL || process.env.APP_URL || new URL(request.url).origin;
+}
+
 export async function GET(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
@@ -88,6 +96,9 @@ export async function GET(request: NextRequest) {
     items: pageItems.map((entry) => {
       const key = entry.trackerType.key;
       const href = trackerUrl(key, entry.slug, entry.id);
+      const startedAt = entry.startTime.toISOString();
+      const calendarDate = formatDateInput(entry.startTime);
+      const endedAt = entry.endTime?.toISOString() || null;
       return {
         id: entry.id,
         trackerKey: key,
@@ -97,19 +108,26 @@ export async function GET(request: NextRequest) {
         title: entry.title || entry.trackerType.title,
         notes: entry.notes || "",
         note: entry.notes || "",
-        startedAt: entry.startTime.toISOString(),
-        startTime: entry.startTime.toISOString(),
-        date: formatDateInput(entry.startTime),
-        calendarDate: formatDateInput(entry.startTime),
-        endedAt: entry.endTime?.toISOString() || null,
-        stoppedAt: entry.endTime?.toISOString() || null,
-        endTime: entry.endTime?.toISOString() || null,
+        startedAt,
+        startTime: startedAt,
+        startAt: startedAt,
+        occurredAt: startedAt,
+        recordedAt: startedAt,
+        timestamp: startedAt,
+        date: calendarDate,
+        day: calendarDate,
+        entryDate: calendarDate,
+        calendarDate,
+        calendar_date: calendarDate,
+        endedAt,
+        stoppedAt: endedAt,
+        endTime: endedAt,
         durationMinutes: entry.durationMinutes,
         minutes: entry.durationMinutes,
         allDay: entry.allDay,
         slug: entry.slug,
         href,
-        url: new URL(href, request.url).toString(),
+        url: new URL(href, publicOrigin(request)).toString(),
         owner: {
           id: entry.owner.id,
           username: entry.owner.username,

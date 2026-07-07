@@ -481,6 +481,17 @@ Authorization: Bearer fsp_...
 
 `GET` liefert `{ ok:true, items:[{ id, name, sortOrder }] }` und blendet den virtuellen Default `Allgemein` aus. `POST` erwartet JSON `{ "name": "Sensorik" }` und gibt `{ ok:true, item:{ id, name, sortOrder } }` zurueck. `PATCH` erwartet ebenfalls `{ "name": "..." }` und benennt die Kategorie um. Leere Namen werden mit `400 name_required` abgelehnt; doppelte Namen beim Umbenennen liefern `409 category_exists`.
 
+Fuer Szenen gibt es die gleichen nativen Kategorie-Endpunkte:
+
+```http
+GET /api/external/catalog/position-categories
+POST /api/external/catalog/position-categories
+PATCH /api/external/catalog/position-categories/{id}
+Authorization: Bearer fsp_...
+```
+
+Das Shape entspricht `toy-categories`, aber mit Feature-Gate `positions`.
+
 ### Spielsachen
 
 ```http
@@ -532,6 +543,15 @@ Der Endpunkt liefert echte Tracker-Eintraege fuer Kalenderansichten, keine Proto
 Wenn `categoryId` fehlt oder ungueltig ist, wird `category`/`categoryName` verwendet oder die Standardkategorie `Allgemein` genutzt. `positionIds` werden nur verbunden, wenn das Szenen-Feature aktiv ist und die Szenen fuer den Benutzer sichtbar sind.
 
 ### Szenen
+
+```http
+GET /api/external/catalog/positions?limit=100
+POST /api/external/catalog/positions
+PATCH /api/external/catalog/positions/{id}
+Authorization: Bearer fsp_...
+```
+
+`POST /api/external/catalog/positions` legt eine Szene an. Ohne Bild akzeptiert der Endpunkt JSON mit `title` oder `name`, optional `description`, `categoryId` oder `category`. Mit Bild akzeptiert er `multipart/form-data` mit denselben Feldern und Datei-Feld `file`. Das Rueckgabe-Shape entspricht `GET`/`PATCH`.
 
 ```http
 GET /api/external/catalog/positions?limit=100
@@ -619,7 +639,9 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `PATCH /api/external/catalog/toy-categories/{id}`
 - `GET|POST /api/external/catalog/toys`
 - `GET|PATCH /api/external/catalog/toys/{id}`
-- `GET /api/external/catalog/positions`
+- `GET|POST /api/external/catalog/positions`
+- `GET|POST /api/external/catalog/position-categories`
+- `PATCH /api/external/catalog/position-categories/{id}`
 - `GET|PATCH /api/external/catalog/positions/{id}`
 - `GET|POST /api/external/sessions`
 - `GET|PATCH|DELETE /api/external/sessions/{id}`

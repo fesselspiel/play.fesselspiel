@@ -318,7 +318,11 @@ export const capabilities: readonly Capability[] = [
         telegramCommands: [{ command: "/positions", description: "Szenen anzeigen" }],
         apiEndpoints: [
           { method: "GET", path: "/api/external/catalog/positions?limit=100", description: "Listet Szenen inklusive Kategorie, Bild, Favoriten, Self-Bondage-Flag und Verknüpfungen." },
+          { method: "POST", path: "/api/external/catalog/positions", description: "Legt eine Szene per JSON oder Multipart mit `title`/`name`, optional `description`, `categoryId`/`category` und Datei-Feld `file` an." },
           { method: "PATCH", path: "/api/external/catalog/positions/{id}", description: "Ändert eine Szene per JSON oder Multipart inklusive Datei-Feld `file` für Bildwechsel." },
+          { method: "GET", path: "/api/external/catalog/position-categories", description: "Listet echte Szenen-Kategorien ohne virtuellen Default." },
+          { method: "POST", path: "/api/external/catalog/position-categories", description: "Legt eine Szenen-Kategorie mit `name` an." },
+          { method: "PATCH", path: "/api/external/catalog/position-categories/{id}", description: "Benennt eine Szenen-Kategorie mit `name` um." },
           { method: "GET", path: "/api/external/catalog/categories?kind=position", description: "Listet Szenen-Kategorien." }
         ]
       },
