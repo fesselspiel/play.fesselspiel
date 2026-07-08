@@ -18,6 +18,12 @@ function date(value: unknown) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function stringArray(value: unknown) {
+  if (Array.isArray(value)) return Array.from(new Set(value.map(String).map((entry) => entry.trim()).filter(Boolean)));
+  if (typeof value === "string") return Array.from(new Set(value.split(",").map((entry) => entry.trim()).filter(Boolean)));
+  return [];
+}
+
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
@@ -38,18 +44,33 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (!canManagePacking(auth.user, existing.ownerId)) return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   const payload = await request.json().catch(() => ({}));
   const title = text(payload.title) || existing.title;
-  const item = await prisma.packingEvent.update({
-    where: { id: existing.id },
-    data: {
-      title,
-      slug: await uniqueSlugForUpdate("packingEvent", text(payload.slug) || title, existing.id, auth.user.tenantId),
-      description: "description" in payload ? text(payload.description) || null : undefined,
-      location: "location" in payload ? text(payload.location) || null : undefined,
-      startsAt: "startsAt" in payload ? date(payload.startsAt) : undefined,
-      eventId: "eventId" in payload ? text(payload.eventId) || null : undefined,
-      visibility: "visibility" in payload ? (text(payload.visibility) || "PARTNER") as "PRIVATE" | "PARTNER" | "SHARED" : undefined
-    },
-    include: packingEventInclude
+  const listIds = "listIds" in payload ? stringArray(payload.listIds) : null;
+  const item = await prisma.$transaction(async (tx) => {
+    const updatedEvent = await tx.packingEvent.update({
+      where: { id: existing.id },
+      data: {
+        title,
+        slug: await uniqueSlugForUpdate("packingEvent", text(payload.slug) || title, existing.id, auth.user.tenantId),
+        description: "description" in payload ? text(payload.description) || null : undefined,
+        location: "location" in payload ? text(payload.location) || null : undefined,
+        startsAt: "startsAt" in payload ? date(payload.startsAt) : undefined,
+        eventId: "eventId" in payload ? text(payload.eventId) || null : undefined,
+        visibility: "visibility" in payload ? (text(payload.visibility) || "PARTNER") as "PRIVATE" | "PARTNER" | "SHARED" : undefined
+      }
+    });
+    if (listIds) {
+      const manageableLists = await tx.packingList.findMany({
+        where: {
+          id: { in: listIds },
+          ...packingVisibilityScope(auth.user)
+        },
+        select: { id: true, ownerId: true }
+      });
+      const allowedIds = manageableLists.filter((list) => canManagePacking(auth.user, list.ownerId)).map((list) => list.id);
+      await tx.packingList.updateMany({ where: { packingEventId: existing.id, id: { notIn: allowedIds } }, data: { packingEventId: null } });
+      if (allowedIds.length) await tx.packingList.updateMany({ where: { id: { in: allowedIds } }, data: { packingEventId: existing.id, eventId: updatedEvent.eventId || null } });
+    }
+    return tx.packingEvent.findUniqueOrThrow({ where: { id: existing.id }, include: packingEventInclude });
   });
   await logAction({ actorId: auth.user.id, action: "packing_event_updated_api", entityType: "packingEvent", entityId: item.id, title: `Pack-Event per API geändert: ${item.title}`, href: "/packing" });
   return NextResponse.json({ ok: true, item: serializePackingEvent(item, auth.user) });

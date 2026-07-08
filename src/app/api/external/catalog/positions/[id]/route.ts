@@ -180,3 +180,32 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     item: serializePosition(request, position, "", auth.user.id)
   });
 }
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  const auth = await requireApiUser(request);
+  if ("response" in auth) return auth.response;
+  const blocked = apiFeatureGate(auth.user, "externalApi", "positions");
+  if (blocked) return blocked;
+
+  const existing = await prisma.position.findFirst({
+    where: { ...(await ownerScope(auth.user)), OR: [{ id: params.id }, { slug: params.id }] },
+    select: { id: true, name: true, slug: true, ownerId: true, imageUrl: true }
+  });
+  if (!existing) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+  if (existing.ownerId !== auth.user.id && auth.user.role !== "ADMIN" && auth.user.role !== "SUPER_ADMIN") {
+    return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+  }
+
+  const previousFileId = fileIdFromUrl(existing.imageUrl);
+  await prisma.position.delete({ where: { id: existing.id } });
+  if (previousFileId) await deleteOwnedFile(existing.ownerId, previousFileId);
+  await logAction({
+    actorId: auth.user.id,
+    action: "position_deleted_api",
+    entityType: "position",
+    entityId: existing.id,
+    title: `Szene per API gelöscht: ${existing.name}`,
+    href: "/positions"
+  });
+  return NextResponse.json({ ok: true, id: existing.id });
+}

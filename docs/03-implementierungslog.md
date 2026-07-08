@@ -1009,3 +1009,12 @@ Details:
 - Native Apps erhalten die konfigurierte Trackerfarbe jetzt konsistent in `GET /api/external/status`, `GET /api/external/trackers/quotas` und `GET /api/external/trackers/history`.
 - Geliefert werden kompatible Aliasse `colorHex`, `hexColor`, `trackerColor` und `color`; zusätzlich enthalten Tracker-Objekte dieselben Felder.
 - Dadurch können Kalender, Jahresübersicht, Trackerzeilen und Kontingente dieselben Farben wie das Backend verwenden.
+
+## Native API-Parität
+
+- `GET /api/external/invites` liefert zusätzlich zu `usage` jetzt `items`/`invites` mit offenen Einladungen, Links, Status und Annahmeinformationen.
+- `POST/PATCH /api/external/packing/events` akzeptiert `listIds`, um Packlisten direkt mit Pack-Events zu verbinden.
+- `POST /api/external/share` stellt den Web-Teilen-Mechanismus für native Apps bereit.
+- Web-Termine liegen extern unter `GET|POST /api/external/calendar-events`, Detail-CRUD unter `/api/external/calendar-events/{id}` und Check-ins unter `/api/external/calendar-events/{id}/check-in`, ohne den bestehenden Protokollfeed `/api/external/events` zu brechen.
+- Spielsachen und Szenen unterstützen extern `DELETE` sowie Favoriten-Toggle über `/favorite`.
+- `PATCH /api/external/sessions/{id}` kann jetzt `toyIds`, `positionIds` und `bondageSystemItemIds` ersetzen.

@@ -634,17 +634,23 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `GET|PATCH|DELETE /api/external/wiki/{id}`
 - `GET /api/external/events`
 - `GET /api/external/events/actions`
+- `GET|POST /api/external/calendar-events`
+- `GET|PATCH|DELETE /api/external/calendar-events/{id}`
+- `POST|DELETE /api/external/calendar-events/{id}/check-in`
 - `GET /api/external/trackers/history`
 - `GET /api/external/trackers/quotas`
+- `POST /api/external/share`
 - `GET /api/external/catalog/categories`
 - `GET|POST /api/external/catalog/toy-categories`
 - `PATCH /api/external/catalog/toy-categories/{id}`
 - `GET|POST /api/external/catalog/toys`
-- `GET|PATCH /api/external/catalog/toys/{id}`
+- `GET|PATCH|DELETE /api/external/catalog/toys/{id}`
+- `POST|DELETE /api/external/catalog/toys/{id}/favorite`
 - `GET|POST /api/external/catalog/positions`
 - `GET|POST /api/external/catalog/position-categories`
 - `PATCH /api/external/catalog/position-categories/{id}`
-- `GET|PATCH /api/external/catalog/positions/{id}`
+- `GET|PATCH|DELETE /api/external/catalog/positions/{id}`
+- `POST|DELETE /api/external/catalog/positions/{id}/favorite`
 - `GET|POST /api/external/sessions`
 - `GET|PATCH|DELETE /api/external/sessions/{id}`
 - `GET|POST /api/external/ideas`
@@ -656,6 +662,26 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `GET /api/external/bondage-system/{id}`
 
 Die API-Control-Seite zeigt Beispielpayloads, Curl-Vorlagen und Hinweise. Fuer echte App-Tests sollte der Bearer-Header genutzt werden.
+
+### Einladungen
+
+`GET /api/external/invites` liefert neben `usage` jetzt auch `items` und `invites`. Jeder Eintrag enthält `id`, `name`, `email`, `status`, `inviteUrl`/`url`, optional `token`, `createdAt`, `expiresAt`, `acceptedAt`/`usedAt`, `invitedBy` und `acceptedBy`. Admins sehen alle Einladungen der Seite, normale Benutzer die eigenen.
+
+### Packlisten und Teilen
+
+`POST/PATCH /api/external/packing/events` akzeptiert `listIds: string[]`, um Packlisten einem Pack-Event zuzuordnen. Die Event-Response enthält weiterhin `lists[]` und `progress`.
+
+`POST /api/external/share` nutzt denselben Share-Mechanismus wie die Web-App. JSON: `{ channel: "email"|"telegram"|"push"|"all", targetType: "user"|"circle", targetId, entityType, entityId, title, href, text? }`. `href` muss ein interner Pfad sein, z. B. `/packing/meine-liste`.
+
+### Kalender-Events
+
+Der Protokoll/Eventfeed bleibt unter `GET /api/external/events`. Fuer echte Terminverwaltung gibt es kollisionsfrei `GET|POST /api/external/calendar-events`, `GET|PATCH|DELETE /api/external/calendar-events/{id}` und `POST|DELETE /api/external/calendar-events/{id}/check-in`. Eventfelder: `title`, `startsAt`, optional `location`, `description`. Check-in akzeptiert optional `note`.
+
+### Katalog-Aktionen
+
+Spielsachen und Szenen können extern gelöscht werden: `DELETE /api/external/catalog/toys/{id}` und `DELETE /api/external/catalog/positions/{id}`. Favoriten werden per `POST` gesetzt und per `DELETE` entfernt: `/api/external/catalog/toys/{id}/favorite` und `/api/external/catalog/positions/{id}/favorite`.
+
+`PATCH /api/external/sessions/{id}` akzeptiert zusätzlich `toyIds`, `positionIds` und `bondageSystemItemIds`; übergebene Arrays ersetzen die jeweilige Relation vollständig.
 
 ## Punktesystem
 

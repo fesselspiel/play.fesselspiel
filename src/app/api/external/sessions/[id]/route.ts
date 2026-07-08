@@ -14,6 +14,25 @@ async function findSession(user: { id: string; tenantId?: string | null; circleI
   });
 }
 
+function stringArray(value: unknown) {
+  if (Array.isArray(value)) return Array.from(new Set(value.map(String).map((entry) => entry.trim()).filter(Boolean)));
+  if (typeof value === "string") return Array.from(new Set(value.split(",").map((entry) => entry.trim()).filter(Boolean)));
+  return [];
+}
+
+async function relationIds(user: { id: string; tenantId?: string | null; circleId?: string | null; role?: string | null }, values: { toyIds?: unknown; positionIds?: unknown; bondageSystemItemIds?: unknown }) {
+  const scope = await ownerScope(user);
+  const toyIds = stringArray(values.toyIds);
+  const positionIds = stringArray(values.positionIds);
+  const bondageSystemItemIds = stringArray(values.bondageSystemItemIds);
+  const [toys, positions, bondageItems] = await Promise.all([
+    toyIds.length ? prisma.toy.findMany({ where: { ...scope, id: { in: toyIds } }, select: { id: true } }) : [],
+    positionIds.length ? prisma.position.findMany({ where: { ...scope, id: { in: positionIds } }, select: { id: true } }) : [],
+    bondageSystemItemIds.length ? prisma.bondageSystemItem.findMany({ where: { tenantId: user.tenantId || undefined, id: { in: bondageSystemItemIds }, visible: true }, select: { id: true } }) : []
+  ]);
+  return { toys, positions, bondageItems };
+}
+
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
@@ -33,13 +52,17 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (!existing) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const status = parseActivityStatus(String(body.status || ""));
+  const relations = await relationIds(auth.user, body);
   const updated = await prisma.activityPlan.update({
     where: { id: existing.id },
     data: {
       ...(body.title !== undefined ? { title: String(body.title || "").trim() || existing.title } : {}),
       ...(body.note !== undefined ? { note: String(body.note || "").trim() } : {}),
       ...(body.plannedAt !== undefined || body.scheduledAt !== undefined || body.startTime !== undefined ? { plannedAt: parseDateValue(body.plannedAt || body.scheduledAt || body.startTime) } : {}),
-      ...(status ? { status } : {})
+      ...(status ? { status } : {}),
+      ...(body.toyIds !== undefined ? { tools: { set: relations.toys.map((entry) => ({ id: entry.id })) } } : {}),
+      ...(body.positionIds !== undefined ? { positions: { set: relations.positions.map((entry) => ({ id: entry.id })) } } : {}),
+      ...(body.bondageSystemItemIds !== undefined ? { bondageSystemItems: { set: relations.bondageItems.map((entry) => ({ id: entry.id })) } } : {})
     },
     include: activityInclude
   });
