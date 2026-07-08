@@ -538,7 +538,9 @@ GET /api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD&trackerKey=segu
 Authorization: Bearer fsp_...
 ```
 
-Der Endpunkt liefert echte Tracker-Eintraege fuer Kalenderansichten, keine Protokoll-, Reminder- oder Kontingent-Ereignisse. Die Antwort enthaelt `ok`, `items[]` und optional `nextCursor`. Jedes Item liefert kompatible Alias-Felder wie `trackerKey`/`key`, `trackerTitle`/`trackerName`, `startedAt`/`startTime`, `date`/`calendarDate`, `endedAt`/`endTime`, `durationMinutes`/`minutes` und `allDay`.
+Der Endpunkt liefert echte Tracker-Eintraege fuer Kalenderansichten, keine Protokoll-, Reminder- oder Kontingent-Ereignisse. Die Antwort enthaelt `ok`, `items[]` und optional `nextCursor`. Jedes Item liefert kompatible Alias-Felder wie `trackerKey`/`key`, `trackerTitle`/`trackerName`, `startedAt`/`startTime`, `date`/`calendarDate`, `endedAt`/`endTime`, `durationMinutes`/`minutes` und `allDay`. Die Trackerfarbe wird flach als `colorHex`, `hexColor`, `trackerColor` und `color` sowie im Objekt `tracker.colorHex` geliefert.
+
+Auch `GET /api/external/status` liefert fuer `openTrackers[]` und `recentTrackerEntries[]` dieselben Farbaliasse. `GET /api/external/trackers/quotas` liefert die Farbe unter `quota.tracker.colorHex` plus `color`, `hexColor` und `trackerColor`.
 
 Wenn `categoryId` fehlt oder ungueltig ist, wird `category`/`categoryName` verwendet oder die Standardkategorie `Allgemein` genutzt. `positionIds` werden nur verbunden, wenn das Szenen-Feature aktiv ist und die Szenen fuer den Benutzer sichtbar sind.
 

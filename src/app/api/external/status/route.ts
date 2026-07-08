@@ -39,7 +39,22 @@ export async function GET(request: NextRequest) {
     openTrackers: openTrackers.map((entry) => ({
       id: entry.id,
       key: entry.trackerType.key,
+      trackerKey: entry.trackerType.key,
       title: entry.trackerType.title,
+      trackerTitle: entry.trackerType.title,
+      color: entry.trackerType.color,
+      colorHex: entry.trackerType.color,
+      hexColor: entry.trackerType.color,
+      trackerColor: entry.trackerType.color,
+      tracker: {
+        id: entry.trackerType.id,
+        key: entry.trackerType.key,
+        title: entry.trackerType.title,
+        color: entry.trackerType.color,
+        colorHex: entry.trackerType.color,
+        hexColor: entry.trackerType.color,
+        trackerColor: entry.trackerType.color
+      },
       startTime: entry.startTime,
       url: `/trackers/${entry.trackerType.key}/${entry.slug || entry.id}`
     })),
@@ -48,6 +63,20 @@ export async function GET(request: NextRequest) {
       trackerKey: entry.trackerType.key,
       key: entry.trackerType.key,
       trackerTitle: entry.trackerType.title,
+      trackerName: entry.trackerType.title,
+      color: entry.trackerType.color,
+      colorHex: entry.trackerType.color,
+      hexColor: entry.trackerType.color,
+      trackerColor: entry.trackerType.color,
+      tracker: {
+        id: entry.trackerType.id,
+        key: entry.trackerType.key,
+        title: entry.trackerType.title,
+        color: entry.trackerType.color,
+        colorHex: entry.trackerType.color,
+        hexColor: entry.trackerType.color,
+        trackerColor: entry.trackerType.color
+      },
       title: entry.title || entry.trackerType.title,
       notes: entry.notes || "",
       startedAt: entry.startTime.toISOString(),

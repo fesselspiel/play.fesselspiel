@@ -1003,3 +1003,9 @@ Details:
 - Die Modelle `Toy` und `Position` speichern `sourceTenantId` und die jeweilige Quell-ID. Damit kann `Bereits übernommene Einträge aus der Quelle aktualisieren` vorhandene Kopien gezielt mit dem aktuellen Quellstand überschreiben.
 - Weitere Modi sind `Nur fehlende Einträge kopieren` und `Auswahl als neue Kopie anlegen`.
 - Jeder Lauf schreibt das Ereignis `tenant_catalog_copied` oder `tenant_catalog_refreshed` ins Protokoll.
+
+## Trackerfarben in der externen API
+
+- Native Apps erhalten die konfigurierte Trackerfarbe jetzt konsistent in `GET /api/external/status`, `GET /api/external/trackers/quotas` und `GET /api/external/trackers/history`.
+- Geliefert werden kompatible Aliasse `colorHex`, `hexColor`, `trackerColor` und `color`; zusätzlich enthalten Tracker-Objekte dieselben Felder.
+- Dadurch können Kalender, Jahresübersicht, Trackerzeilen und Kontingente dieselben Farben wie das Backend verwenden.

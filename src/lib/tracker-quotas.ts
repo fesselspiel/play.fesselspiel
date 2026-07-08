@@ -128,7 +128,15 @@ export async function trackerQuotaStatusForUser(user: QuotaUser, now = new Date(
     const monthlyDaysProgress = progress(tracker.quotaMonthlyDays, monthlyDays);
     const relevant = [daily, weekly, monthlyMinutesProgress, monthlyDaysProgress].filter((entry) => entry.required > 0);
     return {
-      tracker: { id: tracker.id, key: tracker.key, title: tracker.title, color: tracker.color },
+      tracker: {
+        id: tracker.id,
+        key: tracker.key,
+        title: tracker.title,
+        color: tracker.color,
+        colorHex: tracker.color,
+        hexColor: tracker.color,
+        trackerColor: tracker.color
+      },
       daily,
       weekly,
       weeklyMode: tracker.quotaWeeklyTail ? "rolling" : "calendar",
