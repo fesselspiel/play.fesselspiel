@@ -44,3 +44,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   await logAction({ actorId: auth.user.id, action: "self_bondage_order_updated", entityType: "activity", entityId: order.id, title: `Self-Bondage-Auftrag geändert: ${order.title}`, href: `/orders#order-${order.id}`, details: { excludeActorFromTargets: true } });
   return NextResponse.json({ ok: true, item: serializeActivity(request, order) });
 }
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  const auth = await requireApiUser(request);
+  if ("response" in auth) return auth.response;
+  const blocked = apiFeatureGate(auth.user, "externalApi", "orders");
+  if (blocked) return blocked;
+  const existing = await findOrder(auth.user, params.id);
+  if (!existing) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+  if (existing.ownerId !== auth.user.id && auth.user.role !== "ADMIN" && auth.user.role !== "SUPER_ADMIN") {
+    return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+  }
+  await prisma.activityPlan.delete({ where: { id: existing.id } });
+  await logAction({ actorId: auth.user.id, action: "self_bondage_order_deleted_api", entityType: "activity", entityId: existing.id, title: `Self-Bondage-Auftrag per API gelöscht: ${existing.title}`, href: "/orders" });
+  return NextResponse.json({ ok: true, id: existing.id });
+}

@@ -1018,3 +1018,6 @@ Details:
 - Web-Termine liegen extern unter `GET|POST /api/external/calendar-events`, Detail-CRUD unter `/api/external/calendar-events/{id}` und Check-ins unter `/api/external/calendar-events/{id}/check-in`, ohne den bestehenden Protokollfeed `/api/external/events` zu brechen.
 - Spielsachen und Szenen unterstützen extern `DELETE` sowie Favoriten-Toggle über `/favorite`.
 - `PATCH /api/external/sessions/{id}` kann jetzt `toyIds`, `positionIds` und `bondageSystemItemIds` ersetzen.
+- Die vom iPhone-Agenten angeforderten Paritätsrouten sind live nachgezogen: `POST /api/external/catalog/reorder`, Album-CRUD unter `/api/external/media/albums`, Tracker-History-Detail-CRUD unter `/api/external/trackers/history/{id}`, Ideenbilder unter `/api/external/ideas/{id}/images`, Wiki-Anhänge unter `/api/external/wiki/{id}/attachments` und `DELETE /api/external/orders/{id}`.
+- Upload-Routen prüfen den Bearer-Token vor dem Lesen von `multipart/form-data`, damit ungültige Proben sauber `401` statt `500` liefern.
+- Native Grundrouten für Profil, Benutzerverwaltung und Seitenverwaltung sind ergänzt: `/api/external/profile`, `/api/external/users` und `/api/external/tenants`.

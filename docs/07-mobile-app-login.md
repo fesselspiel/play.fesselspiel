@@ -638,6 +638,7 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `GET|PATCH|DELETE /api/external/calendar-events/{id}`
 - `POST|DELETE /api/external/calendar-events/{id}/check-in`
 - `GET /api/external/trackers/history`
+- `GET|PATCH|DELETE /api/external/trackers/history/{id}`
 - `GET /api/external/trackers/quotas`
 - `POST /api/external/share`
 - `GET /api/external/catalog/categories`
@@ -646,6 +647,7 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `GET|POST /api/external/catalog/toys`
 - `GET|PATCH|DELETE /api/external/catalog/toys/{id}`
 - `POST|DELETE /api/external/catalog/toys/{id}/favorite`
+- `POST /api/external/catalog/reorder`
 - `GET|POST /api/external/catalog/positions`
 - `GET|POST /api/external/catalog/position-categories`
 - `PATCH /api/external/catalog/position-categories/{id}`
@@ -655,9 +657,18 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `GET|PATCH|DELETE /api/external/sessions/{id}`
 - `GET|POST /api/external/ideas`
 - `GET|PATCH|DELETE /api/external/ideas/{id}`
+- `POST /api/external/ideas/{id}/images`
+- `DELETE /api/external/ideas/{id}/images/{imageId}`
 - `GET|POST /api/external/orders`
-- `GET|PATCH /api/external/orders/{id}`
+- `GET|PATCH|DELETE /api/external/orders/{id}`
 - `POST /api/external/orders/{id}/status`
+- `GET|POST /api/external/media/albums`
+- `GET|PATCH|DELETE /api/external/media/albums/{id}`
+- `GET|PATCH /api/external/profile`
+- `GET|POST /api/external/users`
+- `GET|PATCH|DELETE /api/external/users/{id}`
+- `GET|POST /api/external/tenants`
+- `GET|PATCH /api/external/tenants/{id}`
 - `GET /api/external/bondage-system`
 - `GET /api/external/bondage-system/{id}`
 
@@ -682,6 +693,72 @@ Der Protokoll/Eventfeed bleibt unter `GET /api/external/events`. Fuer echte Term
 Spielsachen und Szenen können extern gelöscht werden: `DELETE /api/external/catalog/toys/{id}` und `DELETE /api/external/catalog/positions/{id}`. Favoriten werden per `POST` gesetzt und per `DELETE` entfernt: `/api/external/catalog/toys/{id}/favorite` und `/api/external/catalog/positions/{id}/favorite`.
 
 `PATCH /api/external/sessions/{id}` akzeptiert zusätzlich `toyIds`, `positionIds` und `bondageSystemItemIds`; übergebene Arrays ersetzen die jeweilige Relation vollständig.
+
+`POST /api/external/catalog/reorder` sortiert Spielsachen oder Szenen neu:
+
+```json
+{ "kind": "toys", "ids": ["toy-id-1", "toy-id-2"] }
+```
+
+`kind` akzeptiert `toys`/`toy` oder `positions`/`position`. Die Reihenfolge wird als `sortOrder` gespeichert.
+
+### Medien-Alben
+
+Alben sind extern über `GET|POST /api/external/media/albums` und `GET|PATCH|DELETE /api/external/media/albums/{id}` verfügbar. Felder: `title`, `description`, `visibility`, `coverMediaId`.
+
+Beim Löschen werden Bilder standardmäßig in das persönliche Hauptalbum verschoben. Mit `DELETE /api/external/media/albums/{id}?deleteMedia=true` werden die Medien des Albums gelöscht. Das persönliche Hauptalbum kann nicht gelöscht werden.
+
+### Tracker-History-Detail
+
+Tracker-Einträge haben zusätzlich zur Listenroute eigene Detail-Endpunkte:
+
+```http
+GET /api/external/trackers/history/{id}
+PATCH /api/external/trackers/history/{id}
+DELETE /api/external/trackers/history/{id}
+```
+
+`PATCH` akzeptiert `title`, `notes`/`note`, `startTime`/`startedAt`, `endTime`/`endedAt`, `allDay`, `fieldValues`, `toyIds`, `positionIds` und `bondageSystemItemIds`. Die Relationen werden bei übergebenen Arrays vollständig ersetzt.
+
+### Ideen- und Wiki-Bilder
+
+Ideenbilder bleiben getrennt von der normalen Bildergalerie:
+
+```http
+POST /api/external/ideas/{id}/images
+DELETE /api/external/ideas/{id}/images/{imageId}
+```
+
+Uploads sind `multipart/form-data` mit Feld `file` und optional `title`. Die Antwort enthält das aktualisierte Ideen-Objekt.
+
+Wiki-Anhänge:
+
+```http
+POST /api/external/wiki/{id}/attachments
+DELETE /api/external/wiki/{id}/attachments/{attachmentId}
+```
+
+Auch hier ist das Uploadfeld `file`. Anhänge werden als geschützte `FileAsset` gespeichert und beim Löschen vom Dateisystem entfernt.
+
+### Profil, Benutzer und Seiten
+
+Für native Profil- und Admin-Ansichten gibt es:
+
+```http
+GET /api/external/profile
+PATCH /api/external/profile
+GET /api/external/users
+POST /api/external/users
+GET /api/external/users/{id}
+PATCH /api/external/users/{id}
+DELETE /api/external/users/{id}
+GET /api/external/tenants
+POST /api/external/tenants
+GET /api/external/tenants/{id}
+PATCH /api/external/tenants/{id}
+```
+
+Benutzer- und Seitenverwaltung ist Admin/Superadmin-geschützt. `DELETE /api/external/users/{id}` deaktiviert Benutzer, statt sie hart zu löschen.
 
 ## Punktesystem
 
@@ -740,6 +817,8 @@ POST /api/external/wiki
 GET /api/external/wiki/{id}
 PATCH /api/external/wiki/{id}
 DELETE /api/external/wiki/{id}
+POST /api/external/wiki/{id}/attachments
+DELETE /api/external/wiki/{id}/attachments/{attachmentId}
 ```
 
 Beispiel fuer `POST /api/external/wiki`:
