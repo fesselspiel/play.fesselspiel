@@ -1010,6 +1010,15 @@ Details:
 - Geliefert werden kompatible Aliasse `colorHex`, `hexColor`, `trackerColor` und `color`; zusätzlich enthalten Tracker-Objekte dieselben Felder.
 - Dadurch können Kalender, Jahresübersicht, Trackerzeilen und Kontingente dieselben Farben wie das Backend verwenden.
 
+## Session-, Wiki- und Kalender-Parität für native Apps
+
+- `PATCH /api/external/sessions/{idOderSlug}` findet jetzt auch neu per API angelegte Spielplan-Sessions ohne Kategorie und akzeptiert ID oder Slug.
+- Session-Antworten liefern gespeicherte Relationen zu Spielsachen, Szenen und Bondage-System-Produkten zurück.
+- Session-Bilder und Session-Kommentare sind extern ergänzt: `POST/DELETE /api/external/sessions/{id}/images` und `POST/DELETE /api/external/sessions/{id}/comments`.
+- Medien können per `showInCalendar=true` und `calendarDate` als Kalenderbild markiert werden; Sessions liefern passende Tagesbilder als `calendarMedia`/`linkedMedia`.
+- `POST /api/external/wiki/transcribe` erstellt oder ergänzt Wiki-/Tagebuchseiten aus Audio per OpenAI-Transkription und gibt JSON-Fehler statt HTML-Seiten zurück.
+- Bondage-System-Produkte unterstützen extern `PATCH /api/external/bondage-system/{id}` und Shopify-Sync über `/api/external/bondage-system/sync`.
+
 ## Native API-Parität
 
 - `GET /api/external/invites` liefert zusätzlich zu `usage` jetzt `items`/`invites` mit offenen Einladungen, Links, Status und Annahmeinformationen.

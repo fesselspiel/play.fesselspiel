@@ -33,6 +33,21 @@ function parseVisibility(value: unknown) {
   return undefined;
 }
 
+function parseBoolean(value: unknown) {
+  if (value === undefined) return undefined;
+  if (typeof value === "boolean") return value;
+  const raw = String(value || "").trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+}
+
+function parseDate(value: unknown) {
+  if (value === undefined) return undefined;
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function serializeMedia(request: NextRequest, entry: Prisma.MediaGetPayload<{ include: typeof mediaInclude }>) {
   const fileId = fileIdFromUrl(entry.url);
   const downloadPath = fileId ? `/api/external/files/${fileId}` : entry.url;
@@ -45,6 +60,8 @@ function serializeMedia(request: NextRequest, entry: Prisma.MediaGetPayload<{ in
     effectiveVisibility: entry.visibility || entry.album?.visibility || "PRIVATE",
     createdAt: entry.createdAt.toISOString(),
     updatedAt: entry.updatedAt.toISOString(),
+    showInCalendar: entry.showInCalendar,
+    calendarDate: entry.calendarDate?.toISOString() || null,
     fileId,
     url: downloadUrl,
     downloadUrl,
@@ -138,6 +155,8 @@ export async function PATCH(request: NextRequest, { params }: MediaRouteParams) 
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const title = body.title === undefined ? undefined : String(body.title || "").trim();
   const visibility = parseVisibility(body.visibility);
+  const showInCalendar = parseBoolean(body.showInCalendar);
+  const calendarDate = parseDate(body.calendarDate);
   if (visibility === undefined && body.visibility !== undefined) return NextResponse.json({ ok: false, error: "invalid_visibility" }, { status: 400 });
   let albumId: string | null | undefined;
   if (body.albumId !== undefined) {
@@ -153,6 +172,8 @@ export async function PATCH(request: NextRequest, { params }: MediaRouteParams) 
     data: {
       ...(title !== undefined ? { title: title || existing.title } : {}),
       ...(visibility !== undefined ? { visibility } : {}),
+      ...(showInCalendar !== undefined ? { showInCalendar } : {}),
+      ...(calendarDate !== undefined ? { calendarDate } : {}),
       ...(albumId !== undefined ? { albumId } : {})
     }
   });

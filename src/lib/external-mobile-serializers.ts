@@ -7,7 +7,8 @@ export const activityInclude = {
   positions: { include: { category: true } },
   bondageSystemItems: { include: { product: true } },
   images: { include: { file: true }, orderBy: { createdAt: "asc" as const } },
-  likes: { include: { user: { include: { profile: true } } }, orderBy: { createdAt: "asc" as const } }
+  likes: { include: { user: { include: { profile: true } } }, orderBy: { createdAt: "asc" as const } },
+  comments: { include: { owner: { include: { profile: true } } }, orderBy: { createdAt: "asc" as const } }
 } satisfies Prisma.ActivityPlanInclude;
 
 export type ActivityWithMobileRelations = Prisma.ActivityPlanGetPayload<{ include: typeof activityInclude }>;
@@ -95,6 +96,18 @@ export function serializeActivity(request: Request, activity: ActivityWithMobile
       userId: like.userId,
       displayName: displayName(like.user),
       createdAt: like.createdAt.toISOString()
+    })),
+    comments: activity.comments.map((comment) => ({
+      id: comment.id,
+      body: comment.body,
+      createdAt: comment.createdAt.toISOString(),
+      own: false,
+      canDelete: false,
+      owner: {
+        id: comment.owner.id,
+        username: comment.owner.username,
+        displayName: displayName(comment.owner)
+      }
     }))
   };
 }

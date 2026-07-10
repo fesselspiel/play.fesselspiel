@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
-import { activityInclude, parseActivityStatus, parseDateValue, serializeActivity } from "@/lib/external-mobile-serializers";
+import { parseActivityStatus, parseDateValue } from "@/lib/external-mobile-serializers";
 import { prisma } from "@/lib/prisma";
+import { calendarMediaForSession, externalSessionInclude, serializeExternalSession } from "../_helpers";
 
 export const runtime = "nodejs";
 
 async function findSession(user: { id: string; tenantId?: string | null; circleId?: string | null; role?: string | null }, id: string) {
   return prisma.activityPlan.findFirst({
-    where: { id, ...(await ownerScope(user)), category: { notIn: ["IDEA_COLLECTION", "SELF_BONDAGE_ORDER"] } },
-    include: activityInclude
+    where: {
+      ...(await ownerScope(user)),
+      OR: [{ id }, { slug: id }],
+      AND: [{ OR: [{ category: null }, { category: { notIn: ["IDEA_COLLECTION", "SELF_BONDAGE_ORDER"] } }] }]
+    },
+    include: externalSessionInclude
   });
 }
 
@@ -40,7 +45,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   if (blocked) return blocked;
   const session = await findSession(auth.user, params.id);
   if (!session) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
-  return NextResponse.json({ ok: true, item: serializeActivity(request, session) });
+  return NextResponse.json({ ok: true, item: serializeExternalSession(request, session, auth.user.id, await calendarMediaForSession(auth.user, session)) });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
@@ -64,10 +69,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       ...(body.positionIds !== undefined ? { positions: { set: relations.positions.map((entry) => ({ id: entry.id })) } } : {}),
       ...(body.bondageSystemItemIds !== undefined ? { bondageSystemItems: { set: relations.bondageItems.map((entry) => ({ id: entry.id })) } } : {})
     },
-    include: activityInclude
+    include: externalSessionInclude
   });
   await logAction({ actorId: auth.user.id, action: "activity_created", entityType: "activity", entityId: updated.id, title: `Spielplan geändert: ${updated.title}`, href: `/activities/${updated.slug}` });
-  return NextResponse.json({ ok: true, item: serializeActivity(request, updated) });
+  return NextResponse.json({ ok: true, item: serializeExternalSession(request, updated, auth.user.id, await calendarMediaForSession(auth.user, updated)) });
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
@@ -77,7 +82,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   if (blocked) return blocked;
   const existing = await findSession(auth.user, params.id);
   if (!existing) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
-  const updated = await prisma.activityPlan.update({ where: { id: existing.id }, data: { status: "DISCARDED" }, include: activityInclude });
+  const updated = await prisma.activityPlan.update({ where: { id: existing.id }, data: { status: "DISCARDED" }, include: externalSessionInclude });
   await logAction({ actorId: auth.user.id, action: "activity_created", entityType: "activity", entityId: updated.id, title: `Spielplan verworfen: ${updated.title}`, href: `/activities/${updated.slug}` });
-  return NextResponse.json({ ok: true, item: serializeActivity(request, updated) });
+  return NextResponse.json({ ok: true, item: serializeExternalSession(request, updated, auth.user.id, await calendarMediaForSession(auth.user, updated)) });
 }

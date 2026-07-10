@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { ownerScope } from "@/lib/access";
-import { tokenFromRequest } from "@/lib/api-tokens";
 import { logAction } from "@/lib/audit";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
-import { activityInclude, parseActivityStatus, parseDateValue, serializeActivity } from "@/lib/external-mobile-serializers";
+import { parseActivityStatus, parseDateValue } from "@/lib/external-mobile-serializers";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
+import { calendarMediaForSessionDates, externalSessionInclude, serializeExternalSession } from "./_helpers";
 
 export const runtime = "nodejs";
 
@@ -21,8 +21,17 @@ async function relationIds(user: { id: string; tenantId?: string | null; circleI
 }
 
 function stringArray(value: unknown) {
-  return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+  if (Array.isArray(value)) return value.map(String).map((entry) => entry.trim()).filter(Boolean);
+  if (typeof value === "string") return value.split(",").map((entry) => entry.trim()).filter(Boolean);
+  return [];
 }
+
+const sessionCategoryWhere = {
+  OR: [
+    { category: null },
+    { category: { notIn: ["IDEA_COLLECTION", "SELF_BONDAGE_ORDER"] } }
+  ]
+} satisfies Prisma.ActivityPlanWhereInput;
 
 export async function GET(request: NextRequest) {
   const auth = await requireApiUser(request);
@@ -36,20 +45,25 @@ export async function GET(request: NextRequest) {
   const status = parseActivityStatus(searchParams.get("status"));
   const where: Prisma.ActivityPlanWhereInput = {
     ...(await ownerScope(auth.user)),
-    category: { notIn: ["IDEA_COLLECTION", "SELF_BONDAGE_ORDER"] },
+    ...sessionCategoryWhere,
     ...(status ? { status } : {}),
     ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {})
   };
   const items = await prisma.activityPlan.findMany({
     where,
-    include: activityInclude,
+    include: externalSessionInclude,
     orderBy: [{ plannedAt: "asc" }, { updatedAt: "desc" }],
     take: limit + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
   });
-  const token = searchParams.get("token") === tokenFromRequest(request) ? searchParams.get("token") || "" : "";
   const pageItems = items.slice(0, limit);
-  return NextResponse.json({ ok: true, nextCursor: items.length > limit ? items[limit].id : null, count: pageItems.length, items: pageItems.map((item) => serializeActivity(request, item, token)) });
+  const mediaBySession = await calendarMediaForSessionDates(auth.user, pageItems);
+  return NextResponse.json({
+    ok: true,
+    nextCursor: items.length > limit ? items[limit].id : null,
+    count: pageItems.length,
+    items: pageItems.map((item) => serializeExternalSession(request, item, auth.user.id, mediaBySession.get(item.id) || []))
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -81,8 +95,9 @@ export async function POST(request: NextRequest) {
       positions: { connect: positions.map((entry) => ({ id: entry.id })) },
       bondageSystemItems: { connect: bondageItems.map((entry) => ({ id: entry.id })) }
     },
-    include: activityInclude
+    include: externalSessionInclude
   });
   await logAction({ actorId: auth.user.id, action: status === "REQUESTED" ? "activity_requested" : "activity_created", entityType: "activity", entityId: activity.id, title: `${status === "REQUESTED" ? "Spielplan angefragt" : "Spielplan angelegt"}: ${activity.title}`, href: `/activities/${activity.slug}` });
-  return NextResponse.json({ ok: true, item: serializeActivity(request, activity) }, { status: 201 });
+  const mediaBySession = await calendarMediaForSessionDates(auth.user, [activity]);
+  return NextResponse.json({ ok: true, item: serializeExternalSession(request, activity, auth.user.id, mediaBySession.get(activity.id) || []) }, { status: 201 });
 }

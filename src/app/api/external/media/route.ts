@@ -16,6 +16,18 @@ function parsedVisibility(value: FormDataEntryValue | null) {
   return null;
 }
 
+function boolValue(value: FormDataEntryValue | null) {
+  const raw = String(value || "").trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+}
+
+function dateValue(value: FormDataEntryValue | null) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function publicOrigin(request: NextRequest) {
   const forwardedHost = request.headers.get("x-forwarded-host");
   const host = forwardedHost || request.headers.get("host");
@@ -94,6 +106,8 @@ export async function GET(request: NextRequest) {
         effectiveVisibility: entry.visibility || entry.album?.visibility || "PRIVATE",
         createdAt: entry.createdAt.toISOString(),
         updatedAt: entry.updatedAt.toISOString(),
+        showInCalendar: entry.showInCalendar,
+        calendarDate: entry.calendarDate?.toISOString() || null,
         fileId,
         url: downloadUrl,
         downloadUrl,
@@ -135,11 +149,15 @@ export async function POST(request: NextRequest) {
   if (!asset) return NextResponse.json({ ok: false, error: "Keine Datei erhalten" }, { status: 400 });
   const url = fileAssetUrl(asset.id);
   const album = await ensureDefaultAlbum(auth.user.id);
+  const showInCalendar = boolValue(formData.get("showInCalendar"));
+  const calendarDate = dateValue(formData.get("calendarDate"));
   const media = await prisma.media.create({
     data: {
       tenantId: auth.user.tenantId || undefined,
       ownerId: auth.user.id,
       albumId: album.id,
+      showInCalendar,
+      calendarDate: showInCalendar ? calendarDate : null,
       title: String(formData.get("title") || asset.originalName || "API Upload").trim(),
       kind: asset.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE",
       url,

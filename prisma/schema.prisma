@@ -189,6 +189,7 @@ model User {
   feedLikes         FeedLike[]
   pointEntries      PointEntry[]
   activityLikes     ActivityLike[]
+  activityComments  ActivityComment[]
   trackerEntries    TrackerEntry[]
   favoriteToys      ToyFavorite[]
   favoritePositions PositionFavorite[]
@@ -1001,10 +1002,24 @@ model ActivityPlan {
   media       Media[]
   images      ActivityImage[]
   likes       ActivityLike[]
+  comments    ActivityComment[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, status, plannedAt])
   @@index([ownerId, status, plannedAt])
+}
+
+model ActivityComment {
+  id         String       @id @default(cuid())
+  activityId String
+  ownerId    String
+  body       String
+  createdAt  DateTime     @default(now())
+  activity   ActivityPlan @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  owner      User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([activityId, createdAt])
+  @@index([ownerId, createdAt])
 }
 
 model ShopifyIntegration {
@@ -1216,6 +1231,8 @@ model Media {
   albumId     String?
   sessionId   String?
   activityId  String?
+  showInCalendar Boolean @default(false)
+  calendarDate DateTime?
   title       String
   kind        MediaKind
   url         String
@@ -1231,6 +1248,7 @@ model Media {
 
   @@index([sessionId])
   @@index([activityId])
+  @@index([tenantId, showInCalendar, calendarDate])
   @@index([tenantId, ownerId, createdAt])
 }
 

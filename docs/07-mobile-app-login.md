@@ -188,6 +188,131 @@ Antwort:
 }
 ```
 
+## Session-Bilder, Kommentare und Relationen
+
+Normale Spielplan-Sessions liegen unter `/api/external/sessions`. `POST /api/external/sessions` gibt eine `item.id`, `item.href` und `item.url` zurück, die direkt für Detail-, PATCH-, Bild- und Kommentaraufrufe verwendet werden können. Detail- und PATCH-Routen akzeptieren sowohl die interne ID als auch den lesbaren Slug.
+
+```http
+PATCH /api/external/sessions/{idOderSlug}
+Authorization: Bearer fsp_...
+Content-Type: application/json
+
+{
+  "title": "Abendplanung",
+  "note": "Kurz vorbereiten",
+  "status": "REQUESTED",
+  "scheduledAt": "2026-07-10T18:00:00.000Z",
+  "toyIds": ["toy_id"],
+  "positionIds": ["position_id"],
+  "bondageSystemItemIds": ["bondage_system_item_id"]
+}
+```
+
+Die Antwort enthält die gespeicherten Relationen als `toys`, `positions` und `bondageSystemItems`.
+
+```http
+POST /api/external/sessions/{idOderSlug}/images
+Authorization: Bearer fsp_...
+Content-Type: multipart/form-data
+
+file=<bilddatei>
+title=Optionaler Titel
+```
+
+```http
+DELETE /api/external/sessions/{idOderSlug}/images/{imageId}
+Authorization: Bearer fsp_...
+```
+
+```http
+POST /api/external/sessions/{idOderSlug}/comments
+Authorization: Bearer fsp_...
+Content-Type: application/json
+
+{ "body": "Kommentar zur Session" }
+```
+
+```http
+DELETE /api/external/sessions/{idOderSlug}/comments/{commentId}
+Authorization: Bearer fsp_...
+```
+
+Session-Antworten enthalten zusätzlich:
+
+- `images[]`: geschützte Session-Bilder mit `url/downloadUrl`.
+- `comments[]`: Kommentare mit `own` und `canDelete`.
+- `calendarMedia`, `calendar_media`, `linkedMedia`: Medien, die für den Session-Tag mit `showInCalendar=true` markiert wurden.
+- `wikiPage`, `wiki_page`, `diaryEntry`, `wikiPageId`: derzeit `null`, reserviert für explizite Tagebuchrelationen.
+
+## Kalender-Medien
+
+Die normale Medien-API kann Bilder optional für den Kalender markieren. Ohne `showInCalendar` bleiben Bilder normale Galerie-Bilder.
+
+```http
+POST /api/external/media
+Authorization: Bearer fsp_...
+Content-Type: multipart/form-data
+
+file=<bilddatei>
+title=Kalenderbild
+showInCalendar=true
+calendarDate=2026-07-10T00:00:00.000Z
+```
+
+`GET /api/external/media` und `GET /api/external/media/{id}` liefern `showInCalendar` und `calendarDate`. `PATCH /api/external/media/{id}` kann beide Felder nachträglich ändern.
+
+## Wiki-Audio-Transkription
+
+Für Spracheingabe aus der App gibt es einen multipart-Endpunkt. Fehler kommen immer als JSON zurück, keine HTML-Fehlerseite.
+
+```http
+POST /api/external/wiki/transcribe
+Authorization: Bearer fsp_...
+Content-Type: multipart/form-data
+
+mode=create|append
+pageId=<nur bei append>
+title=<nur bei create optional>
+visibility=PRIVATE|PARTNER|SHARED
+insertAt=append|prepend
+keepAudio=true|false
+file=<audio/m4a oder audio/mp4>
+```
+
+Standard ist `keepAudio=false`; die Audiodatei wird dann nach erfolgreicher Transkription nicht gespeichert. Bei `keepAudio=true` wird sie als geschützter Wiki-Anhang abgelegt. Die Antwort enthält `ok`, `item`, `page`, `transcript` und optional `audioAttachment`.
+
+## Bondage-System API
+
+Bondage-System-Produkte können extern gelesen, geändert und synchronisiert werden. Die Änderung ist für Admins/Superadmins gedacht.
+
+```http
+PATCH /api/external/bondage-system/{idOderSlug}
+Authorization: Bearer fsp_...
+Content-Type: application/json
+
+{
+  "title": "Produktname",
+  "description": "<p>Formatierte Beschreibung</p>",
+  "active": true,
+  "visibility": "PARTNER",
+  "showExternalLink": true,
+  "sortOrder": 20,
+  "positionIds": ["position_id"]
+}
+```
+
+```http
+POST /api/external/bondage-system/sync
+Authorization: Bearer fsp_...
+```
+
+```http
+POST /api/external/bondage-system/{idOderSlug}/sync
+Authorization: Bearer fsp_...
+```
+
+Die item-spezifische Sync-Route löst aktuell denselben seitenweiten Shopify-Sync aus und gibt Sync-Status und Produktanzahl zurück.
+
 ## Packlisten API
 
 Packlisten sind ein eigenes Feature (`packingLists`) und werden ueber die externe API mit Bearer Token genutzt. Pack-Events sind der organisatorische Rahmen, Packlisten enthalten die konkreten Spielsachen.
