@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { userFromApiToken } from "@/lib/api-tokens";
 import { featureEnabled } from "@/lib/features";
 
-export async function requireApiUser(request: NextRequest | Request) {
-  const auth = await userFromApiToken(request);
+export async function requireApiUser(request: NextRequest | Request, options: { ignoreViewContext?: boolean } = {}) {
+  const auth = await userFromApiToken(request, options);
   if (!auth) return { response: NextResponse.json({ ok: false, error: "Ungültiger oder fehlender API Token" }, { status: 401 }) };
   return { user: auth.user };
 }

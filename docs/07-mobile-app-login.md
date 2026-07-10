@@ -91,6 +91,70 @@ Antwort:
 
 Die App oeffnet `url` im internen Browser. Der Server prueft den signierten Kurzzeit-Token, setzt den normalen `fesselspiel_session` Cookie und leitet auf `redirectTo` weiter. `redirectTo` darf nur ein relativer Pfad sein; externe URLs werden auf `/` reduziert.
 
+## Admin View Context fuer Seiten- und Benutzersicht
+
+Admins koennen in der nativen App eine andere Seite oder einen anderen Benutzer als Sichtkontext aktivieren. Der eigentliche Login bleibt der Admin-API-Token; der Server gibt einen kurzlebigen `contextId` zurueck, den die App bei allen folgenden externen Requests mitsendet.
+
+```http
+POST /api/external/admin/view-context
+Authorization: Bearer fsp_...
+Content-Type: application/json
+
+{
+  "mode": "tenant",
+  "tenantId": "tenant_id",
+  "ttlSeconds": 7200
+}
+```
+
+```http
+POST /api/external/admin/view-context
+Authorization: Bearer fsp_...
+Content-Type: application/json
+
+{
+  "mode": "user",
+  "tenantId": "tenant_id",
+  "userId": "user_id",
+  "ttlSeconds": 7200
+}
+```
+
+```http
+POST /api/external/admin/view-context
+Authorization: Bearer fsp_...
+Content-Type: application/json
+
+{ "mode": "clear" }
+```
+
+Antwort:
+
+```json
+{
+  "ok": true,
+  "contextId": "pvc_...",
+  "expiresAt": "2026-07-10T18:00:00.000Z",
+  "context": {
+    "id": "pvc_...",
+    "mode": "user",
+    "expiresAt": "2026-07-10T18:00:00.000Z",
+    "tenant": { "id": "tenant_id", "name": "Playplaner", "slug": "playplaner", "domain": "playplaner.com" },
+    "user": { "id": "user_id", "displayName": "Anna", "username": "anna", "email": "anna@example.com", "role": "USER" }
+  }
+}
+```
+
+Folgeaufrufe:
+
+```http
+GET /api/external/status
+Authorization: Bearer fsp_...
+X-Playplaner-View-Context: pvc_...
+```
+
+Der Kontext ist an den API-Token gebunden und standardmaessig 2 Stunden gueltig. Maximal erlaubt sind 12 Stunden. `mode=tenant` ist Superadmins vorbehalten; `mode=user` setzt die Sicht auf den Benutzer innerhalb der angegebenen Seite. `mode=clear` loescht alle aktiven View-Contexts dieses API-Tokens.
+
 ## Event Feed fuer Push
 
 Ereignisse basieren auf dem zentralen `AuditLog`. Alles, was im System sauber protokolliert wird, kann damit automatisch in der App sichtbar werden.

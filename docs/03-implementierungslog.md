@@ -1019,6 +1019,14 @@ Details:
 - `POST /api/external/wiki/transcribe` erstellt oder ergänzt Wiki-/Tagebuchseiten aus Audio per OpenAI-Transkription und gibt JSON-Fehler statt HTML-Seiten zurück.
 - Bondage-System-Produkte unterstützen extern `PATCH /api/external/bondage-system/{id}` und Shopify-Sync über `/api/external/bondage-system/sync`.
 
+## Mobiler Admin-Sichtkontext
+
+- `POST /api/external/admin/view-context` ergänzt einen externen Contract für native Apps.
+- Admins können mit `mode=user` eine Benutzersicht innerhalb einer Seite öffnen; Superadmins können mit `mode=tenant` eine Seite öffnen.
+- Die Antwort enthält einen kurzlebigen `contextId`, der bei allen `/api/external/*`-Folgeaufrufen als Header `X-Playplaner-View-Context` gesendet wird.
+- Der Context ist an den ursprünglichen API-Token gebunden, läuft standardmäßig nach zwei Stunden ab und kann mit `mode=clear` beendet werden.
+- `requireApiUser` wertet den Header zentral aus, sodass bestehende externe Endpunkte keine eigene Sonderlogik benötigen.
+
 ## Native API-Parität
 
 - `GET /api/external/invites` liefert zusätzlich zu `usage` jetzt `items`/`invites` mit offenen Einladungen, Links, Status und Annahmeinformationen.

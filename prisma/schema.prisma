@@ -409,6 +409,24 @@ model ApiToken {
   @@index([userId, active])
 }
 
+model ExternalViewContext {
+  id          String    @id @default(cuid())
+  tokenId     String
+  actorId     String
+  tenantId    String?
+  userId      String?
+  mode        String
+  contextHash String    @unique
+  expiresAt   DateTime
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([tokenId, expiresAt])
+  @@index([actorId, createdAt])
+  @@index([tenantId])
+  @@index([userId])
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   actorId    String?
