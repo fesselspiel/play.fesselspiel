@@ -1027,6 +1027,12 @@ Details:
 - Der Context ist an den ursprünglichen API-Token gebunden, läuft standardmäßig nach zwei Stunden ab und kann mit `mode=clear` beendet werden.
 - `requireApiUser` wertet den Header zentral aus, sodass bestehende externe Endpunkte keine eigene Sonderlogik benötigen.
 
+## Wiki-Kalenderdatum für native Apps
+
+- `GET /api/external/wiki` liefert pro Eintrag zusätzlich `createdAt` und `calendarDate`.
+- `calendarDate` ist stabil auf das Anlagedatum gesetzt, damit reine Inhaltsänderungen Tagebucheinträge in App-Kalendern nicht verschieben.
+- Wiki-Detail-, Update- und Transcribe-Responses liefern denselben Kalenderwert ebenfalls mit.
+
 ## Native API-Parität
 
 - `GET /api/external/invites` liefert zusätzlich zu `usage` jetzt `items`/`invites` mit offenen Einladungen, Links, Status und Annahmeinformationen.

@@ -42,6 +42,7 @@ function serializePage(page: NonNullable<Awaited<ReturnType<typeof prisma.wikiPa
     href: `/wiki/${ownerSlug}/${page.slug}`,
     content: page.content,
     visibility: page.visibility,
+    calendarDate: page.createdAt.toISOString(),
     createdAt: page.createdAt.toISOString(),
     updatedAt: page.updatedAt.toISOString()
   };

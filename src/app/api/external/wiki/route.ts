@@ -8,6 +8,27 @@ function visibility(value?: string | null) {
   return value === "PARTNER" || value === "SHARED" ? value : "PRIVATE";
 }
 
+function serializeWikiPage(page: Awaited<ReturnType<typeof prisma.wikiPage.findMany>>[number] & { owner: { profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null; id: string } }) {
+  const ownerSlug = wikiOwnerSlug(page.owner);
+  return {
+    id: page.id,
+    title: page.title,
+    slug: page.slug,
+    ownerSlug,
+    namespacePath: `/wiki/${ownerSlug}`,
+    path: `/wiki/${ownerSlug}/${page.slug}`,
+    visibility: page.visibility,
+    calendarDate: page.createdAt.toISOString(),
+    createdAt: page.createdAt.toISOString(),
+    updatedAt: page.updatedAt.toISOString(),
+    owner: {
+      id: page.owner.id,
+      username: page.owner.username,
+      displayName: page.owner.profile?.displayName || page.owner.name || page.owner.username || page.owner.email
+    }
+  };
+}
+
 export async function GET(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
@@ -28,21 +49,7 @@ export async function GET(request: NextRequest) {
   });
   return NextResponse.json({
     ok: true,
-    items: pages.map((page) => ({
-      id: page.id,
-      title: page.title,
-      slug: page.slug,
-      ownerSlug: wikiOwnerSlug(page.owner),
-      namespacePath: `/wiki/${wikiOwnerSlug(page.owner)}`,
-      path: `/wiki/${wikiOwnerSlug(page.owner)}/${page.slug}`,
-      visibility: page.visibility,
-      updatedAt: page.updatedAt.toISOString(),
-      owner: {
-        id: page.owner.id,
-        username: page.owner.username,
-        displayName: page.owner.profile?.displayName || page.owner.name || page.owner.username || page.owner.email
-      }
-    }))
+    items: pages.map(serializeWikiPage)
   });
 }
 
@@ -76,5 +83,5 @@ export async function POST(request: NextRequest) {
     title: `Wiki-Seite per API angelegt: ${page.title}`,
     href: `/wiki/${wikiOwnerSlug(page.owner)}/${page.slug}`
   });
-  return NextResponse.json({ ok: true, item: page, path: `/wiki/${wikiOwnerSlug(page.owner)}/${page.slug}` }, { status: 201 });
+  return NextResponse.json({ ok: true, item: serializeWikiPage(page), path: `/wiki/${wikiOwnerSlug(page.owner)}/${page.slug}` }, { status: 201 });
 }

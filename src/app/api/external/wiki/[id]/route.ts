@@ -50,6 +50,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       content: page.content,
       mediaWikiExport: wikiExportText(page),
       visibility: page.visibility,
+      calendarDate: page.createdAt.toISOString(),
       images: page.images.map((image) => ({
         id: image.id,
         fileId: image.fileId,
@@ -116,7 +117,22 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     title: `Wiki-Seite per API geändert: ${updated.title}`,
     href: `/wiki/${wikiOwnerSlug(updated.owner)}/${updated.slug}`
   });
-  return NextResponse.json({ ok: true, item: updated, path: `/wiki/${wikiOwnerSlug(updated.owner)}/${updated.slug}` });
+  return NextResponse.json({
+    ok: true,
+    item: {
+      id: updated.id,
+      title: updated.title,
+      slug: updated.slug,
+      ownerSlug: wikiOwnerSlug(updated.owner),
+      path: `/wiki/${wikiOwnerSlug(updated.owner)}/${updated.slug}`,
+      content: updated.content,
+      visibility: updated.visibility,
+      calendarDate: updated.createdAt.toISOString(),
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString()
+    },
+    path: `/wiki/${wikiOwnerSlug(updated.owner)}/${updated.slug}`
+  });
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {

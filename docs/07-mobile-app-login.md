@@ -329,6 +329,15 @@ calendarDate=2026-07-10T00:00:00.000Z
 
 Für Spracheingabe aus der App gibt es einen multipart-Endpunkt. Fehler kommen immer als JSON zurück, keine HTML-Fehlerseite.
 
+Wiki-/Tagebuch-Listen liefern für Kalenderansichten stabile Datumsfelder:
+
+```http
+GET /api/external/wiki?limit=20
+Authorization: Bearer fsp_...
+```
+
+Jeder Eintrag enthält `createdAt`, `updatedAt` und `calendarDate`. `calendarDate` entspricht bewusst dem Anlagedatum (`createdAt`), damit normales Bearbeiten von Titel oder Inhalt den ursprünglichen Kalendertag nicht verschiebt.
+
 ```http
 POST /api/external/wiki/transcribe
 Authorization: Bearer fsp_...
