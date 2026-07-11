@@ -252,6 +252,140 @@ Antwort:
 }
 ```
 
+## Native Push Test und Logs
+
+Die native App kann Push-Geraete, Testversand und Versandprotokolle direkt ueber die externe API pruefen. Diese Endpunkte sind fuer die iPhone-/Android-Debug-Oberflaeche gedacht und liefern immer JSON.
+
+### Geraete auflisten
+
+```http
+GET /api/external/push/devices
+Authorization: Bearer fsp_...
+```
+
+Normale Benutzer sehen ihre eigenen registrierten Geraete. Admins sehen alle Geraete der aktiven Seite.
+
+Antwort:
+
+```json
+{
+  "ok": true,
+  "count": 1,
+  "items": [
+    {
+      "id": "device_id",
+      "platform": "ios",
+      "environment": "production",
+      "deviceName": "Gabriels iPhone",
+      "appVersion": "1.0.0",
+      "lastSeenAt": "2026-07-11T12:00:00.000Z",
+      "createdAt": "2026-07-11T11:00:00.000Z",
+      "disabledAt": null,
+      "user": {
+        "id": "user_id",
+        "displayName": "Gabriel"
+      }
+    }
+  ],
+  "devices": []
+}
+```
+
+`devices` ist ein Alias von `items` fuer einfache App-Kompatibilitaet.
+
+### Test-Push senden
+
+```http
+POST /api/external/push/test
+Authorization: Bearer fsp_...
+Content-Type: application/json
+
+{
+  "deviceId": "optional_device_id",
+  "userId": "optional_user_id_admin_only",
+  "circleId": "optional_circle_id_admin_only",
+  "title": "Test",
+  "body": "Push funktioniert",
+  "sound": "default",
+  "target": {
+    "screen": "chat",
+    "id": "circle_id",
+    "href": "/chat",
+    "entityType": "circle",
+    "entityId": "circle_id"
+  }
+}
+```
+
+Ohne `deviceId`, `userId` oder `circleId` wird an die eigenen Geraete des API-Benutzers gesendet. Admins koennen gezielt ein Geraet, einen Benutzer oder einen Zirkel ansprechen.
+
+Antwort:
+
+```json
+{
+  "ok": true,
+  "sent": 1,
+  "failed": 0,
+  "devices": 1,
+  "attempts": [
+    {
+      "id": "delivery_id",
+      "deviceId": "device_id",
+      "environment": "production",
+      "status": "SENT",
+      "apnsId": "apns-id",
+      "statusCode": 200,
+      "errorReason": null
+    }
+  ]
+}
+```
+
+Wenn APNs/FCM-Konfiguration fehlt oder kein Geraet vorhanden ist, bleibt die Antwort JSON und enthaelt `ok:false`, `error`, `sent`, `failed` und `attempts`.
+
+### Push-Protokoll lesen
+
+```http
+GET /api/external/push/logs?limit=50&deviceId=optional_device_id
+Authorization: Bearer fsp_...
+```
+
+Antwort:
+
+```json
+{
+  "ok": true,
+  "count": 1,
+  "items": [
+    {
+      "id": "delivery_id",
+      "createdAt": "2026-07-11T12:00:00.000Z",
+      "type": "native_push_test",
+      "action": "native_push_test",
+      "actionLabel": "Native Push Test",
+      "title": "Test",
+      "body": "Push funktioniert",
+      "target": { "screen": "chat", "id": "circle_id" },
+      "device": {
+        "id": "device_id",
+        "platform": "ios",
+        "environment": "production",
+        "deviceName": "Gabriels iPhone",
+        "appVersion": "1.0.0"
+      },
+      "environment": "production",
+      "status": "SENT",
+      "apnsId": "apns-id",
+      "statusCode": 200,
+      "errorReason": null
+    }
+  ],
+  "logs": []
+}
+```
+
+`logs` ist ein Alias von `items`.
+
 ## Session-Bilder, Kommentare und Relationen
 
 Normale Spielplan-Sessions liegen unter `/api/external/sessions`. `POST /api/external/sessions` gibt eine `item.id`, `item.href` und `item.url` zurück, die direkt für Detail-, PATCH-, Bild- und Kommentaraufrufe verwendet werden können. Detail- und PATCH-Routen akzeptieren sowohl die interne ID als auch den lesbaren Slug.

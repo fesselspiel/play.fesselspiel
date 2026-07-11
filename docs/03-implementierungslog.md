@@ -11,6 +11,15 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Neue externe Endpunkte: `/api/external/catalog/categories`, `/api/external/catalog/toys`, `/api/external/catalog/toys/{id}`, `/api/external/catalog/positions` und `/api/external/catalog/positions/{id}`.
 - Mobile-Parity-Endpunkte fuer Spielplanung, Ideen, Auftraege und Bondage-System wurden ergänzt: `/api/external/sessions`, `/api/external/ideas`, `/api/external/orders` und `/api/external/bondage-system`.
 
+## Native Push API
+
+- Externe Push-Geraete koennen jetzt per `GET /api/external/push/devices` aufgelistet werden.
+- Admins sehen alle Geraete der Seite, normale Benutzer nur ihre eigenen Geraete.
+- `POST /api/external/push/test` versendet eine Test-Push-Nachricht an eigene Geraete oder adminseitig an ein konkretes Geraet, einen Benutzer oder einen Zirkel.
+- `GET /api/external/push/logs` liefert das native Push-Versandprotokoll mit Status, APNs-ID, Statuscode, Fehlergrund, Ziel-Payload und Geraetekontext.
+- Native Push-Deliveries speichern die gesendete Payload jetzt dauerhaft, damit die App und die Admin-Oberflaeche Versandfehler nachvollziehen koennen.
+- `/api/external/capabilities` listet die Push-Test-/Log-Endpunkte unter `externalApi` auf.
+
 ## Initiale App
 
 - Next.js 14 App Router Projekt erstellt.

@@ -733,6 +733,18 @@ export const capabilities: readonly Capability[] = [
         type: "admin",
         description: "Erzeugt und deaktiviert externe API Tokens.",
         auditActions: ["api_token_created", "api_token_revoked", "api_token_used"]
+      },
+      {
+        key: "nativePush",
+        label: "Native Push verwalten",
+        type: "admin",
+        description: "Listet native App-Geraete, sendet Test-Pushs und liefert das Versandprotokoll fuer iOS/Android.",
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/push/devices", description: "Eigene bzw. admin-sichtbare native Push-Geraete listen." },
+          { method: "POST", path: "/api/external/push/test", description: "Native Test-Pushnachricht senden. Body: deviceId?, userId?, circleId?, title?, body?, sound?, target?." },
+          { method: "GET", path: "/api/external/push/logs?limit=50", description: "Native Push-Versandprotokoll lesen, optional mit deviceId." }
+        ],
+        auditActions: ["native_push_test", "native_push_notification_sent", "native_push_notification_failed"]
       }
     ]
   },

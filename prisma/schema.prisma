@@ -638,6 +638,7 @@ model NativePushDelivery {
   apnsId      String?
   statusCode  Int?
   error       String?
+  payload     Json?
   createdAt   DateTime  @default(now())
   tenant      Tenant?    @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -16,6 +16,41 @@ function cleanDeviceToken(platform: string, value: string) {
   return platform === "ios" ? cleanIosDeviceToken(raw) : raw;
 }
 
+function serializeDevice(device: Awaited<ReturnType<typeof prisma.nativePushDevice.findMany>>[number] & { user?: { profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null } | null }) {
+  return {
+    id: device.id,
+    platform: device.platform,
+    environment: device.environment,
+    deviceName: device.deviceName,
+    appVersion: device.appVersion,
+    lastSeenAt: device.lastSeenAt.toISOString(),
+    createdAt: device.createdAt.toISOString(),
+    disabledAt: device.disabledAt?.toISOString() || null,
+    user: device.user ? {
+      id: device.userId,
+      displayName: device.user.profile?.displayName || device.user.name || device.user.username || device.user.email
+    } : null
+  };
+}
+
+export async function GET(request: NextRequest) {
+  const auth = await requireApiUser(request);
+  if ("response" in auth) return auth.response;
+  const blocked = apiFeatureGate(auth.user, "externalApi");
+  if (blocked) return blocked;
+  const isAdmin = auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN";
+  const devices = await prisma.nativePushDevice.findMany({
+    where: {
+      ...(auth.user.tenantId ? { tenantId: auth.user.tenantId } : {}),
+      ...(isAdmin ? {} : { userId: auth.user.id })
+    },
+    include: { user: { include: { profile: true } } },
+    orderBy: [{ disabledAt: "asc" }, { lastSeenAt: "desc" }, { createdAt: "desc" }],
+    take: 200
+  });
+  return NextResponse.json({ ok: true, count: devices.length, items: devices.map(serializeDevice), devices: devices.map(serializeDevice) });
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;

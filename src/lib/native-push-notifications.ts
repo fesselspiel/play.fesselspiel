@@ -1,6 +1,6 @@
 import { sign } from "crypto";
 import { connect } from "http2";
-import type { AuditLog, NativePushDevice } from "@prisma/client";
+import type { AuditLog, NativePushDevice, Prisma } from "@prisma/client";
 import { decryptSecret } from "@/lib/crypto";
 import { actionLabel, notificationActionAliases } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
@@ -25,6 +25,7 @@ type TestPushInput = {
   tenantId: string;
   actorId: string;
   targetUserIds: string[];
+  deviceIds?: string[];
   title?: string;
   body?: string;
   sound?: string;
@@ -296,6 +297,10 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error || "Unbekannter Fehler");
 }
 
+function payloadJson(payload: unknown) {
+  return payload === undefined ? undefined : payload as Prisma.InputJsonValue;
+}
+
 function readableApnsError(raw: string | null) {
   if (!raw) return null;
   try {
@@ -309,7 +314,7 @@ function readableApnsError(raw: string | null) {
 
 async function writeFailedDelivery(
   device: NativePushDevice,
-  delivery: { auditId?: string | null; action: string },
+  delivery: { auditId?: string | null; action: string; payload?: unknown },
   message: string,
   statusCode?: number | null,
   apnsId?: string | null
@@ -324,14 +329,15 @@ async function writeFailedDelivery(
       status: "FAILED",
       apnsId: apnsId || null,
       statusCode: statusCode || null,
-      error: message.slice(0, 1000)
+      error: message.slice(0, 1000),
+      payload: payloadJson(delivery.payload)
     }
   });
 }
 
 async function writeFailedDeliveries(
   devices: NativePushDevice[],
-  delivery: { auditId?: string | null; action: string },
+  delivery: { auditId?: string | null; action: string; payload?: unknown },
   message: string
 ) {
   await Promise.allSettled(devices.map((device) => writeFailedDelivery(device, delivery, message)));
@@ -518,7 +524,8 @@ async function sendToDevice(
         status: response.ok ? "SENT" : "FAILED",
         apnsId: response.apnsId,
         statusCode: response.status,
-        error: errorText
+        error: errorText,
+        payload: payloadJson(delivery.payload)
       }
     });
     if (response.status === 400 || response.status === 410) {
@@ -558,7 +565,8 @@ async function sendToAndroidDevice(
         status: response.ok ? "SENT" : "FAILED",
         apnsId: response.messageId,
         statusCode: response.status,
-        error: rawError
+        error: rawError,
+        payload: payloadJson(delivery.payload)
       }
     });
     if (response.status === 404 || response.status === 400) {
@@ -834,14 +842,17 @@ export async function sendNativeTestPush(input: TestPushInput) {
   if (!config) return { sent: 0, failed: 0, devices: 0, error: "missing_config" };
   const uniqueUserIds = Array.from(new Set(input.targetUserIds.filter(Boolean)));
   if (!uniqueUserIds.length) return { sent: 0, failed: 0, devices: 0, error: "missing_targets" };
+  const uniqueDeviceIds = Array.from(new Set((input.deviceIds || []).filter(Boolean)));
   const devices = await prisma.nativePushDevice.findMany({
     where: {
       tenantId: input.tenantId,
       userId: { in: uniqueUserIds },
+      ...(uniqueDeviceIds.length ? { id: { in: uniqueDeviceIds } } : {}),
       disabledAt: null
     }
   });
   if (!devices.length) return { sent: 0, failed: 0, devices: 0, error: "missing_devices" };
+  const startedAt = new Date();
   const delivery = {
     auditId: null,
     action: input.action || "native_push_test",
@@ -860,10 +871,29 @@ export async function sendNativeTestPush(input: TestPushInput) {
     })
   };
   const result = await sendToNativeDevices(devices, delivery, config);
+  const attempts = await prisma.nativePushDelivery.findMany({
+    where: {
+      tenantId: input.tenantId,
+      action: delivery.action,
+      deviceId: { in: devices.map((device) => device.id) },
+      createdAt: { gte: startedAt }
+    },
+    include: { device: true },
+    orderBy: { createdAt: "asc" }
+  });
   return {
     sent: result.sent,
     failed: result.failed,
     devices: result.devices,
+    attempts: attempts.map((attempt) => ({
+      id: attempt.id,
+      deviceId: attempt.deviceId,
+      environment: attempt.device?.environment || null,
+      status: attempt.status,
+      apnsId: attempt.apnsId,
+      statusCode: attempt.statusCode,
+      errorReason: attempt.error
+    })),
     error: null
   };
 }
