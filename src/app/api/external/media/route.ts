@@ -83,7 +83,14 @@ export async function GET(request: NextRequest) {
   });
   const pageItems = media.slice(0, limit);
   const nextCursor = media.length > limit ? media[limit].id : null;
-  const likeStates = await entityLikeStateMap("media", pageItems.map((entry) => entry.id), auth.user.id);
+  const likeStates = await entityLikeStateMap("media", pageItems.map((entry) => entry.id), auth.user.id, pageItems.map((entry) => ({
+    entityType: "media",
+    entityId: entry.id,
+    ownerId: entry.ownerId,
+    tenantId: entry.tenantId,
+    title: entry.title,
+    href: `/media?item=${entry.id}`
+  })));
 
   const albums = includeAlbums
     ? await prisma.album.findMany({

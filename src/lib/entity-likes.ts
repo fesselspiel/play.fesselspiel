@@ -4,6 +4,15 @@ import { prisma } from "@/lib/prisma";
 export const ENTITY_LIKE_ANCHOR_ACTION = "entity_like_anchor";
 type EntityLikeType = "media" | "trackerEntry";
 
+export type LikeableEntity = {
+  entityType: EntityLikeType;
+  entityId: string;
+  ownerId: string;
+  tenantId?: string | null;
+  title: string;
+  href: string;
+};
+
 type LikeUser = {
   id: string;
   username?: string | null;
@@ -53,11 +62,22 @@ export function emptyEntityLikeState() {
   };
 }
 
-export async function entityLikeStateMap(entityType: EntityLikeType, entityIds: string[], userId: string) {
+export async function entityLikeStateMap(entityType: EntityLikeType, entityIds: string[], userId: string, ensureEntities: LikeableEntity[] = []) {
   const ids = Array.from(new Set(entityIds.filter(Boolean)));
   const states = new Map<string, ReturnType<typeof emptyEntityLikeState>>();
   ids.forEach((id) => states.set(id, emptyEntityLikeState()));
   if (!ids.length) return states;
+  if (ensureEntities.length) {
+    const existing = await prisma.auditLog.findMany({
+      where: { action: ENTITY_LIKE_ANCHOR_ACTION, entityType, entityId: { in: ids } },
+      select: { entityId: true }
+    });
+    const existingIds = new Set(existing.map((entry) => entry.entityId).filter(Boolean));
+    const missing = ensureEntities.filter((entity) => entity.entityType === entityType && ids.includes(entity.entityId) && !existingIds.has(entity.entityId));
+    if (missing.length) {
+      await Promise.all(missing.map((entity) => findOrCreateEntityLikeAnchor(entity)));
+    }
+  }
   const anchors = await prisma.auditLog.findMany({
     where: { action: ENTITY_LIKE_ANCHOR_ACTION, entityType, entityId: { in: ids } },
     include: {
@@ -83,6 +103,10 @@ export async function entityLikeStateMap(entityType: EntityLikeType, entityIds: 
 
 export async function entityLikeState(entityType: EntityLikeType, entityId: string, userId: string) {
   return (await entityLikeStateMap(entityType, [entityId], userId)).get(entityId) || emptyEntityLikeState();
+}
+
+export async function entityLikeStateForEntity(entity: LikeableEntity, userId: string) {
+  return (await entityLikeStateMap(entity.entityType, [entity.entityId], userId, [entity])).get(entity.entityId) || emptyEntityLikeState();
 }
 
 export async function findLikeableEntity(user: AccessUser, rawEntityType: string, entityId: string) {
@@ -118,13 +142,7 @@ export async function findLikeableEntity(user: AccessUser, rawEntityType: string
   };
 }
 
-export async function findOrCreateEntityLikeAnchor(entity: {
-  entityType: "media" | "trackerEntry";
-  entityId: string;
-  ownerId: string;
-  title: string;
-  href: string;
-}) {
+export async function findOrCreateEntityLikeAnchor(entity: LikeableEntity) {
   const existing = await prisma.auditLog.findFirst({
     where: { action: ENTITY_LIKE_ANCHOR_ACTION, entityType: entity.entityType, entityId: entity.entityId }
   });

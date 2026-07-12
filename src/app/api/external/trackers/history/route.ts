@@ -89,7 +89,14 @@ export async function GET(request: NextRequest) {
   });
   const pageItems = entries.slice(0, limit);
   const nextCursor = entries.length > limit ? entries[limit].id : null;
-  const likeStates = await entityLikeStateMap("trackerEntry", pageItems.map((entry) => entry.id), auth.user.id);
+  const likeStates = await entityLikeStateMap("trackerEntry", pageItems.map((entry) => entry.id), auth.user.id, pageItems.map((entry) => ({
+    entityType: "trackerEntry",
+    entityId: entry.id,
+    ownerId: entry.ownerId,
+    tenantId: entry.tenantId,
+    title: entry.title || entry.trackerType.title,
+    href: trackerUrl(entry.trackerType.key, entry.slug, entry.id)
+  })));
 
   return NextResponse.json({
     ok: true,

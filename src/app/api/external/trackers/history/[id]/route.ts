@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import { formatDateInput, minutesBetween, parseDateInput, parseDateTimeLocal } from "@/lib/dates";
-import { emptyEntityLikeState, entityLikeState } from "@/lib/entity-likes";
+import { emptyEntityLikeState, entityLikeStateForEntity } from "@/lib/entity-likes";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { absoluteUrl, serializeFileImage } from "@/lib/external-mobile-serializers";
 import { deleteOwnedFile } from "@/lib/files";
@@ -133,7 +133,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   if (blocked) return blocked;
   const entry = await findEntry(auth.user, params.id);
   if (!entry) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
-  return NextResponse.json({ ok: true, item: item(request, entry, await entityLikeState("trackerEntry", entry.id, auth.user.id)) });
+  return NextResponse.json({ ok: true, item: item(request, entry, await entityLikeStateForEntity({
+    entityType: "trackerEntry",
+    entityId: entry.id,
+    ownerId: entry.ownerId,
+    tenantId: entry.tenantId,
+    title: entry.title || entry.trackerType.title,
+    href: `/trackers/${entry.trackerType.key}/${entry.slug || entry.id}`
+  }, auth.user.id)) });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
@@ -175,7 +182,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     include
   });
   await logAction({ actorId: auth.user.id, action: "tracker_entry_updated_api", entityType: "trackerEntry", entityId: updated.id, title: `Tracker-Eintrag per API geändert: ${updated.title || updated.trackerType.title}`, href: `/trackers/${updated.trackerType.key}/${updated.slug || updated.id}` });
-  return NextResponse.json({ ok: true, item: item(request, updated, await entityLikeState("trackerEntry", updated.id, auth.user.id)) });
+  return NextResponse.json({ ok: true, item: item(request, updated, await entityLikeStateForEntity({
+    entityType: "trackerEntry",
+    entityId: updated.id,
+    ownerId: updated.ownerId,
+    tenantId: updated.tenantId,
+    title: updated.title || updated.trackerType.title,
+    href: `/trackers/${updated.trackerType.key}/${updated.slug || updated.id}`
+  }, auth.user.id)) });
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {

@@ -292,7 +292,7 @@ Antwort:
 }
 ```
 
-`GET /api/external/media`, `GET /api/external/media/{id}`, `GET /api/external/trackers/history` und `GET /api/external/trackers/history/{id}` liefern dafuer ebenfalls `eventId`, `canLike`, `likedByMe`, `likeCount` und `likes[]`. Wenn noch niemand geliked hat, ist `eventId:null`; der erste POST erzeugt serverseitig einen internen Like-Anker. Dieser technische Anker wird aus `GET /api/external/events` ausgeblendet.
+`GET /api/external/media`, `GET /api/external/media/{id}`, `GET /api/external/trackers/history` und `GET /api/external/trackers/history/{id}` liefern dafuer ebenfalls `eventId`, `canLike`, `likedByMe`, `likeCount` und `likes[]`. Fuer jedes sichtbare Item mit `canLike:true` erzeugt der Server beim Lesen einen stabilen internen Like-Anker, sodass `eventId` nicht `null` ist und die App auch unberuehrte Items sofort ueber die normale Event-Like-Route oder ueber die Entity-Route liken kann. Dieser technische Anker wird aus `GET /api/external/events` ausgeblendet.
 
 ## Event Actions
 

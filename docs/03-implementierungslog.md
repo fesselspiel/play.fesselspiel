@@ -41,6 +41,7 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Die Endpunkte nutzen dieselbe Tenant-/Zirkel-Sichtbarkeit wie `GET /api/external/events` und sind in `/api/external/capabilities` dokumentiert.
 - Direkte Feed-Entities wie Medien und Tracker-Eintraege koennen jetzt ueber `POST|DELETE /api/external/events/by-entity/{entityType}/{entityId}/like` geliked werden.
 - `GET /api/external/media`, `GET /api/external/media/{id}`, `GET /api/external/trackers/history` und `GET /api/external/trackers/history/{id}` liefern dazu `eventId`, `canLike`, `likedByMe`, `likeCount` und `likes[]`.
+- Listen und Detailantworten erzeugen fehlende Like-Anker beim Lesen, damit jedes sichtbare Item mit `canLike:true` sofort eine stabile `eventId` hat.
 - Technische Like-Anker werden aus dem externen Eventfeed ausgeblendet.
 
 ## Tracker-Fotos
