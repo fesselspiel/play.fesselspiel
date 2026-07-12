@@ -46,6 +46,10 @@ export const mainNavigationSections: readonly AppNavSection[] = [
     items: [{ label: "Start", href: "/", icon: LayoutDashboard, feature: null }]
   },
   {
+    id: "calendar",
+    items: [{ label: "Kalender", href: "/calendar", icon: CalendarDays, feature: "activities" }]
+  },
+  {
     id: "catalog",
     items: [
       { label: "Szenen", href: "/positions", icon: ShieldCheck, feature: "positions" },
