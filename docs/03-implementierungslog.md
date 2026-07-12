@@ -20,6 +20,12 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Native Push-Deliveries speichern die gesendete Payload jetzt dauerhaft, damit die App und die Admin-Oberflaeche Versandfehler nachvollziehen koennen.
 - `/api/external/capabilities` listet die Push-Test-/Log-Endpunkte unter `externalApi` auf.
 
+## Tracker-Verknuepfungen
+
+- Die Verknuepfungsauswahl fuer Tracker-Eintraege ist jetzt verschachtelt aufklappbar: erst `Verknuepfungen`, darunter `Spielsachen`, `Szenen` und `Bondage-System`.
+- Bereits verknuepfte Eintraege werden im Bearbeitenformular hervorgehoben und bleiben per Hidden-Input gespeichert.
+- Die bestehenden Detailanzeigen `Verknuepfte Spielsachen`, `Verknuepfte Szenen` und `Verknuepfte Bondage-System-Produkte` bleiben unveraendert.
+
 ## Initiale App
 
 - Next.js 14 App Router Projekt erstellt.
