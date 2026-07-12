@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { ownerScope } from "@/lib/access";
 import { formatDateInput, parseDateInput } from "@/lib/dates";
+import { entityLikeStateMap } from "@/lib/entity-likes";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { serializeFileImage } from "@/lib/external-mobile-serializers";
 import { prisma } from "@/lib/prisma";
@@ -88,6 +89,7 @@ export async function GET(request: NextRequest) {
   });
   const pageItems = entries.slice(0, limit);
   const nextCursor = entries.length > limit ? entries[limit].id : null;
+  const likeStates = await entityLikeStateMap("trackerEntry", pageItems.map((entry) => entry.id), auth.user.id);
 
   return NextResponse.json({
     ok: true,
@@ -157,6 +159,7 @@ export async function GET(request: NextRequest) {
           imageUrl: item.product.imageUrl,
           href: `/bondage-system/${item.product.slug}`
         })),
+        ...(likeStates.get(entry.id) || {}),
         images: entry.images.map((image) => ({
           ...serializeFileImage(request, {
             id: image.id,

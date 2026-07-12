@@ -78,7 +78,8 @@ export async function GET(request: NextRequest) {
             "telegram_notification_sent",
             "telegram_notification_failed",
             "external_push_sent",
-            "external_push_failed"
+            "external_push_failed",
+            "entity_like_anchor"
           ]
         }
       }

@@ -39,6 +39,9 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Native Apps koennen sichtbare Feed-/Protokolleintraege per `POST /api/external/events/{eventId}/like` liken.
 - Der eigene Like kann per `DELETE /api/external/events/{eventId}/like` wieder entfernt werden.
 - Die Endpunkte nutzen dieselbe Tenant-/Zirkel-Sichtbarkeit wie `GET /api/external/events` und sind in `/api/external/capabilities` dokumentiert.
+- Direkte Feed-Entities wie Medien und Tracker-Eintraege koennen jetzt ueber `POST|DELETE /api/external/events/by-entity/{entityType}/{entityId}/like` geliked werden.
+- `GET /api/external/media`, `GET /api/external/media/{id}`, `GET /api/external/trackers/history` und `GET /api/external/trackers/history/{id}` liefern dazu `eventId`, `canLike`, `likedByMe`, `likeCount` und `likes[]`.
+- Technische Like-Anker werden aus dem externen Eventfeed ausgeblendet.
 
 ## Tracker-Fotos
 

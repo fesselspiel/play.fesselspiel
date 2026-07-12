@@ -263,6 +263,37 @@ Antwort:
 
 Der Server prueft Tenant-/Zirkel-Sichtbarkeit ueber dieselbe Logik wie `GET /api/external/events`. Nicht sichtbare IDs liefern `404 event_not_found`.
 
+### Entity-Likes
+
+Direkte Dashboard-Feed-Zeilen ohne eigene Event-ID, z. B. Medien und Tracker-History-Items, koennen ueber einen Entity-Endpunkt geliked werden:
+
+```http
+POST /api/external/events/by-entity/{entityType}/{entityId}/like
+DELETE /api/external/events/by-entity/{entityType}/{entityId}/like
+Authorization: Bearer fsp_...
+```
+
+Unterstuetzte `entityType`-Werte:
+
+- `media` fuer Bilder/Videos aus `GET /api/external/media`
+- `tracker` oder `trackerEntry` fuer Eintraege aus `GET /api/external/trackers/history`
+
+Antwort:
+
+```json
+{
+  "ok": true,
+  "eventId": "interner_like_anker",
+  "entity": { "entityType": "media", "entityId": "media_id", "title": "Bildtitel", "href": "/media?item=media_id" },
+  "likedByMe": true,
+  "likeCount": 1,
+  "canLike": true,
+  "likes": []
+}
+```
+
+`GET /api/external/media`, `GET /api/external/media/{id}`, `GET /api/external/trackers/history` und `GET /api/external/trackers/history/{id}` liefern dafuer ebenfalls `eventId`, `canLike`, `likedByMe`, `likeCount` und `likes[]`. Wenn noch niemand geliked hat, ist `eventId:null`; der erste POST erzeugt serverseitig einen internen Like-Anker. Dieser technische Anker wird aus `GET /api/external/events` ausgeblendet.
+
 ## Event Actions
 
 Damit die App Filter, Push-Kategorien oder Debug-Ansichten nicht hart codieren muss, gibt es eine Aktionstypen-Liste.
@@ -1004,6 +1035,7 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `GET|PATCH|DELETE /api/external/wiki/{id}`
 - `GET /api/external/events`
 - `POST|DELETE /api/external/events/{id}/like`
+- `POST|DELETE /api/external/events/by-entity/{entityType}/{entityId}/like`
 - `GET /api/external/events/actions`
 - `GET|POST /api/external/calendar-events`
 - `GET|PATCH|DELETE /api/external/calendar-events/{id}`

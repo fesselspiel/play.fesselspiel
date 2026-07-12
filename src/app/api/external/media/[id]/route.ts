@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { mediaVisibilityScope, visibilityScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
+import { entityLikeState } from "@/lib/entity-likes";
 import { deleteOwnedFile, fileIdFromUrl } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 
@@ -117,7 +118,7 @@ async function detailPayload(request: NextRequest, user: { id: string; tenantId?
   ]);
   return {
     ok: true,
-    item: serializeMedia(request, media),
+    item: { ...serializeMedia(request, media), ...(await entityLikeState("media", media.id, user.id)) },
     comments: comments.map(serializeComment),
     albums: albums.map((album) => ({
       id: album.id,

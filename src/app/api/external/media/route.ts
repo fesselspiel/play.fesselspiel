@@ -5,6 +5,7 @@ import { ensureDefaultAlbum } from "@/lib/albums";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { mediaVisibilityScope, visibilityScope } from "@/lib/access";
 import { tokenFromRequest } from "@/lib/api-tokens";
+import { entityLikeStateMap } from "@/lib/entity-likes";
 import { fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 
@@ -82,6 +83,7 @@ export async function GET(request: NextRequest) {
   });
   const pageItems = media.slice(0, limit);
   const nextCursor = media.length > limit ? media[limit].id : null;
+  const likeStates = await entityLikeStateMap("media", pageItems.map((entry) => entry.id), auth.user.id);
 
   const albums = includeAlbums
     ? await prisma.album.findMany({
@@ -120,6 +122,7 @@ export async function GET(request: NextRequest) {
           username: entry.owner.username,
           displayName: entry.owner.profile?.displayName || entry.owner.name || entry.owner.username || entry.owner.email
         },
+        ...(likeStates.get(entry.id) || {}),
         commentsCount: entry._count.comments
       };
     }),

@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import { formatDateInput, minutesBetween, parseDateInput, parseDateTimeLocal } from "@/lib/dates";
+import { emptyEntityLikeState, entityLikeState } from "@/lib/entity-likes";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { absoluteUrl, serializeFileImage } from "@/lib/external-mobile-serializers";
 import { deleteOwnedFile } from "@/lib/files";
@@ -42,7 +43,7 @@ function bool(value: unknown, fallback = false) {
   return value === true || value === "true" || value === "1" || value === 1 || value === "on";
 }
 
-function item(request: NextRequest, entry: Entry) {
+function item(request: NextRequest, entry: Entry, likeState: ReturnType<typeof emptyEntityLikeState> = emptyEntityLikeState()) {
   const key = entry.trackerType.key;
   const href = `/trackers/${key}/${entry.slug || entry.id}`;
   const startedAt = entry.startTime.toISOString();
@@ -87,6 +88,7 @@ function item(request: NextRequest, entry: Entry) {
       imageUrl: bondageItem.product.imageUrl,
       href: `/bondage-system/${bondageItem.product.slug}`
     })),
+    ...likeState,
     images: entry.images.map((image) => ({
       ...serializeFileImage(request, {
         id: image.id,
@@ -131,7 +133,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   if (blocked) return blocked;
   const entry = await findEntry(auth.user, params.id);
   if (!entry) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
-  return NextResponse.json({ ok: true, item: item(request, entry) });
+  return NextResponse.json({ ok: true, item: item(request, entry, await entityLikeState("trackerEntry", entry.id, auth.user.id)) });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
@@ -173,7 +175,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     include
   });
   await logAction({ actorId: auth.user.id, action: "tracker_entry_updated_api", entityType: "trackerEntry", entityId: updated.id, title: `Tracker-Eintrag per API geändert: ${updated.title || updated.trackerType.title}`, href: `/trackers/${updated.trackerType.key}/${updated.slug || updated.id}` });
-  return NextResponse.json({ ok: true, item: item(request, updated) });
+  return NextResponse.json({ ok: true, item: item(request, updated, await entityLikeState("trackerEntry", updated.id, auth.user.id)) });
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
