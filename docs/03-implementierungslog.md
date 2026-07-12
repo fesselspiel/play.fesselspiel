@@ -26,6 +26,13 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Bereits verknuepfte Eintraege werden im Bearbeitenformular hervorgehoben und bleiben per Hidden-Input gespeichert.
 - Die bestehenden Detailanzeigen `Verknuepfte Spielsachen`, `Verknuepfte Szenen` und `Verknuepfte Bondage-System-Produkte` bleiben unveraendert.
 
+## Web-Kalender
+
+- Neue Seite `/calendar` als Monatskalender fuer geplante Aktivitaeten, offene Anfragen, Tracker-Eintraege, Termine, Medienhinweise und Tagebuch-/Wiki-Seiten.
+- Der Kalender ist im Hauptmenue als `Kalender` hinterlegt und nutzt das Feature `activities`.
+- Tagebuch-Eintraege im Kalender stammen aus echten `WikiPage`-Datensaetzen mit der normalen Wiki-Sichtbarkeitslogik.
+- Protokoll-/Audit-Ereignisse wie `wiki_page_viewed_api` oder reine API-Lesezugriffe werden nicht mehr als Kalendereintraege angezeigt.
+
 ## Initiale App
 
 - Next.js 14 App Router Projekt erstellt.

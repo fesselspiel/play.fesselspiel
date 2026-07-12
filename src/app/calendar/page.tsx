@@ -3,12 +3,13 @@ import { redirect } from "next/navigation";
 import { CalendarDays, Camera, ChevronLeft, ChevronRight, Clock, Plus, Timer } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, EmptyState, PageGuide, PageHeader, Panel } from "@/components/ui";
-import { accessibleOwnerIds, mediaVisibilityScope, ownerScope } from "@/lib/access";
+import { mediaVisibilityScope, ownerScope } from "@/lib/access";
 import { activityStatusDisplay, activityStatusTone, type ActivityStatusValue } from "@/lib/activity-status";
 import { currentUser } from "@/lib/auth";
 import { appTimeZone, formatDate, formatDateInput, formatDateTime, formatMinutes, parseDateInput } from "@/lib/dates";
 import { hasFeature, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
+import { wikiOwnerSlug, wikiPageAccessWhere } from "@/lib/wiki";
 
 const monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 const weekdayLabels = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
@@ -97,10 +98,11 @@ export default async function CalendarPage({ searchParams }: { searchParams: { y
   const monthStart = startOfMonth(year, month);
   const monthEnd = startOfNextMonth(year, month);
   const scope = await ownerScope(user);
-  const ownerIds = await accessibleOwnerIds(user);
   const trackersEnabled = await hasFeature("trackers");
   const mediaEnabled = await hasFeature("media");
-  const [activities, trackerEntries, media, events, diaryAuditLogs] = await Promise.all([
+  const wikiEnabled = await hasFeature("wiki");
+  const wikiWhere = wikiEnabled ? await wikiPageAccessWhere(user) : null;
+  const [activities, trackerEntries, media, events, wikiPages] = await Promise.all([
     prisma.activityPlan.findMany({
       where: { ...scope, plannedAt: { gte: monthStart, lt: monthEnd } },
       orderBy: { plannedAt: "asc" }
@@ -122,19 +124,13 @@ export default async function CalendarPage({ searchParams }: { searchParams: { y
       where: { ...scope, startsAt: { gte: monthStart, lt: monthEnd } },
       orderBy: { startsAt: "asc" }
     }),
-    prisma.auditLog.findMany({
-      where: {
-        actorId: { in: ownerIds },
-        createdAt: { gte: monthStart, lt: monthEnd },
-        OR: [
-          { entityType: { in: ["wiki", "Wiki", "diary", "Diary", "journal", "Journal", "tagebuch", "Tagebuch"] } },
-          { action: { contains: "wiki", mode: "insensitive" } },
-          { action: { contains: "diary", mode: "insensitive" } },
-          { action: { contains: "tagebuch", mode: "insensitive" } }
-        ]
-      },
-      orderBy: { createdAt: "asc" }
-    })
+    wikiEnabled && wikiWhere
+      ? prisma.wikiPage.findMany({
+          where: { AND: [wikiWhere, { createdAt: { gte: monthStart, lt: monthEnd } }] },
+          include: { owner: { include: { profile: true } } },
+          orderBy: { createdAt: "asc" }
+        })
+      : []
   ]);
 
   const items: CalendarItem[] = [
@@ -172,20 +168,20 @@ export default async function CalendarPage({ searchParams }: { searchParams: { y
       href: `/events/${event.id}/edit`,
       kind: "event" as const,
       color: "#7C3AED",
-      label: "Tagebuch",
+      label: "Termin",
       startsAt: event.startsAt,
       meta: event.location || event.description || undefined
     })),
-    ...diaryAuditLogs.map((entry) => ({
+    ...wikiPages.map((entry) => ({
       id: entry.id,
       dayKey: formatDateInput(entry.createdAt),
       title: entry.title || "Tagebucheintrag",
-      href: entry.href || `/messages#entry-${entry.id}`,
+      href: `/wiki/${wikiOwnerSlug(entry.owner)}/${entry.slug}`,
       kind: "event" as const,
       color: "#7C3AED",
       label: "Tagebuch",
       startsAt: entry.createdAt,
-      meta: "Aus dem Tagebuch-Protokoll"
+      meta: entry.summary || undefined
     })),
     ...media.map((entry) => ({
       id: entry.id,
@@ -211,7 +207,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: { y
     <AppShell>
       <PageHeader
         title="Kalender"
-        subtitle="Monatsübersicht für Anfragen, Aktivitäten, Tracker, Tagebuch und Medienhinweise."
+        subtitle="Monatsübersicht für Anfragen, Aktivitäten, Tracker, Tagebuchseiten und Medienhinweise."
         action={
           <Link href={`/activities/new?date=${selectedDayKey}`} className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white hover:bg-redbrandHover">
             <Plus className="h-4 w-4" />
@@ -309,7 +305,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: { y
         </aside>
       </div>
       <PageGuide title="Kalenderlogik">
-        Die Monatsansicht bündelt geplante Aktivitäten, offene Anfragen, Tracker-Einträge, Tagebuch-/Termineinträge und Medienhinweise. Medien erscheinen bewusst nur als Hinweis, nicht als Bildinhalt im Kalender.
+        Die Monatsansicht bündelt geplante Aktivitäten, offene Anfragen, Tracker-Einträge, echte Tagebuch-/Wiki-Seiten, Termine und Medienhinweise. Protokolleinträge wie API-Lesezugriffe werden bewusst nicht im Kalender angezeigt.
       </PageGuide>
     </AppShell>
   );
