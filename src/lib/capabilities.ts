@@ -513,9 +513,13 @@ export const capabilities: readonly Capability[] = [
         apiEndpoints: [
           { method: "GET", path: "/api/external/trackers/quotas?token=...", description: "Kontingente und offene Tracker-Todos abfragen." },
           { method: "GET", path: "/api/external/trackers/quotas?token=...&trackerKey={trackerKey}", description: "Kontingent eines bestimmten Trackers abfragen, z. B. für Alexa." },
-          { method: "GET", path: "/api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD", description: "Echte Tracker-Einträge im Zeitraum für Kalender und native Apps abfragen." }
+          { method: "GET", path: "/api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD", description: "Echte Tracker-Einträge im Zeitraum für Kalender und native Apps abfragen." },
+          { method: "GET", path: "/api/external/trackers/history/{id}/images", description: "Fotos eines Tracker-Eintrags abrufen." },
+          { method: "POST", path: "/api/external/trackers/history/{id}/images", description: "Foto an einen Tracker-Eintrag anhängen. Multipart: file, title?, note?." },
+          { method: "PATCH", path: "/api/external/trackers/history/{id}/images/{imageId}", description: "Tracker-Foto bearbeiten oder per Multipart `file` ersetzen." },
+          { method: "DELETE", path: "/api/external/trackers/history/{id}/images/{imageId}", description: "Tracker-Foto löschen und Datei entfernen." }
         ],
-        auditActions: ["tracker_quota_viewed"]
+        auditActions: ["tracker_quota_viewed", "tracker_*_image_uploaded", "tracker_*_image_updated", "tracker_*_image_deleted"]
       },
       {
         key: "start",
@@ -781,7 +785,9 @@ export const capabilities: readonly Capability[] = [
         apiEndpoints: [
           { method: "GET", path: "/api/external/events?token=...&limit=50", description: "Paginierter Ereignisfeed fuer native Apps, inklusive push-tauglichem Titel, Body, Deeplink und Engagement-Daten." },
           { method: "GET", path: "/api/external/events?token=...&since=2026-06-26T12:00:00.000Z&action=play_ready_changed", description: "Nur neue Ereignisse seit einem Zeitpunkt oder fuer bestimmte Aktionen abrufen." },
-          { method: "GET", path: "/api/external/events/actions?token=...", description: "Verfuegbare Aktionstypen inklusive lesbarem Label und Sichtbarkeitszaehler abrufen." }
+          { method: "GET", path: "/api/external/events/actions?token=...", description: "Verfuegbare Aktionstypen inklusive lesbarem Label und Sichtbarkeitszaehler abrufen." },
+          { method: "POST", path: "/api/external/events/{eventId}/like", description: "Einen sichtbaren Feed-/Protokolleintrag liken." },
+          { method: "DELETE", path: "/api/external/events/{eventId}/like", description: "Den eigenen Like von einem sichtbaren Feed-/Protokolleintrag entfernen." }
         ],
         auditActions: ["feed_comment_created", "feed_liked", "feed_unliked"]
       }
@@ -855,7 +861,7 @@ export const apiEndpointSpecs = capabilities.flatMap((capability) =>
   capability.actions.flatMap((action) => action.apiEndpoints?.map((endpoint) => ({ ...endpoint, capability: capability.label, action: action.label })) || [])
 );
 
-export const apiVariableNames = ["token", "id", "trackerKey", "fileId", "albumId", "kind", "categoryId", "positionId", "toyId", "packingEventId", "eventId", "itemId", "status", "action", "limit", "cursor", "q", "includeRelations", "selfBondage", "note", "title", "scheduledAt", "plannedAt", "startTime", "date", "allDay", "state", "hours", "minutes", "expiresMinutes", "name", "email"];
+export const apiVariableNames = ["token", "id", "trackerKey", "fileId", "imageId", "albumId", "kind", "categoryId", "positionId", "toyId", "packingEventId", "eventId", "itemId", "status", "action", "limit", "cursor", "q", "includeRelations", "selfBondage", "note", "title", "scheduledAt", "plannedAt", "startTime", "date", "allDay", "state", "hours", "minutes", "expiresMinutes", "name", "email"];
 
 export const telegramCommandSpecs = capabilities.flatMap((capability) =>
   capability.actions.flatMap((action) =>

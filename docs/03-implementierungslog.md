@@ -33,6 +33,23 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Tagebuch-Eintraege im Kalender stammen aus echten `WikiPage`-Datensaetzen mit der normalen Wiki-Sichtbarkeitslogik.
 - Protokoll-/Audit-Ereignisse wie `wiki_page_viewed_api` oder reine API-Lesezugriffe werden nicht mehr als Kalendereintraege angezeigt.
 
+## Externe Event-Likes
+
+- Der externe Eventfeed liefert jetzt `canLike`, `likedByMe`, `likeCount` und `own` pro Like.
+- Native Apps koennen sichtbare Feed-/Protokolleintraege per `POST /api/external/events/{eventId}/like` liken.
+- Der eigene Like kann per `DELETE /api/external/events/{eventId}/like` wieder entfernt werden.
+- Die Endpunkte nutzen dieselbe Tenant-/Zirkel-Sichtbarkeit wie `GET /api/external/events` und sind in `/api/external/capabilities` dokumentiert.
+
+## Tracker-Fotos
+
+- Tracker-Eintraege koennen jetzt mehrere eigene geschuetzte Fotos haben.
+- Die Fotos haengen am Datenmodell `TrackerEntryImage` und bleiben von der normalen Bildergalerie getrennt.
+- Die Tracker-Detailseite zeigt die Fotos an und erlaubt Upload, Titel/Notiz bearbeiten, Datei ersetzen und Loeschen.
+- Beim Loeschen eines Tracker-Fotos wird auch die zugehoerige Datei vom Server entfernt.
+- Die externe API liefert `images[]` in `GET /api/external/trackers/history` und `GET /api/external/trackers/history/{id}`.
+- Neue native Routen: `GET|POST /api/external/trackers/history/{id}/images` und `GET|PATCH|DELETE /api/external/trackers/history/{id}/images/{imageId}`.
+- Export/Import nimmt Tracker-Typen, Tracker-Eintraege und Tracker-Fotos inklusive geschuetzter Dateien mit.
+
 ## Initiale App
 
 - Next.js 14 App Router Projekt erstellt.

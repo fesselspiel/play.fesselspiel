@@ -4,7 +4,8 @@ import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import { formatDateInput, minutesBetween, parseDateInput, parseDateTimeLocal } from "@/lib/dates";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
-import { absoluteUrl } from "@/lib/external-mobile-serializers";
+import { absoluteUrl, serializeFileImage } from "@/lib/external-mobile-serializers";
+import { deleteOwnedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { uniqueTrackerSlug } from "@/lib/tracker-core";
 
@@ -15,7 +16,8 @@ const include = {
   owner: { include: { profile: true } },
   toys: { select: { id: true, title: true, slug: true, imageUrl: true } },
   positions: { select: { id: true, name: true, slug: true, imageUrl: true } },
-  bondageSystemItems: { include: { product: { select: { id: true, title: true, slug: true, imageUrl: true } } } }
+  bondageSystemItems: { include: { product: { select: { id: true, title: true, slug: true, imageUrl: true } } } },
+  images: { include: { file: true }, orderBy: { createdAt: "asc" } }
 } satisfies Prisma.TrackerEntryInclude;
 
 type Entry = Prisma.TrackerEntryGetPayload<{ include: typeof include }>;
@@ -84,6 +86,18 @@ function item(request: NextRequest, entry: Entry) {
       slug: bondageItem.product.slug,
       imageUrl: bondageItem.product.imageUrl,
       href: `/bondage-system/${bondageItem.product.slug}`
+    })),
+    images: entry.images.map((image) => ({
+      ...serializeFileImage(request, {
+        id: image.id,
+        fileId: image.fileId,
+        title: image.title,
+        createdAt: image.createdAt
+      }),
+      note: image.note,
+      mimeType: image.file.mimeType,
+      sizeBytes: image.file.sizeBytes,
+      updatedAt: image.updatedAt.toISOString()
     })),
     fieldValues: entry.fieldValues,
     legacyType: entry.legacyType,
@@ -172,7 +186,11 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   if (existing.ownerId !== auth.user.id && auth.user.role !== "ADMIN" && auth.user.role !== "SUPER_ADMIN") {
     return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   }
+  const images = await prisma.trackerEntryImage.findMany({ where: { trackerEntryId: existing.id }, select: { fileId: true } });
   await prisma.trackerEntry.delete({ where: { id: existing.id } });
+  for (const image of images) {
+    await deleteOwnedFile(existing.ownerId, image.fileId).catch(() => false);
+  }
   await logAction({ actorId: auth.user.id, action: "tracker_entry_deleted_api", entityType: "trackerEntry", entityId: existing.id, title: `Tracker-Eintrag per API gelöscht: ${existing.title || existing.trackerType.title}`, href: `/trackers/${existing.trackerType.key}` });
   return NextResponse.json({ ok: true, id: existing.id });
 }

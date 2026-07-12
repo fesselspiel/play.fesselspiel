@@ -227,6 +227,42 @@ Antwort:
 
 `notification.title`, `notification.body` und `notification.deepLink` sind fuer native Push-Benachrichtigungen gedacht. Wenn fuer die Aktion eine Feed-Regel konfiguriert ist, werden deren Templates verwendet; sonst gelten die Standard-Templates.
 
+### Event-Likes
+
+Feed-/Protokolleintraege liefern im Eventfeed zusätzlich `canLike`, `likedByMe`, `likeCount` und pro Like ein `own`-Flag. Sichtbare Eintraege koennen nativ geliked und wieder entliked werden:
+
+```http
+POST /api/external/events/{eventId}/like
+Authorization: Bearer fsp_...
+```
+
+```http
+DELETE /api/external/events/{eventId}/like
+Authorization: Bearer fsp_...
+```
+
+Antwort:
+
+```json
+{
+  "ok": true,
+  "eventId": "audit_log_id",
+  "likedByMe": true,
+  "likeCount": 1,
+  "canLike": true,
+  "likes": [
+    {
+      "id": "like_id",
+      "own": true,
+      "createdAt": "2026-07-12T20:00:00.000Z",
+      "user": { "id": "user_id", "displayName": "Gabriel" }
+    }
+  ]
+}
+```
+
+Der Server prueft Tenant-/Zirkel-Sichtbarkeit ueber dieselbe Logik wie `GET /api/external/events`. Nicht sichtbare IDs liefern `404 event_not_found`.
+
 ## Event Actions
 
 Damit die App Filter, Push-Kategorien oder Debug-Ansichten nicht hart codieren muss, gibt es eine Aktionstypen-Liste.
@@ -872,6 +908,8 @@ Authorization: Bearer fsp_...
 
 Der Endpunkt liefert echte Tracker-Eintraege fuer Kalenderansichten, keine Protokoll-, Reminder- oder Kontingent-Ereignisse. Die Antwort enthaelt `ok`, `items[]` und optional `nextCursor`. Jedes Item liefert kompatible Alias-Felder wie `trackerKey`/`key`, `trackerTitle`/`trackerName`, `startedAt`/`startTime`, `date`/`calendarDate`, `endedAt`/`endTime`, `durationMinutes`/`minutes` und `allDay`. Die Trackerfarbe wird flach als `colorHex`, `hexColor`, `trackerColor` und `color` sowie im Objekt `tracker.colorHex` geliefert.
 
+Tracker-Eintraege liefern zusaetzlich `images[]`. Jedes Bild enthaelt `id`, `fileId`, `title`, `note`, `mimeType`, `sizeBytes`, `url`, `downloadUrl`, `downloadUrlWithToken`, `requiresAuthorization`, `createdAt` und `updatedAt`. Die Datei liegt geschuetzt hinter `/api/external/files/{fileId}` und muss mit Bearer Token geladen werden.
+
 Auch `GET /api/external/status` liefert fuer `openTrackers[]` und `recentTrackerEntries[]` dieselben Farbaliasse. `GET /api/external/trackers/quotas` liefert die Farbe unter `quota.tracker.colorHex` plus `color`, `hexColor` und `trackerColor`.
 
 Wenn `categoryId` fehlt oder ungueltig ist, wird `category`/`categoryName` verwendet oder die Standardkategorie `Allgemein` genutzt. `positionIds` werden nur verbunden, wenn das Szenen-Feature aktiv ist und die Szenen fuer den Benutzer sichtbar sind.
@@ -965,12 +1003,15 @@ Die Endpunkte sind in den Capabilities sichtbar und erscheinen damit auch unter 
 - `GET|POST /api/external/wiki`
 - `GET|PATCH|DELETE /api/external/wiki/{id}`
 - `GET /api/external/events`
+- `POST|DELETE /api/external/events/{id}/like`
 - `GET /api/external/events/actions`
 - `GET|POST /api/external/calendar-events`
 - `GET|PATCH|DELETE /api/external/calendar-events/{id}`
 - `POST|DELETE /api/external/calendar-events/{id}/check-in`
 - `GET /api/external/trackers/history`
 - `GET|PATCH|DELETE /api/external/trackers/history/{id}`
+- `GET|POST /api/external/trackers/history/{id}/images`
+- `GET|PATCH|DELETE /api/external/trackers/history/{id}/images/{imageId}`
 - `GET /api/external/trackers/quotas`
 - `POST /api/external/share`
 - `GET /api/external/catalog/categories`
@@ -1051,6 +1092,23 @@ DELETE /api/external/trackers/history/{id}
 ```
 
 `PATCH` akzeptiert `title`, `notes`/`note`, `startTime`/`startedAt`, `endTime`/`endedAt`, `allDay`, `fieldValues`, `toyIds`, `positionIds` und `bondageSystemItemIds`. Die Relationen werden bei übergebenen Arrays vollständig ersetzt.
+
+### Tracker-Fotos
+
+Tracker-Fotos sind eigene geschuetzte Anhaenge am Tracker-Eintrag und erscheinen nicht in der normalen Bildergalerie:
+
+```http
+GET /api/external/trackers/history/{id}/images
+POST /api/external/trackers/history/{id}/images
+GET /api/external/trackers/history/{id}/images/{imageId}
+PATCH /api/external/trackers/history/{id}/images/{imageId}
+DELETE /api/external/trackers/history/{id}/images/{imageId}
+Authorization: Bearer fsp_...
+```
+
+`POST` akzeptiert `multipart/form-data` mit Pflichtfeld `file` und optional `title`, `note`.
+`PATCH` akzeptiert JSON mit `title`, `note` oder `multipart/form-data`; wenn dort ein neues `file` mitkommt, wird die alte Datei vom Server entfernt und ersetzt.
+`DELETE` loescht den Bildanhang und die geschuetzte Datei.
 
 ### Ideen- und Wiki-Bilder
 

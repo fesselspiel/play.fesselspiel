@@ -197,6 +197,15 @@ export async function fileAssetForAccess(user: AccessUser, id: string) {
   });
   if (visibleActivityImage) return sharedAsset;
 
+  const visibleTrackerImage = await prisma.trackerEntryImage.findFirst({
+    where: {
+      fileId: id,
+      trackerEntry: { ...tenantScope, ownerId: { in: ownerIds } }
+    },
+    select: { id: true }
+  });
+  if (visibleTrackerImage) return sharedAsset;
+
   const visibleChatMessage = await prisma.circleChatMessage.findFirst({
     where: {
       fileId: id,

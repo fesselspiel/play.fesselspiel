@@ -88,6 +88,7 @@ model Tenant {
   events      Event[]
   apiTokens   ApiToken[]
   trackerTypes TrackerType[]
+  trackerEntryImages TrackerEntryImage[]
   shopifyIntegration ShopifyIntegration?
   shopifyProducts ShopifyProduct[]
   bondageSystemItems BondageSystemItem[]
@@ -298,6 +299,7 @@ model FileAsset {
   tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   activityImages ActivityImage[]
+  trackerEntryImages TrackerEntryImage[]
   circleChatMessages CircleChatMessage[]
   wikiImages WikiPageImage[]
 
@@ -1201,11 +1203,30 @@ model TrackerEntry {
   toys            Toy[]       @relation("TrackerEntryToys")
   bondageSystemItems BondageSystemItem[] @relation("TrackerEntryBondageSystemItems")
   positions       Position[]  @relation("TrackerEntryPositions")
+  images          TrackerEntryImage[]
 
   @@unique([trackerTypeId, legacyType, legacyId])
   @@unique([tenantId, trackerTypeId, slug])
   @@index([ownerId, startTime])
   @@index([tenantId, trackerTypeId, startTime])
+}
+
+model TrackerEntryImage {
+  id             String       @id @default(cuid())
+  tenantId       String?
+  trackerEntryId String
+  fileId         String
+  title          String?
+  note           String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  tenant         Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  trackerEntry   TrackerEntry @relation(fields: [trackerEntryId], references: [id], onDelete: Cascade)
+  file           FileAsset    @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, trackerEntryId, createdAt])
+  @@index([trackerEntryId, createdAt])
+  @@index([fileId])
 }
 
 model KgSession {

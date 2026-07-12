@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { ownerScope } from "@/lib/access";
 import { formatDateInput, parseDateInput } from "@/lib/dates";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
+import { serializeFileImage } from "@/lib/external-mobile-serializers";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -78,7 +79,8 @@ export async function GET(request: NextRequest) {
       owner: { include: { profile: true } },
       toys: { select: { id: true, title: true, slug: true, imageUrl: true } },
       positions: { select: { id: true, name: true, slug: true, imageUrl: true } },
-      bondageSystemItems: { include: { product: { select: { id: true, title: true, slug: true, imageUrl: true } } } }
+      bondageSystemItems: { include: { product: { select: { id: true, title: true, slug: true, imageUrl: true } } } },
+      images: { include: { file: true }, orderBy: { createdAt: "asc" } }
     },
     orderBy: [{ startTime: "asc" }, { createdAt: "asc" }],
     take: limit + 1,
@@ -154,6 +156,18 @@ export async function GET(request: NextRequest) {
           slug: item.product.slug,
           imageUrl: item.product.imageUrl,
           href: `/bondage-system/${item.product.slug}`
+        })),
+        images: entry.images.map((image) => ({
+          ...serializeFileImage(request, {
+            id: image.id,
+            fileId: image.fileId,
+            title: image.title,
+            createdAt: image.createdAt
+          }),
+          note: image.note,
+          mimeType: image.file.mimeType,
+          sizeBytes: image.file.sizeBytes,
+          updatedAt: image.updatedAt.toISOString()
         })),
         fieldValues: entry.fieldValues,
         legacyType: entry.legacyType,

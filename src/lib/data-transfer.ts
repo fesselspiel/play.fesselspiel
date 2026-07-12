@@ -8,6 +8,7 @@ import { absolutePathForAsset, fileAssetUrl, fileIdFromUrl, saveFileBuffer } fro
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
 import { uniqueSessionSlug } from "@/lib/session-slug";
+import { uniqueTrackerSlug } from "@/lib/tracker-core";
 import { uniqueWikiSlug } from "@/lib/wiki";
 
 type ExportRecord = Record<string, unknown>;
@@ -23,6 +24,9 @@ type TransferData = {
   activityImages: ExportRecord[];
   sessions: ExportRecord[];
   kgSessions: ExportRecord[];
+  trackerTypes: ExportRecord[];
+  trackerEntries: ExportRecord[];
+  trackerEntryImages: ExportRecord[];
   sessionComments: ExportRecord[];
   albums: ExportRecord[];
   media: ExportRecord[];
@@ -91,6 +95,9 @@ export async function buildDataExport(user: AccessUser) {
     activityImages,
     sessions,
     kgSessions,
+    trackerTypes,
+    trackerEntries,
+    trackerEntryImages,
     sessionComments,
     albums,
     media,
@@ -108,6 +115,9 @@ export async function buildDataExport(user: AccessUser) {
     prisma.activityImage.findMany({ where: { activity: { ownerId: { in: ownerIds } } }, orderBy: { createdAt: "asc" } }),
     prisma.segufixSession.findMany({ where: ownerScope, orderBy: { startTime: "asc" } }),
     prisma.kgSession.findMany({ where: ownerScope, orderBy: { startTime: "asc" } }),
+    prisma.trackerType.findMany({ where: user.tenantId ? { tenantId: user.tenantId } : { tenantId: null }, orderBy: { createdAt: "asc" } }),
+    prisma.trackerEntry.findMany({ where: ownerScope, include: { toys: { select: { id: true } }, positions: { select: { id: true } } }, orderBy: { startTime: "asc" } }),
+    prisma.trackerEntryImage.findMany({ where: { trackerEntry: { ownerId: { in: ownerIds } } }, orderBy: { createdAt: "asc" } }),
     prisma.sessionComment.findMany({ where: { ownerId: { in: ownerIds } }, orderBy: { createdAt: "asc" } }),
     prisma.album.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
     prisma.media.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
@@ -161,6 +171,23 @@ export async function buildDataExport(user: AccessUser) {
     })),
     sessions: sessions.map(withoutOwner),
     kgSessions: kgSessions.map(withoutOwner),
+    trackerTypes: trackerTypes.map(({ tenantId: _tenantId, ...entry }) => entry),
+    trackerEntries: trackerEntries.map((entry) => ({
+      ...withoutOwner(entry),
+      toyIds: entry.toys.map((toy) => toy.id),
+      positionIds: entry.positions.map((position) => position.id),
+      toys: undefined,
+      positions: undefined
+    })),
+    trackerEntryImages: trackerEntryImages.map((entry) => ({
+      id: entry.id,
+      trackerEntryId: entry.trackerEntryId,
+      fileId: entry.fileId,
+      title: entry.title,
+      note: entry.note,
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt
+    })),
     sessionComments: sessionComments.map(({ ownerId: _ownerId, ...entry }) => entry),
     albums: albums.map(withoutOwner),
     media: media.map(withoutOwner),
@@ -356,6 +383,82 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     });
   }
 
+  const trackerTypeMap = new Map<string, string>();
+  for (const entry of records(data.trackerTypes)) {
+    const key = String(entry.key || "").trim().toLowerCase();
+    if (!key) continue;
+    const existing = await prisma.trackerType.findFirst({ where: { tenantId: user.tenantId || null, key } });
+    const trackerType = existing || await prisma.trackerType.create({
+      data: {
+        tenantId: user.tenantId || null,
+        key,
+        title: String(entry.title || key),
+        description: typeof entry.description === "string" ? entry.description : null,
+        color: String(entry.color || "#E30613"),
+        icon: typeof entry.icon === "string" ? entry.icon : null,
+        enabled: entry.enabled !== false,
+        allowOpenSession: entry.allowOpenSession !== false,
+        autoCloseOpenSession: entry.autoCloseOpenSession !== false,
+        quotaDailyMinutes: typeof entry.quotaDailyMinutes === "number" ? entry.quotaDailyMinutes : null,
+        quotaWeeklyMinutes: typeof entry.quotaWeeklyMinutes === "number" ? entry.quotaWeeklyMinutes : null,
+        quotaWeeklyTail: entry.quotaWeeklyTail === true,
+        quotaWeekStartsOn: typeof entry.quotaWeekStartsOn === "number" ? entry.quotaWeekStartsOn : 1,
+        quotaMonthlyDays: typeof entry.quotaMonthlyDays === "number" ? entry.quotaMonthlyDays : null,
+        quotaMonthlyMinutes: typeof entry.quotaMonthlyMinutes === "number" ? entry.quotaMonthlyMinutes : null,
+        quotaReminderEnabled: entry.quotaReminderEnabled === true,
+        fields: (entry.fields && typeof entry.fields === "object" ? entry.fields : []) as any
+      }
+    });
+    trackerTypeMap.set(String(entry.id || ""), trackerType.id);
+  }
+
+  const trackerEntryMap = new Map<string, string>();
+  for (const entry of records(data.trackerEntries)) {
+    const trackerTypeId = trackerTypeMap.get(String(entry.trackerTypeId || ""));
+    const startTime = toDate(entry.startTime);
+    if (!trackerTypeId || !startTime) continue;
+    const trackerType = await prisma.trackerType.findUnique({ where: { id: trackerTypeId } });
+    if (!trackerType) continue;
+    const endTime = toDate(entry.endTime);
+    const toyIds = strings(entry.toyIds).map((id) => toyMap.get(id)).filter((id): id is string => Boolean(id));
+    const positionIds = strings(entry.positionIds).map((id) => positionMap.get(id)).filter((id): id is string => Boolean(id));
+    const created = await prisma.trackerEntry.create({
+      data: {
+        ownerId: user.id,
+        tenantId: user.tenantId || undefined,
+        trackerTypeId,
+        slug: await uniqueTrackerSlug(trackerTypeId, trackerType.key, startTime),
+        title: typeof entry.title === "string" ? entry.title : trackerType.title,
+        startTime,
+        endTime,
+        allDay: entry.allDay === true,
+        durationMinutes: typeof entry.durationMinutes === "number" ? entry.durationMinutes : null,
+        notes: typeof entry.notes === "string" ? entry.notes : null,
+        fieldValues: (entry.fieldValues && typeof entry.fieldValues === "object" ? entry.fieldValues : {}) as any,
+        toys: { connect: toyIds.map((id) => ({ id })) },
+        positions: { connect: positionIds.map((id) => ({ id })) }
+      }
+    });
+    trackerEntryMap.set(String(entry.id || ""), created.id);
+  }
+
+  let trackerEntryImageCount = 0;
+  for (const entry of records(data.trackerEntryImages)) {
+    const trackerEntryId = trackerEntryMap.get(String(entry.trackerEntryId || ""));
+    const fileId = fileMap.get(String(entry.fileId || ""));
+    if (!trackerEntryId || !fileId) continue;
+    await prisma.trackerEntryImage.create({
+      data: {
+        tenantId: user.tenantId || undefined,
+        trackerEntryId,
+        fileId,
+        title: typeof entry.title === "string" ? entry.title : null,
+        note: typeof entry.note === "string" ? entry.note : null
+      }
+    });
+    trackerEntryImageCount += 1;
+  }
+
   for (const entry of records(data.sessionComments)) {
     const sessionId = sessionMap.get(String(entry.sessionId || ""));
     const body = String(entry.body || "").trim();
@@ -497,6 +600,8 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     activityImages: activityImageMap.size,
     albums: albumMap.size,
     media: mediaMap.size,
+    trackerEntries: trackerEntryMap.size,
+    trackerEntryImages: trackerEntryImageCount,
     wikiPages: wikiCount,
     wikiImages: wikiImageCount,
     events: eventMap.size

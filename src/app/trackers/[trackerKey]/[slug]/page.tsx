@@ -11,6 +11,7 @@ import { logAction, userDisplayName } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { formatDate, formatDateInput, formatDateTime, formatDateTimeLocal, formatMinutes, minutesBetween, parseDateInput, parseDateTimeLocal } from "@/lib/dates";
 import { hasFeature, requireFeature } from "@/lib/features";
+import { deleteOwnedFile, fileAssetUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { fieldOptions, fieldValuesFromForm, trackerFields } from "@/lib/tracker-fields";
 import { startTrackerEntry, stopTrackerEntry } from "@/lib/tracker-core";
@@ -111,12 +112,106 @@ async function updateEntry(formData: FormData) {
   redirect(`/trackers/${entry.trackerType.key}/${updated.slug || updated.id}`);
 }
 
-async function deleteEntry(formData: FormData) {
+async function addTrackerImage(formData: FormData) {
   "use server";
   const user = await currentUser();
   if (!user) redirect("/login");
   const id = String(formData.get("id") || "");
   const entry = await prisma.trackerEntry.findFirst({ where: { id, ...(await ownerScope(user)) }, include: { trackerType: true } });
+  if (!entry) notFound();
+  if (entry.ownerId !== user.id && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") notFound();
+  await requireFeature(`tracker.${entry.trackerType.key}`);
+  const asset = await saveUploadedFile(entry.ownerId, formData.get("file") as File | null, user.tenantId);
+  if (!asset) redirect(`/trackers/${entry.trackerType.key}/${entry.slug || entry.id}`);
+  const image = await prisma.trackerEntryImage.create({
+    data: {
+      tenantId: entry.tenantId || user.tenantId || null,
+      trackerEntryId: entry.id,
+      fileId: asset.id,
+      title: String(formData.get("title") || asset.originalName || entry.title || entry.trackerType.title).trim(),
+      note: String(formData.get("note") || "").trim() || null
+    }
+  });
+  await logAction({
+    actorId: user.id,
+    action: `tracker_${entry.trackerType.key}_image_uploaded`,
+    entityType: "trackerEntry",
+    entityId: entry.id,
+    title: `Foto zum Tracker hinzugefügt: ${entry.title || entry.trackerType.title}`,
+    href: `/trackers/${entry.trackerType.key}/${entry.slug || entry.id}`,
+    details: { imageId: image.id, fileId: asset.id }
+  });
+  redirect(`/trackers/${entry.trackerType.key}/${entry.slug || entry.id}`);
+}
+
+async function updateTrackerImage(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const id = String(formData.get("id") || "");
+  const imageId = String(formData.get("imageId") || "");
+  const image = await prisma.trackerEntryImage.findFirst({
+    where: { id: imageId, trackerEntry: { id, ...(await ownerScope(user)) } },
+    include: { trackerEntry: { include: { trackerType: true } } }
+  });
+  if (!image) notFound();
+  if (image.trackerEntry.ownerId !== user.id && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") notFound();
+  await requireFeature(`tracker.${image.trackerEntry.trackerType.key}`);
+  const asset = await saveUploadedFile(image.trackerEntry.ownerId, formData.get("file") as File | null, user.tenantId);
+  const updated = await prisma.trackerEntryImage.update({
+    where: { id: image.id },
+    data: {
+      title: String(formData.get("title") || "").trim() || null,
+      note: String(formData.get("note") || "").trim() || null,
+      ...(asset ? { fileId: asset.id } : {})
+    }
+  });
+  if (asset) await deleteOwnedFile(image.trackerEntry.ownerId, image.fileId).catch(() => false);
+  await logAction({
+    actorId: user.id,
+    action: `tracker_${image.trackerEntry.trackerType.key}_image_updated`,
+    entityType: "trackerEntry",
+    entityId: image.trackerEntry.id,
+    title: `Tracker-Foto geändert: ${image.trackerEntry.title || image.trackerEntry.trackerType.title}`,
+    href: `/trackers/${image.trackerEntry.trackerType.key}/${image.trackerEntry.slug || image.trackerEntry.id}`,
+    details: { imageId: updated.id, fileId: updated.fileId, replacedFile: Boolean(asset) }
+  });
+  redirect(`/trackers/${image.trackerEntry.trackerType.key}/${image.trackerEntry.slug || image.trackerEntry.id}`);
+}
+
+async function deleteTrackerImage(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const id = String(formData.get("id") || "");
+  const imageId = String(formData.get("imageId") || "");
+  const image = await prisma.trackerEntryImage.findFirst({
+    where: { id: imageId, trackerEntry: { id, ...(await ownerScope(user)) } },
+    include: { trackerEntry: { include: { trackerType: true } } }
+  });
+  if (!image) notFound();
+  if (image.trackerEntry.ownerId !== user.id && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") notFound();
+  await requireFeature(`tracker.${image.trackerEntry.trackerType.key}`);
+  await prisma.trackerEntryImage.delete({ where: { id: image.id } });
+  await deleteOwnedFile(image.trackerEntry.ownerId, image.fileId).catch(() => false);
+  await logAction({
+    actorId: user.id,
+    action: `tracker_${image.trackerEntry.trackerType.key}_image_deleted`,
+    entityType: "trackerEntry",
+    entityId: image.trackerEntry.id,
+    title: `Tracker-Foto gelöscht: ${image.trackerEntry.title || image.trackerEntry.trackerType.title}`,
+    href: `/trackers/${image.trackerEntry.trackerType.key}/${image.trackerEntry.slug || image.trackerEntry.id}`,
+    details: { imageId: image.id, fileId: image.fileId }
+  });
+  redirect(`/trackers/${image.trackerEntry.trackerType.key}/${image.trackerEntry.slug || image.trackerEntry.id}`);
+}
+
+async function deleteEntry(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const id = String(formData.get("id") || "");
+  const entry = await prisma.trackerEntry.findFirst({ where: { id, ...(await ownerScope(user)) }, include: { trackerType: true, images: true } });
   if (!entry) notFound();
   await requireFeature(`tracker.${entry.trackerType.key}`);
   await prisma.$transaction([
@@ -128,6 +223,9 @@ async function deleteEntry(formData: FormData) {
       ? [prisma.kgSession.deleteMany({ where: { id: entry.legacyId, ownerId: entry.ownerId } })]
       : [])
   ]);
+  for (const image of entry.images) {
+    await deleteOwnedFile(entry.ownerId, image.fileId).catch(() => false);
+  }
   await logAction({
     actorId: user.id,
     action: `tracker_${entry.trackerType.key}_deleted`,
@@ -155,7 +253,8 @@ export default async function TrackerEntryPage({ params }: { params: { trackerKe
       owner: { include: { profile: true } },
       toys: true,
       positions: true,
-      bondageSystemItems: { include: { product: true } }
+      bondageSystemItems: { include: { product: true } },
+      images: { include: { file: true }, orderBy: { createdAt: "asc" } }
     }
   });
   if (!entry) notFound();
@@ -243,6 +342,55 @@ export default async function TrackerEntryPage({ params }: { params: { trackerKe
             <SoftPanel><div className="text-sm text-graphite">Dauer</div><div className="mt-2 font-semibold">{entry.allDay ? "ohne Uhrzeit" : formatMinutes(entry.durationMinutes)}</div></SoftPanel>
           </div>
           {entry.notes ? <div className="mt-5 whitespace-pre-wrap rounded-md border border-line bg-paper p-4 text-sm leading-6">{entry.notes}</div> : null}
+          <div className="mt-5 rounded-md border border-line bg-paper p-4">
+            <h2 className="mb-3 font-semibold">Fotos zum Eintrag</h2>
+            {entry.images.length ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {entry.images.map((image) => (
+                  <div key={image.id} className="overflow-hidden rounded-md border border-line bg-surface">
+                    <img src={fileAssetUrl(image.fileId)} alt={image.title || "Tracker-Foto"} className="aspect-square w-full object-contain p-2" />
+                    <div className="space-y-3 border-t border-line p-3">
+                      <div>
+                        <div className="font-semibold">{image.title || image.file.originalName}</div>
+                        {image.note ? <div className="mt-1 whitespace-pre-wrap text-sm text-graphite">{image.note}</div> : null}
+                      </div>
+                      {entry.ownerId === user.id || user.role === "ADMIN" || user.role === "SUPER_ADMIN" ? (
+                        <details className="rounded-md border border-line bg-paper p-3">
+                          <summary className="cursor-pointer text-sm font-semibold">Foto bearbeiten</summary>
+                          <form action={updateTrackerImage} className="mt-3 grid gap-3" encType="multipart/form-data">
+                            <input type="hidden" name="id" value={entry.id} />
+                            <input type="hidden" name="imageId" value={image.id} />
+                            <Field label="Titel"><input className={inputClass} name="title" defaultValue={image.title || ""} /></Field>
+                            <Field label="Notiz"><textarea className={inputClass} name="note" rows={2} defaultValue={image.note || ""} /></Field>
+                            <Field label="Datei ersetzen"><input className={inputClass} name="file" type="file" accept="image/*" /></Field>
+                            <SubmitButton pendingLabel="Foto wird gespeichert..."><Save className="h-4 w-4" /> Foto speichern</SubmitButton>
+                          </form>
+                          <form action={deleteTrackerImage} className="mt-3">
+                            <input type="hidden" name="id" value={entry.id} />
+                            <input type="hidden" name="imageId" value={image.id} />
+                            <SubmitButton pendingLabel="Foto wird gelöscht..." className="border border-redbrand !bg-surface !text-redbrand hover:!bg-redbrand hover:!text-white">
+                              <Trash2 className="h-4 w-4" /> Foto löschen
+                            </SubmitButton>
+                          </form>
+                        </details>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-graphite">Noch keine Fotos hinterlegt.</p>
+            )}
+            {entry.ownerId === user.id || user.role === "ADMIN" || user.role === "SUPER_ADMIN" ? (
+              <form action={addTrackerImage} className="mt-4 grid gap-3" encType="multipart/form-data">
+                <input type="hidden" name="id" value={entry.id} />
+                <Field label="Foto hinzufügen"><input className={inputClass} name="file" type="file" accept="image/*" required /></Field>
+                <Field label="Titel"><input className={inputClass} name="title" placeholder="Optionaler Bildtitel" /></Field>
+                <Field label="Notiz"><textarea className={inputClass} name="note" rows={2} placeholder="Optionale Notiz zum Foto" /></Field>
+                <SubmitButton pendingLabel="Foto wird hochgeladen..."><Save className="h-4 w-4" /> Foto hinzufügen</SubmitButton>
+              </form>
+            ) : null}
+          </div>
           {Object.keys(fieldValues).length ? (
             <div className="mt-5 rounded-md border border-line bg-paper p-4">
               <h2 className="mb-3 font-semibold">Tracker-Felder</h2>

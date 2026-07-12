@@ -125,6 +125,7 @@ export async function GET(request: NextRequest) {
       const url = absoluteUrl(request, href);
       const notificationTitle = renderFeedTemplate(rule?.titleTemplate || defaultFeedTitleTemplate(), entry, actor);
       const notificationBody = renderFeedTemplate(rule?.bodyTemplate || defaultFeedBodyTemplate(), entry, actor);
+      const likedByMe = entry.feedLikes.some((like) => like.userId === auth.user.id);
       return {
         id: entry.id,
         action: entry.action,
@@ -149,10 +150,14 @@ export async function GET(request: NextRequest) {
           url,
           deepLink: href
         },
+        canLike: true,
+        likedByMe,
+        likeCount: entry.feedLikes.length,
         engagement: {
           likes: entry.feedLikes.map((like) => ({
             id: like.id,
             createdAt: like.createdAt.toISOString(),
+            own: like.userId === auth.user.id,
             user: like.user ? {
               id: like.user.id,
               username: like.user.username,

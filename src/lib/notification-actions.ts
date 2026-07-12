@@ -169,6 +169,16 @@ export function notificationRuleActionMatches(actions: string[]) {
 }
 
 function trackerActionLabel(action: string, trackerTitle?: string) {
+  const imageMatch = action.match(/^tracker_(.+)_image_(uploaded|updated|deleted)(?:_api)?$/);
+  if (imageMatch) {
+    const title = trackerTitle || imageMatch[1];
+    const labels: Record<string, string> = {
+      uploaded: "Foto hochgeladen",
+      updated: "Foto bearbeitet",
+      deleted: "Foto gelöscht"
+    };
+    return `${title} ${labels[imageMatch[2]] || imageMatch[2]}`;
+  }
   const match = action.match(/^tracker_(.+)_(created|updated|deleted|started|stopped|started_api|stopped_api|started_control|stopped_control|started_telegram|stopped_telegram)$/);
   if (!match) return null;
   const title = trackerTitle || match[1];
