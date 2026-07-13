@@ -100,6 +100,21 @@ export const capabilities: readonly Capability[] = [
             additionalProperties: false
           }
         }
+      },
+      {
+        key: "accountPrivacy",
+        label: "Konto und Datenschutz verwalten",
+        type: "write",
+        description: "Exportiert die eigenen Daten, verwaltet App-Sitzungen und widerruft eine Zirkelverbindung.",
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/account/export", description: "Eigene personenbezogene Daten als geschuetztes ZIP-Archiv exportieren." },
+          { method: "GET", path: "/api/external/account/sessions", description: "Aktive App-Sitzungen des eigenen Kontos anzeigen." },
+          { method: "DELETE", path: "/api/external/account/sessions/{sessionId}", description: "Eine eigene App-Sitzung sofort abmelden." },
+          { method: "POST", path: "/api/external/account/sessions", description: "Alle anderen App- und Web-Sitzungen abmelden. Body: `{ action: \"REVOKE_OTHERS\" }`." },
+          { method: "GET", path: "/api/external/account/circle", description: "Aktuellen Zirkel und die Folgen eines Austritts anzeigen." },
+          { method: "DELETE", path: "/api/external/account/circle", description: "Den aktuellen Zirkel verlassen und Freigaben widerrufen. Body: `{ confirmation: \"ZIRKEL VERLASSEN\" }`." }
+        ],
+        auditActions: ["personal_data_exported", "account_session_revoked", "account_sessions_revoked", "account_circle_left"]
       }
     ]
   },

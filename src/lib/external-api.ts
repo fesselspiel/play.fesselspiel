@@ -18,7 +18,7 @@ export async function requireApiUser(request: NextRequest | Request, options: { 
       };
     }
   }
-  return { user: auth.user };
+  return { user: auth.user, token: auth.token };
 }
 
 export function apiFeatureGate(user: { tenant?: { features?: { key: string; enabled: boolean }[] } | null }, ...features: string[]) {

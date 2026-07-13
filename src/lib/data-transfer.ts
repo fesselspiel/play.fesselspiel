@@ -221,6 +221,81 @@ export async function buildDataExport(user: AccessUser) {
   return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
 
+export async function buildPersonalDataExport(user: AccessUser) {
+  const ownOnlyUser: AccessUser = {
+    id: user.id,
+    tenantId: user.tenantId,
+    circleId: null,
+    role: "USER"
+  };
+  const archive = await buildDataExport(ownOnlyUser);
+  const zip = await JSZip.loadAsync(archive);
+  const [account, memberships, legalAcceptances, consentPreferences, appSessions, pushDevices, blocks, sentChatMessages, chatReceipts, shares, reports] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        tenantId: true,
+        circleId: true,
+        email: true,
+        username: true,
+        name: true,
+        role: true,
+        active: true,
+        emailVerifiedAt: true,
+        lastLoginAt: true,
+        createdAt: true,
+        updatedAt: true,
+        profile: true,
+        settings: {
+          select: {
+            theme: true,
+            darkMode: true,
+            playReady: true,
+            playReadyState: true,
+            playReadyUpdatedAt: true,
+            playReadyExpiresAt: true,
+            playReadyExpiryMinutes: true,
+            shareDefaultChannel: true,
+            shareMessageTemplate: true,
+            timeOffsetMinutes: true,
+            notificationPreviewMode: true,
+            createdAt: true,
+            updatedAt: true
+          }
+        }
+      }
+    }),
+    prisma.tenantMembership.findMany({ where: { userId: user.id }, select: { tenantId: true, circleId: true, role: true, active: true, createdAt: true, updatedAt: true } }),
+    prisma.userLegalAcceptance.findMany({ where: { userId: user.id }, select: { documentId: true, acceptedAt: true, country: true, source: true, document: { select: { kind: true, version: true, title: true } } } }),
+    prisma.userConsentPreference.findMany({ where: { userId: user.id }, select: { kind: true, granted: true, version: true, changedAt: true, source: true } }),
+    prisma.apiToken.findMany({ where: { userId: user.id }, select: { id: true, tenantId: true, name: true, tokenLastSix: true, active: true, lastUsedAt: true, createdAt: true, updatedAt: true } }),
+    prisma.nativePushDevice.findMany({ where: { userId: user.id }, select: { id: true, tenantId: true, platform: true, environment: true, deviceName: true, appVersion: true, lastSeenAt: true, disabledAt: true, createdAt: true, updatedAt: true } }),
+    prisma.userBlock.findMany({ where: { blockerId: user.id }, select: { blockedId: true, createdAt: true } }),
+    prisma.circleChatMessage.findMany({ where: { senderId: user.id }, select: { id: true, tenantId: true, circleId: true, body: true, fileId: true, createdAt: true, updatedAt: true, deletedAt: true } }),
+    prisma.circleChatReceipt.findMany({ where: { userId: user.id }, select: { messageId: true, deliveredAt: true, readAt: true, createdAt: true, updatedAt: true } }),
+    prisma.shareDelivery.findMany({ where: { OR: [{ actorId: user.id }, { targetUserId: user.id }] }, select: { actorId: true, targetUserId: true, channel: true, entityType: true, entityId: true, title: true, href: true, text: true, openCount: true, openedAt: true, lastOpenedAt: true, createdAt: true, updatedAt: true } }),
+    prisma.contentReport.findMany({ where: { reporterId: user.id }, select: { id: true, reportedUserId: true, entityType: true, entityId: true, reason: true, details: true, status: true, action: true, createdAt: true, updatedAt: true, resolvedAt: true } })
+  ]);
+  zip.file("account.json", JSON.stringify({
+    format: "playplaner-personal-data",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    account,
+    memberships,
+    legalAcceptances,
+    consentPreferences,
+    appSessions,
+    pushDevices,
+    blocks,
+    sentChatMessages,
+    chatReceipts,
+    shares,
+    reports
+  }, null, 2));
+  return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+}
+
 export async function importDataArchive(user: AccessUser, bytes: Buffer) {
   const zip = await JSZip.loadAsync(bytes);
   const rawData = await zip.file("data.json")?.async("string");
