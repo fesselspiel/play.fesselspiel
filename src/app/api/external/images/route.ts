@@ -5,6 +5,7 @@ import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { featureEnabled } from "@/lib/features";
 import { fileAssetUrl, fileIdFromUrl } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
+import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
 
 export const runtime = "nodejs";
 
@@ -100,6 +101,13 @@ export async function GET(request: NextRequest) {
   const q = String(searchParams.get("q") || "").trim();
   const items: ImageItem[] = [];
   const features = auth.user.tenant?.features;
+  const [blockedIds, hiddenMediaIds, hiddenToyIds, hiddenPositionIds, hiddenIdeaIds] = await Promise.all([
+    blockedUserIds(auth.user.id, auth.user.tenantId || ""),
+    hiddenEntityIds(auth.user.tenantId || "", "media"),
+    hiddenEntityIds(auth.user.tenantId || "", "toy"),
+    hiddenEntityIds(auth.user.tenantId || "", "position"),
+    hiddenEntityIds(auth.user.tenantId || "", "activity")
+  ]);
   const add = (entry: ImageItem | null) => {
     if (entry) items.push(entry);
   };
@@ -108,7 +116,10 @@ export async function GET(request: NextRequest) {
     const media = await prisma.media.findMany({
       where: {
         ...(await mediaVisibilityScope(auth.user)),
+        id: { notIn: hiddenMediaIds },
+        ownerId: { notIn: blockedIds },
         kind: MediaKind.IMAGE,
+        contentClassification: { not: "QUARANTINED" },
         ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {})
       },
       include: { album: true, owner: { include: { profile: true } } },
@@ -128,14 +139,19 @@ export async function GET(request: NextRequest) {
         createdAt: entry.createdAt,
         updatedAt: entry.updatedAt,
         owner: { id: entry.owner.id, username: entry.owner.username, displayName: displayName(entry.owner) },
-        meta: { albumId: entry.albumId, visibility: entry.visibility, effectiveVisibility: entry.visibility || entry.album?.visibility || "PRIVATE" }
+        meta: {
+          albumId: entry.albumId,
+          visibility: entry.visibility,
+          effectiveVisibility: entry.visibility || entry.album?.visibility || "PRIVATE",
+          contentClassification: entry.contentClassification
+        }
       }));
     }
   }
 
   if (wants(source, ["toys", "toy", "spielsachen"]) && featureEnabled(features, "toys")) {
     const toys = await prisma.toy.findMany({
-      where: { ...(await ownerScope(auth.user)), imageUrl: { not: null }, ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}) },
+      where: { ...(await ownerScope(auth.user)), id: { notIn: hiddenToyIds }, ownerId: { notIn: blockedIds }, imageUrl: { not: null }, ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}) },
       include: { category: true, owner: { include: { profile: true } } },
       orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
       take: limit
@@ -160,7 +176,7 @@ export async function GET(request: NextRequest) {
 
   if (wants(source, ["positions", "position", "scenes", "szenen", "situationen"]) && featureEnabled(features, "positions")) {
     const positions = await prisma.position.findMany({
-      where: { ...(await ownerScope(auth.user)), imageUrl: { not: null }, ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}) },
+      where: { ...(await ownerScope(auth.user)), id: { notIn: hiddenPositionIds }, ownerId: { notIn: blockedIds }, imageUrl: { not: null }, ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}) },
       include: { category: true, owner: { include: { profile: true } } },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       take: limit
@@ -185,8 +201,15 @@ export async function GET(request: NextRequest) {
 
   if (wants(source, ["ideas", "idea", "ideen"]) && featureEnabled(features, "ideas")) {
     const ideas = await prisma.activityPlan.findMany({
-      where: { ...(await ownerScope(auth.user)), category: "IDEA_COLLECTION", ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}) },
-      include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } },
+      where: { ...(await ownerScope(auth.user)), id: { notIn: hiddenIdeaIds }, ownerId: { notIn: blockedIds }, category: "IDEA_COLLECTION", ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}) },
+      include: {
+        owner: { include: { profile: true } },
+        images: {
+          where: { file: { contentClassification: { not: "QUARANTINED" }, scanStatus: { not: "REJECTED" } } },
+          include: { file: true },
+          orderBy: { createdAt: "asc" }
+        }
+      },
       orderBy: [{ updatedAt: "desc" }],
       take: limit
     });
@@ -204,7 +227,14 @@ export async function GET(request: NextRequest) {
           createdAt: image.createdAt,
           updatedAt: idea.updatedAt,
           owner: { id: idea.owner.id, username: idea.owner.username, displayName: displayName(idea.owner) },
-          meta: { slug: idea.slug, imageId: image.id, fileName: image.file.originalName, mimeType: image.file.mimeType, sizeBytes: image.file.sizeBytes }
+          meta: {
+            slug: idea.slug,
+            imageId: image.id,
+            fileName: image.file.originalName,
+            mimeType: image.file.mimeType,
+            sizeBytes: image.file.sizeBytes,
+            contentClassification: image.file.contentClassification
+          }
         }));
       }
     }
@@ -242,7 +272,7 @@ export async function GET(request: NextRequest) {
   if (wants(source, ["profiles", "users", "user", "profile"])) {
     const ownerIds = await accessibleOwnerIds(auth.user);
     const users = await prisma.user.findMany({
-      where: { id: { in: ownerIds }, active: true, profile: { is: { imageUrl: { not: null } } } },
+      where: { id: { in: ownerIds, notIn: blockedIds }, active: true, profile: { is: { imageUrl: { not: null } } } },
       include: { profile: true },
       orderBy: [{ username: "asc" }],
       take: limit

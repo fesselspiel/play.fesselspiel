@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiUser } from "@/lib/external-api";
 import { prisma } from "@/lib/prisma";
+import { fileIdFromUrl } from "@/lib/files";
 
 export const runtime = "nodejs";
 
@@ -33,7 +34,15 @@ export async function PATCH(request: NextRequest, context: { params: { id: strin
         await tx.circleChatMessage.updateMany({ where: { id: report.entityId, tenantId: auth.user.tenantId! }, data: { deletedAt: new Date() } });
       }
       if (report.entityType === "media") {
+        const media = await tx.media.findFirst({ where: { id: report.entityId, tenantId: auth.user.tenantId! }, select: { url: true } });
         await tx.media.updateMany({ where: { id: report.entityId, tenantId: auth.user.tenantId! }, data: { contentClassification: "QUARANTINED" } });
+        const fileId = fileIdFromUrl(media?.url);
+        if (fileId) {
+          await tx.fileAsset.updateMany({
+            where: { id: fileId, tenantId: auth.user.tenantId! },
+            data: { contentClassification: "QUARANTINED", quarantinedAt: new Date() }
+          });
+        }
       }
     }
     if ((action === "SUSPEND_USER" || action === "DEACTIVATE_USER") && report.reportedUserId) {

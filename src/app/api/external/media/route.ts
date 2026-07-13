@@ -17,6 +17,12 @@ function parsedVisibility(value: FormDataEntryValue | null) {
   return null;
 }
 
+function parsedContentClassification(value: FormDataEntryValue | null) {
+  const raw = String(value || "UNKNOWN").trim().toUpperCase();
+  if (raw === "SAFE" || raw === "MATURE_SUGGESTIVE" || raw === "EXPLICIT" || raw === "UNKNOWN") return raw;
+  return "UNKNOWN";
+}
+
 function boolValue(value: FormDataEntryValue | null) {
   const raw = String(value || "").trim().toLowerCase();
   return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
@@ -68,7 +74,8 @@ export async function GET(request: NextRequest) {
     ...(await mediaVisibilityScope(auth.user)),
     AND: [
       { id: { notIn: hiddenIds } },
-      { ownerId: { notIn: blockedIds } }
+      { ownerId: { notIn: blockedIds } },
+      { contentClassification: { not: "QUARANTINED" } }
     ],
     ...(kind ? { kind } : {}),
     ...(albumId ? { albumId } : {}),
@@ -117,6 +124,7 @@ export async function GET(request: NextRequest) {
         kind: entry.kind,
         visibility: entry.visibility,
         effectiveVisibility: entry.visibility || entry.album?.visibility || "PRIVATE",
+        contentClassification: entry.contentClassification,
         createdAt: entry.createdAt.toISOString(),
         updatedAt: entry.updatedAt.toISOString(),
         showInCalendar: entry.showInCalendar,
@@ -161,10 +169,17 @@ export async function POST(request: NextRequest) {
   const blocked = apiFeatureGate(auth.user, "externalApi", "media");
   if (blocked) return blocked;
   const formData = await request.formData();
-  const asset = await saveUploadedFile(auth.user.id, formData.get("file") as File | null);
+  let asset;
+  try {
+    asset = await saveUploadedFile(auth.user.id, formData.get("file") as File | null);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Die Datei konnte nicht sicher verarbeitet werden";
+    return NextResponse.json({ ok: false, error: "invalid_upload", message }, { status: 400 });
+  }
   if (!asset) return NextResponse.json({ ok: false, error: "Keine Datei erhalten" }, { status: 400 });
   const url = fileAssetUrl(asset.id);
   const album = await ensureDefaultAlbum(auth.user.id);
+  const contentClassification = parsedContentClassification(formData.get("contentClassification"));
   const showInCalendar = boolValue(formData.get("showInCalendar"));
   const calendarDate = dateValue(formData.get("calendarDate"));
   const media = await prisma.media.create({
@@ -177,8 +192,13 @@ export async function POST(request: NextRequest) {
       title: String(formData.get("title") || asset.originalName || "API Upload").trim(),
       kind: asset.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE",
       url,
-      visibility: parsedVisibility(formData.get("visibility"))
+      visibility: parsedVisibility(formData.get("visibility")),
+      contentClassification
     }
+  });
+  await prisma.fileAsset.update({
+    where: { id: asset.id },
+    data: { contentClassification }
   });
   return NextResponse.json({
     ok: true,
@@ -188,7 +208,9 @@ export async function POST(request: NextRequest) {
       url,
       originalName: asset.originalName,
       mimeType: asset.mimeType,
-      sizeBytes: asset.sizeBytes
+      sizeBytes: asset.sizeBytes,
+      contentClassification,
+      scanStatus: asset.scanStatus
     }
   });
 }

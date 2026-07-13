@@ -50,6 +50,13 @@ function parseDate(value: unknown) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function parseContentClassification(value: unknown) {
+  if (value === undefined) return undefined;
+  const raw = String(value || "").trim().toUpperCase();
+  if (raw === "SAFE" || raw === "MATURE_SUGGESTIVE" || raw === "EXPLICIT" || raw === "UNKNOWN") return raw;
+  return null;
+}
+
 function serializeMedia(request: NextRequest, entry: Prisma.MediaGetPayload<{ include: typeof mediaInclude }>) {
   const fileId = fileIdFromUrl(entry.url);
   const downloadPath = fileId ? `/api/external/files/${fileId}` : entry.url;
@@ -60,6 +67,7 @@ function serializeMedia(request: NextRequest, entry: Prisma.MediaGetPayload<{ in
     kind: entry.kind,
     visibility: entry.visibility,
     effectiveVisibility: entry.visibility || entry.album?.visibility || "PRIVATE",
+    contentClassification: entry.contentClassification,
     createdAt: entry.createdAt.toISOString(),
     updatedAt: entry.updatedAt.toISOString(),
     showInCalendar: entry.showInCalendar,
@@ -105,7 +113,7 @@ const commentInclude = {
 
 async function detailPayload(request: NextRequest, user: { id: string; tenantId?: string | null; circleId?: string | null; role?: string | null }, id: string) {
   const media = await prisma.media.findFirst({
-    where: { id, ...(await mediaVisibilityScope(user)) },
+    where: { id, contentClassification: { not: "QUARANTINED" }, ...(await mediaVisibilityScope(user)) },
     include: mediaInclude
   });
   if (!media) return null;
@@ -177,7 +185,9 @@ export async function PATCH(request: NextRequest, { params }: MediaRouteParams) 
   const visibility = parseVisibility(body.visibility);
   const showInCalendar = parseBoolean(body.showInCalendar);
   const calendarDate = parseDate(body.calendarDate);
+  const contentClassification = parseContentClassification(body.contentClassification);
   if (visibility === undefined && body.visibility !== undefined) return NextResponse.json({ ok: false, error: "invalid_visibility" }, { status: 400 });
+  if (contentClassification === null) return NextResponse.json({ ok: false, error: "invalid_content_classification" }, { status: 400 });
   let albumId: string | null | undefined;
   if (body.albumId !== undefined) {
     const requestedAlbumId = String(body.albumId || "").trim();
@@ -194,9 +204,16 @@ export async function PATCH(request: NextRequest, { params }: MediaRouteParams) 
       ...(visibility !== undefined ? { visibility } : {}),
       ...(showInCalendar !== undefined ? { showInCalendar } : {}),
       ...(calendarDate !== undefined ? { calendarDate } : {}),
-      ...(albumId !== undefined ? { albumId } : {})
+      ...(albumId !== undefined ? { albumId } : {}),
+      ...(contentClassification !== undefined ? { contentClassification } : {})
     }
   });
+  if (contentClassification !== undefined) {
+    const fileId = fileIdFromUrl(existing.url);
+    if (fileId) {
+      await prisma.fileAsset.updateMany({ where: { id: fileId, ownerId: auth.user.id }, data: { contentClassification } });
+    }
+  }
   if (body.albumCover === true || body.albumCover === "true") {
     const media = await prisma.media.findUnique({ where: { id: existing.id }, select: { albumId: true } });
     if (media?.albumId) await prisma.album.updateMany({ where: { id: media.albumId, ownerId: auth.user.id }, data: { coverMediaId: existing.id } });

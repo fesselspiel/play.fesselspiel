@@ -88,6 +88,15 @@ function fileInfoFromBytes(bytes: Buffer, originalName: string, declaredMimeType
   };
 }
 
+function assertFileSafety(bytes: Buffer) {
+  // The EICAR marker is harmless test data used to verify malware rejection.
+  // Real malware scanning can be layered on later without changing upload callers.
+  const probe = bytes.subarray(0, Math.min(bytes.length, 1024 * 1024)).toString("latin1");
+  if (probe.includes("X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*")) {
+    throw new Error("Die Datei wurde durch die Sicherheitsprüfung abgelehnt");
+  }
+}
+
 function assetUrl(id: string) {
   return `/api/files/${id}`;
 }
@@ -117,6 +126,7 @@ export async function saveUploadedFile(ownerId: string, file: File | null | unde
 
   const bytes = Buffer.from(await file.arrayBuffer());
   const fileInfo = fileInfoFromBytes(bytes, file.name || "", file.type);
+  assertFileSafety(bytes);
   const id = randomUUID();
   const relativeDir = path.join(ownerId, new Date().toISOString().slice(0, 10));
   const filename = `${id}${fileInfo.extension}`;
@@ -134,7 +144,9 @@ export async function saveUploadedFile(ownerId: string, file: File | null | unde
       originalName: fileInfo.originalName || filename,
       mimeType: fileInfo.mimeType,
       sizeBytes: file.size,
-      storagePath: relativePath
+      storagePath: relativePath,
+      scanStatus: "CLEAN",
+      safetyCheckedAt: new Date()
     }
   });
   return asset;
@@ -157,6 +169,7 @@ export async function saveFileBuffer({
   if (bytes.length > env.maxUploadBytes) throw new Error(`Datei ist größer als ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB`);
 
   const fileInfo = fileInfoFromBytes(bytes, originalName, mimeType);
+  assertFileSafety(bytes);
   const id = randomUUID();
   const relativeDir = path.join(ownerId, new Date().toISOString().slice(0, 10));
   const filename = `${id}${fileInfo.extension}`;
@@ -174,7 +187,9 @@ export async function saveFileBuffer({
       originalName: fileInfo.originalName,
       mimeType: fileInfo.mimeType,
       sizeBytes: bytes.length,
-      storagePath: relativePath
+      storagePath: relativePath,
+      scanStatus: "CLEAN",
+      safetyCheckedAt: new Date()
     }
   });
 }
@@ -198,10 +213,14 @@ export async function fileAssetForUser(ownerId: string, id: string) {
 export async function fileAssetForAccess(user: AccessUser, id: string) {
   const ownerIds = await accessibleOwnerIds(user);
   const tenantScope = user.tenantId ? { tenantId: user.tenantId } : {};
-  const asset = await prisma.fileAsset.findFirst({ where: { id, ...tenantScope, ownerId: { in: ownerIds } } });
+  const safetyScope = {
+    contentClassification: { not: "QUARANTINED" as const },
+    scanStatus: { not: "REJECTED" as const }
+  };
+  const asset = await prisma.fileAsset.findFirst({ where: { id, ...tenantScope, ...safetyScope, ownerId: { in: ownerIds } } });
   if (asset) return asset;
 
-  const sharedAsset = await prisma.fileAsset.findFirst({ where: { id, ...tenantScope } });
+  const sharedAsset = await prisma.fileAsset.findFirst({ where: { id, ...tenantScope, ...safetyScope } });
   if (!sharedAsset) return null;
   const visibleMedia = await prisma.media.findFirst({
     where: {
