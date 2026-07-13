@@ -6,6 +6,7 @@ import { selfBondageCategory } from "@/lib/activity-orders";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { activityInclude, parseActivityStatus, parseDateValue, serializeActivity } from "@/lib/external-mobile-serializers";
 import { prisma } from "@/lib/prisma";
+import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
 
 export const runtime = "nodejs";
@@ -23,7 +24,18 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(200, Math.max(1, Number(searchParams.get("limit") || 50)));
   const cursor = searchParams.get("cursor") || undefined;
   const status = parseActivityStatus(searchParams.get("status"));
-  const where: Prisma.ActivityPlanWhereInput = { ...(await ownerScope(auth.user)), category: selfBondageCategory, ...(status ? { status } : {}) };
+  const [blockedOwnerIds, hiddenActivityIds] = auth.user.tenantId
+    ? await Promise.all([blockedUserIds(auth.user.id, auth.user.tenantId), hiddenEntityIds(auth.user.tenantId, "activity")])
+    : [[], []];
+  const where: Prisma.ActivityPlanWhereInput = {
+    category: selfBondageCategory,
+    AND: [
+      await ownerScope(auth.user),
+      ...(blockedOwnerIds.length ? [{ ownerId: { notIn: blockedOwnerIds } }] : []),
+      ...(hiddenActivityIds.length ? [{ id: { notIn: hiddenActivityIds } }] : [])
+    ],
+    ...(status ? { status } : {})
+  };
   const orders = await prisma.activityPlan.findMany({
     where,
     include: activityInclude,

@@ -3,6 +3,7 @@ import { apiFeatureGate, requestValues, requireApiUser } from "@/lib/external-ap
 import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { createWikiRevision, uniqueWikiSlug, wikiOwnerSlug, wikiPageAccessWhere } from "@/lib/wiki";
+import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
 
 function visibility(value?: string | null) {
   return value === "PARTNER" || value === "SHARED" ? value : "PRIVATE";
@@ -36,10 +37,15 @@ export async function GET(request: NextRequest) {
   if (blocked) return blocked;
   const limit = Math.min(100, Math.max(1, Number(request.nextUrl.searchParams.get("limit") || 50)));
   const q = String(request.nextUrl.searchParams.get("q") || "").trim();
+  const [blockedOwnerIds, hiddenWikiPageIds] = auth.user.tenantId
+    ? await Promise.all([blockedUserIds(auth.user.id, auth.user.tenantId), hiddenEntityIds(auth.user.tenantId, "wikiPage")])
+    : [[], []];
   const pages = await prisma.wikiPage.findMany({
     where: {
       AND: [
         await wikiPageAccessWhere(auth.user),
+        ...(blockedOwnerIds.length ? [{ ownerId: { notIn: blockedOwnerIds } }] : []),
+        ...(hiddenWikiPageIds.length ? [{ id: { notIn: hiddenWikiPageIds } }] : []),
         q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { summary: { contains: q, mode: "insensitive" } }, { content: { contains: q, mode: "insensitive" } }] } : {}
       ]
     },
@@ -49,7 +55,7 @@ export async function GET(request: NextRequest) {
   });
   return NextResponse.json({
     ok: true,
-    items: pages.map(serializeWikiPage)
+    items: pages.map((page) => ({ ...serializeWikiPage(page), own: page.ownerId === auth.user.id, canEdit: page.ownerId === auth.user.id || auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN" }))
   });
 }
 

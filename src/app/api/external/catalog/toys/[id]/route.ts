@@ -6,6 +6,7 @@ import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { absoluteUrl } from "@/lib/external-mobile-serializers";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
+import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
 
 export const runtime = "nodejs";
 
@@ -80,8 +81,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const blocked = apiFeatureGate(auth.user, "externalApi", "toys");
   if (blocked) return blocked;
 
+  const [blockedOwnerIds, hiddenToyIds] = auth.user.tenantId
+    ? await Promise.all([blockedUserIds(auth.user.id, auth.user.tenantId), hiddenEntityIds(auth.user.tenantId, "toy")])
+    : [[], []];
   const toy = await prisma.toy.findFirst({
-    where: { ...(await ownerScope(auth.user)), OR: [{ id: params.id }, { slug: params.id }] },
+    where: {
+      AND: [
+        await ownerScope(auth.user),
+        ...(blockedOwnerIds.length ? [{ ownerId: { notIn: blockedOwnerIds } }] : []),
+        ...(hiddenToyIds.length ? [{ id: { notIn: hiddenToyIds } }] : [])
+      ],
+      OR: [{ id: params.id }, { slug: params.id }]
+    },
     include: {
       category: true,
       owner: { include: { profile: true } },

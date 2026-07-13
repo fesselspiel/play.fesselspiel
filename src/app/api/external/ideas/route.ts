@@ -5,6 +5,7 @@ import { logAction } from "@/lib/audit";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { activityInclude, parseActivityStatus, serializeActivity } from "@/lib/external-mobile-serializers";
 import { prisma } from "@/lib/prisma";
+import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
 
 export const runtime = "nodejs";
@@ -23,8 +24,15 @@ export async function GET(request: NextRequest) {
   const cursor = searchParams.get("cursor") || undefined;
   const q = String(searchParams.get("q") || "").trim();
   const status = parseActivityStatus(searchParams.get("status"));
+  const [blockedOwnerIds, hiddenActivityIds] = auth.user.tenantId
+    ? await Promise.all([blockedUserIds(auth.user.id, auth.user.tenantId), hiddenEntityIds(auth.user.tenantId, "activity")])
+    : [[], []];
   const where: Prisma.ActivityPlanWhereInput = {
-    ...(await ownerScope(auth.user)),
+    AND: [
+      await ownerScope(auth.user),
+      ...(blockedOwnerIds.length ? [{ ownerId: { notIn: blockedOwnerIds } }] : []),
+      ...(hiddenActivityIds.length ? [{ id: { notIn: hiddenActivityIds } }] : [])
+    ],
     category: "IDEA_COLLECTION",
     ...(status ? { status } : {}),
     ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { note: { contains: q, mode: "insensitive" as const } }] } : {})

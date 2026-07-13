@@ -3,6 +3,7 @@ import { apiFeatureGate, requestValues, requireApiUser } from "@/lib/external-ap
 import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { createWikiRevision, uniqueWikiSlug, wikiExportText, wikiOwnerSlug, wikiPageAccessWhere } from "@/lib/wiki";
+import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
 
 function visibility(value?: string | null) {
   return value === "PARTNER" || value === "SHARED" ? value : value === "PRIVATE" ? value : undefined;
@@ -13,8 +14,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "wiki");
   if (blocked) return blocked;
+  const [blockedOwnerIds, hiddenWikiPageIds] = auth.user.tenantId
+    ? await Promise.all([blockedUserIds(auth.user.id, auth.user.tenantId), hiddenEntityIds(auth.user.tenantId, "wikiPage")])
+    : [[], []];
   const page = await prisma.wikiPage.findFirst({
-    where: { AND: [await wikiPageAccessWhere(auth.user), { id: params.id }] },
+    where: {
+      AND: [
+        await wikiPageAccessWhere(auth.user),
+        { id: params.id },
+        ...(blockedOwnerIds.length ? [{ ownerId: { notIn: blockedOwnerIds } }] : []),
+        ...(hiddenWikiPageIds.length ? [{ id: { notIn: hiddenWikiPageIds } }] : [])
+      ]
+    },
     include: {
       owner: { include: { profile: true } },
       shares: true,
@@ -62,6 +73,12 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       })),
       createdAt: page.createdAt.toISOString(),
       updatedAt: page.updatedAt.toISOString(),
+      owner: {
+        id: page.owner.id,
+        username: page.owner.username,
+        displayName: page.owner.profile?.displayName || page.owner.name || page.owner.username || page.owner.email
+      },
+      own: page.ownerId === auth.user.id,
       revisions: revisions.map((revision) => ({
         id: revision.id,
         action: revision.action,

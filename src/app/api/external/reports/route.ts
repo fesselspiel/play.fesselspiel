@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   if (!auth.user.tenantId) return NextResponse.json({ ok: false, error: "tenant_required" }, { status: 409 });
   const parsed = ReportSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false, error: "invalid_input" }, { status: 400 });
-  const target = await resolveReportTarget({ tenantId: auth.user.tenantId, entityType: parsed.data.entityType, entityId: parsed.data.entityId });
+  const target = await resolveReportTarget({ user: auth.user, entityType: parsed.data.entityType, entityId: parsed.data.entityId });
   if (!target) return NextResponse.json({ ok: false, error: "content_not_found" }, { status: 404 });
   if (target.reportedUserId === auth.user.id) return NextResponse.json({ ok: false, error: "own_content" }, { status: 400 });
   const priority = parsed.data.reason === "MINOR_SAFETY" || parsed.data.reason === "NON_CONSENSUAL" || parsed.data.reason === "ILLEGAL_CONTENT" ? "URGENT" : "NORMAL";

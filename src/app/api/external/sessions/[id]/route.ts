@@ -4,16 +4,24 @@ import { logAction } from "@/lib/audit";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { parseActivityStatus, parseDateValue } from "@/lib/external-mobile-serializers";
 import { prisma } from "@/lib/prisma";
+import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
 import { calendarMediaForSession, externalSessionInclude, serializeExternalSession } from "../_helpers";
 
 export const runtime = "nodejs";
 
 async function findSession(user: { id: string; tenantId?: string | null; circleId?: string | null; role?: string | null }, id: string) {
+  const [blockedOwnerIds, hiddenActivityIds] = user.tenantId
+    ? await Promise.all([blockedUserIds(user.id, user.tenantId), hiddenEntityIds(user.tenantId, "activity")])
+    : [[], []];
   return prisma.activityPlan.findFirst({
     where: {
-      ...(await ownerScope(user)),
+      AND: [
+        await ownerScope(user),
+        { OR: [{ category: null }, { category: { notIn: ["IDEA_COLLECTION", "SELF_BONDAGE_ORDER"] } }] },
+        ...(blockedOwnerIds.length ? [{ ownerId: { notIn: blockedOwnerIds } }] : []),
+        ...(hiddenActivityIds.length ? [{ id: { notIn: hiddenActivityIds } }] : [])
+      ],
       OR: [{ id }, { slug: id }],
-      AND: [{ OR: [{ category: null }, { category: { notIn: ["IDEA_COLLECTION", "SELF_BONDAGE_ORDER"] } }] }]
     },
     include: externalSessionInclude
   });

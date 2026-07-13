@@ -6,6 +6,7 @@ import { getOrCreateCatalogCategory } from "@/lib/catalog-categories";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { featureEnabled } from "@/lib/features";
 import { fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
+import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
 
@@ -60,9 +61,16 @@ export async function GET(request: NextRequest) {
   const categoryId = String(searchParams.get("categoryId") || "").trim();
   const positionId = String(searchParams.get("positionId") || "").trim();
   const includeRelations = searchParams.get("includeRelations") !== "0";
+  const [blockedOwnerIds, hiddenToyIds] = auth.user.tenantId
+    ? await Promise.all([blockedUserIds(auth.user.id, auth.user.tenantId), hiddenEntityIds(auth.user.tenantId, "toy")])
+    : [[], []];
 
   const where: Prisma.ToyWhereInput = {
-    ...(await ownerScope(auth.user)),
+    AND: [
+      await ownerScope(auth.user),
+      ...(blockedOwnerIds.length ? [{ ownerId: { notIn: blockedOwnerIds } }] : []),
+      ...(hiddenToyIds.length ? [{ id: { notIn: hiddenToyIds } }] : [])
+    ],
     ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
     ...(categoryId ? { categoryId } : {}),
     ...(positionId ? { positions: { some: { id: positionId } } } : {})

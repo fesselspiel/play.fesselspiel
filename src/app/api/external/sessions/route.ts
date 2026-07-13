@@ -5,6 +5,7 @@ import { logAction } from "@/lib/audit";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { parseActivityStatus, parseDateValue } from "@/lib/external-mobile-serializers";
 import { prisma } from "@/lib/prisma";
+import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
 import { calendarMediaForSessionDates, externalSessionInclude, serializeExternalSession } from "./_helpers";
 
@@ -43,9 +44,16 @@ export async function GET(request: NextRequest) {
   const cursor = searchParams.get("cursor") || undefined;
   const q = String(searchParams.get("q") || "").trim();
   const status = parseActivityStatus(searchParams.get("status"));
+  const [blockedOwnerIds, hiddenActivityIds] = auth.user.tenantId
+    ? await Promise.all([blockedUserIds(auth.user.id, auth.user.tenantId), hiddenEntityIds(auth.user.tenantId, "activity")])
+    : [[], []];
   const where: Prisma.ActivityPlanWhereInput = {
-    ...(await ownerScope(auth.user)),
-    ...sessionCategoryWhere,
+    AND: [
+      await ownerScope(auth.user),
+      sessionCategoryWhere,
+      ...(blockedOwnerIds.length ? [{ ownerId: { notIn: blockedOwnerIds } }] : []),
+      ...(hiddenActivityIds.length ? [{ id: { notIn: hiddenActivityIds } }] : [])
+    ],
     ...(status ? { status } : {}),
     ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {})
   };

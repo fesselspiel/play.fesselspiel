@@ -5,11 +5,26 @@ import { selfBondageCategory } from "@/lib/activity-orders";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { activityInclude, parseActivityStatus, parseDateValue, serializeActivity } from "@/lib/external-mobile-serializers";
 import { prisma } from "@/lib/prisma";
+import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
 
 export const runtime = "nodejs";
 
 async function findOrder(user: { id: string; tenantId?: string | null; circleId?: string | null; role?: string | null }, id: string) {
-  return prisma.activityPlan.findFirst({ where: { id, ...(await ownerScope(user)), category: selfBondageCategory }, include: activityInclude });
+  const [blockedOwnerIds, hiddenActivityIds] = user.tenantId
+    ? await Promise.all([blockedUserIds(user.id, user.tenantId), hiddenEntityIds(user.tenantId, "activity")])
+    : [[], []];
+  return prisma.activityPlan.findFirst({
+    where: {
+      id,
+      category: selfBondageCategory,
+      AND: [
+        await ownerScope(user),
+        ...(blockedOwnerIds.length ? [{ ownerId: { notIn: blockedOwnerIds } }] : []),
+        ...(hiddenActivityIds.length ? [{ id: { notIn: hiddenActivityIds } }] : [])
+      ]
+    },
+    include: activityInclude
+  });
 }
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {

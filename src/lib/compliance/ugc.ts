@@ -1,4 +1,8 @@
+import type { AccessUser } from "@/lib/access";
+import { mediaVisibilityScope, ownerScope } from "@/lib/access";
+import { accessibleCircleChats } from "@/lib/circle-chat";
 import { prisma } from "@/lib/prisma";
+import { wikiPageAccessWhere } from "@/lib/wiki";
 
 export async function blockedUserIds(userId: string, tenantId: string) {
   const blocks = await prisma.userBlock.findMany({
@@ -41,56 +45,72 @@ export async function contentIsHidden(tenantId: string, entityType: string, enti
 }
 
 export async function resolveReportTarget(input: {
-  tenantId: string;
+  user: AccessUser;
   entityType: string;
   entityId: string;
 }) {
+  if (!input.user.tenantId) return null;
+  const tenantId = input.user.tenantId;
   const type = input.entityType.trim().toLowerCase();
-  const scope = { id: input.entityId, tenantId: input.tenantId };
+  const scope = { id: input.entityId, tenantId };
   if (["chat", "chatmessage", "circlechatmessage"].includes(type)) {
-    const item = await prisma.circleChatMessage.findFirst({ where: scope, select: { id: true, senderId: true } });
+    const circleIds = (await accessibleCircleChats(input.user)).map((circle) => circle.id);
+    const item = await prisma.circleChatMessage.findFirst({
+      where: { ...scope, circleId: { in: circleIds }, deletedAt: null },
+      select: { id: true, senderId: true }
+    });
     return item ? { entityType: "circleChatMessage", entityId: item.id, reportedUserId: item.senderId } : null;
   }
   if (["media", "image", "video"].includes(type)) {
-    const item = await prisma.media.findFirst({ where: scope, select: { id: true, ownerId: true } });
+    const item = await prisma.media.findFirst({
+      where: { AND: [{ id: input.entityId }, await mediaVisibilityScope(input.user)] },
+      select: { id: true, ownerId: true }
+    });
     return item ? { entityType: "media", entityId: item.id, reportedUserId: item.ownerId } : null;
   }
+  if (["toy", "equipment"].includes(type)) {
+    const item = await prisma.toy.findFirst({ where: { id: input.entityId, ...(await ownerScope(input.user)) }, select: { id: true, ownerId: true } });
+    return item ? { entityType: "toy", entityId: item.id, reportedUserId: item.ownerId } : null;
+  }
   if (["scene", "position"].includes(type)) {
-    const item = await prisma.position.findFirst({ where: scope, select: { id: true, ownerId: true } });
+    const item = await prisma.position.findFirst({ where: { id: input.entityId, ...(await ownerScope(input.user)) }, select: { id: true, ownerId: true } });
     return item ? { entityType: "position", entityId: item.id, reportedUserId: item.ownerId } : null;
   }
-  if (["activity", "session", "order"].includes(type)) {
-    const item = await prisma.activityPlan.findFirst({ where: scope, select: { id: true, ownerId: true } });
+  if (["activity", "session", "order", "idea"].includes(type)) {
+    const item = await prisma.activityPlan.findFirst({ where: { id: input.entityId, ...(await ownerScope(input.user)) }, select: { id: true, ownerId: true } });
     return item ? { entityType: "activity", entityId: item.id, reportedUserId: item.ownerId } : null;
   }
   if (["wiki", "diary", "wikipage"].includes(type)) {
-    const item = await prisma.wikiPage.findFirst({ where: scope, select: { id: true, ownerId: true } });
+    const item = await prisma.wikiPage.findFirst({
+      where: { AND: [{ id: input.entityId }, await wikiPageAccessWhere(input.user)] },
+      select: { id: true, ownerId: true }
+    });
     return item ? { entityType: "wikiPage", entityId: item.id, reportedUserId: item.ownerId } : null;
   }
   if (["profile", "user"].includes(type)) {
     const item = await prisma.user.findFirst({
-      where: { id: input.entityId, memberships: { some: { tenantId: input.tenantId, active: true } } },
+      where: { id: input.entityId, memberships: { some: { tenantId, active: true } } },
       select: { id: true }
     });
     return item ? { entityType: "profile", entityId: item.id, reportedUserId: item.id } : null;
   }
   if (type === "activitycomment") {
     const item = await prisma.activityComment.findFirst({
-      where: { id: input.entityId, activity: { tenantId: input.tenantId } },
+      where: { id: input.entityId, activity: await ownerScope(input.user) },
       select: { id: true, ownerId: true }
     });
     return item ? { entityType: "activityComment", entityId: item.id, reportedUserId: item.ownerId } : null;
   }
   if (type === "mediacomment") {
     const item = await prisma.mediaComment.findFirst({
-      where: { id: input.entityId, media: { tenantId: input.tenantId } },
+      where: { id: input.entityId, media: await mediaVisibilityScope(input.user) },
       select: { id: true, ownerId: true }
     });
     return item ? { entityType: "mediaComment", entityId: item.id, reportedUserId: item.ownerId } : null;
   }
   if (type === "sessioncomment") {
     const item = await prisma.sessionComment.findFirst({
-      where: { id: input.entityId, session: { tenantId: input.tenantId } },
+      where: { id: input.entityId, session: await ownerScope(input.user) },
       select: { id: true, ownerId: true }
     });
     return item ? { entityType: "sessionComment", entityId: item.id, reportedUserId: item.ownerId } : null;
