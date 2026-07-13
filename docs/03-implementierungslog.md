@@ -74,6 +74,7 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Tracker-History `POST` und `PATCH` behandeln ISO-Zeitstempel mit `Z` oder Offset als absolute Instants; lokale Zeitstempel ohne Offset bleiben Berlin-Wandzeit.
 - Tracker-Kontingente liefern in `GET /api/external/trackers/quotas`, `GET /api/external/status` und im Tracker-SSE-Stream jetzt stabile `eventId`-Anker, `canComment`, `commentCount`, Likes und `engagement.comments`.
 - Diese Quota-Event-IDs koennen direkt mit den normalen Feed-Kommentar-, Like- und Dismiss-Endpunkten verwendet werden.
+- Laufende Tracker in `openTrackers[]` liefern in `GET /api/external/status` und im Tracker-SSE-Stream ebenfalls `eventId`, `canComment`, `commentCount`, Likes und `engagement.comments`.
 
 ## Initiale App
 

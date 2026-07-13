@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { ownerScope } from "@/lib/access";
 import { formatDateInput } from "@/lib/dates";
-import { entityLikeStateForEntity } from "@/lib/entity-likes";
+import { entityLikeStateForEntity, entityLikeStateMap } from "@/lib/entity-likes";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { prisma } from "@/lib/prisma";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
@@ -34,25 +34,47 @@ async function trackerSnapshot(user: any) {
     trackerQuotaStatusForUser(user)
   ]);
 
-  const mappedOpenTrackers = openTrackers.map((entry) => ({
-    id: entry.id,
-    key: entry.trackerType.key,
-    trackerKey: entry.trackerType.key,
+  const openTrackerStates = await entityLikeStateMap("trackerEntry", openTrackers.map((entry) => entry.id), user.id, openTrackers.map((entry) => ({
+    entityType: "trackerEntry",
+    entityId: entry.id,
+    ownerId: entry.ownerId,
+    tenantId: entry.tenantId,
     title: entry.title || entry.trackerType.title,
-    trackerTitle: entry.trackerType.title,
-    color: entry.trackerType.color,
-    colorHex: entry.trackerType.color,
-    tracker: {
-      id: entry.trackerType.id,
+    href: openTrackerUrl(entry.trackerType.key, entry.slug, entry.id)
+  })));
+
+  const mappedOpenTrackers = openTrackers.map((entry) => {
+    const state = openTrackerStates.get(entry.id);
+    return {
+      id: entry.id,
       key: entry.trackerType.key,
-      title: entry.trackerType.title,
+      trackerKey: entry.trackerType.key,
+      title: entry.title || entry.trackerType.title,
+      trackerTitle: entry.trackerType.title,
       color: entry.trackerType.color,
-      colorHex: entry.trackerType.color
-    },
-    startTime: entry.startTime.toISOString(),
-    startedAt: entry.startTime.toISOString(),
-    url: openTrackerUrl(entry.trackerType.key, entry.slug, entry.id)
-  }));
+      colorHex: entry.trackerType.color,
+      tracker: {
+        id: entry.trackerType.id,
+        key: entry.trackerType.key,
+        title: entry.trackerType.title,
+        color: entry.trackerType.color,
+        colorHex: entry.trackerType.color
+      },
+      startTime: entry.startTime.toISOString(),
+      startedAt: entry.startTime.toISOString(),
+      url: openTrackerUrl(entry.trackerType.key, entry.slug, entry.id),
+      eventId: state?.eventId || null,
+      canLike: state?.canLike ?? true,
+      likedByMe: state?.likedByMe ?? false,
+      likeCount: state?.likeCount ?? 0,
+      canComment: state?.canComment ?? true,
+      commentCount: state?.commentCount ?? 0,
+      engagement: {
+        likes: state?.likes || [],
+        comments: state?.comments || []
+      }
+    };
+  });
 
   const mappedRecent = recentTrackerEntries.map((entry) => ({
     id: entry.id,

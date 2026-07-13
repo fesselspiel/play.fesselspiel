@@ -1217,6 +1217,8 @@ Antwortauszug:
 
 `GET /api/external/status` und `GET /api/external/trackers/stream` liefern Quotas im selben Shape.
 
+Laufende Tracker in `openTrackers[]` liefern ebenfalls `eventId`, `canLike`, `likedByMe`, `likeCount`, `canComment`, `commentCount` und `engagement`. Die `eventId` verweist auf den laufenden Tracker-Eintrag und kann mit denselben Feed-Kommentar-, Like- und Dismiss-Endpunkten verwendet werden.
+
 ### Tracker-Livestream
 
 ```http
