@@ -339,3 +339,4 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Fastlane-Simulator-Build auf iPhone 17 erfolgreich. Der native Link-Ruecksprung und die mobile Datenschutzerklaerung wurden auf dem Simulator geprueft; Screenshot `/tmp/playplaner-legal-cycle1-retry.png`.
 - Neue Betriebsdokumente: `app-store-readiness.md`, `privacy-data-map.md`, `account-deletion.md`, `content-moderation.md`, `ios-security.md` und `activity-and-order-safety.md`.
 - Offene manuelle Punkte: rechtliche Freigabe der veroeffentlichten Texte und Kontakte, tatsaechliche Besetzung der Postfaecher, App-Store-Altersfragebogen/Privacy Labels sowie Entscheidung ueber einen externen Malware-Scanner.
+- Zyklusabschluss: finaler Screenshot `/tmp/playplaner-legal-cycle1-final.png` und Status an Telegram Message-ID `279`; anschliessender Poll ohne neue Anweisung. Zaehler `1/5` nach TestFlight Build 102, daher kein Upload in diesem Zyklus.
