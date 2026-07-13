@@ -30,7 +30,7 @@ export async function PublicLegalPage({ kind }: { kind: LegalDocumentKind }) {
         <h1 className="mt-4 text-3xl font-semibold">{document?.title || "Information wird aktualisiert"}</h1>
         {document ? (
           <>
-            <p className="mt-3 text-sm text-graphite">Version {document.version} · veroeffentlicht {document.publishedAt?.toLocaleDateString("de-DE")}</p>
+            <p className="mt-3 text-sm text-graphite">Version {document.version} · veröffentlicht {document.publishedAt?.toLocaleDateString("de-DE", { timeZone: "Europe/Berlin" })}</p>
             <p className="mt-6 text-lg leading-8">{document.summary}</p>
             <div className="mt-8 whitespace-pre-wrap text-sm leading-7 text-graphite">{document.content}</div>
           </>
