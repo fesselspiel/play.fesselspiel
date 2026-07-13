@@ -245,9 +245,13 @@ function discretePushText(action: string) {
 }
 
 function payloadForAuditMessage(audit: AuditForPush, title: string, body: string, soundOverride?: string | null, previewMode = "DISCREET") {
-  const target = targetForAudit(audit);
+  const fullTarget = targetForAudit(audit);
   const sound = soundOverride ? normalizeSound(soundOverride) : soundForAction(audit.action);
   const mode = previewMode === "FULL" ? "FULL" : previewMode === "TITLE" ? "TITLE" : "DISCREET";
+  const protectsContent = mode !== "FULL";
+  const target = protectsContent
+    ? { screen: fullTarget.screen, id: fullTarget.id, href: null }
+    : fullTarget;
   const discrete = discretePushText(audit.action);
   const alert = mode === "FULL"
     ? { title, body }
@@ -265,13 +269,13 @@ function payloadForAuditMessage(audit: AuditForPush, title: string, body: string
     eventId: audit.entityType === "event" || audit.action.startsWith("event_") ? audit.entityId : null,
     threadId: stringDetail(auditDetails(audit), ["threadId", "telegramThreadId", "messageThreadId"]),
     circleId: stringDetail(auditDetails(audit), ["circleId"]),
-    circleName: stringDetail(auditDetails(audit), ["circleName"]),
+    circleName: protectsContent ? null : stringDetail(auditDetails(audit), ["circleName"]),
     imageUrl: null,
     sound,
-    action: audit.action,
-    entityType: audit.entityType,
-    entityId: audit.entityId,
-    href: audit.href
+    action: protectsContent ? null : audit.action,
+    entityType: protectsContent ? null : audit.entityType,
+    entityId: protectsContent ? null : audit.entityId,
+    href: protectsContent ? null : audit.href
   };
 }
 

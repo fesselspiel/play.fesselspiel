@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "review:seed": "node scripts/app-review-tenant.js",
+    "review:cleanup": "node scripts/app-review-tenant.js --cleanup"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",
