@@ -226,7 +226,7 @@ Die Grenze wird serverseitig als normale Produktkonfiguration und in den externe
 | Melden und Blockieren | In Arbeit | Backendvertraege und erste native Kernflaechen vorhanden; Profile, Szenen, Aktivitaeten und weitere Freigaben muessen noch vollstaendig nachgezogen und live getestet werden. |
 | Moderationsprozess | Offen | Admin-Workflow und SLA fehlen |
 | Diskrete Push-Nachrichten | Offen | Aktuell koennen Audit-Titel, Body und Bild-URL versendet werden |
-| Sicherer Medienumgang | Teilweise | Groessenlimit und Byteerkennung vorhanden; Quarantaene/Scanner fehlen |
+| Sicherer Medienumgang | In Arbeit | Byte-Signatur, MIME-Allowlist, Groessenlimit, Klassifikation und serverseitige Quarantaene sind produktiv. Die Entscheidung ueber einen vollwertigen externen Malware-Scanner bleibt offen. |
 | Auftrags- und Risikoreduzierung | In Arbeit | Neutrale Nutzertexte und API-Alias vorhanden; versionierte Zustimmung und Widerruf fehlen noch |
 | Demo-Account/Mandant | Offen | Neutraler idempotenter Review-Seed fehlt |
 | Echte native Funktionalitaet | Erfuellt | SwiftUI-App mit nativen Kernflows |
@@ -282,4 +282,8 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Beide Dateiabrufe (`/api/files/{id}` und `/api/external/files/{id}`) verwenden `fileAssetForAccess`; diese Funktion liefert Assets mit `QUARANTINED` oder `scanStatus=REJECTED` nie aus. Damit kann eine bereits bekannte direkte Datei-ID die Moderation nicht umgehen.
 - Die Adminmassnahmen `HIDE_CONTENT` und `DELETE_CONTENT` synchronisieren bei Medien die Quarantaene transaktional auf `Media` und `FileAsset` und setzen `quarantinedAt`.
 - Rueckbau: Die Route-/Serializer-/Dateipruefungen koennen gemeinsam per Commit-Revert entfernt werden. Vorhandene Klassifikationsfelder bleiben additiv. Um eine konkrete Moderationsquarantaene fachlich aufzuheben, muessen sowohl `Media.contentClassification` als auch `FileAsset.contentClassification` bewusst auf den vorherigen Wert gesetzt und `quarantinedAt` geloescht werden; ein blosser Code-Rollback darf quarantinisierte Inhalte nicht automatisch freigeben.
-- Verifikation: TypeScript `tsc --noEmit` erfolgreich. Fastlane-, Simulator-, Live- und Deploymentnachweise werden nach Abschluss dieses Zyklus ergaenzt.
+- Verifikation: TypeScript `tsc --noEmit` erfolgreich. Produktivdeploy von Commit `288cd32` inklusive Prisma-Generierung, Next.js-Kompilierung und Typpruefung erfolgreich; `kink_social_app` lief danach auf Port 8097.
+- Reversibler Live-Smoke: Ein privates PNG wurde als `EXPLICIT` hochgeladen (HTTP 200), von Media und FileAsset als `EXPLICIT`/`CLEAN` serialisiert und mit Bearer-Header abgerufen (HTTP 200). Nach synchroner Quarantaene von Media und FileAsset lieferten Dateidownload und Detail jeweils HTTP 404, waehrend die Listenroute HTTP 200 ohne das Testmedium lieferte.
+- Dateisicherheits-Smoke: Eine Datei mit korrekter PNG-Signatur und EICAR-Testmarker wurde mit HTTP 400 und `invalid_upload` abgewiesen. Es wurde kein Medium angelegt.
+- Bereinigung: Testmedium und FileAsset wurden vollstaendig geloescht, der kurzlebige API-Token deaktiviert. Abschliessende Datenbankzaehler: `smokeMedia=0`, `smokeFiles=0`, `activeSmokeTokens=0`.
+- iOS-Nachweis: Fastlane-Simulator-Build auf iPhone 17 und iPad Pro 11-inch (M5) erfolgreich. Schutzflaeche und Klassifikationseditor wurden visuell geprueft; Screenshots `/tmp/playplaner-media-safety-cycle2-final.png` und `/tmp/playplaner-media-safety-ipad-cycle2.png`.
