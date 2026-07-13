@@ -1031,6 +1031,8 @@ Tracker-Eintraege liefern zusaetzlich `images[]`. Jedes Bild enthaelt `id`, `fil
 
 Fuer nicht ganztägige Eintraege ist `startTime` Pflicht. `endTime` oder `durationMinutes` duerfen einzeln uebergeben werden; das Backend berechnet den jeweils konsistenten Wert. `durationMinutes` muss groesser/gleich 0 sein und `endTime` darf nicht vor `startTime` liegen. Fuer ganztägige Eintraege wird `allDay:true` plus `date` verwendet; Start-/Endzeiten werden dann nicht als Uhrzeit interpretiert.
 
+Zeitstempel mit explizitem `Z` oder Offset, z. B. `2026-07-12T19:32:00.000Z` oder `2026-07-12T21:32:00+02:00`, werden als absolute Instants gespeichert. Zeitstempel ohne Offset, z. B. `2026-07-12T19:32`, werden als lokale Wandzeit der Plattform-Zeitzone `Europe/Berlin` interpretiert. Das gilt identisch fuer `POST /api/external/trackers/history` und `PATCH /api/external/trackers/history/{id}`.
+
 Auch `GET /api/external/status` liefert fuer `openTrackers[]` und `recentTrackerEntries[]` dieselben Farbaliasse. `GET /api/external/trackers/quotas` liefert die Farbe unter `quota.tracker.colorHex` plus `color`, `hexColor` und `trackerColor`.
 
 ### Tracker-Livestream

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
-import { formatDateInput, minutesBetween, parseDateInput, parseDateTimeLocal } from "@/lib/dates";
+import { formatDateInput, minutesBetween, parseApiDateTime } from "@/lib/dates";
 import { emptyEntityLikeState, entityLikeStateForEntity } from "@/lib/entity-likes";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { absoluteUrl, serializeFileImage } from "@/lib/external-mobile-serializers";
@@ -30,12 +30,7 @@ function stringArray(value: unknown) {
 }
 
 function parseDate(value: unknown) {
-  if (!value) return null;
-  const raw = String(value);
-  return parseDateTimeLocal(raw) || parseDateInput(raw) || (() => {
-    const date = new Date(raw);
-    return Number.isNaN(date.getTime()) ? null : date;
-  })();
+  return parseApiDateTime(value);
 }
 
 function bool(value: unknown, fallback = false) {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
-import { formatDateInput, minutesBetween, parseDateInput, parseDateTimeLocal } from "@/lib/dates";
+import { formatDateInput, minutesBetween, parseApiDateTime, parseDateInput } from "@/lib/dates";
 import { entityLikeStateMap } from "@/lib/entity-likes";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { serializeFileImage } from "@/lib/external-mobile-serializers";
@@ -63,12 +63,7 @@ function bool(value: unknown, fallback = false) {
 }
 
 function parseDateValue(value: unknown) {
-  if (!value) return null;
-  const raw = String(value).trim();
-  return parseDateTimeLocal(raw) || parseDateInput(raw) || (() => {
-    const date = new Date(raw);
-    return Number.isNaN(date.getTime()) ? null : date;
-  })();
+  return parseApiDateTime(value);
 }
 
 function addMinutes(value: Date, minutes: number) {
