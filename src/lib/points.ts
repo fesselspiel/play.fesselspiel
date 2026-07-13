@@ -7,6 +7,12 @@ export async function awardPointsForAudit(input: {
   title: string;
 }) {
   if (!input.actorId) return null;
+  if ([
+    "activity_consent_decline",
+    "activity_consent_revoke",
+    "activity_consent_cancel",
+    "self_bondage_order_discarded"
+  ].includes(input.action)) return null;
   const actor = await prisma.user.findUnique({
     where: { id: input.actorId },
     select: { id: true, tenantId: true }

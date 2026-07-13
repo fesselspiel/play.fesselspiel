@@ -6,6 +6,7 @@ import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { activityInclude, parseActivityStatus, parseDateValue, serializeActivity } from "@/lib/external-mobile-serializers";
 import { prisma } from "@/lib/prisma";
 import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
+import { resetConsentForMaterialChange } from "@/lib/activity-consent";
 
 export const runtime = "nodejs";
 
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   if (blocked) return blocked;
   const order = await findOrder(auth.user, params.id);
   if (!order) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
-  return NextResponse.json({ ok: true, item: serializeActivity(request, order) });
+  return NextResponse.json({ ok: true, item: serializeActivity(request, order, auth.user) });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
@@ -45,19 +46,24 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const existing = await findOrder(auth.user, params.id);
   if (!existing) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+  if (existing.ownerId !== auth.user.id && auth.user.role !== "ADMIN" && auth.user.role !== "SUPER_ADMIN") {
+    return NextResponse.json({ ok: false, error: "owner_required" }, { status: 403 });
+  }
   const status = parseActivityStatus(String(body.status || ""));
+  const hasMaterialChange = ["title", "note", "instruction", "plannedAt", "scheduledAt"].some((key) => body[key] !== undefined);
+  const consentReset = hasMaterialChange ? resetConsentForMaterialChange(existing) : null;
   const order = await prisma.activityPlan.update({
     where: { id: existing.id },
     data: {
       ...(body.title !== undefined ? { title: String(body.title || "").trim() || existing.title } : {}),
       ...(body.note !== undefined || body.instruction !== undefined ? { note: String(body.note || body.instruction || "").trim() } : {}),
       ...(body.plannedAt !== undefined || body.scheduledAt !== undefined ? { plannedAt: parseDateValue(body.plannedAt || body.scheduledAt) } : {}),
-      ...(status ? { status } : {})
+      ...(consentReset || (status ? { status } : {}))
     },
     include: activityInclude
   });
   await logAction({ actorId: auth.user.id, action: "self_bondage_order_updated", entityType: "activity", entityId: order.id, title: `Auftrag geändert: ${order.title}`, href: `/orders#order-${order.id}`, details: { excludeActorFromTargets: true } });
-  return NextResponse.json({ ok: true, item: serializeActivity(request, order) });
+  return NextResponse.json({ ok: true, item: serializeActivity(request, order, auth.user) });
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {

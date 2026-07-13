@@ -1,5 +1,6 @@
 import { ActivityStatus, type Prisma } from "@prisma/client";
 import { fileAssetUrl, fileIdFromUrl } from "@/lib/files";
+import { activityConsentPermissions, effectiveConsentStatus } from "@/lib/activity-consent";
 
 export const activityInclude = {
   owner: { include: { profile: true } },
@@ -42,7 +43,7 @@ export function serializeFileImage(request: Request, input: { id?: string | null
   };
 }
 
-export function serializeActivity(request: Request, activity: ActivityWithMobileRelations, token?: string) {
+export function serializeActivity(request: Request, activity: ActivityWithMobileRelations, currentUser?: { id: string; role?: string | null }) {
   return {
     id: activity.id,
     title: activity.title,
@@ -50,6 +51,20 @@ export function serializeActivity(request: Request, activity: ActivityWithMobile
     category: activity.category,
     note: activity.note,
     status: activity.status,
+    consent: {
+      status: effectiveConsentStatus(activity),
+      version: activity.consentVersion,
+      acceptedVersion: activity.acceptedVersion,
+      updatedAt: activity.consentUpdatedAt?.toISOString() || null,
+      ...(currentUser ? activityConsentPermissions(activity, currentUser.id, currentUser.role) : {
+        canAccept: false,
+        canRequestChanges: false,
+        canDecline: false,
+        canRevoke: false,
+        canComplete: false,
+        canCancel: false
+      })
+    },
     plannedAt: activity.plannedAt?.toISOString() || null,
     createdAt: activity.createdAt.toISOString(),
     updatedAt: activity.updatedAt.toISOString(),
@@ -65,7 +80,7 @@ export function serializeActivity(request: Request, activity: ActivityWithMobile
       fileId: image.fileId,
       title: image.title,
       createdAt: image.createdAt
-    }, token)),
+    })),
     toys: activity.tools.map((toy) => ({
       id: toy.id,
       title: toy.title,

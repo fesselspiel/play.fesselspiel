@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
   });
   const pageItems = orders.slice(0, limit);
-  return NextResponse.json({ ok: true, nextCursor: orders.length > limit ? orders[limit].id : null, count: pageItems.length, items: pageItems.map((order) => serializeActivity(request, order)) });
+  return NextResponse.json({ ok: true, nextCursor: orders.length > limit ? orders[limit].id : null, count: pageItems.length, items: pageItems.map((order) => serializeActivity(request, order, auth.user)) });
 }
 
 export async function POST(request: NextRequest) {
@@ -69,10 +69,14 @@ export async function POST(request: NextRequest) {
       note: String(body.note || body.instruction || "").trim(),
       plannedAt: parseDateValue(body.plannedAt || body.scheduledAt),
       status,
+      consentStatus: status === "REQUESTED" ? "PROPOSED" : "DRAFT",
+      consentVersion: 1,
+      acceptedVersion: null,
+      consentUpdatedAt: status === "REQUESTED" ? new Date() : null,
       positions: { connect: positions.map((entry) => ({ id: entry.id })) }
     },
     include: activityInclude
   });
   await logAction({ actorId: auth.user.id, action: "self_bondage_order_created", entityType: "activity", entityId: order.id, title: `Auftrag erteilt: ${order.title}`, href: `/orders#order-${order.id}`, details: { excludeActorFromTargets: true } });
-  return NextResponse.json({ ok: true, item: serializeActivity(request, order) }, { status: 201 });
+  return NextResponse.json({ ok: true, item: serializeActivity(request, order, auth.user) }, { status: 201 });
 }

@@ -6,6 +6,7 @@ import { parseActivityStatus, parseDateValue } from "@/lib/external-mobile-seria
 import { prisma } from "@/lib/prisma";
 import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
 import { calendarMediaForSession, externalSessionInclude, serializeExternalSession } from "../_helpers";
+import { consentMutation, effectiveConsentStatus, parsedConsentAction, resetConsentForMaterialChange } from "@/lib/activity-consent";
 
 export const runtime = "nodejs";
 
@@ -65,21 +66,54 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (!existing) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const status = parseActivityStatus(String(body.status || ""));
+  let consentAction = parsedConsentAction(body.consentAction);
+  if (body.consentAction !== undefined && !consentAction) return NextResponse.json({ ok: false, error: "invalid_consent_action" }, { status: 400 });
+  if (!consentAction && status) {
+    if (status === "PLANNED") consentAction = "ACCEPT";
+    if (status === "DONE") consentAction = "COMPLETE";
+    if (status === "DISCARDED") consentAction = effectiveConsentStatus(existing) === "ACCEPTED" ? "REVOKE" : existing.ownerId === auth.user.id ? "CANCEL" : "DECLINE";
+  }
+  const consentChange = consentAction ? consentMutation(existing, auth.user, consentAction) : null;
+  if (consentAction && !consentChange) return NextResponse.json({ ok: false, error: "consent_transition_forbidden" }, { status: 409 });
   const relations = await relationIds(auth.user, body);
+  const hasMaterialChange = ["title", "note", "plannedAt", "scheduledAt", "startTime", "toyIds", "positionIds", "bondageSystemItemIds"].some((key) => body[key] !== undefined);
+  const isAdmin = auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN";
+  if (!consentAction && hasMaterialChange && existing.ownerId !== auth.user.id && !isAdmin) {
+    return NextResponse.json({ ok: false, error: "owner_required" }, { status: 403 });
+  }
+  if (consentAction && consentAction !== "REQUEST_CHANGES" && hasMaterialChange) {
+    return NextResponse.json({ ok: false, error: "consent_action_must_not_change_content" }, { status: 400 });
+  }
+  if (consentAction === "REQUEST_CHANGES" && ["title", "toyIds", "positionIds", "bondageSystemItemIds"].some((key) => body[key] !== undefined)) {
+    return NextResponse.json({ ok: false, error: "invalid_change_proposal" }, { status: 400 });
+  }
+  const materialConsentReset = !consentAction && hasMaterialChange ? resetConsentForMaterialChange(existing) : null;
   const updated = await prisma.activityPlan.update({
     where: { id: existing.id },
     data: {
       ...(body.title !== undefined ? { title: String(body.title || "").trim() || existing.title } : {}),
       ...(body.note !== undefined ? { note: String(body.note || "").trim() } : {}),
       ...(body.plannedAt !== undefined || body.scheduledAt !== undefined || body.startTime !== undefined ? { plannedAt: parseDateValue(body.plannedAt || body.scheduledAt || body.startTime) } : {}),
-      ...(status ? { status } : {}),
+      ...(consentChange?.data || materialConsentReset || (status ? { status } : {})),
       ...(body.toyIds !== undefined ? { tools: { set: relations.toys.map((entry) => ({ id: entry.id })) } } : {}),
       ...(body.positionIds !== undefined ? { positions: { set: relations.positions.map((entry) => ({ id: entry.id })) } } : {}),
       ...(body.bondageSystemItemIds !== undefined ? { bondageSystemItems: { set: relations.bondageItems.map((entry) => ({ id: entry.id })) } } : {})
     },
     include: externalSessionInclude
   });
-  await logAction({ actorId: auth.user.id, action: "activity_created", entityType: "activity", entityId: updated.id, title: `Spielplan geändert: ${updated.title}`, href: `/activities/${updated.slug}` });
+  await logAction({
+    actorId: auth.user.id,
+    action: consentAction ? `activity_consent_${consentAction.toLowerCase()}` : "activity_updated",
+    entityType: "activity",
+    entityId: updated.id,
+    title: consentAction ? "Zustimmung zur Planung aktualisiert" : `Spielplan geändert: ${updated.title}`,
+    details: consentAction || materialConsentReset ? {
+      consentStatus: updated.consentStatus,
+      consentVersion: updated.consentVersion,
+      acceptedVersion: updated.acceptedVersion
+    } : undefined,
+    href: `/activities/${updated.slug}`
+  });
   return NextResponse.json({ ok: true, item: serializeExternalSession(request, updated, auth.user.id, await calendarMediaForSession(auth.user, updated)) });
 }
 
@@ -90,7 +124,9 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   if (blocked) return blocked;
   const existing = await findSession(auth.user, params.id);
   if (!existing) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
-  const updated = await prisma.activityPlan.update({ where: { id: existing.id }, data: { status: "DISCARDED" }, include: externalSessionInclude });
-  await logAction({ actorId: auth.user.id, action: "activity_created", entityType: "activity", entityId: updated.id, title: `Spielplan verworfen: ${updated.title}`, href: `/activities/${updated.slug}` });
+  const consentChange = consentMutation(existing, auth.user, effectiveConsentStatus(existing) === "ACCEPTED" ? "REVOKE" : existing.ownerId === auth.user.id ? "CANCEL" : "DECLINE");
+  if (!consentChange) return NextResponse.json({ ok: false, error: "consent_transition_forbidden" }, { status: 409 });
+  const updated = await prisma.activityPlan.update({ where: { id: existing.id }, data: consentChange.data, include: externalSessionInclude });
+  await logAction({ actorId: auth.user.id, action: "activity_consent_cancel", entityType: "activity", entityId: updated.id, title: "Planung beendet", details: { consentStatus: updated.consentStatus, consentVersion: updated.consentVersion }, href: `/activities/${updated.slug}` });
   return NextResponse.json({ ok: true, item: serializeExternalSession(request, updated, auth.user.id, await calendarMediaForSession(auth.user, updated)) });
 }

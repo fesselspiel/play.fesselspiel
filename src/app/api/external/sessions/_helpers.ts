@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { ownerScope } from "@/lib/access";
 import { fileIdFromUrl } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
+import { activityConsentPermissions, effectiveConsentStatus } from "@/lib/activity-consent";
 
 export const externalSessionInclude = {
   owner: { include: { profile: true } },
@@ -139,6 +140,13 @@ export function serializeExternalSession(request: Request, activity: ExternalSes
     category: activity.category,
     note: activity.note,
     status: activity.status,
+    consent: {
+      status: effectiveConsentStatus(activity),
+      version: activity.consentVersion,
+      acceptedVersion: activity.acceptedVersion,
+      updatedAt: activity.consentUpdatedAt?.toISOString() || null,
+      ...activityConsentPermissions(activity, currentUserId)
+    },
     plannedAt: activity.plannedAt?.toISOString() || null,
     createdAt: activity.createdAt.toISOString(),
     updatedAt: activity.updatedAt.toISOString(),

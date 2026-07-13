@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/prisma";
+import { activityConsentPermissions, effectiveConsentStatus } from "@/lib/activity-consent";
 import { fileAssetUrl } from "@/lib/files";
 import { userDisplayName } from "@/lib/audit";
 import { selfBondageCategory } from "@/lib/activity-orders";
 import { blockedUserIds } from "@/lib/compliance/ugc";
+import type { ActivityStatus } from "@prisma/client";
 
 export type CircleChatUser = {
   id: string;
@@ -263,16 +265,16 @@ function cardEntityFromDetails(details: unknown) {
   return null;
 }
 
-function sessionPermissions(activity: { ownerId: string; status: string }, currentUserId?: string, currentUserRole?: string | null) {
-  const admin = currentUserRole === "ADMIN" || currentUserRole === "SUPER_ADMIN";
-  const responder = Boolean(currentUserId && (activity.ownerId !== currentUserId || admin));
-  const ownerOrAdmin = Boolean(currentUserId && (activity.ownerId === currentUserId || admin));
+function sessionPermissions(activity: { ownerId: string; status: ActivityStatus; consentStatus: string }, currentUserId?: string, currentUserRole?: string | null) {
+  if (!currentUserId) return { canConfirm: false, canReschedule: false, canDecline: false, canStart: false, canCancel: false, canRevoke: false };
+  const consent = activityConsentPermissions(activity, currentUserId, currentUserRole);
   return {
-    canConfirm: activity.status === "REQUESTED" && responder,
-    canReschedule: activity.status === "REQUESTED" && responder,
-    canDecline: activity.status === "REQUESTED" && responder,
-    canStart: activity.status === "PLANNED" && (responder || ownerOrAdmin),
-    canCancel: (activity.status === "REQUESTED" || activity.status === "PLANNED") && (responder || ownerOrAdmin)
+    canConfirm: consent.canAccept,
+    canReschedule: consent.canRequestChanges,
+    canDecline: consent.canDecline,
+    canStart: consent.canComplete,
+    canCancel: consent.canCancel,
+    canRevoke: consent.canRevoke
   };
 }
 
@@ -282,18 +284,20 @@ function sessionActions(permissions: ReturnType<typeof sessionPermissions>) {
     permissions.canReschedule ? "RESCHEDULE" : null,
     permissions.canDecline ? "DECLINE" : null,
     permissions.canStart ? "START" : null,
-    permissions.canCancel ? "CANCEL" : null
+    permissions.canCancel ? "CANCEL" : null,
+    permissions.canRevoke ? "REVOKE" : null
   ].filter(Boolean) as string[];
 }
 
 function sessionActionTargets(sessionId: string, permissions: ReturnType<typeof sessionPermissions>) {
   const path = `/api/external/sessions/${sessionId}`;
   return {
-    ...(permissions.canConfirm ? { CONFIRM: { method: "PATCH", path, body: { status: "PLANNED" } } } : {}),
-    ...(permissions.canReschedule ? { RESCHEDULE: { method: "PATCH", path, body: { plannedAt: "ISO_DATE_TIME", status: "REQUESTED" } } } : {}),
-    ...(permissions.canDecline ? { DECLINE: { method: "PATCH", path, body: { status: "DISCARDED" } } } : {}),
-    ...(permissions.canStart ? { START: { method: "PATCH", path, body: { status: "DONE" } } } : {}),
-    ...(permissions.canCancel ? { CANCEL: { method: "PATCH", path, body: { status: "DISCARDED" } } } : {})
+    ...(permissions.canConfirm ? { CONFIRM: { method: "PATCH", path, body: { consentAction: "ACCEPT" } } } : {}),
+    ...(permissions.canReschedule ? { RESCHEDULE: { method: "PATCH", path, body: { plannedAt: "ISO_DATE_TIME", consentAction: "REQUEST_CHANGES" } } } : {}),
+    ...(permissions.canDecline ? { DECLINE: { method: "PATCH", path, body: { consentAction: "DECLINE" } } } : {}),
+    ...(permissions.canStart ? { START: { method: "PATCH", path, body: { consentAction: "COMPLETE" } } } : {}),
+    ...(permissions.canCancel ? { CANCEL: { method: "PATCH", path, body: { consentAction: "CANCEL" } } } : {}),
+    ...(permissions.canRevoke ? { REVOKE: { method: "PATCH", path, body: { consentAction: "REVOKE" } } } : {})
   };
 }
 
@@ -361,6 +365,9 @@ async function sessionCardsForMessages(
       id: activity.id,
       title: activity.title,
       status: activity.status,
+      consentStatus: effectiveConsentStatus(activity),
+      consentVersion: activity.consentVersion,
+      acceptedVersion: activity.acceptedVersion,
       plannedAt: activity.plannedAt?.toISOString() || null,
       href,
       owner: {
@@ -389,7 +396,8 @@ async function sessionCardsForMessages(
           DECLINE: "DISCARDED",
           RESCHEDULE: "REQUESTED",
           START: "DONE",
-          CANCEL: "DISCARDED"
+          CANCEL: "DISCARDED",
+          REVOKE: "DISCARDED"
         }
       },
       permissions: { ...permissions, delete: false },

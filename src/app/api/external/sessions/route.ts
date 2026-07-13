@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
 import { normalizeSlug, uniqueSlug } from "@/lib/slug";
 import { calendarMediaForSessionDates, externalSessionInclude, serializeExternalSession } from "./_helpers";
+import { parsedConsentAction } from "@/lib/activity-consent";
 
 export const runtime = "nodejs";
 
@@ -83,6 +84,8 @@ export async function POST(request: NextRequest) {
   const title = String(body.title || "").trim();
   if (!title) return NextResponse.json({ ok: false, error: "title_required" }, { status: 400 });
   const status = parseActivityStatus(String(body.status || "")) || "REQUESTED";
+  const requestedConsentAction = parsedConsentAction(body.consentAction) || "PROPOSE";
+  if (requestedConsentAction !== "PROPOSE") return NextResponse.json({ ok: false, error: "invalid_consent_action" }, { status: 400 });
   const { toys, positions, bondageItems } = await relationIds(auth.user, {
     toyIds: stringArray(body.toyIds),
     positionIds: stringArray(body.positionIds),
@@ -99,6 +102,10 @@ export async function POST(request: NextRequest) {
       note: String(body.note || "").trim(),
       plannedAt: parseDateValue(body.scheduledAt || body.plannedAt || body.startTime),
       status,
+      consentStatus: status === "REQUESTED" ? "PROPOSED" : "DRAFT",
+      consentVersion: 1,
+      acceptedVersion: null,
+      consentUpdatedAt: status === "REQUESTED" ? new Date() : null,
       tools: { connect: toys.map((entry) => ({ id: entry.id })) },
       positions: { connect: positions.map((entry) => ({ id: entry.id })) },
       bondageSystemItems: { connect: bondageItems.map((entry) => ({ id: entry.id })) }
@@ -106,6 +113,9 @@ export async function POST(request: NextRequest) {
     include: externalSessionInclude
   });
   await logAction({ actorId: auth.user.id, action: status === "REQUESTED" ? "activity_requested" : "activity_created", entityType: "activity", entityId: activity.id, title: `${status === "REQUESTED" ? "Spielplan angefragt" : "Spielplan angelegt"}: ${activity.title}`, href: `/activities/${activity.slug}` });
+  if (status === "REQUESTED") {
+    await logAction({ actorId: auth.user.id, action: "activity_consent_proposed", entityType: "activity", entityId: activity.id, title: "Planung vorgeschlagen", details: { consentStatus: "PROPOSED", consentVersion: 1 }, href: `/activities/${activity.slug}` });
+  }
   const mediaBySession = await calendarMediaForSessionDates(auth.user, [activity]);
   return NextResponse.json({ ok: true, item: serializeExternalSession(request, activity, auth.user.id, mediaBySession.get(activity.id) || []) }, { status: 201 });
 }

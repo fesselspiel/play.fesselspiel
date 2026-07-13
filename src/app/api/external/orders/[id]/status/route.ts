@@ -7,13 +7,19 @@ import { logAction } from "@/lib/audit";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { activityInclude, serializeActivity } from "@/lib/external-mobile-serializers";
 import { prisma } from "@/lib/prisma";
+import { consentMutation, effectiveConsentStatus, parsedConsentAction, type ActivityConsentAction } from "@/lib/activity-consent";
 
 export const runtime = "nodejs";
 
-function statusFromAction(action: string): ActivityStatus | null {
-  if (action === "accept" || action === "accepted") return "PLANNED";
-  if (action === "complete" || action === "done") return "DONE";
-  if (action === "cancel" || action === "discard") return "DISCARDED";
+function consentActionFromBody(value: unknown): ActivityConsentAction | null {
+  const parsed = parsedConsentAction(value);
+  if (parsed) return parsed;
+  const action = String(value || "").trim().toLowerCase();
+  if (action === "accept" || action === "accepted" || action === "planned") return "ACCEPT";
+  if (action === "complete" || action === "done") return "COMPLETE";
+  if (action === "decline" || action === "rejected") return "DECLINE";
+  if (action === "revoke" || action === "revoked") return "REVOKE";
+  if (action === "cancel" || action === "discard" || action === "discarded") return "CANCEL";
   return null;
 }
 
@@ -30,21 +36,23 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const blocked = apiFeatureGate(auth.user, "externalApi", "orders");
   if (blocked) return blocked;
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
-  const status = statusFromAction(String(body.action || body.status || "").trim().toLowerCase());
-  if (!status) return NextResponse.json({ ok: false, error: "invalid_status" }, { status: 400 });
+  let consentAction = consentActionFromBody(body.consentAction || body.action || body.status);
+  if (!consentAction) return NextResponse.json({ ok: false, error: "invalid_consent_action" }, { status: 400 });
   const existing = await prisma.activityPlan.findFirst({ where: { id: params.id, ...(await ownerScope(auth.user)), category: selfBondageCategory }, include: activityInclude });
   if (!existing) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
-  if (status === "PLANNED" && existing.ownerId === auth.user.id) return NextResponse.json({ ok: false, error: "owner_cannot_accept" }, { status: 403 });
-  const order = await prisma.activityPlan.update({ where: { id: existing.id }, data: { status }, include: activityInclude });
-  const session = status === "DONE" ? await createSessionHistoryForCompletedOrder(order, auth.user.id) : null;
+  if (consentAction === "CANCEL" && existing.ownerId !== auth.user.id) consentAction = effectiveConsentStatus(existing) === "ACCEPTED" ? "REVOKE" : "DECLINE";
+  const transition = consentMutation(existing, auth.user, consentAction);
+  if (!transition) return NextResponse.json({ ok: false, error: "consent_transition_forbidden" }, { status: 409 });
+  const order = await prisma.activityPlan.update({ where: { id: existing.id }, data: transition.data, include: activityInclude });
+  const session = consentAction === "COMPLETE" ? await createSessionHistoryForCompletedOrder(order, auth.user.id) : null;
   await logAction({
     actorId: auth.user.id,
-    action: actionForStatus(status),
+    action: actionForStatus(transition.activityStatus),
     entityType: "activity",
     entityId: order.id,
-    title: `Auftrag ${activityStatusDisplay(status, true)}: ${order.title}`,
+    title: `Auftrag ${activityStatusDisplay(transition.activityStatus, true)}: ${order.title}`,
     href: `/orders#order-${order.id}`,
-    details: { status: activityStatusDisplay(status, true), orderUrl: `/activities/${order.slug}`, sessionUrl: session?.slug ? `/sessions/${session.slug}` : null, excludeActorFromTargets: true }
+    details: { status: transition.resultingStatus, consentVersion: order.consentVersion, acceptedVersion: order.acceptedVersion, orderUrl: `/activities/${order.slug}`, sessionUrl: session?.slug ? `/sessions/${session.slug}` : null, excludeActorFromTargets: true }
   });
-  return NextResponse.json({ ok: true, item: serializeActivity(request, order), sessionId: session?.id || null });
+  return NextResponse.json({ ok: true, item: serializeActivity(request, order, auth.user), sessionId: session?.id || null });
 }
