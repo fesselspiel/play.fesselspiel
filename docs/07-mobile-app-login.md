@@ -1172,6 +1172,51 @@ Zeitstempel mit explizitem `Z` oder Offset, z. B. `2026-07-12T19:32:00.000Z` ode
 
 Auch `GET /api/external/status` liefert fuer `openTrackers[]` und `recentTrackerEntries[]` dieselben Farbaliasse. `GET /api/external/trackers/quotas` liefert die Farbe unter `quota.tracker.colorHex` plus `color`, `hexColor` und `trackerColor`.
 
+### Tracker-Kontingente
+
+```http
+GET /api/external/trackers/quotas
+GET /api/external/trackers/quotas?trackerKey=segufix
+Authorization: Bearer fsp_...
+```
+
+Jedes sichtbare Kontingent liefert einen stabilen Event-Anker fuer den aktuellen Tracker- und Zeitraum-Kontext. Die App kann diesen `eventId` direkt fuer `GET|POST /api/external/events/{eventId}/comments`, `POST|DELETE /api/external/events/{eventId}/like` und `POST|DELETE /api/external/events/{eventId}/dismiss` verwenden.
+
+Antwortauszug:
+
+```json
+{
+  "ok": true,
+  "quotas": [
+    {
+      "tracker": { "id": "tracker_id", "key": "segufix", "title": "Segufix", "colorHex": "#E30613" },
+      "daily": { "required": 60, "done": 30, "remaining": 30, "percent": 50, "complete": false },
+      "weekly": { "required": 180, "done": 45, "remaining": 135, "percent": 25, "complete": false },
+      "monthlyMinutes": { "required": 600, "done": 120, "remaining": 480, "percent": 20, "complete": false },
+      "monthlyDays": { "required": 8, "done": 2, "remaining": 6, "percent": 25, "complete": false },
+      "weeklyMode": "calendar",
+      "weekStartsOn": 1,
+      "periods": {
+        "daily": { "key": "2026-07-13", "startsAt": "2026-07-13T00:00:00.000Z", "endsAt": "2026-07-14T00:00:00.000Z" },
+        "weekly": { "key": "2026-07-13", "startsAt": "2026-07-13T00:00:00.000Z", "endsAt": "2026-07-13T10:00:00.000Z" },
+        "monthly": { "key": "2026-07-01", "startsAt": "2026-07-01T00:00:00.000Z", "endsAt": "2026-08-01T00:00:00.000Z" }
+      },
+      "complete": false,
+      "summary": "heute 30/60 Min. · Woche 45/180 Min.",
+      "eventId": "audit_log_anchor_id",
+      "canLike": true,
+      "likedByMe": false,
+      "likeCount": 0,
+      "canComment": true,
+      "commentCount": 0,
+      "engagement": { "likes": [], "comments": [] }
+    }
+  ]
+}
+```
+
+`GET /api/external/status` und `GET /api/external/trackers/stream` liefern Quotas im selben Shape.
+
 ### Tracker-Livestream
 
 ```http

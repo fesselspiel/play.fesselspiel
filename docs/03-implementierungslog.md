@@ -72,6 +72,8 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Externe Apps koennen Tracker-Eintraege ueber `POST /api/external/trackers/history` anlegen. Der Contract akzeptiert `trackerKey`, `notes`, `allDay`, `date`, `startTime`, `durationMinutes`, `endTime`, `fieldValues` und Verknuepfungs-IDs.
 - Fuer native Echtzeit-Ansichten gibt es `GET /api/external/trackers/stream` als Bearer-authentifizierten SSE-Stream mit initialem `snapshot`, `tracker_updated`-Events und Keepalives.
 - Tracker-History `POST` und `PATCH` behandeln ISO-Zeitstempel mit `Z` oder Offset als absolute Instants; lokale Zeitstempel ohne Offset bleiben Berlin-Wandzeit.
+- Tracker-Kontingente liefern in `GET /api/external/trackers/quotas`, `GET /api/external/status` und im Tracker-SSE-Stream jetzt stabile `eventId`-Anker, `canComment`, `commentCount`, Likes und `engagement.comments`.
+- Diese Quota-Event-IDs koennen direkt mit den normalen Feed-Kommentar-, Like- und Dismiss-Endpunkten verwendet werden.
 
 ## Initiale App
 

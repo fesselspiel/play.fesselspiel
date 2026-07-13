@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mediaVisibilityScope, ownerScope } from "@/lib/access";
 import { formatDateInput } from "@/lib/dates";
+import { entityLikeStateForEntity } from "@/lib/entity-likes";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { prisma } from "@/lib/prisma";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
@@ -32,6 +33,38 @@ export async function GET(request: NextRequest) {
     }),
     trackerQuotaStatusForUser(auth.user)
   ]);
+  const mappedQuotas = await Promise.all(quotas.filter((entry) => entry.hasQuota).map(async (entry) => {
+    const state = await entityLikeStateForEntity({
+      entityType: "trackerQuota",
+      entityId: entry.quotaEntityId,
+      ownerId: auth.user.id,
+      tenantId: auth.user.tenantId,
+      title: `Kontingent: ${entry.tracker.title}`,
+      href: `/sessions/${entry.tracker.key}`
+    }, auth.user.id);
+    return {
+      tracker: entry.tracker,
+      complete: entry.complete,
+      summary: quotaSummaryText(entry),
+      daily: entry.daily,
+      weekly: entry.weekly,
+      weeklyMode: entry.weeklyMode,
+      weekStartsOn: entry.weekStartsOn,
+      periods: entry.periods,
+      monthlyMinutes: entry.monthlyMinutes,
+      monthlyDays: entry.monthlyDays,
+      eventId: state.eventId,
+      canLike: state.canLike,
+      likedByMe: state.likedByMe,
+      likeCount: state.likeCount,
+      canComment: state.canComment,
+      commentCount: state.commentCount,
+      engagement: {
+        likes: state.likes,
+        comments: state.comments
+      }
+    };
+  }));
   return NextResponse.json({
     ok: true,
     user: { id: auth.user.id, name: auth.user.profile?.displayName || auth.user.name || auth.user.username || auth.user.email },
@@ -91,14 +124,6 @@ export async function GET(request: NextRequest) {
       href: `/trackers/${entry.trackerType.key}/${entry.slug || entry.id}`,
       url: `/trackers/${entry.trackerType.key}/${entry.slug || entry.id}`
     })),
-    quotas: quotas.filter((entry) => entry.hasQuota).map((entry) => ({
-      tracker: entry.tracker,
-      complete: entry.complete,
-      summary: quotaSummaryText(entry),
-      daily: entry.daily,
-      weekly: entry.weekly,
-      monthlyMinutes: entry.monthlyMinutes,
-      monthlyDays: entry.monthlyDays
-    }))
+    quotas: mappedQuotas
   });
 }

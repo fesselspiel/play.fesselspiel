@@ -1,8 +1,8 @@
-import { mediaVisibilityScope, ownerScope, type AccessUser } from "@/lib/access";
+import { accessibleOwnerIds, mediaVisibilityScope, ownerScope, type AccessUser } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 
 export const ENTITY_LIKE_ANCHOR_ACTION = "entity_like_anchor";
-type EntityLikeType = "media" | "trackerEntry";
+type EntityLikeType = "media" | "trackerEntry" | "trackerQuota";
 
 export type LikeableEntity = {
   entityType: EntityLikeType;
@@ -29,6 +29,7 @@ function normalizeEntityType(value: string): EntityLikeType | null {
   const raw = value.trim().toLowerCase();
   if (["media", "image", "gallery", "bild"].includes(raw)) return "media";
   if (["tracker", "trackerentry", "tracker-entry", "history"].includes(raw)) return "trackerEntry";
+  if (["trackerquota", "tracker-quota", "quota", "kontingent"].includes(raw)) return "trackerQuota";
   return null;
 }
 
@@ -58,7 +59,15 @@ export function emptyEntityLikeState() {
     likedByMe: false,
     own: false,
     likeCount: 0,
-    likes: [] as ReturnType<typeof serializeLikes>
+    likes: [] as ReturnType<typeof serializeLikes>,
+    canComment: true,
+    commentCount: 0,
+    comments: [] as {
+      id: string;
+      body: string;
+      createdAt: string;
+      author: { id: string; username?: string | null; displayName: string | null; imageUrl?: string | null } | null;
+    }[]
   };
 }
 
@@ -84,18 +93,36 @@ export async function entityLikeStateMap(entityType: EntityLikeType, entityIds: 
       feedLikes: {
         include: { user: { include: { profile: true } } },
         orderBy: { createdAt: "asc" }
+      },
+      feedComments: {
+        include: { author: { include: { profile: true } } },
+        orderBy: { createdAt: "asc" }
       }
     }
   });
   for (const anchor of anchors) {
     const likes = serializeLikes(anchor.feedLikes, userId);
+    const comments = anchor.feedComments.map((comment) => ({
+      id: comment.id,
+      body: comment.body,
+      createdAt: comment.createdAt.toISOString(),
+      author: comment.author ? {
+        id: comment.author.id,
+        username: comment.author.username,
+        displayName: displayName(comment.author),
+        imageUrl: comment.author.profile?.imageUrl || null
+      } : null
+    }));
     states.set(anchor.entityId || "", {
       eventId: anchor.id,
       canLike: true,
       likedByMe: anchor.feedLikes.some((like) => like.userId === userId),
       own: anchor.feedLikes.some((like) => like.userId === userId),
       likeCount: anchor.feedLikes.length,
-      likes
+      likes,
+      canComment: true,
+      commentCount: comments.length,
+      comments
     });
   }
   return states;
@@ -125,6 +152,30 @@ export async function findLikeableEntity(user: AccessUser, rawEntityType: string
       tenantId: media.tenantId,
       title: media.title,
       href: `/media?item=${media.id}`
+    };
+  }
+  if (entityType === "trackerQuota") {
+    const [, ownerId, trackerId] = entityId.split(":");
+    if (!ownerId || !trackerId) return null;
+    if (!(await accessibleOwnerIds(user)).includes(ownerId)) return null;
+    const trackerType = await prisma.trackerType.findFirst({
+      where: {
+        id: trackerId,
+        enabled: true,
+        AND: [
+          user.tenantId ? { OR: [{ tenantId: user.tenantId }, { tenantId: null }] } : { tenantId: null }
+        ]
+      },
+      select: { id: true, key: true, title: true, tenantId: true }
+    });
+    if (!trackerType) return null;
+    return {
+      entityType,
+      entityId,
+      ownerId,
+      tenantId: trackerType.tenantId || user.tenantId,
+      title: `Kontingent: ${trackerType.title}`,
+      href: `/sessions/${trackerType.key}`
     };
   }
   const tracker = await prisma.trackerEntry.findFirst({

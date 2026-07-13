@@ -512,8 +512,8 @@ export const capabilities: readonly Capability[] = [
         },
         telegramCommands: [{ command: "/kontingent", description: "Tracker-Kontingente und offene Todos anzeigen", aliases: ["/quota", "/quotas"] }],
         apiEndpoints: [
-          { method: "GET", path: "/api/external/trackers/quotas?token=...", description: "Kontingente und offene Tracker-Todos abfragen." },
-          { method: "GET", path: "/api/external/trackers/quotas?token=...&trackerKey={trackerKey}", description: "Kontingent eines bestimmten Trackers abfragen, z. B. für Alexa." },
+          { method: "GET", path: "/api/external/trackers/quotas?token=...", description: "Kontingente und offene Tracker-Todos inklusive `eventId`, Likes und Kommentaren abfragen." },
+          { method: "GET", path: "/api/external/trackers/quotas?token=...&trackerKey={trackerKey}", description: "Kontingent eines bestimmten Trackers inklusive `eventId` abfragen, z. B. für Alexa." },
           { method: "GET", path: "/api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD", description: "Echte Tracker-Einträge im Zeitraum für Kalender und native Apps abfragen." },
           { method: "POST", path: "/api/external/trackers/history", description: "Tracker-Eintrag nativ anlegen. JSON: trackerKey, notes?, allDay?, date?, startTime, durationMinutes?, endTime?." },
           { method: "GET", path: "/api/external/trackers/stream", description: "SSE-Live-Stream für Tracker-Snapshot und Änderungen. Bearer Auth plus optional X-Playplaner-View-Context." },
@@ -796,7 +796,7 @@ export const capabilities: readonly Capability[] = [
           { method: "DELETE", path: "/api/external/events/{eventId}/comments/{commentId}", description: "Eigenen Kommentar entfernen; Admins duerfen sichtbare Kommentare entfernen." },
           { method: "POST", path: "/api/external/events/{eventId}/dismiss", description: "Feed-/Protokolleintrag nur fuer den aktuellen Benutzer ausblenden." },
           { method: "DELETE", path: "/api/external/events/{eventId}/dismiss", description: "Ausblendung eines Feed-/Protokolleintrags fuer den aktuellen Benutzer rueckgaengig machen." },
-          { method: "POST", path: "/api/external/events/by-entity/{entityType}/{entityId}/like", description: "Direkte Feed-Entities wie `media` oder `tracker` liken." },
+          { method: "POST", path: "/api/external/events/by-entity/{entityType}/{entityId}/like", description: "Direkte Feed-Entities wie `media`, `tracker` oder `trackerQuota` liken." },
           { method: "DELETE", path: "/api/external/events/by-entity/{entityType}/{entityId}/like", description: "Den eigenen Like einer direkten Feed-Entity entfernen." }
         ],
         auditActions: ["feed_commented", "feed_comment_deleted", "feed_liked", "feed_unliked", "media_liked", "media_unliked", "tracker_entry_liked", "tracker_entry_unliked"]

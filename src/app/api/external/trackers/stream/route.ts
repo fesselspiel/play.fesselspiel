@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { ownerScope } from "@/lib/access";
 import { formatDateInput } from "@/lib/dates";
+import { entityLikeStateForEntity } from "@/lib/entity-likes";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { prisma } from "@/lib/prisma";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
@@ -84,14 +85,37 @@ async function trackerSnapshot(user: any) {
     updatedAt: entry.updatedAt.toISOString()
   }));
 
-  const mappedQuotas = quotas.filter((entry) => entry.hasQuota).map((entry) => ({
-    tracker: entry.tracker,
-    complete: entry.complete,
-    summary: quotaSummaryText(entry),
-    daily: entry.daily,
-    weekly: entry.weekly,
-    monthlyMinutes: entry.monthlyMinutes,
-    monthlyDays: entry.monthlyDays
+  const mappedQuotas = await Promise.all(quotas.filter((entry) => entry.hasQuota).map(async (entry) => {
+    const state = await entityLikeStateForEntity({
+      entityType: "trackerQuota",
+      entityId: entry.quotaEntityId,
+      ownerId: user.id,
+      tenantId: user.tenantId,
+      title: `Kontingent: ${entry.tracker.title}`,
+      href: `/sessions/${entry.tracker.key}`
+    }, user.id);
+    return {
+      tracker: entry.tracker,
+      complete: entry.complete,
+      summary: quotaSummaryText(entry),
+      daily: entry.daily,
+      weekly: entry.weekly,
+      weeklyMode: entry.weeklyMode,
+      weekStartsOn: entry.weekStartsOn,
+      periods: entry.periods,
+      monthlyMinutes: entry.monthlyMinutes,
+      monthlyDays: entry.monthlyDays,
+      eventId: state.eventId,
+      canLike: state.canLike,
+      likedByMe: state.likedByMe,
+      likeCount: state.likeCount,
+      canComment: state.canComment,
+      commentCount: state.commentCount,
+      engagement: {
+        likes: state.likes,
+        comments: state.comments
+      }
+    };
   }));
 
   return {

@@ -46,6 +46,10 @@ function nextMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth() + 1, 1);
 }
 
+function dateKey(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
 function overlapMinutes(startTime: Date, endTime: Date | null, periodStart: Date, periodEnd: Date) {
   const start = Math.max(startTime.getTime(), periodStart.getTime());
   const end = Math.min((endTime || new Date()).getTime(), periodEnd.getTime());
@@ -141,6 +145,12 @@ export async function trackerQuotaStatusForUser(user: QuotaUser, now = new Date(
       weekly,
       weeklyMode: tracker.quotaWeeklyTail ? "rolling" : "calendar",
       weekStartsOn: tracker.quotaWeekStartsOn ?? 1,
+      periods: {
+        daily: { startsAt: dayStart.toISOString(), endsAt: dayEnd.toISOString(), key: dateKey(dayStart) },
+        weekly: { startsAt: weekStart.toISOString(), endsAt: now.toISOString(), key: dateKey(weekStart) },
+        monthly: { startsAt: monthStart.toISOString(), endsAt: monthEnd.toISOString(), key: dateKey(monthStart) }
+      },
+      quotaEntityId: `trackerQuota:${user.id}:${tracker.id}:${dateKey(dayStart)}:${dateKey(weekStart)}:${dateKey(monthStart)}`,
       monthlyMinutes: monthlyMinutesProgress,
       monthlyDays: monthlyDaysProgress,
       complete: relevant.length ? relevant.every((entry) => entry.complete) : true,
