@@ -188,6 +188,7 @@ model User {
   auditLogs         AuditLog[]
   feedComments      FeedComment[]
   feedLikes         FeedLike[]
+  feedDismissals    FeedDismissal[]
   pointEntries      PointEntry[]
   activityLikes     ActivityLike[]
   activityComments  ActivityComment[]
@@ -442,6 +443,7 @@ model AuditLog {
   actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
   feedComments FeedComment[]
   feedLikes     FeedLike[]
+  feedDismissals FeedDismissal[]
   pointEntries  PointEntry[]
 
   @@index([actorId, createdAt])
@@ -503,6 +505,19 @@ model FeedLike {
   createdAt DateTime @default(now())
   auditLog  AuditLog @relation(fields: [auditLogId], references: [id], onDelete: Cascade)
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([auditLogId, userId])
+  @@index([auditLogId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model FeedDismissal {
+  id         String   @id @default(cuid())
+  auditLogId String
+  userId     String
+  createdAt  DateTime @default(now())
+  auditLog   AuditLog @relation(fields: [auditLogId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([auditLogId, userId])
   @@index([auditLogId, createdAt])

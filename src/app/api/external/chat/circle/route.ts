@@ -3,6 +3,7 @@ import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { createCircleChatReceipts, requireCircleChatScope, serializeCircleChatMessageWithContext, serializeCircleChatMessages } from "@/lib/circle-chat";
 import { saveUploadedFile } from "@/lib/files";
 import { logAction, userDisplayName } from "@/lib/audit";
+import { selfBondageCategory } from "@/lib/activity-orders";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -69,14 +70,19 @@ export async function POST(request: NextRequest) {
   const scope = await requireCircleChatScope(auth.user, requestedCircleId).catch(() => null);
   if (!scope) return NextResponse.json({ ok: false, error: "Kein Zirkel für den Chat zugeordnet" }, { status: 403 });
   const normalizedEntityType = entityType?.toLowerCase() || null;
-  const cardActivity = normalizedEntityType === "session" || normalizedEntityType === "activity"
+  const cardKind = normalizedEntityType === "order" ? "order" : (normalizedEntityType === "session" || normalizedEntityType === "activity" ? "session" : null);
+  const cardActivity = cardKind
     ? await prisma.activityPlan.findFirst({
-        where: { id: entityId || "", tenantId: scope.tenantId },
+        where: {
+          id: entityId || "",
+          tenantId: scope.tenantId,
+          ...(cardKind === "order" ? { category: selfBondageCategory } : {})
+        },
         select: { id: true, title: true, slug: true }
       })
     : null;
-  if (normalizedEntityType && !cardActivity && (normalizedEntityType === "session" || normalizedEntityType === "activity")) {
-    return NextResponse.json({ ok: false, error: "session_not_found" }, { status: 404 });
+  if (cardKind && !cardActivity) {
+    return NextResponse.json({ ok: false, error: cardKind === "order" ? "order_not_found" : "session_not_found" }, { status: 404 });
   }
   if (!body && (!file || file.size === 0) && !cardActivity) return NextResponse.json({ ok: false, error: "Nachricht, Bild oder Karte fehlt" }, { status: 400 });
   const asset = await saveUploadedFile(auth.user.id, file, scope.tenantId);
@@ -112,16 +118,16 @@ export async function POST(request: NextRequest) {
       text: body ? body.slice(0, 240) : null,
       excludeActorFromTargets: true,
       ...(cardActivity ? {
-        entityType: "session",
+        entityType: cardKind || "session",
         entityId: cardActivity.id,
         entityTitle: entityTitle || cardActivity.title,
-        targetScreen: targetScreen || "sessions",
+        targetScreen: targetScreen || (cardKind === "order" ? "orders" : "sessions"),
         target: {
-          screen: targetScreen || "sessions",
-          entityType: "session",
+          screen: targetScreen || (cardKind === "order" ? "orders" : "sessions"),
+          entityType: cardKind || "session",
           entityId: cardActivity.id,
           id: cardActivity.id,
-          href: `/activities/${cardActivity.slug}`
+          href: cardKind === "order" ? `/orders#order-${cardActivity.id}` : `/activities/${cardActivity.slug}`
         }
       } : {})
     }

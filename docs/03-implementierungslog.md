@@ -36,8 +36,13 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 ## Externe Event-Likes
 
 - Der externe Eventfeed liefert jetzt `canLike`, `likedByMe`, `likeCount` und `own` pro Like.
+- Der externe Eventfeed liefert jetzt auch `canComment`, `commentCount` und `dismissedForMe`.
 - Native Apps koennen sichtbare Feed-/Protokolleintraege per `POST /api/external/events/{eventId}/like` liken.
 - Der eigene Like kann per `DELETE /api/external/events/{eventId}/like` wieder entfernt werden.
+- Native Apps koennen Kommentare ueber `GET|POST /api/external/events/{eventId}/comments` lesen und schreiben.
+- Eigene Kommentare koennen ueber `DELETE /api/external/events/{eventId}/comments/{commentId}` geloescht werden; Admins duerfen sichtbare Kommentare entfernen.
+- Kommentare erzeugen selbst ein Feed-Ereignis `feed_commented`, das auf das Ursprungselement verweist.
+- Feed-Eintraege koennen fuer den aktuellen Benutzer ueber `POST /api/external/events/{eventId}/dismiss` ausgeblendet und per `DELETE` wieder eingeblendet werden.
 - Die Endpunkte nutzen dieselbe Tenant-/Zirkel-Sichtbarkeit wie `GET /api/external/events` und sind in `/api/external/capabilities` dokumentiert.
 - Direkte Feed-Entities wie Medien und Tracker-Eintraege koennen jetzt ueber `POST|DELETE /api/external/events/by-entity/{entityType}/{entityId}/like` geliked werden.
 - `GET /api/external/media`, `GET /api/external/media/{id}`, `GET /api/external/trackers/history` und `GET /api/external/trackers/history/{id}` liefern dazu `eventId`, `canLike`, `likedByMe`, `likeCount` und `likes[]`.
@@ -52,6 +57,8 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - `GET /api/external/chat/circles` gibt als `currentCircleId` nur noch `null` oder eine ID aus `circles[]` zurueck, damit Admin-/View-Contexts keine Zirkel-ID aus einer anderen Seite mitschleppen.
 - `tracker_quota_reminder` wird aus dem normalen externen Eventfeed ausgeblendet, weil Kontingente separat ueber Tracker-/Quota-Endpunkte abgerufen werden.
 - `POST /api/external/chat/circle` kann jetzt direkt `entityType=session`, `entityId`, `entityTitle` und `targetScreen=sessions` speichern. Die Antwort sowie GET/Stream liefern daraus sofort die native Anfragekarte.
+- `POST /api/external/chat/circle` kann jetzt auch `entityType=order` und `targetScreen=orders` speichern. Die Antwort sowie GET/Stream liefern daraus sofort die native Auftragskarte mit `entity`, `target`, `order`, `permissions`, `capabilities` und `actions`.
+- `POST /api/external/chat/transcribe` nimmt Audio als multipart-Feld `file` entgegen, transkribiert ueber OpenAI und gibt `{ transcript, text }` zurueck, ohne automatisch eine Chatnachricht zu senden.
 
 ## Tracker-Fotos
 

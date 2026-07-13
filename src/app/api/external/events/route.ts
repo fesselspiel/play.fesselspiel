@@ -60,12 +60,14 @@ export async function GET(request: NextRequest) {
   const cursor = String(searchParams.get("cursor") || "").trim();
   const since = parseDate(searchParams.get("since") || searchParams.get("after"));
   const includeDelivery = boolParam(searchParams, "includeDelivery", false);
+  const includeDismissed = boolParam(searchParams, "includeDismissed", false);
   const includeDetails = boolParam(searchParams, "includeDetails", true);
   const actions = actionFilter(searchParams);
   const ownerIds = await accessibleOwnerIds(auth.user);
 
   const where: Prisma.AuditLogWhereInput = {
     actorId: { in: ownerIds },
+    ...(includeDismissed ? {} : { feedDismissals: { none: { userId: auth.user.id } } }),
     ...(actions.length ? { action: { in: actions } } : {}),
     ...(since ? { createdAt: { gt: since } } : {}),
     ...(includeDelivery ? {} : {
@@ -80,7 +82,8 @@ export async function GET(request: NextRequest) {
             "external_push_sent",
             "external_push_failed",
             "entity_like_anchor",
-            "tracker_quota_reminder"
+            "tracker_quota_reminder",
+            "play_ready_expired"
           ]
         }
       }
@@ -92,6 +95,7 @@ export async function GET(request: NextRequest) {
     include: {
       actor: { include: { profile: true } },
       feedLikes: { include: { user: { include: { profile: true } } }, orderBy: { createdAt: "asc" } },
+      feedDismissals: { where: { userId: auth.user.id }, select: { id: true, createdAt: true } },
       feedComments: { include: { author: { include: { profile: true } } }, orderBy: { createdAt: "asc" } }
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -128,6 +132,7 @@ export async function GET(request: NextRequest) {
       const notificationTitle = renderFeedTemplate(rule?.titleTemplate || defaultFeedTitleTemplate(), entry, actor);
       const notificationBody = renderFeedTemplate(rule?.bodyTemplate || defaultFeedBodyTemplate(), entry, actor);
       const likedByMe = entry.feedLikes.some((like) => like.userId === auth.user.id);
+      const dismissedForMe = entry.feedDismissals.length > 0;
       return {
         id: entry.id,
         action: entry.action,
@@ -155,6 +160,9 @@ export async function GET(request: NextRequest) {
         canLike: true,
         likedByMe,
         likeCount: entry.feedLikes.length,
+        canComment: true,
+        commentCount: entry.feedComments.length,
+        dismissedForMe,
         engagement: {
           likes: entry.feedLikes.map((like) => ({
             id: like.id,

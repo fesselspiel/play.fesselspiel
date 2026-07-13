@@ -311,6 +311,40 @@ const manualToolCatalog = ([
     category: "Events"
   },
   {
+    id: "eventComments",
+    method: "GET",
+    methods: ["GET", "POST"],
+    path: "/api/external/events/{eventId}/comments",
+    title: "Event-Kommentare",
+    description: "Kommentare zu einem sichtbaren Feed-/Protokolleintrag lesen oder mit body anlegen.",
+    category: "Events"
+  },
+  {
+    id: "eventCommentDetail",
+    method: "DELETE",
+    path: "/api/external/events/{eventId}/comments/{commentId}",
+    title: "Event-Kommentar loeschen",
+    description: "Eigenen Kommentar entfernen; Admins duerfen sichtbare Kommentare entfernen.",
+    category: "Events"
+  },
+  {
+    id: "eventDismiss",
+    method: "POST",
+    methods: ["POST", "DELETE"],
+    path: "/api/external/events/{eventId}/dismiss",
+    title: "Event ausblenden",
+    description: "Feed-/Protokolleintrag nur fuer den aktuellen Benutzer ausblenden oder wieder einblenden.",
+    category: "Events"
+  },
+  {
+    id: "chatTranscribe",
+    method: "POST",
+    path: "/api/external/chat/transcribe",
+    title: "Chat-Audio transkribieren",
+    description: "Audio multipart mit Feld file transkribieren; optional circleId. Sendet selbst keine Chatnachricht.",
+    category: "Chat"
+  },
+  {
     id: "mediaUpload",
     method: "POST",
     methods: ["POST"],

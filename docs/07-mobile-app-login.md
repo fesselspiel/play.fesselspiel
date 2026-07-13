@@ -263,6 +263,63 @@ Antwort:
 
 Der Server prueft Tenant-/Zirkel-Sichtbarkeit ueber dieselbe Logik wie `GET /api/external/events`. Nicht sichtbare IDs liefern `404 event_not_found`.
 
+### Event-Kommentare
+
+Feed-/Protokolleintraege liefern zusätzlich `canComment`, `commentCount` und in `engagement.comments[]` die letzten sichtbaren Kommentare. Kommentare werden ueber dieselbe Sichtbarkeitslogik wie der Eventfeed geschuetzt.
+
+```http
+GET /api/external/events/{eventId}/comments
+Authorization: Bearer fsp_...
+```
+
+```http
+POST /api/external/events/{eventId}/comments
+Authorization: Bearer fsp_...
+Content-Type: application/json
+
+{ "body": "Kommentartext" }
+```
+
+```http
+DELETE /api/external/events/{eventId}/comments/{commentId}
+Authorization: Bearer fsp_...
+```
+
+Antwortauszug:
+
+```json
+{
+  "ok": true,
+  "eventId": "audit_log_id",
+  "canComment": true,
+  "commentCount": 1,
+  "comments": [
+    {
+      "id": "comment_id",
+      "body": "Kommentartext",
+      "own": true,
+      "canDelete": true,
+      "createdAt": "2026-07-13T09:30:00.000Z",
+      "author": { "id": "user_id", "displayName": "Gabriel" }
+    }
+  ]
+}
+```
+
+Ein neuer Kommentar erzeugt selbst ein Feed-Ereignis `feed_commented` mit Verweis auf das Ursprungselement (`details.auditLogId`).
+
+### Event ausblenden
+
+Die App kann sichtbare Feed-Eintraege fuer den aktuellen Benutzer abhaken, ohne das Ursprungselement zu loeschen:
+
+```http
+POST /api/external/events/{eventId}/dismiss
+DELETE /api/external/events/{eventId}/dismiss
+Authorization: Bearer fsp_...
+```
+
+`GET /api/external/events` blendet dismissed Events standardmaessig aus. Mit `includeDismissed=true` kommen sie wieder mit `dismissedForMe:true` zurueck.
+
 ### Entity-Likes
 
 Direkte Dashboard-Feed-Zeilen ohne eigene Event-ID, z. B. Medien und Tracker-History-Items, koennen ueber einen Entity-Endpunkt geliked werden:
@@ -835,6 +892,69 @@ Native Composer koennen eine zuvor ueber `POST /api/external/sessions` angelegte
 ```
 
 `body` ist bei einer gueltigen Session-Karte optional. Die Antwort auf den POST sowie anschliessende `GET`/Stream-Antworten liefern sofort dieselben `entity`, `target`, `session`, `permissions`, `capabilities` und `actions` wie oben.
+
+Auftraege verwenden denselben Chat-POST mit `entityType=order` und `targetScreen=orders`. Der Server validiert, dass `entityId` ein Self-Bondage-Auftrag der aktuellen Seite ist. Antwort, Listen-Endpunkt und SSE liefern `entity`, `target`, `order`, `permissions`, `capabilities` und `actions`.
+
+```json
+{
+  "circleId": "circle_id",
+  "body": "Optionaler Begleittext",
+  "entityType": "order",
+  "entityId": "order_id",
+  "entityTitle": "Vorbereitungsauftrag",
+  "targetScreen": "orders"
+}
+```
+
+Antwortauszug:
+
+```json
+{
+  "entity": {
+    "type": "order",
+    "entityType": "order",
+    "entityId": "order_id",
+    "title": "Vorbereitungsauftrag",
+    "status": "REQUESTED",
+    "href": "/orders#order-order_id"
+  },
+  "target": {
+    "screen": "orders",
+    "entityType": "order",
+    "entityId": "order_id",
+    "href": "/orders#order-order_id"
+  },
+  "order": {
+    "id": "order_id",
+    "status": "REQUESTED",
+    "actions": ["CONFIRM", "RESCHEDULE", "DECLINE", "CANCEL"]
+  }
+}
+```
+
+### Chat-Audio transkribieren
+
+```http
+POST /api/external/chat/transcribe
+Authorization: Bearer fsp_...
+Content-Type: multipart/form-data
+
+file=@audio.m4a
+circleId=circle_id
+```
+
+Antwort:
+
+```json
+{
+  "ok": true,
+  "transcript": "Transkribierter Text",
+  "text": "Transkribierter Text",
+  "language": null
+}
+```
+
+Der Endpunkt speichert die Audiodatei nicht dauerhaft und sendet keine Chatnachricht. Die App zeigt das Ergebnis editierbar an und sendet danach normal per `POST /api/external/chat/circle`.
 
 ### Echtzeit-Stream
 

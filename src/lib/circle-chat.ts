@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { fileAssetUrl } from "@/lib/files";
 import { userDisplayName } from "@/lib/audit";
+import { selfBondageCategory } from "@/lib/activity-orders";
 
 export type CircleChatUser = {
   id: string;
@@ -249,14 +250,14 @@ function objectValue(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
-function sessionEntityIdFromDetails(details: unknown) {
+function cardEntityFromDetails(details: unknown) {
   const data = objectValue(details);
   const entityType = String(data.entityType || objectValue(data.entity).entityType || objectValue(data.target).entityType || "").toLowerCase();
   const targetScreen = String(data.targetScreen || objectValue(data.target).screen || "").toLowerCase();
   const entityId = data.entityId || objectValue(data.entity).entityId || objectValue(data.entity).id || objectValue(data.target).entityId || objectValue(data.target).id;
-  if ((entityType === "session" || entityType === "activity" || targetScreen === "sessions" || targetScreen === "activities") && typeof entityId === "string" && entityId) {
-    return entityId;
-  }
+  if (typeof entityId !== "string" || !entityId) return null;
+  if (entityType === "order" || targetScreen === "orders") return { id: entityId, kind: "order" as const };
+  if (entityType === "session" || entityType === "activity" || targetScreen === "sessions" || targetScreen === "activities") return { id: entityId, kind: "session" as const };
   return null;
 }
 
@@ -308,12 +309,12 @@ async function sessionCardsForMessages(
     orderBy: { createdAt: "desc" }
   });
   const sourceByMessage = new Map<string, string>();
-  const activityIdByMessage = new Map<string, string>();
+  const activityByMessage = new Map<string, { id: string; kind: "session" | "order" }>();
   for (const audit of chatAudits) {
     if (!audit.entityId) continue;
-    const directActivityId = sessionEntityIdFromDetails(audit.details);
-    if (directActivityId && !activityIdByMessage.has(audit.entityId)) {
-      activityIdByMessage.set(audit.entityId, directActivityId);
+    const directActivity = cardEntityFromDetails(audit.details);
+    if (directActivity && !activityByMessage.has(audit.entityId)) {
+      activityByMessage.set(audit.entityId, directActivity);
       continue;
     }
     if (sourceByMessage.has(audit.entityId)) continue;
@@ -328,12 +329,12 @@ async function sessionCardsForMessages(
   const sourceById = new Map(sourceAudits.map((audit) => [audit.id, audit]));
   for (const [messageId, sourceAuditId] of sourceByMessage.entries()) {
     const source = sourceById.get(sourceAuditId);
-    if (source?.entityType === "activity" && source.entityId && !activityIdByMessage.has(messageId)) {
-      activityIdByMessage.set(messageId, source.entityId);
+    if (source?.entityType === "activity" && source.entityId && !activityByMessage.has(messageId)) {
+      activityByMessage.set(messageId, { id: source.entityId, kind: "session" });
     }
   }
   const activityIds = Array.from(new Set([
-    ...Array.from(activityIdByMessage.values()),
+    ...Array.from(activityByMessage.values()).map((entry) => entry.id),
     ...sourceAudits
     .filter((audit) => audit.entityType === "activity" && audit.entityId)
     .map((audit) => audit.entityId as string)
@@ -344,15 +345,16 @@ async function sessionCardsForMessages(
     include: { owner: { include: { profile: true } } }
   });
   const activityById = new Map(activities.map((activity) => [activity.id, activity]));
-  for (const [messageId, activityId] of activityIdByMessage.entries()) {
-    const activity = activityById.get(activityId);
+  for (const [messageId, cardSource] of activityByMessage.entries()) {
+    const activity = activityById.get(cardSource.id);
     if (!activity) continue;
-    const href = `/activities/${activity.slug}`;
+    const isOrder = cardSource.kind === "order" || activity.category === selfBondageCategory;
+    const href = isOrder ? `/orders#order-${activity.id}` : `/activities/${activity.slug}`;
     const permissions = sessionPermissions(activity, currentUserId, currentUserRole);
     const actions = sessionActions(permissions);
     const entity = {
-      type: "session",
-      entityType: "session",
+      type: isOrder ? "order" : "session",
+      entityType: isOrder ? "order" : "session",
       entityId: activity.id,
       id: activity.id,
       title: activity.title,
@@ -368,13 +370,13 @@ async function sessionCardsForMessages(
     cards.set(messageId, {
       entity,
       target: {
-        screen: "activities",
-        entityType: "session",
+        screen: isOrder ? "orders" : "activities",
+        entityType: isOrder ? "order" : "session",
         entityId: activity.id,
         id: activity.id,
         href
       },
-      session: {
+      [isOrder ? "order" : "session"]: {
         ...entity,
         permissions,
         capabilities: permissions,

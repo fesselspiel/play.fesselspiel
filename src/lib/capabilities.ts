@@ -126,8 +126,8 @@ export const capabilities: readonly Capability[] = [
         type: "read",
         description: "Liest die letzten Nachrichten im eigenen Zirkel-Chat.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/chat/circle?token=...&limit=50&circleId=...", description: "Letzte Zirkel-Chat-Nachrichten inklusive Bildanhängen abrufen. `circleId` ist optional. Automatisch erzeugte Session-/Anfragekarten enthalten `entity`, `target`, `session`, `permissions`, `capabilities`, `actions` und `actionTargets`." },
-          { method: "GET", path: "/api/external/chat/circle/stream?token=...&circleId=...&after=...", description: "Server-Sent-Events fuer echte Chat-Aktualisierung ohne Reload. Events liefern `type=messages` und `items[]` im selben Format wie der Listen-Endpunkt, inklusive Session-Aktionen." }
+          { method: "GET", path: "/api/external/chat/circle?token=...&limit=50&circleId=...", description: "Letzte Zirkel-Chat-Nachrichten inklusive Bildanhängen abrufen. `circleId` ist optional. Session-/Auftragskarten enthalten `entity`, `target`, `session` oder `order`, `permissions`, `capabilities`, `actions` und `actionTargets`." },
+          { method: "GET", path: "/api/external/chat/circle/stream?token=...&circleId=...&after=...", description: "Server-Sent-Events fuer echte Chat-Aktualisierung ohne Reload. Events liefern `type=messages` und `items[]` im selben Format wie der Listen-Endpunkt, inklusive Session-/Auftragsaktionen." }
         ],
         auditActions: ["circle_chat_viewed"]
       },
@@ -135,9 +135,10 @@ export const capabilities: readonly Capability[] = [
         key: "send",
         label: "Nachricht senden",
         type: "write",
-        description: "Sendet eine Textnachricht oder ein Bild in den Zirkel-Chat.",
+        description: "Sendet eine Textnachricht, ein Bild oder eine strukturierte Session-/Auftragskarte in den Zirkel-Chat.",
         apiEndpoints: [
-          { method: "POST", path: "/api/external/chat/circle", description: "Nachricht per JSON `{ body, circleId? }` oder multipart mit `body`, `circleId?` und `file` senden." }
+          { method: "POST", path: "/api/external/chat/circle", description: "Nachricht per JSON `{ body, circleId?, entityType?, entityId?, entityTitle?, targetScreen? }` oder multipart mit `body`, `circleId?` und `file` senden. `entityType=session` und `entityType=order` erzeugen native Karten." },
+          { method: "POST", path: "/api/external/chat/transcribe", description: "Audio multipart mit Feld `file` transkribieren. Optional `circleId`. Antwort `{ transcript, text }`, ohne automatisch eine Chatnachricht zu senden." }
         ],
         auditActions: ["circle_chat_message_created", "circle_chat_message_created_api"]
       },
@@ -790,10 +791,15 @@ export const capabilities: readonly Capability[] = [
           { method: "GET", path: "/api/external/events/actions?token=...", description: "Verfuegbare Aktionstypen inklusive lesbarem Label und Sichtbarkeitszaehler abrufen." },
           { method: "POST", path: "/api/external/events/{eventId}/like", description: "Einen sichtbaren Feed-/Protokolleintrag liken." },
           { method: "DELETE", path: "/api/external/events/{eventId}/like", description: "Den eigenen Like von einem sichtbaren Feed-/Protokolleintrag entfernen." },
+          { method: "GET", path: "/api/external/events/{eventId}/comments", description: "Kommentare zu einem sichtbaren Feed-/Protokolleintrag lesen." },
+          { method: "POST", path: "/api/external/events/{eventId}/comments", description: "Kommentar zu einem sichtbaren Feed-/Protokolleintrag anlegen. Body `{ body }`." },
+          { method: "DELETE", path: "/api/external/events/{eventId}/comments/{commentId}", description: "Eigenen Kommentar entfernen; Admins duerfen sichtbare Kommentare entfernen." },
+          { method: "POST", path: "/api/external/events/{eventId}/dismiss", description: "Feed-/Protokolleintrag nur fuer den aktuellen Benutzer ausblenden." },
+          { method: "DELETE", path: "/api/external/events/{eventId}/dismiss", description: "Ausblendung eines Feed-/Protokolleintrags fuer den aktuellen Benutzer rueckgaengig machen." },
           { method: "POST", path: "/api/external/events/by-entity/{entityType}/{entityId}/like", description: "Direkte Feed-Entities wie `media` oder `tracker` liken." },
           { method: "DELETE", path: "/api/external/events/by-entity/{entityType}/{entityId}/like", description: "Den eigenen Like einer direkten Feed-Entity entfernen." }
         ],
-        auditActions: ["feed_comment_created", "feed_liked", "feed_unliked", "media_liked", "media_unliked", "tracker_entry_liked", "tracker_entry_unliked"]
+        auditActions: ["feed_commented", "feed_comment_deleted", "feed_liked", "feed_unliked", "media_liked", "media_unliked", "tracker_entry_liked", "tracker_entry_unliked"]
       }
     ]
   },
