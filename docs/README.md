@@ -13,6 +13,13 @@ Diese Dokumentation beschreibt den aktuellen Stand der Plattform, die bisher umg
 - [07-mobile-app-login.md](./07-mobile-app-login.md): Login, API-Token und Eventfeed fuer native Apps.
 - [07-native-push-payloads-und-ios-routing.md](./07-native-push-payloads-und-ios-routing.md): Strukturierte Push-Payloads, Zielansichten und iOS-Sounds.
 - [08-native-pushnachrichten.md](./08-native-pushnachrichten.md): APNs-Geraete, native Pushzustellung und Betriebsvariablen.
+- [09-apple-guidelines-compliance.md](./09-apple-guidelines-compliance.md): App-Store-Compliance, Nachweise und Rueckbauprotokoll.
+- [app-store-readiness.md](./app-store-readiness.md): Operative Guideline-Matrix und Einreichungsblocker.
+- [privacy-data-map.md](./privacy-data-map.md): Datenkategorien, Empfaenger und Nutzerkontrollen.
+- [account-deletion.md](./account-deletion.md): Self-Service-Kontoloeschung und verifizierter Nachweis.
+- [content-moderation.md](./content-moderation.md): Melde-, Blockier-, Quarantaene- und SLA-Prozess.
+- [ios-security.md](./ios-security.md): Native Sicherheits- und Releasepruefungen.
+- [activity-and-order-safety.md](./activity-and-order-safety.md): Freiwillige Zustimmung und Sicherheitsgrenzen.
 
 ## Pflege-Regel
 

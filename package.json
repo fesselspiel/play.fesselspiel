@@ -12,7 +12,9 @@
     "prisma:push": "prisma db push",
     "seed": "node prisma/seed.js",
     "review:seed": "node scripts/app-review-tenant.js",
-    "review:cleanup": "node scripts/app-review-tenant.js --cleanup"
+    "review:cleanup": "node scripts/app-review-tenant.js --cleanup",
+    "legal:publish": "node scripts/publish-legal-documents.js --publish",
+    "legal:rollback": "node scripts/publish-legal-documents.js --rollback"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",
