@@ -10,10 +10,13 @@ export async function GET(request: NextRequest) {
   const blocked = apiFeatureGate(auth.user, "externalApi", "circleChat");
   if (blocked) return blocked;
   const circles = await accessibleCircleChats(auth.user);
+  const currentCircleId = circles.some((circle) => circle.id === auth.user.circleId)
+    ? auth.user.circleId
+    : circles[0]?.id || null;
   return NextResponse.json({
     ok: true,
     count: circles.length,
-    currentCircleId: auth.user.circleId || circles[0]?.id || null,
+    currentCircleId,
     circles
   });
 }

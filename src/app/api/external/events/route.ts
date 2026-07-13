@@ -79,7 +79,8 @@ export async function GET(request: NextRequest) {
             "telegram_notification_failed",
             "external_push_sent",
             "external_push_failed",
-            "entity_like_anchor"
+            "entity_like_anchor",
+            "tracker_quota_reminder"
           ]
         }
       }

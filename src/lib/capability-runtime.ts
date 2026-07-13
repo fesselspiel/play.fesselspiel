@@ -25,7 +25,9 @@ function dynamicTrackerCapability(tracker: { key: string; title: string; descrip
         telegramCommands: undefined,
         apiEndpoints: [
           { method: "GET", path: `/api/external/trackers/quotas?token=...&trackerKey=${tracker.key}`, description: `Kontingent für ${tracker.title} abfragen.` },
-          { method: "GET", path: `/api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD&trackerKey=${tracker.key}`, description: `Historie für ${tracker.title} abfragen.` }
+          { method: "GET", path: `/api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD&trackerKey=${tracker.key}`, description: `Historie für ${tracker.title} abfragen.` },
+          { method: "POST", path: "/api/external/trackers/history", description: `Neuen ${tracker.title}-Eintrag mit trackerKey, Start, Ende, Dauer oder ganztägigem Datum anlegen.` },
+          { method: "GET", path: "/api/external/trackers/stream", description: "Live-Stream für laufende Tracker, letzte Einträge und Kontingente." }
         ],
         auditActions: [`tracker_${tracker.key}_viewed`, `tracker_${tracker.key}_quota_viewed`]
       },

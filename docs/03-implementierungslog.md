@@ -49,6 +49,8 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Chatnachrichten, die aus Spielplan-/Session-Ereignissen erzeugt wurden, liefern in `GET /api/external/chat/circle` und im SSE-Stream jetzt eingebettete `entity`, `target`, `session`, `permissions`, `capabilities`, `actions` und `actionTargets`.
 - Die App kann dadurch Buttons wie `CONFIRM`, `RESCHEDULE`, `DECLINE`, `START` und `CANCEL` anzeigen, ohne Berechtigungen lokal zu raten.
 - Die Aktionen verwenden weiterhin den bestehenden Contract `PATCH /api/external/sessions/{id}` mit Statuswerten `REQUESTED`, `PLANNED`, `DONE` und `DISCARDED`.
+- `GET /api/external/chat/circles` gibt als `currentCircleId` nur noch `null` oder eine ID aus `circles[]` zurueck, damit Admin-/View-Contexts keine Zirkel-ID aus einer anderen Seite mitschleppen.
+- `tracker_quota_reminder` wird aus dem normalen externen Eventfeed ausgeblendet, weil Kontingente separat ueber Tracker-/Quota-Endpunkte abgerufen werden.
 
 ## Tracker-Fotos
 
@@ -59,6 +61,8 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Die externe API liefert `images[]` in `GET /api/external/trackers/history` und `GET /api/external/trackers/history/{id}`.
 - Neue native Routen: `GET|POST /api/external/trackers/history/{id}/images` und `GET|PATCH|DELETE /api/external/trackers/history/{id}/images/{imageId}`.
 - Export/Import nimmt Tracker-Typen, Tracker-Eintraege und Tracker-Fotos inklusive geschuetzter Dateien mit.
+- Externe Apps koennen Tracker-Eintraege ueber `POST /api/external/trackers/history` anlegen. Der Contract akzeptiert `trackerKey`, `notes`, `allDay`, `date`, `startTime`, `durationMinutes`, `endTime`, `fieldValues` und Verknuepfungs-IDs.
+- Fuer native Echtzeit-Ansichten gibt es `GET /api/external/trackers/stream` als Bearer-authentifizierten SSE-Stream mit initialem `snapshot`, `tracker_updated`-Events und Keepalives.
 
 ## Initiale App
 

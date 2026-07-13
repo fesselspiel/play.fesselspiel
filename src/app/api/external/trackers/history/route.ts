@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { ownerScope } from "@/lib/access";
-import { formatDateInput, parseDateInput } from "@/lib/dates";
+import { logAction } from "@/lib/audit";
+import { formatDateInput, minutesBetween, parseDateInput, parseDateTimeLocal } from "@/lib/dates";
 import { entityLikeStateMap } from "@/lib/entity-likes";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { serializeFileImage } from "@/lib/external-mobile-serializers";
 import { prisma } from "@/lib/prisma";
+import { findTrackerTypeForUser, uniqueTrackerSlug } from "@/lib/tracker-core";
 
 export const runtime = "nodejs";
 
@@ -47,6 +49,43 @@ function publicOrigin(request: NextRequest) {
   const forwardedProto = request.headers.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
   if (host && !host.startsWith("0.0.0.0")) return `${forwardedProto}://${host}`;
   return process.env.NEXT_PUBLIC_BASE_URL || process.env.APP_URL || new URL(request.url).origin;
+}
+
+function stringArray(value: unknown) {
+  if (Array.isArray(value)) return Array.from(new Set(value.map(String).map((entry) => entry.trim()).filter(Boolean)));
+  if (typeof value === "string") return Array.from(new Set(value.split(",").map((entry) => entry.trim()).filter(Boolean)));
+  return [];
+}
+
+function bool(value: unknown, fallback = false) {
+  if (value === undefined) return fallback;
+  return value === true || value === "true" || value === "1" || value === 1 || value === "on";
+}
+
+function parseDateValue(value: unknown) {
+  if (!value) return null;
+  const raw = String(value).trim();
+  return parseDateTimeLocal(raw) || parseDateInput(raw) || (() => {
+    const date = new Date(raw);
+    return Number.isNaN(date.getTime()) ? null : date;
+  })();
+}
+
+function addMinutes(value: Date, minutes: number) {
+  return new Date(value.getTime() + minutes * 60_000);
+}
+
+async function relationData(user: any, body: Record<string, unknown>) {
+  const scope = await ownerScope(user);
+  const toyIds = stringArray(body.toyIds);
+  const positionIds = stringArray(body.positionIds);
+  const bondageSystemItemIds = stringArray(body.bondageSystemItemIds);
+  const [toys, positions, bondageSystemItems] = await Promise.all([
+    toyIds.length ? prisma.toy.findMany({ where: { ...scope, id: { in: toyIds } }, select: { id: true } }) : [],
+    positionIds.length ? prisma.position.findMany({ where: { ...scope, id: { in: positionIds } }, select: { id: true } }) : [],
+    bondageSystemItemIds.length ? prisma.bondageSystemItem.findMany({ where: { tenantId: user.tenantId || undefined, id: { in: bondageSystemItemIds }, visible: true }, select: { id: true } }) : []
+  ]);
+  return { toys, positions, bondageSystemItems };
 }
 
 export async function GET(request: NextRequest) {
@@ -187,4 +226,149 @@ export async function GET(request: NextRequest) {
       };
     })
   });
+}
+
+export async function POST(request: NextRequest) {
+  const auth = await requireApiUser(request);
+  if ("response" in auth) return auth.response;
+  const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+  const trackerKey = String(body.trackerKey || body.key || "").trim().toLowerCase();
+  if (!trackerKey) return NextResponse.json({ ok: false, error: "missing_tracker_key" }, { status: 400 });
+  const blocked = apiFeatureGate(auth.user, "externalApi", "trackers", `tracker.${trackerKey}`);
+  if (blocked) return blocked;
+
+  const trackerType = await findTrackerTypeForUser(trackerKey, auth.user);
+  if (!trackerType) return NextResponse.json({ ok: false, error: "tracker_not_found" }, { status: 404 });
+
+  const allDay = bool(body.allDay);
+  const durationValue = body.durationMinutes !== undefined ? Number(body.durationMinutes) : null;
+  if (durationValue !== null && (!Number.isFinite(durationValue) || durationValue < 0)) {
+    return NextResponse.json({ ok: false, error: "invalid_duration_minutes" }, { status: 400 });
+  }
+
+  const startTime = allDay
+    ? parseDateValue(body.date || body.startTime || body.startedAt)
+    : parseDateValue(body.startTime || body.startedAt || body.date);
+  if (!startTime) return NextResponse.json({ ok: false, error: "invalid_start_time" }, { status: 400 });
+
+  const rawEndTime = body.endTime ?? body.endedAt;
+  let endTime = rawEndTime !== undefined && String(rawEndTime || "").trim() ? parseDateValue(rawEndTime) : null;
+  if (!allDay && !endTime && durationValue !== null) endTime = addMinutes(startTime, durationValue);
+  if (!allDay && endTime && endTime < startTime) return NextResponse.json({ ok: false, error: "invalid_end_time" }, { status: 400 });
+
+  if (!allDay && !endTime && trackerType.autoCloseOpenSession) {
+    const open = await prisma.trackerEntry.findFirst({
+      where: { trackerTypeId: trackerType.id, ownerId: auth.user.id, endTime: null, allDay: false },
+      orderBy: { startTime: "desc" }
+    });
+    if (open) {
+      const autoEnd = new Date();
+      await prisma.trackerEntry.update({
+        where: { id: open.id },
+        data: { endTime: autoEnd, durationMinutes: minutesBetween(open.startTime, autoEnd) }
+      });
+    }
+  }
+
+  const relations = await relationData(auth.user, body);
+  const fieldValues = body.fieldValues && typeof body.fieldValues === "object" && !Array.isArray(body.fieldValues) ? body.fieldValues as Prisma.InputJsonObject : {};
+  const created = await prisma.trackerEntry.create({
+    data: {
+      tenantId: auth.user.tenantId || trackerType.tenantId,
+      ownerId: auth.user.id,
+      trackerTypeId: trackerType.id,
+      title: String(body.title || "").trim() || trackerType.title,
+      startTime,
+      endTime: allDay ? null : endTime,
+      allDay,
+      durationMinutes: allDay ? null : minutesBetween(startTime, endTime),
+      notes: String(body.notes ?? body.note ?? "").trim(),
+      fieldValues: fieldValues as Prisma.InputJsonValue,
+      slug: await uniqueTrackerSlug(trackerType.id, trackerType.key, startTime),
+      toys: relations.toys.length ? { connect: relations.toys.map((entry) => ({ id: entry.id })) } : undefined,
+      positions: relations.positions.length ? { connect: relations.positions.map((entry) => ({ id: entry.id })) } : undefined,
+      bondageSystemItems: relations.bondageSystemItems.length ? { connect: relations.bondageSystemItems.map((entry) => ({ id: entry.id })) } : undefined
+    },
+    include: {
+      trackerType: true,
+      owner: { include: { profile: true } },
+      toys: { select: { id: true, title: true, slug: true, imageUrl: true } },
+      positions: { select: { id: true, name: true, slug: true, imageUrl: true } },
+      bondageSystemItems: { include: { product: { select: { id: true, title: true, slug: true, imageUrl: true } } } },
+      images: { include: { file: true }, orderBy: { createdAt: "asc" } }
+    }
+  });
+
+  await logAction({
+    actorId: auth.user.id,
+    action: "tracker_entry_created_api",
+    entityType: "trackerEntry",
+    entityId: created.id,
+    title: `Tracker-Eintrag per API angelegt: ${created.title || created.trackerType.title}`,
+    href: trackerUrl(created.trackerType.key, created.slug, created.id)
+  });
+
+  const likeStates = await entityLikeStateMap("trackerEntry", [created.id], auth.user.id, [{
+    entityType: "trackerEntry",
+    entityId: created.id,
+    ownerId: created.ownerId,
+    tenantId: created.tenantId,
+    title: created.title || created.trackerType.title,
+    href: trackerUrl(created.trackerType.key, created.slug, created.id)
+  }]);
+
+  const href = trackerUrl(created.trackerType.key, created.slug, created.id);
+  const startedAt = created.startTime.toISOString();
+  const calendarDate = formatDateInput(created.startTime);
+  const endedAt = created.endTime?.toISOString() || null;
+  return NextResponse.json({
+    ok: true,
+    item: {
+      id: created.id,
+      trackerKey: created.trackerType.key,
+      key: created.trackerType.key,
+      trackerTitle: created.trackerType.title,
+      trackerName: created.trackerType.title,
+      color: created.trackerType.color,
+      colorHex: created.trackerType.color,
+      tracker: { id: created.trackerType.id, key: created.trackerType.key, title: created.trackerType.title, color: created.trackerType.color },
+      title: created.title || created.trackerType.title,
+      notes: created.notes || "",
+      note: created.notes || "",
+      startedAt,
+      startTime: startedAt,
+      date: calendarDate,
+      day: calendarDate,
+      calendarDate,
+      endedAt,
+      endTime: endedAt,
+      durationMinutes: created.durationMinutes,
+      minutes: created.durationMinutes,
+      allDay: created.allDay,
+      slug: created.slug,
+      href,
+      url: new URL(href, publicOrigin(request)).toString(),
+      owner: {
+        id: created.owner.id,
+        username: created.owner.username,
+        displayName: created.owner.profile?.displayName || created.owner.name || created.owner.username || created.owner.email
+      },
+      toys: created.toys.map((toy) => ({ id: toy.id, title: toy.title, slug: toy.slug, imageUrl: toy.imageUrl, href: `/toys/${toy.slug}` })),
+      positions: created.positions.map((position) => ({ id: position.id, name: position.name, slug: position.slug, imageUrl: position.imageUrl, href: `/positions/${position.slug}` })),
+      bondageSystemItems: created.bondageSystemItems.map((entry) => ({
+        id: entry.id,
+        title: entry.product.title,
+        slug: entry.product.slug,
+        imageUrl: entry.product.imageUrl,
+        href: `/bondage-system/${entry.product.slug}`
+      })),
+      ...(likeStates.get(created.id) || {}),
+      images: [],
+      fieldValues: created.fieldValues,
+      legacyType: created.legacyType,
+      legacyId: created.legacyId,
+      createdAt: created.createdAt.toISOString(),
+      updatedAt: created.updatedAt.toISOString()
+    }
+  }, { status: 201 });
 }

@@ -294,6 +294,8 @@ Antwort:
 
 `GET /api/external/media`, `GET /api/external/media/{id}`, `GET /api/external/trackers/history` und `GET /api/external/trackers/history/{id}` liefern dafuer ebenfalls `eventId`, `canLike`, `likedByMe`, `likeCount` und `likes[]`. Fuer jedes sichtbare Item mit `canLike:true` erzeugt der Server beim Lesen einen stabilen internen Like-Anker, sodass `eventId` nicht `null` ist und die App auch unberuehrte Items sofort ueber die normale Event-Like-Route oder ueber die Entity-Route liken kann. Dieser technische Anker wird aus `GET /api/external/events` ausgeblendet.
 
+Kontingent-Erinnerungen (`tracker_quota_reminder`) sind interne Reminder und werden im normalen `GET /api/external/events` nicht ausgeliefert, damit der native Feed nicht mit wiederholten Todo-Hinweisen geflutet wird.
+
 ## Event Actions
 
 Damit die App Filter, Push-Kategorien oder Debug-Ansichten nicht hart codieren muss, gibt es eine Aktionstypen-Liste.
@@ -688,6 +690,8 @@ Antwortauszug:
 
 Normale Benutzer sehen aktuell die Zirkel, in denen sie in der Seite Mitglied sind. Admins sehen alle Zirkel der Seite. Die Chat-Endpunkte akzeptieren `circleId` request-basiert, damit die App nicht global auf dem Server umschalten muss.
 
+`currentCircleId` ist immer `null` oder eine ID aus `circles[]`. Wenn ein Admin-/View-Context aus einer anderen Seite eine alte Benutzer-Zirkel-ID mitbringt, nimmt der Server den ersten sichtbaren Zirkel dieser Seite als sicheren Fallback.
+
 ### Nachrichten lesen
 
 ```http
@@ -998,6 +1002,7 @@ Fuer native Apps kann derselbe Endpunkt auch `multipart/form-data` verarbeiten. 
 ```http
 GET /api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD
 GET /api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD&trackerKey=segufix
+POST /api/external/trackers/history
 Authorization: Bearer fsp_...
 ```
 
@@ -1005,7 +1010,57 @@ Der Endpunkt liefert echte Tracker-Eintraege fuer Kalenderansichten, keine Proto
 
 Tracker-Eintraege liefern zusaetzlich `images[]`. Jedes Bild enthaelt `id`, `fileId`, `title`, `note`, `mimeType`, `sizeBytes`, `url`, `downloadUrl`, `downloadUrlWithToken`, `requiresAuthorization`, `createdAt` und `updatedAt`. Die Datei liegt geschuetzt hinter `/api/external/files/{fileId}` und muss mit Bearer Token geladen werden.
 
+`POST /api/external/trackers/history` legt einen echten Tracker-Eintrag an und antwortet mit `201` und `{ ok:true, item }` im gleichen Shape wie die Detailroute. JSON-Body:
+
+```json
+{
+  "trackerKey": "segufix",
+  "title": "Optionaler Titel",
+  "notes": "Begleitnotiz",
+  "allDay": false,
+  "date": "2026-07-13",
+  "startTime": "2026-07-13T16:15",
+  "durationMinutes": 45,
+  "endTime": "2026-07-13T17:00",
+  "fieldValues": {},
+  "toyIds": [],
+  "positionIds": [],
+  "bondageSystemItemIds": []
+}
+```
+
+Fuer nicht ganztägige Eintraege ist `startTime` Pflicht. `endTime` oder `durationMinutes` duerfen einzeln uebergeben werden; das Backend berechnet den jeweils konsistenten Wert. `durationMinutes` muss groesser/gleich 0 sein und `endTime` darf nicht vor `startTime` liegen. Fuer ganztägige Eintraege wird `allDay:true` plus `date` verwendet; Start-/Endzeiten werden dann nicht als Uhrzeit interpretiert.
+
 Auch `GET /api/external/status` liefert fuer `openTrackers[]` und `recentTrackerEntries[]` dieselben Farbaliasse. `GET /api/external/trackers/quotas` liefert die Farbe unter `quota.tracker.colorHex` plus `color`, `hexColor` und `trackerColor`.
+
+### Tracker-Livestream
+
+```http
+GET /api/external/trackers/stream
+Authorization: Bearer fsp_...
+Accept: text/event-stream
+X-Playplaner-View-Context: optional
+```
+
+Der Stream liefert sofort ein Event `type:"snapshot"` und danach bei geaenderten Trackern `type:"tracker_updated"`. Dazwischen sendet er Keepalives. Payload:
+
+```json
+{
+  "ok": true,
+  "type": "snapshot",
+  "status": {
+    "ok": true,
+    "generatedAt": "2026-07-13T12:00:00.000Z",
+    "openTrackers": [],
+    "recentTrackerEntries": [],
+    "quotas": []
+  },
+  "openTrackers": [],
+  "quotas": []
+}
+```
+
+Die App kann bei Reconnect einfach erneut `GET /api/external/trackers/stream` oeffnen und parallel als Fallback `GET /api/external/status` oder `GET /api/external/trackers/history` verwenden.
 
 Wenn `categoryId` fehlt oder ungueltig ist, wird `category`/`categoryName` verwendet oder die Standardkategorie `Allgemein` genutzt. `positionIds` werden nur verbunden, wenn das Szenen-Feature aktiv ist und die Szenen fuer den Benutzer sichtbar sind.
 

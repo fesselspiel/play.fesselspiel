@@ -514,6 +514,8 @@ export const capabilities: readonly Capability[] = [
           { method: "GET", path: "/api/external/trackers/quotas?token=...", description: "Kontingente und offene Tracker-Todos abfragen." },
           { method: "GET", path: "/api/external/trackers/quotas?token=...&trackerKey={trackerKey}", description: "Kontingent eines bestimmten Trackers abfragen, z. B. für Alexa." },
           { method: "GET", path: "/api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD", description: "Echte Tracker-Einträge im Zeitraum für Kalender und native Apps abfragen." },
+          { method: "POST", path: "/api/external/trackers/history", description: "Tracker-Eintrag nativ anlegen. JSON: trackerKey, notes?, allDay?, date?, startTime, durationMinutes?, endTime?." },
+          { method: "GET", path: "/api/external/trackers/stream", description: "SSE-Live-Stream für Tracker-Snapshot und Änderungen. Bearer Auth plus optional X-Playplaner-View-Context." },
           { method: "GET", path: "/api/external/trackers/history/{id}/images", description: "Fotos eines Tracker-Eintrags abrufen." },
           { method: "POST", path: "/api/external/trackers/history/{id}/images", description: "Foto an einen Tracker-Eintrag anhängen. Multipart: file, title?, note?." },
           { method: "PATCH", path: "/api/external/trackers/history/{id}/images/{imageId}", description: "Tracker-Foto bearbeiten oder per Multipart `file` ersetzen." },

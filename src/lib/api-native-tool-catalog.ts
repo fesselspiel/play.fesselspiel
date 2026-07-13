@@ -87,6 +87,22 @@ const manualToolCatalog = ([
     category: "Tracker"
   },
   {
+    id: "trackersHistoryCreate",
+    method: "POST",
+    path: "/api/external/trackers/history",
+    title: "Tracker-Eintrag anlegen",
+    description: "Neuen Tracker-Eintrag mit trackerKey, Startzeit, Dauer, Ende oder ganztägigem Datum anlegen.",
+    category: "Tracker"
+  },
+  {
+    id: "trackersStream",
+    method: "GET",
+    path: "/api/external/trackers/stream",
+    title: "Tracker-Livestream",
+    description: "SSE-Stream mit initialem Snapshot und Tracker-Updates fuer native Apps.",
+    category: "Tracker"
+  },
+  {
     id: "trackerStart",
     method: "GET",
     methods: ["GET", "POST"],
