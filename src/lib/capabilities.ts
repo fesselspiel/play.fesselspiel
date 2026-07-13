@@ -126,8 +126,8 @@ export const capabilities: readonly Capability[] = [
         type: "read",
         description: "Liest die letzten Nachrichten im eigenen Zirkel-Chat.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/chat/circle?token=...&limit=50&circleId=...", description: "Letzte Zirkel-Chat-Nachrichten inklusive Bildanhängen abrufen. `circleId` ist optional und waehlt request-basiert einen konkreten Zirkel." },
-          { method: "GET", path: "/api/external/chat/circle/stream?token=...&circleId=...&after=...", description: "Server-Sent-Events fuer echte Chat-Aktualisierung ohne Reload. Events liefern `type=messages` und `items[]` im selben Format wie der Listen-Endpunkt." }
+          { method: "GET", path: "/api/external/chat/circle?token=...&limit=50&circleId=...", description: "Letzte Zirkel-Chat-Nachrichten inklusive Bildanhängen abrufen. `circleId` ist optional. Automatisch erzeugte Session-/Anfragekarten enthalten `entity`, `target`, `session`, `permissions`, `capabilities`, `actions` und `actionTargets`." },
+          { method: "GET", path: "/api/external/chat/circle/stream?token=...&circleId=...&after=...", description: "Server-Sent-Events fuer echte Chat-Aktualisierung ohne Reload. Events liefern `type=messages` und `items[]` im selben Format wie der Listen-Endpunkt, inklusive Session-Aktionen." }
         ],
         auditActions: ["circle_chat_viewed"]
       },

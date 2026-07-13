@@ -244,3 +244,159 @@ export function serializeCircleChatMessage(
     }
   };
 }
+
+function objectValue(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function sessionPermissions(activity: { ownerId: string; status: string }, currentUserId?: string, currentUserRole?: string | null) {
+  const admin = currentUserRole === "ADMIN" || currentUserRole === "SUPER_ADMIN";
+  const responder = Boolean(currentUserId && (activity.ownerId !== currentUserId || admin));
+  const ownerOrAdmin = Boolean(currentUserId && (activity.ownerId === currentUserId || admin));
+  return {
+    canConfirm: activity.status === "REQUESTED" && responder,
+    canReschedule: activity.status === "REQUESTED" && responder,
+    canDecline: activity.status === "REQUESTED" && responder,
+    canStart: activity.status === "PLANNED" && (responder || ownerOrAdmin),
+    canCancel: (activity.status === "REQUESTED" || activity.status === "PLANNED") && (responder || ownerOrAdmin)
+  };
+}
+
+function sessionActions(permissions: ReturnType<typeof sessionPermissions>) {
+  return [
+    permissions.canConfirm ? "CONFIRM" : null,
+    permissions.canReschedule ? "RESCHEDULE" : null,
+    permissions.canDecline ? "DECLINE" : null,
+    permissions.canStart ? "START" : null,
+    permissions.canCancel ? "CANCEL" : null
+  ].filter(Boolean) as string[];
+}
+
+function sessionActionTargets(sessionId: string, permissions: ReturnType<typeof sessionPermissions>) {
+  const path = `/api/external/sessions/${sessionId}`;
+  return {
+    ...(permissions.canConfirm ? { CONFIRM: { method: "PATCH", path, body: { status: "PLANNED" } } } : {}),
+    ...(permissions.canReschedule ? { RESCHEDULE: { method: "PATCH", path, body: { plannedAt: "ISO_DATE_TIME", status: "REQUESTED" } } } : {}),
+    ...(permissions.canDecline ? { DECLINE: { method: "PATCH", path, body: { status: "DISCARDED" } } } : {}),
+    ...(permissions.canStart ? { START: { method: "PATCH", path, body: { status: "DONE" } } } : {}),
+    ...(permissions.canCancel ? { CANCEL: { method: "PATCH", path, body: { status: "DISCARDED" } } } : {})
+  };
+}
+
+async function sessionCardsForMessages(
+  messages: { id: string }[],
+  currentUserId?: string,
+  currentUserRole?: string | null
+) {
+  const messageIds = messages.map((message) => message.id);
+  const cards = new Map<string, unknown>();
+  if (!messageIds.length) return cards;
+  const chatAudits = await prisma.auditLog.findMany({
+    where: { entityType: "circleChatMessage", entityId: { in: messageIds } },
+    select: { entityId: true, details: true },
+    orderBy: { createdAt: "desc" }
+  });
+  const sourceByMessage = new Map<string, string>();
+  for (const audit of chatAudits) {
+    if (!audit.entityId || sourceByMessage.has(audit.entityId)) continue;
+    const sourceAuditId = objectValue(audit.details).sourceAuditId;
+    if (typeof sourceAuditId === "string" && sourceAuditId) sourceByMessage.set(audit.entityId, sourceAuditId);
+  }
+  const sourceAuditIds = Array.from(new Set(sourceByMessage.values()));
+  if (!sourceAuditIds.length) return cards;
+  const sourceAudits = await prisma.auditLog.findMany({
+    where: { id: { in: sourceAuditIds } },
+    select: { id: true, entityType: true, entityId: true }
+  });
+  const sourceById = new Map(sourceAudits.map((audit) => [audit.id, audit]));
+  const activityIds = Array.from(new Set(sourceAudits
+    .filter((audit) => audit.entityType === "activity" && audit.entityId)
+    .map((audit) => audit.entityId as string)));
+  if (!activityIds.length) return cards;
+  const activities = await prisma.activityPlan.findMany({
+    where: { id: { in: activityIds } },
+    include: { owner: { include: { profile: true } } }
+  });
+  const activityById = new Map(activities.map((activity) => [activity.id, activity]));
+  for (const [messageId, sourceAuditId] of sourceByMessage.entries()) {
+    const source = sourceById.get(sourceAuditId);
+    if (source?.entityType !== "activity" || !source.entityId) continue;
+    const activity = activityById.get(source.entityId);
+    if (!activity) continue;
+    const href = `/activities/${activity.slug}`;
+    const permissions = sessionPermissions(activity, currentUserId, currentUserRole);
+    const actions = sessionActions(permissions);
+    const entity = {
+      type: "session",
+      entityType: "session",
+      entityId: activity.id,
+      id: activity.id,
+      title: activity.title,
+      status: activity.status,
+      plannedAt: activity.plannedAt?.toISOString() || null,
+      href,
+      owner: {
+        id: activity.owner.id,
+        username: activity.owner.username,
+        displayName: userDisplayName(activity.owner)
+      }
+    };
+    cards.set(messageId, {
+      entity,
+      target: {
+        screen: "activities",
+        entityType: "session",
+        entityId: activity.id,
+        id: activity.id,
+        href
+      },
+      session: {
+        ...entity,
+        permissions,
+        capabilities: permissions,
+        actions,
+        actionTargets: sessionActionTargets(activity.id, permissions),
+        statusActions: {
+          CONFIRM: "PLANNED",
+          DECLINE: "DISCARDED",
+          RESCHEDULE: "REQUESTED",
+          START: "DONE",
+          CANCEL: "DISCARDED"
+        }
+      },
+      permissions: { ...permissions, delete: false },
+      capabilities: permissions,
+      actions
+    });
+  }
+  return cards;
+}
+
+export async function serializeCircleChatMessages(
+  messages: Parameters<typeof serializeCircleChatMessage>[0][],
+  currentUserId?: string,
+  currentUserRole?: string | null
+) {
+  const cards = await sessionCardsForMessages(messages, currentUserId, currentUserRole);
+  return messages.map((message) => {
+    const serialized = serializeCircleChatMessage(message, currentUserId, currentUserRole);
+    const card = cards.get(message.id);
+    if (!card) return serialized;
+    return {
+      ...serialized,
+      ...(card as Record<string, unknown>),
+      permissions: {
+        ...serialized.permissions,
+        ...((card as { permissions?: Record<string, unknown> }).permissions || {})
+      }
+    };
+  });
+}
+
+export async function serializeCircleChatMessageWithContext(
+  message: Parameters<typeof serializeCircleChatMessage>[0],
+  currentUserId?: string,
+  currentUserRole?: string | null
+) {
+  return (await serializeCircleChatMessages([message], currentUserId, currentUserRole))[0];
+}

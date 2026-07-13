@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
-import { createCircleChatReceipts, requireCircleChatScope, serializeCircleChatMessage } from "@/lib/circle-chat";
+import { createCircleChatReceipts, requireCircleChatScope, serializeCircleChatMessageWithContext, serializeCircleChatMessages } from "@/lib/circle-chat";
 import { featureEnabled } from "@/lib/feature-utils";
 import { saveUploadedFile } from "@/lib/files";
 import { logAction, userDisplayName } from "@/lib/audit";
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   });
   return NextResponse.json({
     ok: true,
-    items: messages.reverse().map((message) => serializeCircleChatMessage(message, user.id, user.role))
+    items: await serializeCircleChatMessages(messages.reverse(), user.id, user.role)
   });
 }
 
@@ -75,5 +75,5 @@ export async function POST(request: NextRequest) {
       excludeActorFromTargets: true
     }
   });
-  return NextResponse.json({ ok: true, message: serializeCircleChatMessage(messageWithReceipts, user.id, user.role) });
+  return NextResponse.json({ ok: true, message: await serializeCircleChatMessageWithContext(messageWithReceipts, user.id, user.role) });
 }

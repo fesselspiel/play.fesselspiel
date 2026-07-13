@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
-import { createCircleChatReceipts, requireCircleChatScope, serializeCircleChatMessage } from "@/lib/circle-chat";
+import { createCircleChatReceipts, requireCircleChatScope, serializeCircleChatMessageWithContext, serializeCircleChatMessages } from "@/lib/circle-chat";
 import { saveUploadedFile } from "@/lib/files";
 import { logAction, userDisplayName } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     circle: { id: scope.circleId, name: scope.circleName },
-    items: messages.reverse().map((message) => serializeCircleChatMessage(message, auth.user.id, auth.user.role))
+    items: await serializeCircleChatMessages(messages.reverse(), auth.user.id, auth.user.role)
   });
 }
 
@@ -91,6 +91,6 @@ export async function POST(request: NextRequest) {
       excludeActorFromTargets: true
     }
   });
-  const item = serializeCircleChatMessage(messageWithReceipts, auth.user.id, auth.user.role);
+  const item = await serializeCircleChatMessageWithContext(messageWithReceipts, auth.user.id, auth.user.role);
   return NextResponse.json({ ok: true, item, message: item });
 }

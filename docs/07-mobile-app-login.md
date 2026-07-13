@@ -753,6 +753,70 @@ Antwortauszug:
 
 `readSummary` ist fuer WhatsApp-artige Haken gedacht: eigene Nachricht gesendet, an Empfaenger geliefert, von Empfaengern gelesen. Bei mehreren Zirkelmitgliedern sind die Werte aggregiert.
 
+### Session- und Anfragekarten im Chat
+
+Wenn eine Chatnachricht automatisch aus einem Protokollereignis fuer einen Spieltermin bzw. eine Anfrage erzeugt wurde, reichert der Server das normale Chatobjekt zusaetzlich an. Die Felder erscheinen im Listen-Endpunkt, im SSE-Stream und bei neu gesendeten/erzeugten Nachrichten:
+
+```json
+{
+  "id": "message_id",
+  "body": "Spielplan angefragt: Studioabend",
+  "entity": {
+    "type": "session",
+    "entityType": "session",
+    "entityId": "session_id",
+    "id": "session_id",
+    "title": "Studioabend",
+    "status": "REQUESTED",
+    "plannedAt": "2026-07-12T18:00:00.000Z",
+    "href": "/activities/studioabend",
+    "owner": { "id": "user_id", "displayName": "Gabriel" }
+  },
+  "target": {
+    "screen": "activities",
+    "entityType": "session",
+    "entityId": "session_id",
+    "id": "session_id",
+    "href": "/activities/studioabend"
+  },
+  "session": {
+    "id": "session_id",
+    "status": "REQUESTED",
+    "permissions": {
+      "canConfirm": true,
+      "canReschedule": true,
+      "canDecline": true,
+      "canStart": false,
+      "canCancel": true
+    },
+    "actions": ["CONFIRM", "RESCHEDULE", "DECLINE", "CANCEL"],
+    "actionTargets": {
+      "CONFIRM": { "method": "PATCH", "path": "/api/external/sessions/session_id", "body": { "status": "PLANNED" } },
+      "DECLINE": { "method": "PATCH", "path": "/api/external/sessions/session_id", "body": { "status": "DISCARDED" } },
+      "RESCHEDULE": { "method": "PATCH", "path": "/api/external/sessions/session_id", "body": { "plannedAt": "ISO_DATE_TIME", "status": "REQUESTED" } }
+    },
+    "statusActions": {
+      "CONFIRM": "PLANNED",
+      "DECLINE": "DISCARDED",
+      "RESCHEDULE": "REQUESTED",
+      "START": "DONE",
+      "CANCEL": "DISCARDED"
+    }
+  },
+  "permissions": {
+    "delete": false,
+    "canConfirm": true,
+    "canReschedule": true,
+    "canDecline": true,
+    "canStart": false,
+    "canCancel": true
+  },
+  "actions": ["CONFIRM", "RESCHEDULE", "DECLINE", "CANCEL"]
+}
+```
+
+Die App soll Buttons nur aus `actions` bzw. den `can...`-Flags ableiten. Ausgefuehrt wird weiterhin ueber `PATCH /api/external/sessions/{id}`. Statuswerte sind `REQUESTED` fuer angefragt/Gegenvorschlag, `PLANNED` fuer bestaetigt, `DONE` fuer erledigt und `DISCARDED` fuer abgelehnt/verworfen.
+
 ### Echtzeit-Stream
 
 ```http

@@ -44,6 +44,12 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Listen und Detailantworten erzeugen fehlende Like-Anker beim Lesen, damit jedes sichtbare Item mit `canLike:true` sofort eine stabile `eventId` hat.
 - Technische Like-Anker werden aus dem externen Eventfeed ausgeblendet.
 
+## Native Chat-Anfragekarten
+
+- Chatnachrichten, die aus Spielplan-/Session-Ereignissen erzeugt wurden, liefern in `GET /api/external/chat/circle` und im SSE-Stream jetzt eingebettete `entity`, `target`, `session`, `permissions`, `capabilities`, `actions` und `actionTargets`.
+- Die App kann dadurch Buttons wie `CONFIRM`, `RESCHEDULE`, `DECLINE`, `START` und `CANCEL` anzeigen, ohne Berechtigungen lokal zu raten.
+- Die Aktionen verwenden weiterhin den bestehenden Contract `PATCH /api/external/sessions/{id}` mit Statuswerten `REQUESTED`, `PLANNED`, `DONE` und `DISCARDED`.
+
 ## Tracker-Fotos
 
 - Tracker-Eintraege koennen jetzt mehrere eigene geschuetzte Fotos haben.

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { currentUser } from "@/lib/auth";
-import { requireCircleChatScope, serializeCircleChatMessage } from "@/lib/circle-chat";
+import { requireCircleChatScope, serializeCircleChatMessages } from "@/lib/circle-chat";
 import { featureEnabled } from "@/lib/feature-utils";
 import { prisma } from "@/lib/prisma";
 
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
           controller.enqueue(encoder.encode(event({
             ok: true,
             type: "messages",
-            items: messages.map((message) => serializeCircleChatMessage(message, user.id, user.role))
+            items: await serializeCircleChatMessages(messages, user.id, user.role)
           })));
         } else {
           controller.enqueue(encoder.encode(": keepalive\n\n"));

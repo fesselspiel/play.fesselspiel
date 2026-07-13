@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
-import { requireCircleChatScope, serializeCircleChatMessage } from "@/lib/circle-chat";
+import { requireCircleChatScope, serializeCircleChatMessages } from "@/lib/circle-chat";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
             ok: true,
             type: "messages",
             circle: { id: scope.circleId, name: scope.circleName },
-            items: messages.map((message) => serializeCircleChatMessage(message, auth.user.id, auth.user.role))
+            items: await serializeCircleChatMessages(messages, auth.user.id, auth.user.role)
           })));
         } else {
           controller.enqueue(encoder.encode(": keepalive\n\n"));
