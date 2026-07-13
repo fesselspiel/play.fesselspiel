@@ -252,3 +252,12 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Rueckbau Backend: Route `src/app/api/external/account/privacy-settings/route.ts` entfernen. Das bestehende Feld `UserSettings.notificationPreviewMode` bleibt dadurch ungenutzt, verursacht aber keine Datenmigration. Alternativ koennen gespeicherte Werte auf `DISCREET` gesetzt werden.
 - Verifikation: Backend-TypeScript ohne Fehler; iOS Fastlane-Simulator-Build erfolgreich; Privacy Manifest im erzeugten App-Bundle; Screenshotnachweise `/tmp/playplaner-appstore-privacy-settings-20260713.png` und `/tmp/playplaner-appstore-lock-cover-20260713.png`.
 - Restpruefung vor Store-Einreichung: Face ID/Touch ID auf einem realen Geraet, diskrete Push-Payload gegen das deployte Backend, App-Switcher-Snapshot auf realem Geraet sowie erneuter Privacy-Manifest-Audit aller eingebundenen SDKs.
+
+### Produktivnachweis 2026-07-13
+
+- Vor dem Deploy wurde ein PostgreSQL-Custom-Format-Dump `pre-app-store-compliance-20260713.dump` ausserhalb des Repositories im geschuetzten Server-Backupverzeichnis angelegt (590 KiB). Er enthaelt den Stand unmittelbar vor der additiven Schemaerweiterung.
+- Deployed wurden ausschliesslich die 67 Dateien aus Commit `cbce7a5`; lokale Secrets, `.env`, Upload-Volumes, Runtime-Logs und Git-Metadaten waren ausgeschlossen.
+- Der Docker-Produktionsbuild inklusive Prisma-Generierung, TypeScript-Pruefung, Next.js-Build und 141 statischen Seiten war erfolgreich. `prisma db push` meldete die neue Schemafassung als synchron; Seed und App-Start liefen erfolgreich.
+- Live-Smokes: `/privacy`, `/terms`, `/community-guidelines` und `/support` jeweils HTTP 200; authentifiziert `/api/external/compliance/status`, `/api/external/account/privacy-settings` und `/api/external/blocks` jeweils HTTP 200; Privacy-PATCH auf `DISCREET` HTTP 200.
+- Der fuer den Smoke erzeugte API-Token `Mobile App: Compliance Smoke` wurde unmittelbar danach geloescht. App-, PostgreSQL-, Postfix- und Cron-Container liefen anschliessend.
+- Rueckbau-Reihenfolge: App-Image/Quellstand auf den vorherigen Commit zuruecksetzen, `down.sql` anwenden, erst bei fehlgeschlagenem gezieltem Rueckbau den gesicherten Datenbank-Dump verwenden. Upload-Volume wird von der additiven Migration nicht veraendert.
