@@ -11,6 +11,8 @@ export async function awardPointsForAudit(input: {
     "activity_consent_decline",
     "activity_consent_revoke",
     "activity_consent_cancel",
+    "activity_consent_accept",
+    "self_bondage_order_accepted",
     "self_bondage_order_discarded"
   ].includes(input.action)) return null;
   const actor = await prisma.user.findUnique({
