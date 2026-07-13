@@ -72,7 +72,7 @@ export default async function PositionDetailPage({ params }: { params: { slug: s
           <div className="mt-5 flex flex-wrap gap-2">
             <Badge tone="neutral">Kategorie: {position.category?.name || "Allgemein"}</Badge>
             <Badge tone={position.selfBondageCapable ? "red" : "neutral"}>
-              {position.selfBondageCapable ? "Self-Bondage-fähig" : "Nicht als Self-Bondage-fähig markiert"}
+              {position.selfBondageCapable ? "Kann beauftragt werden" : "Kann nicht beauftragt werden"}
             </Badge>
           </div>
           <p className="mt-5 leading-7 text-graphite">{position.description || "Keine Beschreibung hinterlegt."}</p>

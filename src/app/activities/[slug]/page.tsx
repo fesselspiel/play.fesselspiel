@@ -197,9 +197,9 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
           <Badge tone={activityStatusTone(activity.status)}>{activityStatusDisplay(activity.status, isSelfBondageOrder, isIdea)}</Badge>
         }
       />
-      <PageGuide title={isSelfBondageOrder ? "Self-Bondage-Auftrag" : isIdea ? "Idee mit Bildern" : "Spielplan im Detail"}>
+      <PageGuide title={isSelfBondageOrder ? "Auftrag" : isIdea ? "Idee mit Bildern" : "Spielplan im Detail"}>
         {isSelfBondageOrder
-          ? "Diese Detailseite zeigt den Auftrag, den Termin, den Status und die ausgewählten Self-Bondage-fähigen Szenen. Nutze Bearbeiten, um die Anweisung oder die Szenen zu ändern."
+          ? "Diese Detailseite zeigt den Auftrag, den Termin, den Zustimmungsstatus und die ausgewaehlten Szenen. Nutze Bearbeiten, um die Anweisung oder die Szenen zu aendern."
           : isIdea
             ? "Diese Detailseite sammelt eine Idee, passende Bausteine und Bilder, die nur zu dieser Idee gehören."
           : "Diese Detailseite zeigt Termin, Notiz, Status und alle ausgewählten Bausteine eines Spielplans. Nutze Bearbeiten, um Status, Termin oder Verknüpfungen nachträglich zu ändern."}
@@ -236,7 +236,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
             </SoftPanel>
           ) : null}
           {positionsEnabled && (!isIdea || ((activity as { positions?: unknown[] }).positions || []).length) ? <SoftPanel>
-            <h2 className="mb-3 text-lg font-semibold">{isSelfBondageOrder ? "Self-Bondage-fähige Szenen" : "Szenen"}</h2>
+            <h2 className="mb-3 text-lg font-semibold">Szenen</h2>
             <div className="space-y-2">
               {((activity as { positions?: { id: string; slug: string; name: string }[] }).positions || []).map((position) => <Link key={position.id} href={`/positions/${position.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{position.name}</Link>)}
               {!((activity as { positions?: unknown[] }).positions || []).length ? <p className="text-sm text-graphite">Keine Szene ausgewählt.</p> : null}

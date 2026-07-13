@@ -308,7 +308,7 @@ export const capabilities: readonly Capability[] = [
     label: "Szenen",
     featureKey: "positions",
     aliases: ["stellung", "stellungen", "szene", "szenen", "positionen"],
-    intents: ["szene anlegen", "szenen anzeigen", "self-bondage-faehig"],
+    intents: ["szene anlegen", "szenen anzeigen", "kann beauftragt werden"],
     route: "/positions",
     actions: [
       {
@@ -318,7 +318,7 @@ export const capabilities: readonly Capability[] = [
         description: "Listet Szenen und verknüpfte Spielsachen.",
         telegramCommands: [{ command: "/positions", description: "Szenen anzeigen" }],
         apiEndpoints: [
-          { method: "GET", path: "/api/external/catalog/positions?limit=100", description: "Listet Szenen inklusive Kategorie, Bild, Favoriten, Self-Bondage-Flag und Verknüpfungen." },
+          { method: "GET", path: "/api/external/catalog/positions?limit=100", description: "Listet Szenen inklusive Kategorie, Bild, Favoriten, Beauftragungsoption und Verknüpfungen." },
           { method: "POST", path: "/api/external/catalog/positions", description: "Legt eine Szene per JSON oder Multipart mit `title`/`name`, optional `description`, `categoryId`/`category` und Datei-Feld `file` an." },
           { method: "PATCH", path: "/api/external/catalog/positions/{id}", description: "Ändert eine Szene per JSON oder Multipart inklusive Datei-Feld `file` für Bildwechsel." },
           { method: "GET", path: "/api/external/catalog/position-categories", description: "Listet echte Szenen-Kategorien ohne virtuellen Default." },
@@ -430,9 +430,9 @@ export const capabilities: readonly Capability[] = [
         key: "list",
         label: "Aufträge anzeigen",
         type: "read",
-        description: "Listet offene und angenommene Self-Bondage-Aufträge.",
+        description: "Listet offene und angenommene Aufträge.",
         telegramCommands: [
-          { command: "/orders", description: "offene Self-Bondage-Aufträge anzeigen" },
+          { command: "/orders", description: "offene Aufträge anzeigen" },
           { command: "/order_accept_1", description: "Auftrag aus der Liste annehmen" },
           { command: "/order_done_1", description: "Auftrag aus der Liste als umgesetzt speichern" }
         ],
@@ -836,7 +836,7 @@ export const featureCatalog = [
   { key: "activities", label: capabilityLabelByFeature.get("activities") || "Spielplanung" },
   { key: "orders", label: capabilityLabelByFeature.get("orders") || "Aufträge" },
   { key: "packingLists", label: capabilityLabelByFeature.get("packingLists") || "Packlisten" },
-  { key: "selfBondage", label: "Self-Bondage" },
+  { key: "selfBondage", label: "Aufträge" },
   { key: "trackers", label: capabilityLabelByFeature.get("trackers") || "Tracker" },
   { key: "telegram", label: capabilityLabelByFeature.get("telegram") || "Telegram" },
   { key: "externalApi", label: capabilityLabelByFeature.get("externalApi") || "Externe API" },

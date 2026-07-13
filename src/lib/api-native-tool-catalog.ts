@@ -195,7 +195,7 @@ const manualToolCatalog = ([
     methods: ["GET", "POST"],
     path: "/api/external/orders",
     title: "Aufträge",
-    description: "Self-Bondage-Aufträge listen oder erteilen.",
+    description: "Aufträge listen oder erteilen.",
     category: "Aufträge"
   },
   {
@@ -273,7 +273,7 @@ const manualToolCatalog = ([
     methods: ["GET", "POST"],
     path: "/api/external/catalog/positions",
     title: "Szenen",
-    description: "Szenen inklusive Kategorien, Bildern, Favoriten, Self-Bondage-Flag und Verknuepfungen lesen oder per JSON/Multipart neu anlegen.",
+    description: "Szenen inklusive Kategorien, Bildern, Favoriten, Beauftragungsoption und Verknuepfungen lesen oder per JSON/Multipart neu anlegen.",
     category: "Katalog"
   },
   {

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ownerScope } from "@/lib/access";
-import { tokenFromRequest } from "@/lib/api-tokens";
 import { logAction } from "@/lib/audit";
 import { getOrCreateCatalogCategory } from "@/lib/catalog-categories";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
@@ -14,10 +13,8 @@ function displayName(user: { profile?: { displayName?: string | null } | null; n
   return user.profile?.displayName || user.name || user.username || user.email || null;
 }
 
-function externalFileUrl(request: NextRequest, fileId: string, token?: string) {
-  const url = new URL(`/api/external/files/${fileId}`, request.url);
-  if (token) url.searchParams.set("token", token);
-  return url.toString();
+function externalFileUrl(request: NextRequest, fileId: string) {
+  return new URL(`/api/external/files/${fileId}`, request.url).toString();
 }
 
 async function requestPayload(request: NextRequest) {
@@ -37,7 +34,7 @@ function booleanValue(value: unknown) {
   return value === true || value === "true" || value === "1" || value === 1 || value === "on";
 }
 
-function serializePosition(request: NextRequest, position: any, tokenForDownloadUrl = "", currentUserId?: string) {
+function serializePosition(request: NextRequest, position: any, currentUserId?: string) {
   const fileId = fileIdFromUrl(position.imageUrl);
   const imageUrl = fileId ? externalFileUrl(request, fileId) : position.imageUrl ? absoluteUrl(request, position.imageUrl) : null;
   return {
@@ -47,6 +44,7 @@ function serializePosition(request: NextRequest, position: any, tokenForDownload
     slug: position.slug,
     description: position.description,
     selfBondageCapable: position.selfBondageCapable,
+    canBeCommissioned: position.selfBondageCapable,
     sortOrder: position.sortOrder,
     createdAt: position.createdAt.toISOString(),
     updatedAt: position.updatedAt.toISOString(),
@@ -56,8 +54,8 @@ function serializePosition(request: NextRequest, position: any, tokenForDownload
       fileId,
       url: imageUrl,
       downloadUrl: imageUrl,
-      downloadUrlWithToken: fileId && tokenForDownloadUrl ? externalFileUrl(request, fileId, tokenForDownloadUrl) : null,
-      requiresAuthorization: Boolean(fileId && !tokenForDownloadUrl)
+      downloadUrlWithToken: null,
+      requiresAuthorization: Boolean(fileId)
     },
     category: position.category ? { id: position.category.id, name: position.category.name, sortOrder: position.category.sortOrder } : { id: null, name: "Allgemein", sortOrder: 0 },
     owner: { id: position.owner.id, username: position.owner.username, displayName: displayName(position.owner) },
@@ -85,8 +83,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const blocked = apiFeatureGate(auth.user, "externalApi", "positions");
   if (blocked) return blocked;
 
-  const token = request.nextUrl.searchParams.get("token") || "";
-  const tokenForDownloadUrl = token && token === tokenFromRequest(request) ? token : "";
   const position = await prisma.position.findFirst({
     where: { ...(await ownerScope(auth.user)), OR: [{ id: params.id }, { slug: params.id }] },
     include: {
@@ -102,7 +98,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   return NextResponse.json({
     ok: true,
-    item: serializePosition(request, position, tokenForDownloadUrl, auth.user.id)
+    item: serializePosition(request, position, auth.user.id)
   });
 }
 
@@ -151,7 +147,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       ...(payload.description !== undefined ? { description: text(payload.description) || null } : {}),
       ...(categoryId !== undefined ? { categoryId } : {}),
       ...(imageUrl !== undefined ? { imageUrl } : {}),
-      ...(payload.selfBondageCapable !== undefined ? { selfBondageCapable: booleanValue(payload.selfBondageCapable) } : {})
+      ...((payload.canBeCommissioned ?? payload.selfBondageCapable) !== undefined
+        ? { selfBondageCapable: booleanValue(payload.canBeCommissioned ?? payload.selfBondageCapable) }
+        : {})
     },
     include: {
       category: true,
@@ -177,7 +175,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   return NextResponse.json({
     ok: true,
-    item: serializePosition(request, position, "", auth.user.id)
+    item: serializePosition(request, position, auth.user.id)
   });
 }
 

@@ -284,7 +284,7 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
     });
     const actionable = orders.filter((order) => order.ownerId !== userId);
     return htmlList(
-      "Self-Bondage-Aufträge",
+      "Aufträge",
       orders.map((order, index) => {
         const actionIndex = actionable.findIndex((entry) => entry.id === order.id) + 1;
         const ownerName = order.owner.profile?.displayName || order.owner.name || order.owner.username || order.owner.email;

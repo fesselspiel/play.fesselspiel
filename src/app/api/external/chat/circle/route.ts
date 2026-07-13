@@ -5,6 +5,7 @@ import { saveUploadedFile } from "@/lib/files";
 import { logAction, userDisplayName } from "@/lib/audit";
 import { selfBondageCategory } from "@/lib/activity-orders";
 import { prisma } from "@/lib/prisma";
+import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
 
 export const runtime = "nodejs";
 
@@ -18,11 +19,17 @@ export async function GET(request: NextRequest) {
   if (!scope) return NextResponse.json({ ok: false, error: "Kein Zirkel für den Chat zugeordnet" }, { status: 403 });
   const limit = Math.min(100, Math.max(1, Number(request.nextUrl.searchParams.get("limit") || 50)));
   const after = request.nextUrl.searchParams.get("after");
+  const [blockedIds, hiddenIds] = await Promise.all([
+    blockedUserIds(auth.user.id, scope.tenantId),
+    hiddenEntityIds(scope.tenantId, "circleChatMessage")
+  ]);
   const messages = await prisma.circleChatMessage.findMany({
     where: {
       tenantId: scope.tenantId,
       circleId: scope.circleId,
       deletedAt: null,
+      id: { notIn: hiddenIds },
+      senderId: { notIn: blockedIds },
       ...(after ? { createdAt: { gt: new Date(after) } } : {})
     },
     include: { circle: true, sender: { include: { profile: true } }, file: true, receipts: { include: { user: { include: { profile: true } } } } },

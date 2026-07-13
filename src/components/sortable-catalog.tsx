@@ -229,7 +229,7 @@ export function SortablePositionList({ items, canSort = false, showTools = true 
                 <h2 className="truncate text-base font-semibold text-ink">{position.name}</h2>
                 <p className="mt-1 truncate text-xs text-graphite">
                   {showTools ? `${position.toolCount} Spielzeuge · ` : ""}{position.activityCount} Spielpläne
-                  {position.selfBondageCapable ? " · Self-Bondage" : ""}
+                  {position.selfBondageCapable ? " · Kann beauftragt werden" : ""}
                   {position.favoriteCount ? ` · ${position.favoriteCount} Favorit${position.favoriteCount === 1 ? "" : "en"}` : ""}
                 </p>
               </div>
@@ -249,7 +249,7 @@ export function SortablePositionList({ items, canSort = false, showTools = true 
                     {position.isFavorite ? <span className="rounded-md bg-redbrand px-2 py-1 text-white">Favorit</span> : null}
                     {position.favoriteCount ? <span className="rounded-md bg-surface px-2 py-1">{position.favoriteCount} Favorit{position.favoriteCount === 1 ? "" : "en"}</span> : null}
                     <span className={`rounded-md px-2 py-1 ${position.selfBondageCapable ? "bg-redbrand text-white" : "bg-surface text-graphite"}`}>
-                      {position.selfBondageCapable ? "Self-Bondage-fähig" : "Nicht als Self-Bondage-fähig markiert"}
+                      {position.selfBondageCapable ? "Kann beauftragt werden" : "Kann nicht beauftragt werden"}
                     </span>
                   </div>
                   {position.favoriteNames?.length ? (

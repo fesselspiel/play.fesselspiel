@@ -813,9 +813,9 @@ export default async function DashboardPage() {
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-sky-600 text-white">
                 <ShieldCheck className="h-6 w-6" />
               </div>
-              <h2 className="text-2xl font-semibold text-ink">Self-Bondage-Auftrag</h2>
+              <h2 className="text-2xl font-semibold text-ink">Auftrag</h2>
               <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-graphite">
-                Erteile einen Auftrag mit einer Self-Bondage-fähigen Szene oder einer freien Anweisung.
+                Erteile einen Auftrag mit einer dafuer freigegebenen Szene oder einer freien Anweisung.
               </p>
               {selfBondagePositions.length ? (
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -824,7 +824,7 @@ export default async function DashboardPage() {
                   ))}
                 </div>
               ) : (
-                <p className="mt-4 rounded-md bg-surface p-3 text-sm text-graphite">Markiere bei Szenen das Feld „Self-Bondage-fähig“, damit sie hier auftauchen.</p>
+                <p className="mt-4 rounded-md bg-surface p-3 text-sm text-graphite">Markiere bei Szenen das Feld „Kann beauftragt werden“, damit sie hier auftauchen.</p>
               )}
               <Link href="/orders" className="focus-ring mt-5 inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-sky-600 bg-sky-600 px-7 py-3 text-base font-semibold text-white shadow-soft hover:bg-sky-700">
                 <ShieldCheck className="h-5 w-5" />

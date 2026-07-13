@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MediaKind } from "@prisma/client";
 import { accessibleOwnerIds, bondageSystemVisibilityScope, mediaVisibilityScope, ownerScope } from "@/lib/access";
-import { tokenFromRequest } from "@/lib/api-tokens";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { featureEnabled } from "@/lib/features";
 import { fileAssetUrl, fileIdFromUrl } from "@/lib/files";
@@ -34,10 +33,8 @@ function absoluteUrl(request: NextRequest, path: string) {
   return new URL(path, request.url).toString();
 }
 
-function externalFileUrl(request: NextRequest, fileId: string, token?: string) {
-  const url = new URL(`/api/external/files/${fileId}`, request.url);
-  if (token) url.searchParams.set("token", token);
-  return url.toString();
+function externalFileUrl(request: NextRequest, fileId: string) {
+  return new URL(`/api/external/files/${fileId}`, request.url).toString();
 }
 
 function displayName(user?: { profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null } | null) {
@@ -57,7 +54,6 @@ function imageItem(
     subtitle?: string | null;
     createdAt?: Date | null;
     updatedAt?: Date | null;
-    token?: string;
     owner?: ImageItem["owner"];
     meta?: Record<string, unknown>;
   }
@@ -80,8 +76,8 @@ function imageItem(
     url: downloadUrl,
     downloadUrl,
     downloadPath,
-    downloadUrlWithToken: fileId && input.token ? externalFileUrl(request, fileId, input.token) : null,
-    requiresAuthorization: Boolean(fileId && !input.token),
+    downloadUrlWithToken: null,
+    requiresAuthorization: Boolean(fileId),
     mimeHint: fileId ? null : null,
     owner: input.owner || null,
     meta: input.meta
@@ -102,8 +98,6 @@ export async function GET(request: NextRequest) {
   const source = String(searchParams.get("source") || "all").trim() || "all";
   const limit = Math.min(200, Math.max(1, Number(searchParams.get("limit") || 100)));
   const q = String(searchParams.get("q") || "").trim();
-  const urlToken = searchParams.get("token") || "";
-  const token = urlToken && urlToken === tokenFromRequest(request) ? urlToken : "";
   const items: ImageItem[] = [];
   const features = auth.user.tenant?.features;
   const add = (entry: ImageItem | null) => {
@@ -133,7 +127,6 @@ export async function GET(request: NextRequest) {
         href: "/media",
         createdAt: entry.createdAt,
         updatedAt: entry.updatedAt,
-        token,
         owner: { id: entry.owner.id, username: entry.owner.username, displayName: displayName(entry.owner) },
         meta: { albumId: entry.albumId, visibility: entry.visibility, effectiveVisibility: entry.visibility || entry.album?.visibility || "PRIVATE" }
       }));
@@ -159,7 +152,6 @@ export async function GET(request: NextRequest) {
         href: `/toys/${toy.slug}`,
         createdAt: toy.createdAt,
         updatedAt: toy.updatedAt,
-        token,
         owner: { id: toy.owner.id, username: toy.owner.username, displayName: displayName(toy.owner) },
         meta: { slug: toy.slug, categoryId: toy.categoryId, categoryName: toy.category?.name || "Allgemein", selfBondageCapable: toy.selfBondageCapable }
       }));
@@ -185,7 +177,6 @@ export async function GET(request: NextRequest) {
         href: `/positions/${position.slug}`,
         createdAt: position.createdAt,
         updatedAt: position.updatedAt,
-        token,
         owner: { id: position.owner.id, username: position.owner.username, displayName: displayName(position.owner) },
         meta: { slug: position.slug, categoryId: position.categoryId, categoryName: position.category?.name || "Allgemein", selfBondageCapable: position.selfBondageCapable }
       }));
@@ -212,7 +203,6 @@ export async function GET(request: NextRequest) {
           href: `/ideas/${idea.slug}`,
           createdAt: image.createdAt,
           updatedAt: idea.updatedAt,
-          token,
           owner: { id: idea.owner.id, username: idea.owner.username, displayName: displayName(idea.owner) },
           meta: { slug: idea.slug, imageId: image.id, fileName: image.file.originalName, mimeType: image.file.mimeType, sizeBytes: image.file.sizeBytes }
         }));
@@ -244,7 +234,6 @@ export async function GET(request: NextRequest) {
         href: `/bondage-system/${item.product.slug}`,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
-        token,
         meta: { slug: item.product.slug, visibility: item.visibility, productUrl: item.showExternalLink ? item.product.productUrl : null }
       }));
     }
@@ -269,7 +258,6 @@ export async function GET(request: NextRequest) {
         href: user.id === auth.user.id ? "/profile" : undefined,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
-        token,
         owner: { id: user.id, username: user.username, displayName: displayName(user) }
       }));
     }

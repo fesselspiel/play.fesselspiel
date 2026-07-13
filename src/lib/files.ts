@@ -5,6 +5,7 @@ import { accessibleOwnerIds, mediaVisibilityScope, type AccessUser } from "@/lib
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
+import { contentIsHidden } from "@/lib/compliance/ugc";
 
 function safeExtension(name: string) {
   const ext = path.extname(name).toLowerCase().replace(/[^a-z0-9.]/g, "");
@@ -18,6 +19,11 @@ function extensionForMime(mimeType: string) {
   if (mimeType === "image/gif") return ".gif";
   if (mimeType === "video/mp4") return ".mp4";
   if (mimeType === "video/quicktime") return ".mov";
+  if (mimeType === "image/heic") return ".heic";
+  if (mimeType === "audio/mp4") return ".m4a";
+  if (mimeType === "audio/mpeg") return ".mp3";
+  if (mimeType === "audio/wav") return ".wav";
+  if (mimeType === "audio/ogg") return ".ogg";
   if (mimeType === "application/pdf") return ".pdf";
   return "";
 }
@@ -36,7 +42,23 @@ function detectFileType(bytes: Buffer) {
     return { mimeType: "image/gif", extension: ".gif" };
   }
   if (bytes.length >= 8 && bytes.subarray(4, 8).toString("ascii") === "ftyp") {
+    const brand = bytes.subarray(8, 12).toString("ascii").toLowerCase();
+    if (["heic", "heix", "hevc", "hevx", "mif1", "msf1"].includes(brand)) return { mimeType: "image/heic", extension: ".heic" };
+    if (brand === "m4a ") return { mimeType: "audio/mp4", extension: ".m4a" };
+    if (brand === "qt  ") return { mimeType: "video/quicktime", extension: ".mov" };
     return { mimeType: "video/mp4", extension: ".mp4" };
+  }
+  if (bytes.length >= 12 && bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WAVE") {
+    return { mimeType: "audio/wav", extension: ".wav" };
+  }
+  if (bytes.length >= 4 && bytes.subarray(0, 4).toString("ascii") === "OggS") {
+    return { mimeType: "audio/ogg", extension: ".ogg" };
+  }
+  if (bytes.length >= 3 && bytes.subarray(0, 3).toString("ascii") === "ID3") {
+    return { mimeType: "audio/mpeg", extension: ".mp3" };
+  }
+  if (bytes.length >= 2 && bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0) {
+    return { mimeType: "audio/mpeg", extension: ".mp3" };
   }
   if (bytes.length >= 5 && bytes.subarray(0, 5).toString("ascii") === "%PDF-") {
     return { mimeType: "application/pdf", extension: ".pdf" };
@@ -55,12 +77,14 @@ function normalizeOriginalName(name: string, extension: string) {
 
 function fileInfoFromBytes(bytes: Buffer, originalName: string, declaredMimeType?: string | null) {
   const detected = detectFileType(bytes);
-  const mimeType = detected?.mimeType || declaredMimeType || "application/octet-stream";
-  const extension = detected?.extension || safeExtension(originalName) || extensionForMime(mimeType);
+  if (!detected) throw new Error("Dateityp ist nicht erlaubt oder konnte nicht sicher erkannt werden");
+  const mimeType = detected.mimeType;
+  const extension = detected.extension;
   return {
     mimeType,
     extension,
-    originalName: detected ? normalizeOriginalName(originalName, detected.extension) : originalName
+    originalName: normalizeOriginalName(originalName, detected.extension),
+    declaredMimeType: declaredMimeType || null
   };
 }
 
@@ -186,16 +210,16 @@ export async function fileAssetForAccess(user: AccessUser, id: string) {
     },
     select: { id: true }
   });
-  if (visibleMedia) return sharedAsset;
+  if (visibleMedia && !(await contentIsHidden(user.tenantId || "", "media", visibleMedia.id))) return sharedAsset;
 
   const visibleActivityImage = await prisma.activityImage.findFirst({
     where: {
       fileId: id,
       activity: { ...tenantScope, ownerId: { in: ownerIds } }
     },
-    select: { id: true }
+    select: { id: true, activityId: true }
   });
-  if (visibleActivityImage) return sharedAsset;
+  if (visibleActivityImage && !(await contentIsHidden(user.tenantId || "", "activity", visibleActivityImage.activityId))) return sharedAsset;
 
   const visibleTrackerImage = await prisma.trackerEntryImage.findFirst({
     where: {
@@ -217,7 +241,7 @@ export async function fileAssetForAccess(user: AccessUser, id: string) {
     },
     select: { id: true }
   });
-  if (visibleChatMessage) return sharedAsset;
+  if (visibleChatMessage && !(await contentIsHidden(user.tenantId || "", "circleChatMessage", visibleChatMessage.id))) return sharedAsset;
 
   const visibleWikiImage = await prisma.wikiPageImage.findFirst({
     where: {
@@ -240,4 +264,14 @@ export async function fileAssetForAccess(user: AccessUser, id: string) {
 
 export function absolutePathForAsset(storagePath: string) {
   return storageAbsolutePath(storagePath);
+}
+
+export async function deleteStoredFile(storagePath: string) {
+  try {
+    await unlink(storageAbsolutePath(storagePath));
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
 }

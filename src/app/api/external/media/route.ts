@@ -4,10 +4,10 @@ import { MediaKind } from "@prisma/client";
 import { ensureDefaultAlbum } from "@/lib/albums";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { mediaVisibilityScope, visibilityScope } from "@/lib/access";
-import { tokenFromRequest } from "@/lib/api-tokens";
 import { entityLikeStateMap } from "@/lib/entity-likes";
 import { fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
+import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
 
 export const runtime = "nodejs";
 
@@ -41,10 +41,8 @@ function absoluteUrl(request: NextRequest, path: string) {
   return new URL(path, publicOrigin(request)).toString();
 }
 
-function externalFileUrl(request: NextRequest, fileId: string, token?: string) {
-  const url = new URL(`/api/external/files/${fileId}`, publicOrigin(request));
-  if (token) url.searchParams.set("token", token);
-  return url.toString();
+function externalFileUrl(request: NextRequest, fileId: string) {
+  return new URL(`/api/external/files/${fileId}`, publicOrigin(request)).toString();
 }
 
 export async function GET(request: NextRequest) {
@@ -61,11 +59,17 @@ export async function GET(request: NextRequest) {
   const requestedKind = String(searchParams.get("kind") || "IMAGE").toUpperCase();
   const kind = requestedKind === "VIDEO" ? MediaKind.VIDEO : requestedKind === "ALL" ? null : MediaKind.IMAGE;
   const includeAlbums = searchParams.get("includeAlbums") !== "0";
-  const urlToken = searchParams.get("token") || "";
-  const tokenForDownloadUrl = urlToken && urlToken === tokenFromRequest(request) ? urlToken : "";
 
+  const [blockedIds, hiddenIds] = await Promise.all([
+    blockedUserIds(auth.user.id, auth.user.tenantId || ""),
+    hiddenEntityIds(auth.user.tenantId || "", "media")
+  ]);
   const where: Prisma.MediaWhereInput = {
     ...(await mediaVisibilityScope(auth.user)),
+    AND: [
+      { id: { notIn: hiddenIds } },
+      { ownerId: { notIn: blockedIds } }
+    ],
     ...(kind ? { kind } : {}),
     ...(albumId ? { albumId } : {}),
     ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {})
@@ -121,14 +125,16 @@ export async function GET(request: NextRequest) {
         url: downloadUrl,
         downloadUrl,
         downloadPath,
-        downloadUrlWithToken: fileId && tokenForDownloadUrl ? externalFileUrl(request, fileId, tokenForDownloadUrl) : null,
-        requiresAuthorization: Boolean(fileId && !tokenForDownloadUrl),
+        downloadUrlWithToken: null,
+        requiresAuthorization: Boolean(fileId),
         album: entry.album ? { id: entry.album.id, title: entry.album.title, visibility: entry.album.visibility } : null,
         owner: {
           id: entry.owner.id,
           username: entry.owner.username,
           displayName: entry.owner.profile?.displayName || entry.owner.name || entry.owner.username || entry.owner.email
         },
+        own: entry.ownerId === auth.user.id,
+        canDelete: entry.ownerId === auth.user.id || auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN",
         ...(likeStates.get(entry.id) || {}),
         commentsCount: entry._count.comments
       };

@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { userFromApiToken } from "@/lib/api-tokens";
 import { featureEnabled } from "@/lib/features";
+import { complianceStatusForUser } from "@/lib/compliance/legal";
 
-export async function requireApiUser(request: NextRequest | Request, options: { ignoreViewContext?: boolean } = {}) {
+export async function requireApiUser(request: NextRequest | Request, options: { ignoreViewContext?: boolean; allowUnaccepted?: boolean } = {}) {
   const auth = await userFromApiToken(request, options);
   if (!auth) return { response: NextResponse.json({ ok: false, error: "Ungültiger oder fehlender API Token" }, { status: 401 }) };
+  if (!options.allowUnaccepted) {
+    const compliance = await complianceStatusForUser(auth.user.id, auth.user.tenantId);
+    if (!compliance.accessGranted) {
+      return {
+        response: NextResponse.json({
+          ok: false,
+          error: "legal_acceptance_required",
+          compliance
+        }, { status: 428 })
+      };
+    }
+  }
   return { user: auth.user };
 }
 

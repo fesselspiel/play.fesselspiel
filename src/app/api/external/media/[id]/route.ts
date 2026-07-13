@@ -6,6 +6,7 @@ import { logAction } from "@/lib/audit";
 import { entityLikeStateForEntity } from "@/lib/entity-likes";
 import { deleteOwnedFile, fileIdFromUrl } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
+import { contentIsHidden, usersAreBlocked } from "@/lib/compliance/ugc";
 
 export const runtime = "nodejs";
 
@@ -108,6 +109,8 @@ async function detailPayload(request: NextRequest, user: { id: string; tenantId?
     include: mediaInclude
   });
   if (!media) return null;
+  if (await contentIsHidden(user.tenantId || "", "media", media.id)) return null;
+  if (await usersAreBlocked(user.tenantId || "", user.id, media.ownerId)) return null;
   const [comments, albums] = await Promise.all([
     prisma.mediaComment.findMany({ where: { mediaId: media.id }, include: commentInclude, orderBy: { createdAt: "asc" } }),
     prisma.album.findMany({
@@ -127,9 +130,15 @@ async function detailPayload(request: NextRequest, user: { id: string; tenantId?
         tenantId: media.tenantId,
         title: media.title,
         href: `/media?item=${media.id}`
-      }, user.id))
+      }, user.id)),
+      own: media.ownerId === user.id,
+      canDelete: media.ownerId === user.id || user.role === "ADMIN" || user.role === "SUPER_ADMIN"
     },
-    comments: comments.map(serializeComment),
+    comments: comments.map((comment) => ({
+      ...serializeComment(comment),
+      own: comment.ownerId === user.id,
+      canDelete: comment.ownerId === user.id || user.role === "ADMIN" || user.role === "SUPER_ADMIN"
+    })),
     albums: albums.map((album) => ({
       id: album.id,
       title: album.title,

@@ -53,65 +53,152 @@ enum TelegramChatStatus {
   DISABLED
 }
 
+enum LegalDocumentKind {
+  AGE_NOTICE
+  PRIVACY
+  TERMS
+  COMMUNITY_GUIDELINES
+}
+
+enum ConsentKind {
+  TELEGRAM
+  OPENAI
+  PUSH
+  ANALYTICS
+}
+
+enum AccountDeletionStatus {
+  REQUESTED
+  REVOKING_ACCESS
+  DELETING_DATA
+  DELETING_FILES
+  COMPLETED
+  FAILED
+  BLOCKED_LAST_ADMIN
+}
+
+enum ContentClassification {
+  SAFE
+  MATURE_SUGGESTIVE
+  EXPLICIT
+  UNKNOWN
+  QUARANTINED
+}
+
+enum ContentScanStatus {
+  PENDING
+  CLEAN
+  REJECTED
+  ERROR
+}
+
+enum ContentReportReason {
+  NUDITY_OR_EXPLICIT
+  NON_CONSENSUAL
+  HARASSMENT_OR_THREAT
+  MINOR_SAFETY
+  VIOLENCE_OR_DANGER
+  ILLEGAL_CONTENT
+  SHARED_WITHOUT_CONSENT
+  SPAM
+  COPYRIGHT
+  OTHER
+}
+
+enum ContentReportStatus {
+  OPEN
+  IN_REVIEW
+  ESCALATED
+  RESOLVED
+  DISMISSED
+}
+
+enum ModerationAction {
+  NONE
+  HIDE_CONTENT
+  DELETE_CONTENT
+  WARN_USER
+  SUSPEND_USER
+  DEACTIVATE_USER
+  REMOVE_CIRCLE_ACCESS
+  ESCALATE_SAFETY_LEGAL
+}
+
 model Tenant {
-  id          String         @id @default(cuid())
-  slug        String         @unique
-  name        String
-  headline    String?
-  description String?
-  disabledTitle String        @default("Dieser Bereich macht gerade Pause")
-  disabledText  String        @default("Dieses Feature ist auf dieser Seite momentan nicht eingeschaltet. Falls du es erwartest, sprich kurz mit der Person, die diese Seite verwaltet. Eure vorhandenen Daten bleiben dabei erhalten.")
-  disabledButtonText String   @default("Zur Startseite")
-  disabledButtonHref String   @default("/")
-  status      String         @default("ACTIVE")
-  primaryColor String        @default("#E30613")
-  homeLayout  Json           @default("[]")
-  playReadyExpiryEnabled Boolean @default(true)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  domains     TenantDomain[]
-  features    TenantFeature[]
-  memberships TenantMembership[]
-  pointRules  PointRule[]
-  pointEntries PointEntry[]
-  users       User[]
-  circles     Circle[]
-  files       FileAsset[]
-  toys        Toy[]
-  positions   Position[]
-  catalogCategories CatalogCategory[]
-  activities  ActivityPlan[]
-  sessions    SegufixSession[]
-  kgSessions  KgSession[]
-  albums      Album[]
-  media       Media[]
-  events      Event[]
-  apiTokens   ApiToken[]
-  trackerTypes TrackerType[]
-  trackerEntryImages TrackerEntryImage[]
-  shopifyIntegration ShopifyIntegration?
-  shopifyProducts ShopifyProduct[]
-  bondageSystemItems BondageSystemItem[]
-  telegramSettings TenantTelegramSettings[]
-  feedRules FeedRule[]
-  externalPushRules ExternalPushRule[]
-  externalPushLogs ExternalPushLog[]
-  nativePushSettings NativePushSettings?
-  nativePushDevices NativePushDevice[]
-  nativePushDeliveries NativePushDelivery[]
+  id                          String                       @id @default(cuid())
+  slug                        String                       @unique
+  name                        String
+  headline                    String?
+  description                 String?
+  disabledTitle               String                       @default("Dieser Bereich macht gerade Pause")
+  disabledText                String                       @default("Dieses Feature ist auf dieser Seite momentan nicht eingeschaltet. Falls du es erwartest, sprich kurz mit der Person, die diese Seite verwaltet. Eure vorhandenen Daten bleiben dabei erhalten.")
+  disabledButtonText          String                       @default("Zur Startseite")
+  disabledButtonHref          String                       @default("/")
+  status                      String                       @default("ACTIVE")
+  primaryColor                String                       @default("#E30613")
+  homeLayout                  Json                         @default("[]")
+  playReadyExpiryEnabled      Boolean                      @default(true)
+  iosProductMode              String                       @default("PRIVATE_ADULT_PLANNER")
+  iosOrdersEnabled            Boolean                      @default(true)
+  iosExplicitMediaEnabled     Boolean                      @default(false)
+  iosRequiresAgeConfirmation  Boolean                      @default(false)
+  supportEmail                String?
+  moderationEmail             String?
+  privacyEmail                String?
+  securityEmail               String?
+  legalResponsibleName        String?
+  legalPostalAddress          String?
+  serverRegion                String?
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @updatedAt
+  domains                     TenantDomain[]
+  features                    TenantFeature[]
+  memberships                 TenantMembership[]
+  pointRules                  PointRule[]
+  pointEntries                PointEntry[]
+  users                       User[]
+  circles                     Circle[]
+  files                       FileAsset[]
+  toys                        Toy[]
+  positions                   Position[]
+  catalogCategories           CatalogCategory[]
+  activities                  ActivityPlan[]
+  sessions                    SegufixSession[]
+  kgSessions                  KgSession[]
+  albums                      Album[]
+  media                       Media[]
+  events                      Event[]
+  apiTokens                   ApiToken[]
+  trackerTypes                TrackerType[]
+  trackerEntryImages          TrackerEntryImage[]
+  shopifyIntegration          ShopifyIntegration?
+  shopifyProducts             ShopifyProduct[]
+  bondageSystemItems          BondageSystemItem[]
+  telegramSettings            TenantTelegramSettings[]
+  feedRules                   FeedRule[]
+  externalPushRules           ExternalPushRule[]
+  externalPushLogs            ExternalPushLog[]
+  nativePushSettings          NativePushSettings?
+  nativePushDevices           NativePushDevice[]
+  nativePushDeliveries        NativePushDelivery[]
   nativePushNotificationRules NativePushNotificationRule[]
-  chatNotificationRules ChatNotificationRule[]
-  scheduledRules ScheduledRule[]
-  scheduledRuleRuns ScheduledRuleRun[]
-  shareDeliveries ShareDelivery[]
-  playReadyLikes PlayReadyLike[]
-  activityLikes ActivityLike[]
-  circleChatMessages CircleChatMessage[]
-  invites UserInvite[]
-  packingEvents PackingEvent[]
-  packingLists PackingList[]
-  wikiPages WikiPage[]
-  publicContentOverrides PublicContentOverride[]
+  chatNotificationRules       ChatNotificationRule[]
+  scheduledRules              ScheduledRule[]
+  scheduledRuleRuns           ScheduledRuleRun[]
+  shareDeliveries             ShareDelivery[]
+  playReadyLikes              PlayReadyLike[]
+  activityLikes               ActivityLike[]
+  circleChatMessages          CircleChatMessage[]
+  invites                     UserInvite[]
+  packingEvents               PackingEvent[]
+  packingLists                PackingList[]
+  wikiPages                   WikiPage[]
+  publicContentOverrides      PublicContentOverride[]
+  legalDocuments              LegalDocument[]
+  accountDeletionJobs         AccountDeletionJob[]
+  contentReports              ContentReport[]
+  moderatedContent            ModeratedContent[]
+  userBlocks                  UserBlock[]
 
   @@index([status])
 }
@@ -144,76 +231,86 @@ model TenantFeature {
 }
 
 model User {
-  id                String          @id @default(cuid())
-  tenantId          String?
-  circleId          String?
-  email             String          @unique
-  username          String?         @unique
-  name              String?
-  passwordHash      String
-  role              Role            @default(USER)
-  active            Boolean         @default(true)
-  emailVerifiedAt   DateTime?
-  lastLoginAt       DateTime?
-  rememberTokenHash String?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  tenant            Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  circle            Circle?         @relation(fields: [circleId], references: [id], onDelete: SetNull)
-  memberships       TenantMembership[]
-  profile           Profile?
-  settings          UserSettings?
-  toys              Toy[]
-  positions         Position[]
-  activities        ActivityPlan[]
-  sessions          SegufixSession[]
-  kgSessions        KgSession[]
-  media             Media[]
-  mediaComments     MediaComment[]
-  sessionComments   SessionComment[]
-  albums            Album[]
-  events            Event[]
-  files             FileAsset[]
-  sentMessages      Message[]       @relation("MessageSender")
-  receivedMessages  Message[]       @relation("MessageRecipient")
-  telegramChatTargets TelegramChat[] @relation("TelegramChatTargetUser")
-  apiTokens         ApiToken[]
-  scheduledRules    ScheduledRule[]
-  sentInvites       UserInvite[] @relation("InviteCreator")
-  acceptedInvites   UserInvite[] @relation("InviteAcceptedUser")
-  telegramMappings  TelegramUserMapping[] @relation("TelegramMappedAppUser")
-  telegramNotificationTargets TelegramNotificationRule[] @relation("TelegramNotificationTargetUser")
-  emailNotificationTargets EmailNotificationRule[] @relation("EmailNotificationTargetUser")
-  tenantTelegramBots TenantTelegramSettings[] @relation("TenantTelegramBotOwner")
-  auditLogs         AuditLog[]
-  feedComments      FeedComment[]
-  feedLikes         FeedLike[]
-  feedDismissals    FeedDismissal[]
-  pointEntries      PointEntry[]
-  activityLikes     ActivityLike[]
-  activityComments  ActivityComment[]
-  trackerEntries    TrackerEntry[]
-  favoriteToys      ToyFavorite[]
-  favoritePositions PositionFavorite[]
-  playReadyLikesGiven PlayReadyLike[] @relation("PlayReadyLikeActor")
-  playReadyLikesReceived PlayReadyLike[] @relation("PlayReadyLikeTarget")
-  bondageSystemTargets BondageSystemItem[] @relation("BondageSystemTargetUser")
-  emailConfirmationTokens EmailConfirmationToken[]
-  passwordResetTokens PasswordResetToken[]
-  nativePushDevices NativePushDevice[]
-  nativePushDeliveries NativePushDelivery[]
+  id                            String                       @id @default(cuid())
+  tenantId                      String?
+  circleId                      String?
+  email                         String                       @unique
+  username                      String?                      @unique
+  name                          String?
+  passwordHash                  String
+  role                          Role                         @default(USER)
+  active                        Boolean                      @default(true)
+  emailVerifiedAt               DateTime?
+  lastLoginAt                   DateTime?
+  rememberTokenHash             String?
+  sessionRevision               Int                          @default(0)
+  deletionRequestedAt           DateTime?
+  createdAt                     DateTime                     @default(now())
+  updatedAt                     DateTime                     @updatedAt
+  tenant                        Tenant?                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  circle                        Circle?                      @relation(fields: [circleId], references: [id], onDelete: SetNull)
+  memberships                   TenantMembership[]
+  profile                       Profile?
+  settings                      UserSettings?
+  toys                          Toy[]
+  positions                     Position[]
+  activities                    ActivityPlan[]
+  sessions                      SegufixSession[]
+  kgSessions                    KgSession[]
+  media                         Media[]
+  mediaComments                 MediaComment[]
+  sessionComments               SessionComment[]
+  albums                        Album[]
+  events                        Event[]
+  files                         FileAsset[]
+  sentMessages                  Message[]                    @relation("MessageSender")
+  receivedMessages              Message[]                    @relation("MessageRecipient")
+  telegramChatTargets           TelegramChat[]               @relation("TelegramChatTargetUser")
+  apiTokens                     ApiToken[]
+  scheduledRules                ScheduledRule[]
+  sentInvites                   UserInvite[]                 @relation("InviteCreator")
+  acceptedInvites               UserInvite[]                 @relation("InviteAcceptedUser")
+  telegramMappings              TelegramUserMapping[]        @relation("TelegramMappedAppUser")
+  telegramNotificationTargets   TelegramNotificationRule[]   @relation("TelegramNotificationTargetUser")
+  emailNotificationTargets      EmailNotificationRule[]      @relation("EmailNotificationTargetUser")
+  tenantTelegramBots            TenantTelegramSettings[]     @relation("TenantTelegramBotOwner")
+  auditLogs                     AuditLog[]
+  feedComments                  FeedComment[]
+  feedLikes                     FeedLike[]
+  feedDismissals                FeedDismissal[]
+  pointEntries                  PointEntry[]
+  activityLikes                 ActivityLike[]
+  activityComments              ActivityComment[]
+  trackerEntries                TrackerEntry[]
+  favoriteToys                  ToyFavorite[]
+  favoritePositions             PositionFavorite[]
+  playReadyLikesGiven           PlayReadyLike[]              @relation("PlayReadyLikeActor")
+  playReadyLikesReceived        PlayReadyLike[]              @relation("PlayReadyLikeTarget")
+  bondageSystemTargets          BondageSystemItem[]          @relation("BondageSystemTargetUser")
+  emailConfirmationTokens       EmailConfirmationToken[]
+  passwordResetTokens           PasswordResetToken[]
+  nativePushDevices             NativePushDevice[]
+  nativePushDeliveries          NativePushDelivery[]
   nativePushNotificationTargets NativePushNotificationRule[] @relation("NativePushNotificationTargetUser")
-  shareDeliveriesSent ShareDelivery[] @relation("ShareDeliveryActor")
-  shareDeliveriesReceived ShareDelivery[] @relation("ShareDeliveryTargetUser")
-  circleChatMessages CircleChatMessage[] @relation("CircleChatSender")
-  circleChatReceipts CircleChatReceipt[]
-  packingEvents PackingEvent[]
-  packingLists PackingList[]
-  packedItems PackingListItem[] @relation("PackingItemPackedBy")
-  wikiPages WikiPage[]
-  wikiPageShares WikiPageShare[]
-  wikiPageRevisions WikiPageRevision[]
-  publicContentOverrides PublicContentOverride[]
+  shareDeliveriesSent           ShareDelivery[]              @relation("ShareDeliveryActor")
+  shareDeliveriesReceived       ShareDelivery[]              @relation("ShareDeliveryTargetUser")
+  circleChatMessages            CircleChatMessage[]          @relation("CircleChatSender")
+  circleChatReceipts            CircleChatReceipt[]
+  packingEvents                 PackingEvent[]
+  packingLists                  PackingList[]
+  packedItems                   PackingListItem[]            @relation("PackingItemPackedBy")
+  wikiPages                     WikiPage[]
+  wikiPageShares                WikiPageShare[]
+  wikiPageRevisions             WikiPageRevision[]
+  publicContentOverrides        PublicContentOverride[]
+  legalAcceptances              UserLegalAcceptance[]
+  consentPreferences            UserConsentPreference[]
+  accountDeletionJobs           AccountDeletionJob[]
+  reportsSubmitted              ContentReport[]              @relation("ContentReportReporter")
+  reportsReceived               ContentReport[]              @relation("ContentReportSubjectUser")
+  reportsModerated              ContentReport[]              @relation("ContentReportModerator")
+  blocksInitiated               UserBlock[]                  @relation("UserBlockActor")
+  blocksReceived                UserBlock[]                  @relation("UserBlockTarget")
 
   @@index([tenantId])
   @@index([circleId])
@@ -267,101 +364,106 @@ model PasswordResetToken {
 }
 
 model Circle {
-  id        String   @id @default(cuid())
-  tenantId  String?
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  users     User[]
-  memberships TenantMembership[]
-  telegramChatTargets TelegramChat[] @relation("TelegramChatTargetCircle")
-  telegramNotificationTargets TelegramNotificationRule[] @relation("TelegramNotificationTargetCircle")
-  emailNotificationTargets EmailNotificationRule[] @relation("EmailNotificationTargetCircle")
+  id                            String                       @id @default(cuid())
+  tenantId                      String?
+  name                          String
+  createdAt                     DateTime                     @default(now())
+  updatedAt                     DateTime                     @updatedAt
+  tenant                        Tenant?                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users                         User[]
+  memberships                   TenantMembership[]
+  telegramChatTargets           TelegramChat[]               @relation("TelegramChatTargetCircle")
+  telegramNotificationTargets   TelegramNotificationRule[]   @relation("TelegramNotificationTargetCircle")
+  emailNotificationTargets      EmailNotificationRule[]      @relation("EmailNotificationTargetCircle")
   nativePushNotificationTargets NativePushNotificationRule[] @relation("NativePushNotificationTargetCircle")
-  chatNotificationTargets ChatNotificationRule[] @relation("ChatNotificationTargetCircle")
-  bondageSystemTargets BondageSystemItem[] @relation("BondageSystemTargetCircle")
-  chatMessages CircleChatMessage[]
-  wikiPageShares WikiPageShare[]
+  chatNotificationTargets       ChatNotificationRule[]       @relation("ChatNotificationTargetCircle")
+  bondageSystemTargets          BondageSystemItem[]          @relation("BondageSystemTargetCircle")
+  chatMessages                  CircleChatMessage[]
+  wikiPageShares                WikiPageShare[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
 }
 
 model FileAsset {
-  id           String   @id @default(cuid())
-  tenantId     String?
-  ownerId      String
-  originalName String
-  mimeType     String
-  sizeBytes    Int
-  storagePath  String
-  createdAt    DateTime @default(now())
-  tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  activityImages ActivityImage[]
-  trackerEntryImages TrackerEntryImage[]
-  circleChatMessages CircleChatMessage[]
-  wikiImages WikiPageImage[]
+  id                    String                @id @default(cuid())
+  tenantId              String?
+  ownerId               String
+  originalName          String
+  mimeType              String
+  sizeBytes             Int
+  storagePath           String
+  contentClassification ContentClassification @default(UNKNOWN)
+  scanStatus            ContentScanStatus     @default(PENDING)
+  safetyCheckedAt       DateTime?
+  quarantinedAt         DateTime?
+  createdAt             DateTime              @default(now())
+  tenant                Tenant?               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner                 User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  activityImages        ActivityImage[]
+  trackerEntryImages    TrackerEntryImage[]
+  circleChatMessages    CircleChatMessage[]
+  wikiImages            WikiPageImage[]
 
   @@index([tenantId, ownerId, createdAt])
   @@index([ownerId, createdAt])
 }
 
 model Profile {
-  id        String   @id @default(cuid())
-  userId    String   @unique
+  id          String   @id @default(cuid())
+  userId      String   @unique
   displayName String?
-  bio       String?
-  imageUrl  String?
-  fields    Json     @default("{}")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio         String?
+  imageUrl    String?
+  fields      Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserSettings {
-  id                  String         @id @default(cuid())
-  userId              String         @unique
-  theme               String         @default("red")
-  darkMode            Boolean        @default(false)
-  playReady           Boolean        @default(false)
-  playReadyState      String         @default("red")
-  playReadyUpdatedAt  DateTime?
-  playReadyExpiresAt  DateTime?
-  playReadyExpiryMinutes Int?           @default(360)
-  shareDefaultChannel String            @default("all")
-  shareMessageTemplate String           @default("Schau dir das an: {title}\n{url}")
-  inviteQuota         Int            @default(3)
-  timeOffsetMinutes   Int            @default(0)
-  telegramBotTokenEnc String?
-  openAiApiKeyEnc     String?
-  telegramChats       TelegramChat[]
-  telegramUserMappings TelegramUserMapping[]
-  telegramKnownUsers  TelegramKnownUser[]
+  id                        String                     @id @default(cuid())
+  userId                    String                     @unique
+  theme                     String                     @default("red")
+  darkMode                  Boolean                    @default(false)
+  playReady                 Boolean                    @default(false)
+  playReadyState            String                     @default("red")
+  playReadyUpdatedAt        DateTime?
+  playReadyExpiresAt        DateTime?
+  playReadyExpiryMinutes    Int?                       @default(360)
+  shareDefaultChannel       String                     @default("all")
+  shareMessageTemplate      String                     @default("Schau dir das an: {title}\n{url}")
+  inviteQuota               Int                        @default(3)
+  timeOffsetMinutes         Int                        @default(0)
+  notificationPreviewMode   String                     @default("DISCREET")
+  telegramBotTokenEnc       String?
+  openAiApiKeyEnc           String?
+  telegramChats             TelegramChat[]
+  telegramUserMappings      TelegramUserMapping[]
+  telegramKnownUsers        TelegramKnownUser[]
   telegramNotificationRules TelegramNotificationRule[]
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
-  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserInvite {
-  id              String    @id @default(cuid())
-  tenantId        String
-  invitedById     String
-  acceptedById    String?
-  email           String?
-  name            String?
-  tokenHash       String    @unique
-  tokenEnc        String?
-  status          String    @default("OPEN")
-  expiresAt       DateTime
-  acceptedAt      DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  invitedBy       User      @relation("InviteCreator", fields: [invitedById], references: [id], onDelete: Cascade)
-  acceptedBy      User?     @relation("InviteAcceptedUser", fields: [acceptedById], references: [id], onDelete: SetNull)
+  id           String    @id @default(cuid())
+  tenantId     String
+  invitedById  String
+  acceptedById String?
+  email        String?
+  name         String?
+  tokenHash    String    @unique
+  tokenEnc     String?
+  status       String    @default("OPEN")
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invitedBy    User      @relation("InviteCreator", fields: [invitedById], references: [id], onDelete: Cascade)
+  acceptedBy   User?     @relation("InviteAcceptedUser", fields: [acceptedById], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status, createdAt])
   @@index([invitedById, createdAt])
@@ -370,23 +472,23 @@ model UserInvite {
 }
 
 model TenantTelegramSettings {
-  id                  String         @id @default(cuid())
-  tenantId            String
-  ownerId             String?
-  key                 String         @default("default")
-  name                String         @default("Standard-Bot")
-  scope               String         @default("TENANT")
-  active              Boolean        @default(true)
-  isDefault           Boolean        @default(false)
-  telegramBotTokenEnc String?
-  openAiApiKeyEnc     String?
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
-  tenant              Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner               User?          @relation("TenantTelegramBotOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  telegramChats       TelegramChat[]
-  telegramUserMappings TelegramUserMapping[]
-  telegramKnownUsers  TelegramKnownUser[]
+  id                        String                     @id @default(cuid())
+  tenantId                  String
+  ownerId                   String?
+  key                       String                     @default("default")
+  name                      String                     @default("Standard-Bot")
+  scope                     String                     @default("TENANT")
+  active                    Boolean                    @default(true)
+  isDefault                 Boolean                    @default(false)
+  telegramBotTokenEnc       String?
+  openAiApiKeyEnc           String?
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  tenant                    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner                     User?                      @relation("TenantTelegramBotOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  telegramChats             TelegramChat[]
+  telegramUserMappings      TelegramUserMapping[]
+  telegramKnownUsers        TelegramKnownUser[]
   telegramNotificationRules TelegramNotificationRule[]
 
   @@unique([tenantId, key])
@@ -431,24 +533,157 @@ model ExternalViewContext {
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  actorId    String?
-  action     String
-  entityType String?
-  entityId   String?
-  title      String
-  details    Json?
-  href       String?
-  createdAt  DateTime @default(now())
-  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
-  feedComments FeedComment[]
-  feedLikes     FeedLike[]
+  id             String          @id @default(cuid())
+  actorId        String?
+  action         String
+  entityType     String?
+  entityId       String?
+  title          String
+  details        Json?
+  href           String?
+  createdAt      DateTime        @default(now())
+  actor          User?           @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  feedComments   FeedComment[]
+  feedLikes      FeedLike[]
   feedDismissals FeedDismissal[]
-  pointEntries  PointEntry[]
+  pointEntries   PointEntry[]
 
   @@index([actorId, createdAt])
   @@index([createdAt])
   @@index([entityType, entityId])
+}
+
+model LegalDocument {
+  id                   String                @id @default(cuid())
+  tenantId             String
+  kind                 LegalDocumentKind
+  version              String
+  title                String
+  summary              String
+  content              String
+  required             Boolean               @default(true)
+  active               Boolean               @default(false)
+  requiresReacceptance Boolean               @default(true)
+  publishedAt          DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  acceptances          UserLegalAcceptance[]
+
+  @@unique([tenantId, kind, version])
+  @@index([tenantId, kind, active])
+}
+
+model UserLegalAcceptance {
+  id         String        @id @default(cuid())
+  userId     String
+  documentId String
+  acceptedAt DateTime      @default(now())
+  country    String?
+  source     String        @default("IOS")
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document   LegalDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentId])
+  @@index([userId, acceptedAt])
+  @@index([documentId, acceptedAt])
+}
+
+model UserConsentPreference {
+  id        String      @id @default(cuid())
+  userId    String
+  kind      ConsentKind
+  granted   Boolean     @default(false)
+  version   String
+  changedAt DateTime    @default(now())
+  source    String      @default("IOS")
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind])
+  @@index([kind, granted])
+}
+
+model AccountDeletionJob {
+  id                 String                @id @default(cuid())
+  tenantId           String?
+  userId             String?
+  requestedUserId    String
+  status             AccountDeletionStatus @default(REQUESTED)
+  confirmationMethod String
+  startedAt          DateTime?
+  completedAt        DateTime?
+  lastErrorCode      String?
+  retryCount         Int                   @default(0)
+  fileManifest       Json                  @default("[]")
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  tenant             Tenant?               @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  user               User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([requestedUserId, createdAt])
+  @@index([status, updatedAt])
+  @@index([tenantId, status])
+}
+
+model ContentReport {
+  id             String              @id @default(cuid())
+  tenantId       String
+  reporterId     String
+  reportedUserId String?
+  moderatorId    String?
+  entityType     String
+  entityId       String
+  reason         ContentReportReason
+  details        String?
+  status         ContentReportStatus @default(OPEN)
+  priority       String              @default("NORMAL")
+  moderationNote String?
+  action         ModerationAction?
+  resolvedAt     DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reporter       User                @relation("ContentReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser   User?               @relation("ContentReportSubjectUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  moderator      User?               @relation("ContentReportModerator", fields: [moderatorId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status, priority, createdAt])
+  @@index([reporterId, createdAt])
+  @@index([reportedUserId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model ModeratedContent {
+  id          String   @id @default(cuid())
+  tenantId    String
+  entityType  String
+  entityId    String
+  hidden      Boolean  @default(true)
+  reason      String?
+  reportId    String?
+  moderatorId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, entityType, entityId])
+  @@index([tenantId, hidden, updatedAt])
+  @@index([reportId])
+}
+
+model UserBlock {
+  id        String   @id @default(cuid())
+  tenantId  String
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  blocker   User     @relation("UserBlockActor", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("UserBlockTarget", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, blockerId, blockedId])
+  @@index([tenantId, blockedId])
+  @@index([blockerId, createdAt])
 }
 
 model PointRule {
@@ -486,25 +721,25 @@ model PointEntry {
 }
 
 model FeedComment {
-  id        String   @id @default(cuid())
+  id         String   @id @default(cuid())
   auditLogId String
-  authorId  String?
-  body      String
-  createdAt DateTime @default(now())
-  auditLog  AuditLog @relation(fields: [auditLogId], references: [id], onDelete: Cascade)
-  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  authorId   String?
+  body       String
+  createdAt  DateTime @default(now())
+  auditLog   AuditLog @relation(fields: [auditLogId], references: [id], onDelete: Cascade)
+  author     User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([auditLogId, createdAt])
   @@index([authorId, createdAt])
 }
 
 model FeedLike {
-  id        String   @id @default(cuid())
+  id         String   @id @default(cuid())
   auditLogId String
-  userId    String?
-  createdAt DateTime @default(now())
-  auditLog  AuditLog @relation(fields: [auditLogId], references: [id], onDelete: Cascade)
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId     String?
+  createdAt  DateTime @default(now())
+  auditLog   AuditLog @relation(fields: [auditLogId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@unique([auditLogId, userId])
   @@index([auditLogId, createdAt])
@@ -571,18 +806,18 @@ model ActivityLike {
 }
 
 model ExternalPushRule {
-  id             String   @id @default(cuid())
-  tenantId       String
-  action         String
-  name           String
-  url            String
-  method         String   @default("POST")
-  headersJson    Json     @default("{}")
-  payloadTemplate String  @default("{\"title\":\"{title}\",\"event\":\"{event}\",\"actor\":\"{actor}\",\"url\":\"{url}\",\"details\":{detailsJson}}")
-  active         Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  tenantId        String
+  action          String
+  name            String
+  url             String
+  method          String   @default("POST")
+  headersJson     Json     @default("{}")
+  payloadTemplate String   @default("{\"title\":\"{title}\",\"event\":\"{event}\",\"actor\":\"{actor}\",\"url\":\"{url}\",\"details\":{detailsJson}}")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, action, active])
 }
@@ -623,20 +858,20 @@ model NativePushSettings {
 }
 
 model NativePushDevice {
-  id          String    @id @default(cuid())
+  id          String               @id @default(cuid())
   tenantId    String?
   userId      String
   platform    String
   deviceToken String
-  environment String   @default("production")
+  environment String               @default("production")
   deviceName  String?
   appVersion  String?
-  lastSeenAt  DateTime @default(now())
+  lastSeenAt  DateTime             @default(now())
   disabledAt  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tenant      Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  tenant      Tenant?              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   deliveries  NativePushDelivery[]
 
   @@unique([platform, deviceToken])
@@ -645,21 +880,21 @@ model NativePushDevice {
 }
 
 model NativePushDelivery {
-  id          String    @id @default(cuid())
-  tenantId    String?
-  userId      String
-  deviceId    String?
-  auditId     String?
-  action      String
-  status      String
-  apnsId      String?
-  statusCode  Int?
-  error       String?
-  payload     Json?
-  createdAt   DateTime  @default(now())
-  tenant      Tenant?    @relation(fields: [tenantId], references: [id], onDelete: SetNull)
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  device      NativePushDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  id         String            @id @default(cuid())
+  tenantId   String?
+  userId     String
+  deviceId   String?
+  auditId    String?
+  action     String
+  status     String
+  apnsId     String?
+  statusCode Int?
+  error      String?
+  payload    Json?
+  createdAt  DateTime          @default(now())
+  tenant     Tenant?           @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device     NativePushDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, createdAt])
   @@index([userId, createdAt])
@@ -717,29 +952,29 @@ model ShareDelivery {
 }
 
 model ScheduledRule {
-  id               String   @id @default(cuid())
+  id               String             @id @default(cuid())
   tenantId         String
   ownerId          String
   name             String
-  active           Boolean  @default(true)
-  scheduleType     String   @default("DAILY")
-  timeOfDayMinutes Int      @default(960)
-  daysOfWeek       Int[]    @default([])
+  active           Boolean            @default(true)
+  scheduleType     String             @default("DAILY")
+  timeOfDayMinutes Int                @default(960)
+  daysOfWeek       Int[]              @default([])
   dayOfMonth       Int?
   intervalMinutes  Int?
-  timezone         String   @default("Europe/Berlin")
-  conditionType    String   @default("ALWAYS")
-  conditionJson    Json     @default("{}")
-  actionType       String   @default("EXTERNAL_URL")
-  actionJson       Json     @default("{}")
+  timezone         String             @default("Europe/Berlin")
+  conditionType    String             @default("ALWAYS")
+  conditionJson    Json               @default("{}")
+  actionType       String             @default("EXTERNAL_URL")
+  actionJson       Json               @default("{}")
   nextRunAt        DateTime?
   lastRunAt        DateTime?
   lastStatus       String?
   lastMessage      String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner            User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner            User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   runs             ScheduledRuleRun[]
 
   @@index([tenantId, active, nextRunAt])
@@ -747,15 +982,15 @@ model ScheduledRule {
 }
 
 model ScheduledRuleRun {
-  id           String   @id @default(cuid())
+  id           String        @id @default(cuid())
   tenantId     String
   ruleId       String
   status       String
-  conditionMet Boolean  @default(false)
+  conditionMet Boolean       @default(false)
   message      String?
   details      Json?
-  createdAt    DateTime @default(now())
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt    DateTime      @default(now())
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   rule         ScheduledRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, createdAt])
@@ -775,14 +1010,14 @@ model EmailSettings {
 }
 
 model EmailTemplate {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  title     String
-  subject   String
-  body      String
-  enabled   Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String                  @id @default(cuid())
+  key               String                  @unique
+  title             String
+  subject           String
+  body              String
+  enabled           Boolean                 @default(false)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
   notificationRules EmailNotificationRule[]
 
   @@index([enabled])
@@ -828,28 +1063,28 @@ model EmailNotificationRule {
 }
 
 model Toy {
-  id          String         @id @default(cuid())
-  tenantId    String?
-  categoryId  String?
-  ownerId     String
-  title       String
-  slug        String
-  description String?
-  imageUrl    String?
-  sourceTenantId String?
-  sourceToyId String?
-  selfBondageCapable Boolean @default(false)
-  sortOrder   Int            @default(0)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  tenant      Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  category    CatalogCategory? @relation("ToyCategory", fields: [categoryId], references: [id], onDelete: SetNull)
-  owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  positions   Position[]     @relation("PositionTools")
-  activities  ActivityPlan[] @relation("ActivityTools")
-  trackerEntries TrackerEntry[] @relation("TrackerEntryToys")
-  favorites   ToyFavorite[]
-  packingItems PackingListItem[]
+  id                 String            @id @default(cuid())
+  tenantId           String?
+  categoryId         String?
+  ownerId            String
+  title              String
+  slug               String
+  description        String?
+  imageUrl           String?
+  sourceTenantId     String?
+  sourceToyId        String?
+  selfBondageCapable Boolean           @default(false)
+  sortOrder          Int               @default(0)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  tenant             Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category           CatalogCategory?  @relation("ToyCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  owner              User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  positions          Position[]        @relation("PositionTools")
+  activities         ActivityPlan[]    @relation("ActivityTools")
+  trackerEntries     TrackerEntry[]    @relation("TrackerEntryToys")
+  favorites          ToyFavorite[]
+  packingItems       PackingListItem[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, sourceToyId])
@@ -873,28 +1108,28 @@ model ToyFavorite {
 }
 
 model Position {
-  id          String         @id @default(cuid())
-  tenantId    String?
-  categoryId  String?
-  ownerId     String
-  name        String
-  slug        String
-  description String?
-  imageUrl    String?
-  sourceTenantId String?
-  sourcePositionId String?
-  selfBondageCapable Boolean @default(false)
-  sortOrder   Int            @default(0)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  tenant      Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  category    CatalogCategory? @relation("PositionCategory", fields: [categoryId], references: [id], onDelete: SetNull)
-  owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  tools       Toy[]          @relation("PositionTools")
+  id                 String              @id @default(cuid())
+  tenantId           String?
+  categoryId         String?
+  ownerId            String
+  name               String
+  slug               String
+  description        String?
+  imageUrl           String?
+  sourceTenantId     String?
+  sourcePositionId   String?
+  selfBondageCapable Boolean             @default(false)
+  sortOrder          Int                 @default(0)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  tenant             Tenant?             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category           CatalogCategory?    @relation("PositionCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  owner              User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  tools              Toy[]               @relation("PositionTools")
   bondageSystemItems BondageSystemItem[] @relation("PositionBondageSystemItems")
-  activities  ActivityPlan[] @relation("ActivityPositions")
-  trackerEntries TrackerEntry[] @relation("TrackerEntryPositions")
-  favorites   PositionFavorite[]
+  activities         ActivityPlan[]      @relation("ActivityPositions")
+  trackerEntries     TrackerEntry[]      @relation("TrackerEntryPositions")
+  favorites          PositionFavorite[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, sourcePositionId])
@@ -905,15 +1140,15 @@ model Position {
 }
 
 model CatalogCategory {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   tenantId  String?
   kind      String
   name      String
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  toys      Toy[]    @relation("ToyCategory")
+  sortOrder Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  tenant    Tenant?    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  toys      Toy[]      @relation("ToyCategory")
   positions Position[] @relation("PositionCategory")
 
   @@unique([tenantId, kind, name])
@@ -934,21 +1169,21 @@ model PositionFavorite {
 }
 
 model WikiPage {
-  id          String   @id @default(cuid())
-  tenantId    String?
-  ownerId     String
-  title       String
-  slug        String
-  summary     String?
-  content     String   @default("")
-  visibility  Visibility @default(PRIVATE)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  shares      WikiPageShare[]
-  revisions   WikiPageRevision[]
-  images      WikiPageImage[]
+  id         String             @id @default(cuid())
+  tenantId   String?
+  ownerId    String
+  title      String
+  slug       String
+  summary    String?
+  content    String             @default("")
+  visibility Visibility         @default(PRIVATE)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  tenant     Tenant?            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner      User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  shares     WikiPageShare[]
+  revisions  WikiPageRevision[]
+  images     WikiPageImage[]
 
   @@unique([tenantId, ownerId, slug])
   @@index([tenantId, ownerId, updatedAt])
@@ -990,12 +1225,12 @@ model WikiPageRevision {
 }
 
 model WikiPageImage {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   pageId    String
   fileId    String
   title     String?
-  createdAt DateTime @default(now())
-  page      WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  page      WikiPage  @relation(fields: [pageId], references: [id], onDelete: Cascade)
   file      FileAsset @relation(fields: [fileId], references: [id], onDelete: Cascade)
 
   @@index([pageId, createdAt])
@@ -1019,26 +1254,30 @@ model WikiPageShare {
 }
 
 model ActivityPlan {
-  id          String         @id @default(cuid())
-  tenantId    String?
-  ownerId     String
-  title       String
-  slug        String
-  category    String?
-  note        String?
-  plannedAt   DateTime?
-  status      ActivityStatus @default(PLANNED)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  tenant      Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  tools       Toy[]          @relation("ActivityTools")
+  id                 String              @id @default(cuid())
+  tenantId           String?
+  ownerId            String
+  title              String
+  slug               String
+  category           String?
+  note               String?
+  plannedAt          DateTime?
+  status             ActivityStatus      @default(PLANNED)
+  consentStatus      String              @default("DRAFT")
+  consentVersion     Int                 @default(1)
+  acceptedVersion    Int?
+  consentUpdatedAt   DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  tenant             Tenant?             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner              User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  tools              Toy[]               @relation("ActivityTools")
   bondageSystemItems BondageSystemItem[] @relation("ActivityBondageSystemItems")
-  positions   Position[]     @relation("ActivityPositions")
-  media       Media[]
-  images      ActivityImage[]
-  likes       ActivityLike[]
-  comments    ActivityComment[]
+  positions          Position[]          @relation("ActivityPositions")
+  media              Media[]
+  images             ActivityImage[]
+  likes              ActivityLike[]
+  comments           ActivityComment[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, status, plannedAt])
@@ -1059,44 +1298,44 @@ model ActivityComment {
 }
 
 model ShopifyIntegration {
-  id              String   @id @default(cuid())
-  tenantId        String   @unique
-  shopDomain      String
-  clientIdEnc     String?
-  clientSecretEnc String?
-  accessTokenEnc  String?
+  id                   String    @id @default(cuid())
+  tenantId             String    @unique
+  shopDomain           String
+  clientIdEnc          String?
+  clientSecretEnc      String?
+  accessTokenEnc       String?
   accessTokenExpiresAt DateTime?
-  accessTokenScope String?
-  apiVersion      String   @default("2026-04")
-  productTag      String
-  enabled         Boolean  @default(true)
-  lastSyncAt      DateTime?
-  lastSyncStatus  String?
-  lastSyncMessage String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  accessTokenScope     String?
+  apiVersion           String    @default("2026-04")
+  productTag           String
+  enabled              Boolean   @default(true)
+  lastSyncAt           DateTime?
+  lastSyncStatus       String?
+  lastSyncMessage      String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  tenant               Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([enabled])
 }
 
 model ShopifyProduct {
-  id               String   @id @default(cuid())
-  tenantId         String
-  shopifyProductId String
-  title            String
-  slug             String
-  handle           String
-  description      String?
-  imageUrl         String?
-  productUrl       String?
-  vendor           String?
-  tags             String[] @default([])
-  inTagFilter      Boolean  @default(true)
-  lastSyncedAt     DateTime @default(now())
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                String             @id @default(cuid())
+  tenantId          String
+  shopifyProductId  String
+  title             String
+  slug              String
+  handle            String
+  description       String?
+  imageUrl          String?
+  productUrl        String?
+  vendor            String?
+  tags              String[]           @default([])
+  inTagFilter       Boolean            @default(true)
+  lastSyncedAt      DateTime           @default(now())
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   bondageSystemItem BondageSystemItem?
 
   @@unique([tenantId, shopifyProductId])
@@ -1105,22 +1344,22 @@ model ShopifyProduct {
 }
 
 model BondageSystemItem {
-  id               String     @id @default(cuid())
+  id               String         @id @default(cuid())
   tenantId         String
-  shopifyProductId String     @unique
-  visible          Boolean    @default(false)
-  visibility       Visibility @default(PRIVATE)
+  shopifyProductId String         @unique
+  visible          Boolean        @default(false)
+  visibility       Visibility     @default(PRIVATE)
   targetUserId     String?
   targetCircleId   String?
-  sortOrder        Int        @default(0)
-  showExternalLink Boolean    @default(false)
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
-  tenant           Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sortOrder        Int            @default(0)
+  showExternalLink Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  tenant           Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   product          ShopifyProduct @relation(fields: [shopifyProductId], references: [id], onDelete: Cascade)
-  targetUser       User?      @relation("BondageSystemTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
-  targetCircle     Circle?    @relation("BondageSystemTargetCircle", fields: [targetCircleId], references: [id], onDelete: SetNull)
-  positions        Position[] @relation("PositionBondageSystemItems")
+  targetUser       User?          @relation("BondageSystemTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+  targetCircle     Circle?        @relation("BondageSystemTargetCircle", fields: [targetCircleId], references: [id], onDelete: SetNull)
+  positions        Position[]     @relation("PositionBondageSystemItems")
   activities       ActivityPlan[] @relation("ActivityBondageSystemItems")
   trackerEntries   TrackerEntry[] @relation("TrackerEntryBondageSystemItems")
 
@@ -1143,24 +1382,24 @@ model ActivityImage {
 }
 
 model SegufixSession {
-  id             String      @id @default(cuid())
-  tenantId       String?
-  ownerId        String
-  slug           String?
-  startTime      DateTime
-  endTime        DateTime?
+  id              String           @id @default(cuid())
+  tenantId        String?
+  ownerId         String
+  slug            String?
+  startTime       DateTime
+  endTime         DateTime?
   durationMinutes Int?
-  notes          String?
-  moodBefore     MoodBefore?
-  moodBeforeText String?
-  moodAfter      MoodAfter?
-  moodAfterText  String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  tenant         Tenant?     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner          User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  media          Media[]
-  comments       SessionComment[]
+  notes           String?
+  moodBefore      MoodBefore?
+  moodBeforeText  String?
+  moodAfter       MoodAfter?
+  moodAfterText   String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  tenant          Tenant?          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner           User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  media           Media[]
+  comments        SessionComment[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, startTime])
@@ -1169,56 +1408,56 @@ model SegufixSession {
 }
 
 model TrackerType {
-  id                    String         @id @default(cuid())
-  tenantId              String?
-  key                   String
-  title                 String
-  description           String?
-  color                 String         @default("#E30613")
-  icon                  String?
-  enabled               Boolean        @default(true)
-  allowOpenSession      Boolean        @default(true)
-  autoCloseOpenSession  Boolean        @default(true)
-  quotaDailyMinutes     Int?
-  quotaWeeklyMinutes    Int?
-  quotaWeeklyTail       Boolean        @default(false)
-  quotaWeekStartsOn     Int            @default(1)
-  quotaMonthlyDays      Int?
-  quotaMonthlyMinutes   Int?
-  quotaReminderEnabled  Boolean        @default(false)
-  fields                Json           @default("[]")
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
-  tenant                Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  entries               TrackerEntry[]
+  id                   String         @id @default(cuid())
+  tenantId             String?
+  key                  String
+  title                String
+  description          String?
+  color                String         @default("#E30613")
+  icon                 String?
+  enabled              Boolean        @default(true)
+  allowOpenSession     Boolean        @default(true)
+  autoCloseOpenSession Boolean        @default(true)
+  quotaDailyMinutes    Int?
+  quotaWeeklyMinutes   Int?
+  quotaWeeklyTail      Boolean        @default(false)
+  quotaWeekStartsOn    Int            @default(1)
+  quotaMonthlyDays     Int?
+  quotaMonthlyMinutes  Int?
+  quotaReminderEnabled Boolean        @default(false)
+  fields               Json           @default("[]")
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  tenant               Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entries              TrackerEntry[]
 
   @@unique([tenantId, key])
   @@index([tenantId, enabled])
 }
 
 model TrackerEntry {
-  id              String      @id @default(cuid())
-  tenantId        String?
-  ownerId         String
-  trackerTypeId   String
-  legacyType      String?
-  legacyId        String?
-  slug            String?
-  title           String?
-  startTime       DateTime
-  endTime         DateTime?
-  allDay          Boolean     @default(false)
-  durationMinutes Int?
-  notes           String?
-  fieldValues     Json        @default("{}")
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  owner           User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  trackerType     TrackerType @relation(fields: [trackerTypeId], references: [id], onDelete: Cascade)
-  toys            Toy[]       @relation("TrackerEntryToys")
+  id                 String              @id @default(cuid())
+  tenantId           String?
+  ownerId            String
+  trackerTypeId      String
+  legacyType         String?
+  legacyId           String?
+  slug               String?
+  title              String?
+  startTime          DateTime
+  endTime            DateTime?
+  allDay             Boolean             @default(false)
+  durationMinutes    Int?
+  notes              String?
+  fieldValues        Json                @default("{}")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  owner              User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  trackerType        TrackerType         @relation(fields: [trackerTypeId], references: [id], onDelete: Cascade)
+  toys               Toy[]               @relation("TrackerEntryToys")
   bondageSystemItems BondageSystemItem[] @relation("TrackerEntryBondageSystemItems")
-  positions       Position[]  @relation("TrackerEntryPositions")
-  images          TrackerEntryImage[]
+  positions          Position[]          @relation("TrackerEntryPositions")
+  images             TrackerEntryImage[]
 
   @@unique([trackerTypeId, legacyType, legacyId])
   @@unique([tenantId, trackerTypeId, slug])
@@ -1245,61 +1484,62 @@ model TrackerEntryImage {
 }
 
 model KgSession {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   tenantId        String?
   ownerId         String
   startTime       DateTime
   endTime         DateTime?
   durationMinutes Int?
   notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  tenant          Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner           User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  tenant          Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner           User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, startTime])
   @@index([ownerId, startTime])
 }
 
 model Album {
-  id          String     @id @default(cuid())
-  tenantId    String?
-  ownerId     String
-  title       String
-  description String?
+  id           String     @id @default(cuid())
+  tenantId     String?
+  ownerId      String
+  title        String
+  description  String?
   coverMediaId String?
-  visibility  Visibility @default(PRIVATE)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  tenant      Tenant?    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  media       Media[]
+  visibility   Visibility @default(PRIVATE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  tenant       Tenant?    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner        User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  media        Media[]
 
   @@index([coverMediaId])
   @@index([tenantId, ownerId])
 }
 
 model Media {
-  id          String     @id @default(cuid())
-  tenantId    String?
-  ownerId     String
-  albumId     String?
-  sessionId   String?
-  activityId  String?
-  showInCalendar Boolean @default(false)
-  calendarDate DateTime?
-  title       String
-  kind        MediaKind
-  url         String
-  visibility  Visibility?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  tenant      Tenant?    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  album       Album?     @relation(fields: [albumId], references: [id], onDelete: SetNull)
-  session     SegufixSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  activity    ActivityPlan? @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  comments    MediaComment[]
+  id                    String                @id @default(cuid())
+  tenantId              String?
+  ownerId               String
+  albumId               String?
+  sessionId             String?
+  activityId            String?
+  showInCalendar        Boolean               @default(false)
+  calendarDate          DateTime?
+  title                 String
+  kind                  MediaKind
+  url                   String
+  visibility            Visibility?
+  contentClassification ContentClassification @default(UNKNOWN)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  tenant                Tenant?               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner                 User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  album                 Album?                @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  session               SegufixSession?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  activity              ActivityPlan?         @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  comments              MediaComment[]
 
   @@index([sessionId])
   @@index([activityId])
@@ -1334,26 +1574,26 @@ model SessionComment {
 }
 
 model Event {
-  id          String    @id @default(cuid())
-  tenantId    String?
-  ownerId     String
-  title       String
-  location    String?
-  startsAt    DateTime
-  description String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  tenant      Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  checkIns    CheckIn[]
+  id            String         @id @default(cuid())
+  tenantId      String?
+  ownerId       String
+  title         String
+  location      String?
+  startsAt      DateTime
+  description   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner         User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  checkIns      CheckIn[]
   packingEvents PackingEvent[]
-  packingLists PackingList[]
+  packingLists  PackingList[]
 
   @@index([tenantId, startsAt])
 }
 
 model PackingEvent {
-  id          String     @id @default(cuid())
+  id          String        @id @default(cuid())
   tenantId    String?
   ownerId     String
   eventId     String?
@@ -1362,12 +1602,12 @@ model PackingEvent {
   description String?
   location    String?
   startsAt    DateTime?
-  visibility  Visibility @default(PARTNER)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  tenant      Tenant?    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  event       Event?     @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  visibility  Visibility    @default(PARTNER)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  tenant      Tenant?       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner       User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  event       Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
   lists       PackingList[]
 
   @@unique([tenantId, slug])
@@ -1377,23 +1617,23 @@ model PackingEvent {
 }
 
 model PackingList {
-  id          String     @id @default(cuid())
-  tenantId    String?
-  ownerId     String
+  id             String            @id @default(cuid())
+  tenantId       String?
+  ownerId        String
   packingEventId String?
-  eventId     String?
-  title       String
-  slug        String
-  note        String?
-  visibility  Visibility @default(PARTNER)
-  sortOrder   Int        @default(0)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  tenant      Tenant?    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  packingEvent PackingEvent? @relation(fields: [packingEventId], references: [id], onDelete: SetNull)
-  event       Event?     @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  items       PackingListItem[]
+  eventId        String?
+  title          String
+  slug           String
+  note           String?
+  visibility     Visibility        @default(PARTNER)
+  sortOrder      Int               @default(0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  tenant         Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner          User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  packingEvent   PackingEvent?     @relation(fields: [packingEventId], references: [id], onDelete: SetNull)
+  event          Event?            @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  items          PackingListItem[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, sortOrder, title])
@@ -1403,20 +1643,20 @@ model PackingList {
 }
 
 model PackingListItem {
-  id          String   @id @default(cuid())
-  listId      String
-  toyId       String
-  note        String?
-  quantity    Int      @default(1)
-  packed      Boolean  @default(false)
-  packedAt    DateTime?
-  packedById  String?
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  list        PackingList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  toy         Toy      @relation(fields: [toyId], references: [id], onDelete: Cascade)
-  packedBy    User?    @relation("PackingItemPackedBy", fields: [packedById], references: [id], onDelete: SetNull)
+  id         String      @id @default(cuid())
+  listId     String
+  toyId      String
+  note       String?
+  quantity   Int         @default(1)
+  packed     Boolean     @default(false)
+  packedAt   DateTime?
+  packedById String?
+  sortOrder  Int         @default(0)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  list       PackingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  toy        Toy         @relation(fields: [toyId], references: [id], onDelete: Cascade)
+  packedBy   User?       @relation("PackingItemPackedBy", fields: [packedById], references: [id], onDelete: SetNull)
 
   @@unique([listId, toyId])
   @@index([listId, sortOrder])
@@ -1436,31 +1676,31 @@ model CheckIn {
 }
 
 model Message {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   senderId    String
   recipientId String?
   body        String
   mediaUrl    String?
-  createdAt   DateTime  @default(now())
-  sender      User      @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  recipient   User?     @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  sender      User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient   User?    @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
 }
 
 model CircleChatMessage {
-  id          String    @id @default(cuid())
-  tenantId    String
-  circleId    String
-  senderId    String
-  body        String?
-  fileId      String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  circle      Circle    @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  sender      User      @relation("CircleChatSender", fields: [senderId], references: [id], onDelete: Cascade)
-  file        FileAsset? @relation(fields: [fileId], references: [id], onDelete: SetNull)
-  receipts    CircleChatReceipt[]
+  id        String              @id @default(cuid())
+  tenantId  String
+  circleId  String
+  senderId  String
+  body      String?
+  fileId    String?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  deletedAt DateTime?
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  circle    Circle              @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  sender    User                @relation("CircleChatSender", fields: [senderId], references: [id], onDelete: Cascade)
+  file      FileAsset?          @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  receipts  CircleChatReceipt[]
 
   @@index([tenantId, circleId, createdAt])
   @@index([senderId, createdAt])
@@ -1468,15 +1708,15 @@ model CircleChatMessage {
 }
 
 model CircleChatReceipt {
-  id          String    @id @default(cuid())
+  id          String            @id @default(cuid())
   messageId   String
   userId      String
   deliveredAt DateTime?
   readAt      DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
   message     CircleChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId])
   @@index([userId, readAt])
@@ -1500,28 +1740,28 @@ model ChatNotificationRule {
 }
 
 model TelegramChat {
-  id              String             @id @default(cuid())
-  settingsId      String
+  id                 String                     @id @default(cuid())
+  settingsId         String
   telegramSettingsId String?
-  targetUserId    String?
-  targetCircleId  String?
-  chatId          String
-  threadId        String?
-  chatType        String?
-  title           String?
-  chatTitle       String?
-  threadTitle     String?
-  status          TelegramChatStatus @default(PENDING)
-  lastMessageText String?
-  lastMessageFrom String?
-  lastMessageAt   DateTime?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  settings        UserSettings       @relation(fields: [settingsId], references: [id], onDelete: Cascade)
-  telegramSettings TenantTelegramSettings? @relation(fields: [telegramSettingsId], references: [id], onDelete: Cascade)
-  targetUser      User?              @relation("TelegramChatTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
-  targetCircle    Circle?            @relation("TelegramChatTargetCircle", fields: [targetCircleId], references: [id], onDelete: SetNull)
-  notificationRules TelegramNotificationRule[] @relation("TelegramNotificationOutputChat")
+  targetUserId       String?
+  targetCircleId     String?
+  chatId             String
+  threadId           String?
+  chatType           String?
+  title              String?
+  chatTitle          String?
+  threadTitle        String?
+  status             TelegramChatStatus         @default(PENDING)
+  lastMessageText    String?
+  lastMessageFrom    String?
+  lastMessageAt      DateTime?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  settings           UserSettings               @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  telegramSettings   TenantTelegramSettings?    @relation(fields: [telegramSettingsId], references: [id], onDelete: Cascade)
+  targetUser         User?                      @relation("TelegramChatTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+  targetCircle       Circle?                    @relation("TelegramChatTargetCircle", fields: [targetCircleId], references: [id], onDelete: SetNull)
+  notificationRules  TelegramNotificationRule[] @relation("TelegramNotificationOutputChat")
 
   @@unique([settingsId, chatId, threadId])
   @@unique([telegramSettingsId, chatId, threadId])
@@ -1531,17 +1771,17 @@ model TelegramChat {
 }
 
 model TelegramUserMapping {
-  id               String       @id @default(cuid())
-  settingsId       String?
+  id                 String                  @id @default(cuid())
+  settingsId         String?
   telegramSettingsId String?
-  telegramUsername String
-  telegramUserId   String?
-  appUserId        String
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  settings         UserSettings? @relation(fields: [settingsId], references: [id], onDelete: Cascade)
-  telegramSettings TenantTelegramSettings? @relation(fields: [telegramSettingsId], references: [id], onDelete: Cascade)
-  appUser          User         @relation("TelegramMappedAppUser", fields: [appUserId], references: [id], onDelete: Cascade)
+  telegramUsername   String
+  telegramUserId     String?
+  appUserId          String
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  settings           UserSettings?           @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  telegramSettings   TenantTelegramSettings? @relation(fields: [telegramSettingsId], references: [id], onDelete: Cascade)
+  appUser            User                    @relation("TelegramMappedAppUser", fields: [appUserId], references: [id], onDelete: Cascade)
 
   @@unique([settingsId, telegramUsername])
   @@unique([telegramSettingsId, telegramUsername])
@@ -1551,22 +1791,22 @@ model TelegramUserMapping {
 }
 
 model TelegramKnownUser {
-  id               String       @id @default(cuid())
-  settingsId       String?
+  id                 String                  @id @default(cuid())
+  settingsId         String?
   telegramSettingsId String?
-  telegramUserId   String
-  telegramUsername String?
-  firstName        String?
-  lastName         String?
-  membershipStatus String       @default("ACTIVE")
-  source           String       @default("MESSAGE")
-  lastChatId       String?
-  lastChatTitle    String?
-  lastMessageAt    DateTime     @default(now())
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  settings         UserSettings? @relation(fields: [settingsId], references: [id], onDelete: Cascade)
-  telegramSettings TenantTelegramSettings? @relation(fields: [telegramSettingsId], references: [id], onDelete: Cascade)
+  telegramUserId     String
+  telegramUsername   String?
+  firstName          String?
+  lastName           String?
+  membershipStatus   String                  @default("ACTIVE")
+  source             String                  @default("MESSAGE")
+  lastChatId         String?
+  lastChatTitle      String?
+  lastMessageAt      DateTime                @default(now())
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  settings           UserSettings?           @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  telegramSettings   TenantTelegramSettings? @relation(fields: [telegramSettingsId], references: [id], onDelete: Cascade)
 
   @@unique([settingsId, telegramUserId])
   @@unique([telegramSettingsId, telegramUserId])
@@ -1577,22 +1817,22 @@ model TelegramKnownUser {
 }
 
 model TelegramNotificationRule {
-  id             String       @id @default(cuid())
-  settingsId     String
+  id                 String                  @id @default(cuid())
+  settingsId         String
   telegramSettingsId String?
-  action         String
-  targetUserId   String?
-  targetCircleId String?
-  outputChatId   String?
-  message        String
-  active         Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  settings       UserSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
-  telegramSettings TenantTelegramSettings? @relation(fields: [telegramSettingsId], references: [id], onDelete: Cascade)
-  targetUser     User?        @relation("TelegramNotificationTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
-  targetCircle   Circle?      @relation("TelegramNotificationTargetCircle", fields: [targetCircleId], references: [id], onDelete: SetNull)
-  outputChat     TelegramChat? @relation("TelegramNotificationOutputChat", fields: [outputChatId], references: [id], onDelete: SetNull)
+  action             String
+  targetUserId       String?
+  targetCircleId     String?
+  outputChatId       String?
+  message            String
+  active             Boolean                 @default(true)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  settings           UserSettings            @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  telegramSettings   TenantTelegramSettings? @relation(fields: [telegramSettingsId], references: [id], onDelete: Cascade)
+  targetUser         User?                   @relation("TelegramNotificationTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+  targetCircle       Circle?                 @relation("TelegramNotificationTargetCircle", fields: [targetCircleId], references: [id], onDelete: SetNull)
+  outputChat         TelegramChat?           @relation("TelegramNotificationOutputChat", fields: [outputChatId], references: [id], onDelete: SetNull)
 
   @@index([settingsId, action, active])
   @@index([telegramSettingsId, action, active])

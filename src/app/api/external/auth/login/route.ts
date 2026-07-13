@@ -7,6 +7,7 @@ import { publicCapabilitySummaryForTenant } from "@/lib/capability-runtime";
 import { featureEnabled } from "@/lib/features";
 import { currentTenant, primaryTenantDomain } from "@/lib/tenancy";
 import { prisma } from "@/lib/prisma";
+import { complianceStatusForUser } from "@/lib/compliance/legal";
 
 export const runtime = "nodejs";
 
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
   });
 
   const capabilities = await publicCapabilitySummaryForTenant(tenant.id, tenant.features);
+  const compliance = await complianceStatusForUser(result.user.id, tenant.id);
 
   return NextResponse.json({
     ok: true,
@@ -71,6 +73,7 @@ export async function POST(request: NextRequest) {
       name: tenant.name,
       domain: primaryTenantDomain(tenant)
     },
-    capabilities
+    capabilities,
+    compliance
   });
 }

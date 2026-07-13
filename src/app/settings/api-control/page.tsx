@@ -320,7 +320,7 @@ function endpointSampleForPath(
       count: 2,
       actions: [
         { action: "play_ready_changed", label: "Spielampel geändert", seenCount: 7 },
-        { action: "self_bondage_order_created", label: "Self-Bondage-Auftrag erteilt", seenCount: 2 }
+        { action: "self_bondage_order_created", label: "Auftrag erteilt", seenCount: 2 }
       ]
     };
   }

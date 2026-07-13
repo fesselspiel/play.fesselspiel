@@ -68,7 +68,7 @@ export async function createSessionHistoryForCompletedOrder(activity: {
       endTime,
       durationMinutes: minutesBetween(startTime, endTime),
       notes: [
-        `Kategorie: Self-Bondage-Auftrag`,
+        `Kategorie: Auftrag`,
         `Auftrag: ${activity.title}`,
         `Auftrag-ID: ${activity.id}`,
         `Auftrag-Link: /activities/${activity.slug}`,

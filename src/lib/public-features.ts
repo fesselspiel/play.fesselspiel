@@ -53,13 +53,13 @@ export const publicFeatures: PublicFeature[] = [
     navTitle: "Spielplan",
     title: "Spielplanung und Aufträge",
     eyebrow: "Aus Idee wird Vorhaben",
-    summary: "Plant Spieltermine, Self-Bondage-Aufträge und spätere Vorhaben ohne durcheinandergeratene Chats.",
+    summary: "Plant Spieltermine, Aufträge und spätere Vorhaben ohne durcheinandergeratene Chats.",
     description: [
       "Spielplanung trennt einfache gemeinsame Termine von Aufträgen. Eine Anfrage bleibt sichtbar, bis sie bestätigt wurde; ein Auftrag kann angenommen, geändert oder umgesetzt werden.",
       "Benachrichtigungen laufen über dieselben Aktionsregeln wie Telegram, E-Mail, Push und externe Auslöser."
     ],
     icon: "CalendarDays",
-    highlights: ["Anfragen und Bestätigung", "Self-Bondage-Aufträge", "Statusfluss", "Benachrichtigungen bei Änderungen"],
+    highlights: ["Anfragen und Bestätigung", "Aufträge", "Statusfluss", "Benachrichtigungen bei Änderungen"],
     walkthrough: [
       "Spieltermin oder Auftrag erstellen.",
       "Datum, Uhrzeit oder 'ohne Uhrzeit' wählen.",
@@ -72,7 +72,7 @@ export const publicFeatures: PublicFeature[] = [
       subtitle: "Diese Woche",
       primary: "Anfrage wartet",
       rows: [
-        { label: "Heute", value: "Self-Bondage", tone: "red" },
+        { label: "Heute", value: "Auftrag", tone: "red" },
         { label: "Morgen", value: "Spieltermin", tone: "green" },
         { label: "Status", value: "angefragt", tone: "blue" }
       ]
@@ -83,17 +83,17 @@ export const publicFeatures: PublicFeature[] = [
     navTitle: "Szenen",
     title: "Szenen und Positionen",
     eyebrow: "Baukasten",
-    summary: "Sammelt Szenen mit Bild, Beschreibung, Self-Bondage-Fähigkeit und passenden Spielsachen.",
+    summary: "Sammelt Szenen mit Bild, Beschreibung, Beauftragungsoption und passenden Spielsachen.",
     description: [
       "Szenen sind wiederverwendbare Bausteine. Sie lassen sich mit Spielsachen, Bondage-System-Produkten und Trackern verbinden.",
       "Kategorien und Favoriten halten lange Listen übersichtlich, ohne wichtige Details zu verstecken."
     ],
     icon: "PanelsTopLeft",
-    highlights: ["Kategorien", "Favoriten", "Self-Bondage-Flag", "Verknüpfte Spielsachen"],
+    highlights: ["Kategorien", "Favoriten", "Kann beauftragt werden", "Verknüpfte Spielsachen"],
     walkthrough: [
       "Neue Szene anlegen oder bestehende Kategorie öffnen.",
       "Bild hochladen und Ausschnitt passend setzen.",
-      "Beschreibung und Self-Bondage-Fähigkeit speichern.",
+      "Beschreibung und Beauftragungsoption speichern.",
       "Verknüpfte Spielsachen auswählen und später direkt aus der Szene öffnen."
     ],
     cta: "Szenen ansehen",
@@ -103,7 +103,7 @@ export const publicFeatures: PublicFeature[] = [
       primary: "Rückenlage",
       rows: [
         { label: "Kategorie", value: "Vorbereitung", tone: "neutral" },
-        { label: "Self-Bondage", value: "fähig", tone: "green" },
+        { label: "Auftrag", value: "möglich", tone: "green" },
         { label: "Verknüpft", value: "3 Spielsachen", tone: "blue" }
       ]
     }

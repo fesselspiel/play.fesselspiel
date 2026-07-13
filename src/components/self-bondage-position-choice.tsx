@@ -39,7 +39,7 @@ export function SelfBondagePositionChoice({
             />
             <span className="min-w-0">
               <span className="block font-medium">{position.name}</span>
-              <span className="block text-xs text-sky-700">Self-Bondage-fähig</span>
+              <span className="block text-xs text-sky-700">Kann beauftragt werden</span>
             </span>
           </label>
         ))}
@@ -72,11 +72,11 @@ export function SelfBondagePositionChoice({
           />
           <span>
             <span className="block font-medium">Denk dir was aus</span>
-            <span className="block text-xs text-graphite">Der Auftrag erlaubt eine beliebige passende Self-Bondage-Szene.</span>
+            <span className="block text-xs text-graphite">Der Auftrag erlaubt eine beliebige passende Szene.</span>
           </span>
         </label>
         {!positions.length ? (
-          <p className="rounded-md bg-paper p-3 text-sm text-graphite">Es gibt noch keine Szene mit dem Feld „Self-Bondage-fähig“. Nutze Freitext oder „Denk dir was aus“.</p>
+          <p className="rounded-md bg-paper p-3 text-sm text-graphite">Es gibt noch keine Szene mit dem Feld „Kann beauftragt werden“. Nutze Freitext oder „Denk dir was aus“.</p>
         ) : null}
       </div>
     </section>

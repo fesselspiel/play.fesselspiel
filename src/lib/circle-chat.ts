@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { fileAssetUrl } from "@/lib/files";
 import { userDisplayName } from "@/lib/audit";
 import { selfBondageCategory } from "@/lib/activity-orders";
+import { blockedUserIds } from "@/lib/compliance/ugc";
 
 export type CircleChatUser = {
   id: string;
@@ -114,7 +115,8 @@ export async function accessibleCircleChats(user: CircleChatUser) {
 
 export async function createCircleChatReceipts(messageId: string, tenantId: string, circleId: string, senderId: string) {
   const now = new Date();
-  const members = await circleChatMembers(tenantId, circleId);
+  const excluded = new Set(await blockedUserIds(senderId, tenantId));
+  const members = (await circleChatMembers(tenantId, circleId)).filter((member) => !excluded.has(member.id));
   await prisma.$transaction(members.map((member) => prisma.circleChatReceipt.upsert({
     where: { messageId_userId: { messageId, userId: member.id } },
     update: {

@@ -42,7 +42,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     action: actionForStatus(status),
     entityType: "activity",
     entityId: order.id,
-    title: `Self-Bondage-Auftrag ${activityStatusDisplay(status, true)}: ${order.title}`,
+    title: `Auftrag ${activityStatusDisplay(status, true)}: ${order.title}`,
     href: `/orders#order-${order.id}`,
     details: { status: activityStatusDisplay(status, true), orderUrl: `/activities/${order.slug}`, sessionUrl: session?.slug ? `/sessions/${session.slug}` : null, excludeActorFromTargets: true }
   });

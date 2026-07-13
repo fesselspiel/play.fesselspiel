@@ -45,9 +45,7 @@ export async function createApiToken(userId: string, name: string) {
 export function tokenFromRequest(request: NextRequest | Request) {
   const authorization = request.headers.get("authorization") || "";
   const bearer = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
-  if (bearer) return bearer;
-  const url = new URL(request.url);
-  return url.searchParams.get("token")?.trim() || "";
+  return bearer || "";
 }
 
 type ApiTokenOptions = {

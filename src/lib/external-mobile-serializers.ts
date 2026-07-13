@@ -23,10 +23,8 @@ export function absoluteUrl(request: Request, path?: string | null) {
   return new URL(path.startsWith("/") ? path : `/${path}`, request.url).toString();
 }
 
-export function externalFileUrl(request: Request, fileId: string, token?: string) {
-  const url = new URL(`/api/external/files/${fileId}`, request.url);
-  if (token) url.searchParams.set("token", token);
-  return url.toString();
+export function externalFileUrl(request: Request, fileId: string) {
+  return new URL(`/api/external/files/${fileId}`, request.url).toString();
 }
 
 export function serializeFileImage(request: Request, input: { id?: string | null; fileId?: string | null; title?: string | null; url?: string | null; createdAt?: Date | null }, token?: string) {
@@ -38,8 +36,8 @@ export function serializeFileImage(request: Request, input: { id?: string | null
     fileId,
     url,
     downloadUrl: url,
-    downloadUrlWithToken: fileId && token ? externalFileUrl(request, fileId, token) : null,
-    requiresAuthorization: Boolean(fileId && !token),
+    downloadUrlWithToken: null,
+    requiresAuthorization: Boolean(fileId),
     createdAt: input.createdAt?.toISOString() || null
   };
 }
@@ -82,6 +80,7 @@ export function serializeActivity(request: Request, activity: ActivityWithMobile
       slug: position.slug,
       imageUrl: position.imageUrl,
       selfBondageCapable: position.selfBondageCapable,
+      canBeCommissioned: position.selfBondageCapable,
       href: `/positions/${position.slug}`,
       category: position.category ? { id: position.category.id, name: position.category.name } : null
     })),

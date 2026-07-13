@@ -4,6 +4,7 @@ import type { AuditLog, NativePushDevice, Prisma } from "@prisma/client";
 import { decryptSecret } from "@/lib/crypto";
 import { actionLabel, notificationActionAliases } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
+import { blockedUserIds } from "@/lib/compliance/ugc";
 
 type AuditForPush = Pick<AuditLog, "id" | "actorId" | "action" | "title" | "href" | "entityType" | "entityId" | "details">;
 type ApnsConfig = {
@@ -235,15 +236,27 @@ function payloadForAudit(audit: AuditForPush) {
   return payloadForAuditMessage(audit, actionLabel(audit.action), audit.title);
 }
 
-function payloadForAuditMessage(audit: AuditForPush, title: string, body: string, soundOverride?: string | null) {
+function discretePushText(action: string) {
+  if (isChatPushAction(action)) return { title: "Playplaner", body: "Du hast eine neue Nachricht." };
+  if (action.startsWith("activity_") || action.startsWith("self_bondage_order_") || action.startsWith("session_")) {
+    return { title: "Playplaner", body: "Eine gemeinsame Planung wurde aktualisiert." };
+  }
+  return { title: "Playplaner", body: "In Playplaner gibt es eine neue Aktivitaet." };
+}
+
+function payloadForAuditMessage(audit: AuditForPush, title: string, body: string, soundOverride?: string | null, previewMode = "DISCREET") {
   const target = targetForAudit(audit);
   const sound = soundOverride ? normalizeSound(soundOverride) : soundForAction(audit.action);
+  const mode = previewMode === "FULL" ? "FULL" : previewMode === "TITLE" ? "TITLE" : "DISCREET";
+  const discrete = discretePushText(audit.action);
+  const alert = mode === "FULL"
+    ? { title, body }
+    : mode === "TITLE"
+      ? { title: actionLabel(audit.action), body: discrete.body }
+      : discrete;
   return {
     aps: {
-      alert: {
-        title,
-        body
-      },
+      alert,
       sound
     },
     type: pushTypeForAction(audit.action),
@@ -253,7 +266,7 @@ function payloadForAuditMessage(audit: AuditForPush, title: string, body: string
     threadId: stringDetail(auditDetails(audit), ["threadId", "telegramThreadId", "messageThreadId"]),
     circleId: stringDetail(auditDetails(audit), ["circleId"]),
     circleName: stringDetail(auditDetails(audit), ["circleName"]),
-    imageUrl: imageUrlForAudit(audit),
+    imageUrl: null,
     sound,
     action: audit.action,
     entityType: audit.entityType,
@@ -716,7 +729,12 @@ async function userIdsForRule(rule: NativePushRule, audit: AuditForPush, actorId
     });
     ids = membership ? [membership.userId] : [];
   }
-  return Array.from(new Set(ids.filter((id) => !(excludeActorFromTargets && actorId && id === actorId))));
+  let filtered = Array.from(new Set(ids.filter((id) => !(excludeActorFromTargets && actorId && id === actorId))));
+  if (actorId) {
+    const excludedByBlock = new Set(await blockedUserIds(actorId, rule.tenantId));
+    filtered = filtered.filter((id) => !excludedByBlock.has(id));
+  }
+  return filtered;
 }
 
 function targetLabel(rule: Pick<NativePushRule, "targetAll" | "targetUser" | "targetCircle">) {
@@ -782,14 +800,28 @@ export async function dispatchNativePushNotifications(audit: AuditLog) {
         tenantId,
         userId: { in: userIds },
         disabledAt: null
-      }
+      },
+      include: { user: { select: { settings: { select: { notificationPreviewMode: true } } } } }
     });
     if (!devices.length) continue;
     const useChatDefault = isChatPushAction(audit.action) && isLegacyChatPushTemplate(rule);
     const title = useChatDefault ? actorName(actor) : renderTemplate(rule.titleTemplate, audit, actor) || actionLabel(audit.action);
     const body = useChatDefault ? chatMessagePreview(audit) : renderTemplate(rule.bodyTemplate, audit, actor) || audit.title;
-    const delivery = { auditId: audit.id, action: audit.action, payload: payloadForAuditMessage(audit, title, body, rule.sound) };
-    const result = await sendToNativeDevices(devices, delivery, config);
+    const groups = new Map<string, typeof devices>();
+    for (const device of devices) {
+      const mode = device.user.settings?.notificationPreviewMode || "DISCREET";
+      groups.set(mode, [...(groups.get(mode) || []), device]);
+    }
+    let result = { sent: 0, failed: 0, devices: 0 };
+    for (const [mode, targetDevices] of groups) {
+      const delivery = { auditId: audit.id, action: audit.action, payload: payloadForAuditMessage(audit, title, body, rule.sound, mode) };
+      const partial = await sendToNativeDevices(targetDevices, delivery, config);
+      result = {
+        sent: result.sent + partial.sent,
+        failed: result.failed + partial.failed,
+        devices: result.devices + partial.devices
+      };
+    }
     await writeRuleAudit({
       actorId: audit.actorId,
       rule,

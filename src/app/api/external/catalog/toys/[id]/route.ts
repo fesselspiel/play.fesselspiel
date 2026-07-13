@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ownerScope } from "@/lib/access";
-import { tokenFromRequest } from "@/lib/api-tokens";
 import { logAction } from "@/lib/audit";
 import { getOrCreateCatalogCategory } from "@/lib/catalog-categories";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
@@ -14,10 +13,8 @@ function displayName(user: { profile?: { displayName?: string | null } | null; n
   return user.profile?.displayName || user.name || user.username || user.email || null;
 }
 
-function externalFileUrl(request: NextRequest, fileId: string, token?: string) {
-  const url = new URL(`/api/external/files/${fileId}`, request.url);
-  if (token) url.searchParams.set("token", token);
-  return url.toString();
+function externalFileUrl(request: NextRequest, fileId: string) {
+  return new URL(`/api/external/files/${fileId}`, request.url).toString();
 }
 
 async function requestPayload(request: NextRequest) {
@@ -37,7 +34,7 @@ function booleanValue(value: unknown) {
   return value === true || value === "true" || value === "1" || value === 1 || value === "on";
 }
 
-function serializeToy(request: NextRequest, toy: any, tokenForDownloadUrl = "", currentUserId?: string) {
+function serializeToy(request: NextRequest, toy: any, currentUserId?: string) {
   const fileId = fileIdFromUrl(toy.imageUrl);
   const imageUrl = fileId ? externalFileUrl(request, fileId) : toy.imageUrl ? absoluteUrl(request, toy.imageUrl) : null;
   return {
@@ -55,8 +52,8 @@ function serializeToy(request: NextRequest, toy: any, tokenForDownloadUrl = "", 
       fileId,
       url: imageUrl,
       downloadUrl: imageUrl,
-      downloadUrlWithToken: fileId && tokenForDownloadUrl ? externalFileUrl(request, fileId, tokenForDownloadUrl) : null,
-      requiresAuthorization: Boolean(fileId && !tokenForDownloadUrl)
+      downloadUrlWithToken: null,
+      requiresAuthorization: Boolean(fileId)
     },
     category: toy.category ? { id: toy.category.id, name: toy.category.name, sortOrder: toy.category.sortOrder } : { id: null, name: "Allgemein", sortOrder: 0 },
     owner: { id: toy.owner.id, username: toy.owner.username, displayName: displayName(toy.owner) },
@@ -83,8 +80,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const blocked = apiFeatureGate(auth.user, "externalApi", "toys");
   if (blocked) return blocked;
 
-  const token = request.nextUrl.searchParams.get("token") || "";
-  const tokenForDownloadUrl = token && token === tokenFromRequest(request) ? token : "";
   const toy = await prisma.toy.findFirst({
     where: { ...(await ownerScope(auth.user)), OR: [{ id: params.id }, { slug: params.id }] },
     include: {
@@ -99,7 +94,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   return NextResponse.json({
     ok: true,
-    item: serializeToy(request, toy, tokenForDownloadUrl, auth.user.id)
+    item: serializeToy(request, toy, auth.user.id)
   });
 }
 
@@ -173,7 +168,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   return NextResponse.json({
     ok: true,
-    item: serializeToy(request, toy, "", auth.user.id)
+    item: serializeToy(request, toy, auth.user.id)
   });
 }
 

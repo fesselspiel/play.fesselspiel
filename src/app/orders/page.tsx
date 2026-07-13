@@ -89,7 +89,7 @@ export default async function OrdersPage() {
         </Panel>
       ) : null}
       <PageGuide title="Aufträge annehmen und umsetzen">
-        Aufträge sind Self-Bondage-Anweisungen aus dem Kreis. Wer den Auftrag nicht selbst erteilt hat, kann ihn annehmen, später als umgesetzt markieren oder verwerfen. Beim Umsetzen wird automatisch ein Eintrag in der Session-Historie angelegt.
+        Aufträge sind private Vorschlaege aus dem Kreis. Wer den Auftrag nicht selbst erteilt hat, kann ihn annehmen, eine Aenderung vorschlagen, spaeter entscheiden oder ablehnen. Eine Zustimmung kann jederzeit widerrufen werden.
       </PageGuide>
 
       {orders.length ? (

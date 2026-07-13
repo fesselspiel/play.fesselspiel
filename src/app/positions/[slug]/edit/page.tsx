@@ -122,7 +122,7 @@ export default async function EditPositionPage({ params }: { params: { slug: str
           <Field label="Beschreibung"><textarea className={inputClass} name="description" rows={5} defaultValue={position.description || ""} /></Field>
           <label className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm font-medium text-ink">
             <input name="selfBondageCapable" type="checkbox" defaultChecked={position.selfBondageCapable} className="h-4 w-4 accent-redbrand" />
-            <span>Self-Bondage-fähig</span>
+            <span>Kann beauftragt werden</span>
           </label>
           {toysEnabled ? (
             <div>

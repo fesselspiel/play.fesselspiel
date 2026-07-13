@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { ownerScope } from "@/lib/access";
-import { tokenFromRequest } from "@/lib/api-tokens";
 import { logAction } from "@/lib/audit";
 import { getOrCreateCatalogCategory } from "@/lib/catalog-categories";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
@@ -20,10 +19,8 @@ function absoluteUrl(request: NextRequest, path: string) {
   return new URL(path, request.url).toString();
 }
 
-function externalFileUrl(request: NextRequest, fileId: string, token?: string) {
-  const url = new URL(`/api/external/files/${fileId}`, request.url);
-  if (token) url.searchParams.set("token", token);
-  return url.toString();
+function externalFileUrl(request: NextRequest, fileId: string) {
+  return new URL(`/api/external/files/${fileId}`, request.url).toString();
 }
 
 async function requestPayload(request: NextRequest) {
@@ -64,8 +61,6 @@ export async function GET(request: NextRequest) {
   const toyId = String(searchParams.get("toyId") || "").trim();
   const selfBondage = searchParams.get("selfBondage");
   const includeRelations = searchParams.get("includeRelations") !== "0";
-  const token = searchParams.get("token") || "";
-  const tokenForDownloadUrl = token && token === tokenFromRequest(request) ? token : "";
 
   const where: Prisma.PositionWhereInput = {
     ...(await ownerScope(auth.user)),
@@ -104,6 +99,7 @@ export async function GET(request: NextRequest) {
         slug: position.slug,
         description: position.description,
         selfBondageCapable: position.selfBondageCapable,
+        canBeCommissioned: position.selfBondageCapable,
         sortOrder: position.sortOrder,
         createdAt: position.createdAt.toISOString(),
         updatedAt: position.updatedAt.toISOString(),
@@ -113,8 +109,8 @@ export async function GET(request: NextRequest) {
           fileId,
           url: imageUrl,
           downloadUrl: imageUrl,
-          downloadUrlWithToken: fileId && tokenForDownloadUrl ? externalFileUrl(request, fileId, tokenForDownloadUrl) : null,
-          requiresAuthorization: Boolean(fileId && !tokenForDownloadUrl)
+          downloadUrlWithToken: null,
+          requiresAuthorization: Boolean(fileId)
         },
         category: position.category ? { id: position.category.id, name: position.category.name, sortOrder: position.category.sortOrder } : { id: null, name: "Allgemein", sortOrder: 0 },
         owner: { id: position.owner.id, username: position.owner.username, displayName: displayName(position.owner) },
@@ -176,7 +172,7 @@ export async function POST(request: NextRequest) {
       slug,
       description: text(payload.description) || null,
       imageUrl: nextImageUrl,
-      selfBondageCapable: booleanValue(payload.selfBondageCapable),
+      selfBondageCapable: booleanValue(payload.canBeCommissioned ?? payload.selfBondageCapable),
       ...(toysEnabled ? { tools: { connect: toys.map((toy) => ({ id: toy.id })) } } : {})
     },
     include: {
@@ -210,6 +206,7 @@ export async function POST(request: NextRequest) {
       slug: position.slug,
       description: position.description,
       selfBondageCapable: position.selfBondageCapable,
+      canBeCommissioned: position.selfBondageCapable,
       sortOrder: position.sortOrder,
       createdAt: position.createdAt.toISOString(),
       updatedAt: position.updatedAt.toISOString(),

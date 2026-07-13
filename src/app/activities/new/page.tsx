@@ -131,7 +131,7 @@ async function createActivity(formData: FormData) {
     action: selfBondageTemplate ? "self_bondage_order_created" : ideaTemplate ? "idea_created" : status === "REQUESTED" ? "activity_requested" : "activity_created",
     entityType: "activity",
     entityId: activity.id,
-    title: `${selfBondageTemplate ? "Self-Bondage-Auftrag erteilt" : ideaTemplate ? "Idee festgehalten" : status === "REQUESTED" ? "Spielplan angefragt" : "Spielplan angelegt"}: ${activity.title}`,
+    title: `${selfBondageTemplate ? "Auftrag erteilt" : ideaTemplate ? "Idee festgehalten" : status === "REQUESTED" ? "Spielplan angefragt" : "Spielplan angelegt"}: ${activity.title}`,
     details: selfBondageTemplate ? { status: "beauftragt", excludeActorFromTargets: true } : undefined,
     href: selfBondageTemplate ? `/orders#order-${activity.id}` : ideaTemplate ? `/ideas/${activity.slug}` : `/activities/${activity.slug}`
   });
@@ -155,7 +155,7 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
   ]);
   const defaultDate = String(searchParams?.date || "").match(/^\d{4}-\d{2}-\d{2}$/) ? String(searchParams?.date) : "";
   const ideaTemplate = searchParams?.template === "idea";
-  const defaultTitle = selfBondageTemplate ? "Self-Bondage-Auftrag" : "";
+  const defaultTitle = selfBondageTemplate ? "Auftrag" : "";
   const defaultNote = selfBondageTemplate
     ? "Auftrag: Bring dich in die ausgewählte Lage und richte dich so ein, dass du ruhig warten kannst. Dokumentiere danach kurz, wie die Vorbereitung funktioniert hat."
     : ideaTemplate
@@ -170,10 +170,10 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
       : "";
   return (
     <AppShell>
-      <PageHeader title={selfBondageTemplate ? "Self-Bondage-Auftrag" : ideaTemplate ? "Idee festhalten" : "Lass uns spielen"} />
+      <PageHeader title={selfBondageTemplate ? "Auftrag" : ideaTemplate ? "Idee festhalten" : "Lass uns spielen"} />
       <PageGuide title={selfBondageTemplate ? "Auftrag zum Vorbereiten" : ideaTemplate ? "Ideensammlung" : "Spielideen aus dem Baukastensystem"}>
         {selfBondageTemplate
-          ? "Erstelle hier einen Auftrag, bei dem eine Person sich selbst in eine passende Lage bringt. Es werden nur Szenen angeboten, die als Self-Bondage-fähig markiert sind."
+          ? "Erstelle hier einen privaten Auftrag. Es werden nur Szenen angeboten, die als Kann beauftragt werden markiert sind. Zustimmung ist freiwillig und kann jederzeit widerrufen werden."
           : ideaTemplate
             ? "Halte hier eine Idee fest, die ihr irgendwann ausprobieren wollt. Bilder kannst du direkt beim Anlegen auswählen und später auf der Detailseite ergänzen."
           : "Erstelle hier einen konkreten Spielplan. Vergib Titel und Kategorie, setze optional Datum und Uhrzeit, Wähle passende Spielsachen und Szenen aus und speichere den Plan mit dem gewünschten Status."}
@@ -182,7 +182,7 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
         {selfBondageTemplate ? <input type="hidden" name="template" value="self-bondage" /> : null}
         {ideaTemplate ? <input type="hidden" name="template" value="idea" /> : null}
         <div className="space-y-4">
-          <Field label={selfBondageTemplate ? "Auftrag" : ideaTemplate ? "Idee" : "Spieltermin"}><input className={inputClass} name="title" required placeholder={selfBondageTemplate ? "Self-Bondage-Auftrag" : ideaTemplate ? "Das wollen wir ausprobieren" : "Entspannungsabend"} defaultValue={defaultTitle} /></Field>
+          <Field label={selfBondageTemplate ? "Auftrag" : ideaTemplate ? "Idee" : "Spieltermin"}><input className={inputClass} name="title" required placeholder={selfBondageTemplate ? "Auftrag" : ideaTemplate ? "Das wollen wir ausprobieren" : "Entspannungsabend"} defaultValue={defaultTitle} /></Field>
           {selfBondageTemplate ? (
             <SelfBondageScheduleFields
               mode="new"
@@ -269,7 +269,7 @@ export default async function NewActivityPage({ searchParams }: { searchParams?:
                   <input name="positions" value={position.id} type="checkbox" className="h-4 w-4 accent-redbrand" />
                   <span className="min-w-0">
                     <span className="block font-medium">{position.name}</span>
-                    {position.selfBondageCapable ? <span className="block text-xs text-sky-700">Self-Bondage-fähig</span> : null}
+                    {position.selfBondageCapable ? <span className="block text-xs text-sky-700">Kann beauftragt werden</span> : null}
                   </span>
                 </label>
               ))}

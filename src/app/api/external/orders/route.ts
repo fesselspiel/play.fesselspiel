@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   const blocked = apiFeatureGate(auth.user, "externalApi", "orders", "selfBondage");
   if (blocked) return blocked;
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
-  const title = String(body.title || "Self-Bondage-Auftrag").trim();
+  const title = String(body.title || "Auftrag").trim();
   const scope = await ownerScope(auth.user);
   const positionIds = stringArray(body.positionIds);
   const positions = positionIds.length ? await prisma.position.findMany({ where: { ...scope, id: { in: positionIds }, selfBondageCapable: true }, select: { id: true } }) : [];
@@ -61,6 +61,6 @@ export async function POST(request: NextRequest) {
     },
     include: activityInclude
   });
-  await logAction({ actorId: auth.user.id, action: "self_bondage_order_created", entityType: "activity", entityId: order.id, title: `Self-Bondage-Auftrag erteilt: ${order.title}`, href: `/orders#order-${order.id}`, details: { excludeActorFromTargets: true } });
+  await logAction({ actorId: auth.user.id, action: "self_bondage_order_created", entityType: "activity", entityId: order.id, title: `Auftrag erteilt: ${order.title}`, href: `/orders#order-${order.id}`, details: { excludeActorFromTargets: true } });
   return NextResponse.json({ ok: true, item: serializeActivity(request, order) }, { status: 201 });
 }

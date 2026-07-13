@@ -174,9 +174,9 @@ export default async function EditActivityPage({ params, searchParams }: { param
   return (
     <AppShell>
       <PageHeader title={isSelfBondageOrder ? "Auftrag bearbeiten" : isIdea ? "Idee bearbeiten" : "Spielplan bearbeiten"} />
-      <PageGuide title={isSelfBondageOrder ? "Self-Bondage-Auftrag bearbeiten" : isIdea ? "Idee bearbeiten" : "Spielplan bearbeiten"}>
+      <PageGuide title={isSelfBondageOrder ? "Auftrag bearbeiten" : isIdea ? "Idee bearbeiten" : "Spielplan bearbeiten"}>
         {isSelfBondageOrder
-          ? "Passe hier Auftrag, Termin, Status, Anweisung und die ausgewählten Self-Bondage-fähigen Szenen an. Löschen entfernt nur diesen Auftrag."
+          ? "Passe hier Auftrag, Termin, Status, Anweisung und die ausgewaehlten Szenen an. Loeschen entfernt nur diesen Auftrag."
           : isIdea
             ? "Passe hier Titel, Beschreibung, Status und Bausteine dieser Idee an. Bilder verwaltest du direkt auf der Ideendetailseite."
           : "Passe hier Titel, Termin, Status, Notiz und die verknüpften Spielsachen oder Szenen an. Die URL wird automatisch aus dem Titel gebildet. Löschen entfernt nur diesen Plan, nicht die verwendeten Bausteine."}
@@ -263,7 +263,7 @@ export default async function EditActivityPage({ params, searchParams }: { param
                     <input name="positions" value={position.id} type="checkbox" defaultChecked={selectedPositions.has(position.id)} className="h-4 w-4 accent-redbrand" />
                     <span className="min-w-0">
                       <span className="block">{position.name}</span>
-                      {position.selfBondageCapable ? <span className="block text-xs text-sky-700">Self-Bondage-fähig</span> : null}
+                      {position.selfBondageCapable ? <span className="block text-xs text-sky-700">Kann beauftragt werden</span> : null}
                     </span>
                   </label>
                 ))}

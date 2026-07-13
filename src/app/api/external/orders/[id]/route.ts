@@ -41,7 +41,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     },
     include: activityInclude
   });
-  await logAction({ actorId: auth.user.id, action: "self_bondage_order_updated", entityType: "activity", entityId: order.id, title: `Self-Bondage-Auftrag geändert: ${order.title}`, href: `/orders#order-${order.id}`, details: { excludeActorFromTargets: true } });
+  await logAction({ actorId: auth.user.id, action: "self_bondage_order_updated", entityType: "activity", entityId: order.id, title: `Auftrag geändert: ${order.title}`, href: `/orders#order-${order.id}`, details: { excludeActorFromTargets: true } });
   return NextResponse.json({ ok: true, item: serializeActivity(request, order) });
 }
 
@@ -56,6 +56,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   }
   await prisma.activityPlan.delete({ where: { id: existing.id } });
-  await logAction({ actorId: auth.user.id, action: "self_bondage_order_deleted_api", entityType: "activity", entityId: existing.id, title: `Self-Bondage-Auftrag per API gelöscht: ${existing.title}`, href: "/orders" });
+  await logAction({ actorId: auth.user.id, action: "self_bondage_order_deleted_api", entityType: "activity", entityId: existing.id, title: `Auftrag gelöscht: ${existing.title}`, href: "/orders" });
   return NextResponse.json({ ok: true, id: existing.id });
 }

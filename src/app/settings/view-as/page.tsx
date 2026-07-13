@@ -38,7 +38,7 @@ async function switchView(formData: FormData) {
   if (targetTenantId && !targetTenant) redirect("/settings/view-as");
   const viewAsUserId = target && target.id !== admin.id ? target.id : undefined;
   const viewAsTenantId = effectiveTenantId || targetTenant?.id || undefined;
-  const token = createSessionToken(admin.id, currentCookieMaxAge() > 60 * 60 * 12, viewAsUserId, viewAsTenantId);
+  const token = createSessionToken(admin.id, currentCookieMaxAge() > 60 * 60 * 12, viewAsUserId, viewAsTenantId, admin.sessionRevision);
   cookies().set(SESSION_COOKIE, token, sessionCookieOptions(currentCookieMaxAge()));
   await logAction({
     actorId: admin.id,
@@ -56,7 +56,7 @@ async function switchView(formData: FormData) {
 async function returnToOwnView() {
   "use server";
   const admin = await requireAdmin();
-  const token = createSessionToken(admin.id, currentCookieMaxAge() > 60 * 60 * 12);
+  const token = createSessionToken(admin.id, currentCookieMaxAge() > 60 * 60 * 12, undefined, undefined, admin.sessionRevision);
   cookies().set(SESSION_COOKIE, token, sessionCookieOptions(currentCookieMaxAge()));
   await logAction({
     actorId: admin.id,

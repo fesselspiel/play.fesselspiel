@@ -14,7 +14,7 @@ function currentCookieMaxAge() {
 
 export async function returnToOwnView() {
   const admin = await requireAdmin();
-  const token = createSessionToken(admin.id, currentCookieMaxAge() > 60 * 60 * 12);
+  const token = createSessionToken(admin.id, currentCookieMaxAge() > 60 * 60 * 12, undefined, undefined, admin.sessionRevision);
   cookies().set(SESSION_COOKIE, token, sessionCookieOptions(currentCookieMaxAge()));
   await logAction({
     actorId: admin.id,

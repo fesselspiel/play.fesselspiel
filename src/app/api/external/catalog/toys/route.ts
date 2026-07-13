@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { ownerScope } from "@/lib/access";
-import { tokenFromRequest } from "@/lib/api-tokens";
 import { logAction } from "@/lib/audit";
 import { getOrCreateCatalogCategory } from "@/lib/catalog-categories";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
@@ -20,10 +19,8 @@ function absoluteUrl(request: NextRequest, path: string) {
   return new URL(path, request.url).toString();
 }
 
-function externalFileUrl(request: NextRequest, fileId: string, token?: string) {
-  const url = new URL(`/api/external/files/${fileId}`, request.url);
-  if (token) url.searchParams.set("token", token);
-  return url.toString();
+function externalFileUrl(request: NextRequest, fileId: string) {
+  return new URL(`/api/external/files/${fileId}`, request.url).toString();
 }
 
 async function requestPayload(request: NextRequest) {
@@ -63,8 +60,6 @@ export async function GET(request: NextRequest) {
   const categoryId = String(searchParams.get("categoryId") || "").trim();
   const positionId = String(searchParams.get("positionId") || "").trim();
   const includeRelations = searchParams.get("includeRelations") !== "0";
-  const token = searchParams.get("token") || "";
-  const tokenForDownloadUrl = token && token === tokenFromRequest(request) ? token : "";
 
   const where: Prisma.ToyWhereInput = {
     ...(await ownerScope(auth.user)),
@@ -110,8 +105,8 @@ export async function GET(request: NextRequest) {
           fileId,
           url: imageUrl,
           downloadUrl: imageUrl,
-          downloadUrlWithToken: fileId && tokenForDownloadUrl ? externalFileUrl(request, fileId, tokenForDownloadUrl) : null,
-          requiresAuthorization: Boolean(fileId && !tokenForDownloadUrl)
+          downloadUrlWithToken: null,
+          requiresAuthorization: Boolean(fileId)
         },
         category: toy.category ? { id: toy.category.id, name: toy.category.name, sortOrder: toy.category.sortOrder } : { id: null, name: "Allgemein", sortOrder: 0 },
         owner: { id: toy.owner.id, username: toy.owner.username, displayName: displayName(toy.owner) },

@@ -44,6 +44,6 @@ export async function GET(request: NextRequest) {
     status: 303,
     headers: { Location: payload.redirectTo }
   });
-  setSessionCookie(response, createSessionToken(user.id, false), false);
+  setSessionCookie(response, createSessionToken(user.id, false, undefined, undefined, user.sessionRevision), false);
   return response;
 }
