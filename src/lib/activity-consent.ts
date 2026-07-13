@@ -42,7 +42,7 @@ export function activityConsentPermissions(activity: Pick<ActivityPlan, "ownerId
   const status = effectiveConsentStatus(activity);
   const admin = role === "ADMIN" || role === "SUPER_ADMIN";
   const owner = activity.ownerId === actorId;
-  const responder = !owner || admin;
+  const responder = !owner;
   return {
     canAccept: (status === "PROPOSED" && responder) || (status === "CHANGES_REQUESTED" && (owner || admin)),
     canRequestChanges: (status === "PROPOSED" || status === "ACCEPTED") && responder,
