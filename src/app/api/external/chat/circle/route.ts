@@ -44,19 +44,41 @@ export async function POST(request: NextRequest) {
   let body = "";
   let file: File | null = null;
   let requestedCircleId: string | null = null;
+  let entityType: string | null = null;
+  let entityId: string | null = null;
+  let entityTitle: string | null = null;
+  let targetScreen: string | null = null;
   if (contentType.includes("multipart/form-data")) {
     const formData = await request.formData();
     body = String(formData.get("body") || "").trim();
     requestedCircleId = String(formData.get("circleId") || "").trim() || null;
+    entityType = String(formData.get("entityType") || "").trim() || null;
+    entityId = String(formData.get("entityId") || "").trim() || null;
+    entityTitle = String(formData.get("entityTitle") || "").trim() || null;
+    targetScreen = String(formData.get("targetScreen") || "").trim() || null;
     file = formData.get("file") as File | null;
   } else {
     const payload = await request.json().catch(() => ({}));
     body = String(payload.body || payload.text || "").trim();
     requestedCircleId = String(payload.circleId || "").trim() || null;
+    entityType = String(payload.entityType || "").trim() || null;
+    entityId = String(payload.entityId || "").trim() || null;
+    entityTitle = String(payload.entityTitle || "").trim() || null;
+    targetScreen = String(payload.targetScreen || "").trim() || null;
   }
   const scope = await requireCircleChatScope(auth.user, requestedCircleId).catch(() => null);
   if (!scope) return NextResponse.json({ ok: false, error: "Kein Zirkel für den Chat zugeordnet" }, { status: 403 });
-  if (!body && (!file || file.size === 0)) return NextResponse.json({ ok: false, error: "Nachricht oder Bild fehlt" }, { status: 400 });
+  const normalizedEntityType = entityType?.toLowerCase() || null;
+  const cardActivity = normalizedEntityType === "session" || normalizedEntityType === "activity"
+    ? await prisma.activityPlan.findFirst({
+        where: { id: entityId || "", tenantId: scope.tenantId },
+        select: { id: true, title: true, slug: true }
+      })
+    : null;
+  if (normalizedEntityType && !cardActivity && (normalizedEntityType === "session" || normalizedEntityType === "activity")) {
+    return NextResponse.json({ ok: false, error: "session_not_found" }, { status: 404 });
+  }
+  if (!body && (!file || file.size === 0) && !cardActivity) return NextResponse.json({ ok: false, error: "Nachricht, Bild oder Karte fehlt" }, { status: 400 });
   const asset = await saveUploadedFile(auth.user.id, file, scope.tenantId);
   const message = await prisma.circleChatMessage.create({
     data: {
@@ -88,7 +110,20 @@ export async function POST(request: NextRequest) {
       hasFile: Boolean(asset),
       fileMimeType: asset?.mimeType || null,
       text: body ? body.slice(0, 240) : null,
-      excludeActorFromTargets: true
+      excludeActorFromTargets: true,
+      ...(cardActivity ? {
+        entityType: "session",
+        entityId: cardActivity.id,
+        entityTitle: entityTitle || cardActivity.title,
+        targetScreen: targetScreen || "sessions",
+        target: {
+          screen: targetScreen || "sessions",
+          entityType: "session",
+          entityId: cardActivity.id,
+          id: cardActivity.id,
+          href: `/activities/${cardActivity.slug}`
+        }
+      } : {})
     }
   });
   const item = await serializeCircleChatMessageWithContext(messageWithReceipts, auth.user.id, auth.user.role);

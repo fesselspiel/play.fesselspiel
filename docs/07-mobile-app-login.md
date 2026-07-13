@@ -821,6 +821,21 @@ Wenn eine Chatnachricht automatisch aus einem Protokollereignis fuer einen Spiel
 
 Die App soll Buttons nur aus `actions` bzw. den `can...`-Flags ableiten. Ausgefuehrt wird weiterhin ueber `PATCH /api/external/sessions/{id}`. Statuswerte sind `REQUESTED` fuer angefragt/Gegenvorschlag, `PLANNED` fuer bestaetigt, `DONE` fuer erledigt und `DISCARDED` fuer abgelehnt/verworfen.
 
+Native Composer koennen eine zuvor ueber `POST /api/external/sessions` angelegte Anfrage direkt als Chatkarte posten. Dazu bei `POST /api/external/chat/circle` die Session-Metadaten mitgeben:
+
+```json
+{
+  "circleId": "circle_id",
+  "body": "Optionaler Begleittext",
+  "entityType": "session",
+  "entityId": "session_id",
+  "entityTitle": "Studioabend",
+  "targetScreen": "sessions"
+}
+```
+
+`body` ist bei einer gueltigen Session-Karte optional. Die Antwort auf den POST sowie anschliessende `GET`/Stream-Antworten liefern sofort dieselben `entity`, `target`, `session`, `permissions`, `capabilities` und `actions` wie oben.
+
 ### Echtzeit-Stream
 
 ```http
@@ -877,6 +892,8 @@ Content-Type: application/json
 
 { "circleId": "circle_id", "body": "Hallo" }
 ```
+
+Fuer eine Session-/Anfragekarte siehe den Abschnitt `Session- und Anfragekarten im Chat`; derselbe POST akzeptiert zusaetzlich `entityType`, `entityId`, `entityTitle` und `targetScreen`.
 
 Alternativ multipart:
 

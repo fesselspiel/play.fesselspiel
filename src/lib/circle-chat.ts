@@ -249,6 +249,17 @@ function objectValue(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
+function sessionEntityIdFromDetails(details: unknown) {
+  const data = objectValue(details);
+  const entityType = String(data.entityType || objectValue(data.entity).entityType || objectValue(data.target).entityType || "").toLowerCase();
+  const targetScreen = String(data.targetScreen || objectValue(data.target).screen || "").toLowerCase();
+  const entityId = data.entityId || objectValue(data.entity).entityId || objectValue(data.entity).id || objectValue(data.target).entityId || objectValue(data.target).id;
+  if ((entityType === "session" || entityType === "activity" || targetScreen === "sessions" || targetScreen === "activities") && typeof entityId === "string" && entityId) {
+    return entityId;
+  }
+  return null;
+}
+
 function sessionPermissions(activity: { ownerId: string; status: string }, currentUserId?: string, currentUserRole?: string | null) {
   const admin = currentUserRole === "ADMIN" || currentUserRole === "SUPER_ADMIN";
   const responder = Boolean(currentUserId && (activity.ownerId !== currentUserId || admin));
@@ -297,31 +308,44 @@ async function sessionCardsForMessages(
     orderBy: { createdAt: "desc" }
   });
   const sourceByMessage = new Map<string, string>();
+  const activityIdByMessage = new Map<string, string>();
   for (const audit of chatAudits) {
-    if (!audit.entityId || sourceByMessage.has(audit.entityId)) continue;
+    if (!audit.entityId) continue;
+    const directActivityId = sessionEntityIdFromDetails(audit.details);
+    if (directActivityId && !activityIdByMessage.has(audit.entityId)) {
+      activityIdByMessage.set(audit.entityId, directActivityId);
+      continue;
+    }
+    if (sourceByMessage.has(audit.entityId)) continue;
     const sourceAuditId = objectValue(audit.details).sourceAuditId;
     if (typeof sourceAuditId === "string" && sourceAuditId) sourceByMessage.set(audit.entityId, sourceAuditId);
   }
   const sourceAuditIds = Array.from(new Set(sourceByMessage.values()));
-  if (!sourceAuditIds.length) return cards;
-  const sourceAudits = await prisma.auditLog.findMany({
+  const sourceAudits = sourceAuditIds.length ? await prisma.auditLog.findMany({
     where: { id: { in: sourceAuditIds } },
     select: { id: true, entityType: true, entityId: true }
-  });
+  }) : [];
   const sourceById = new Map(sourceAudits.map((audit) => [audit.id, audit]));
-  const activityIds = Array.from(new Set(sourceAudits
+  for (const [messageId, sourceAuditId] of sourceByMessage.entries()) {
+    const source = sourceById.get(sourceAuditId);
+    if (source?.entityType === "activity" && source.entityId && !activityIdByMessage.has(messageId)) {
+      activityIdByMessage.set(messageId, source.entityId);
+    }
+  }
+  const activityIds = Array.from(new Set([
+    ...Array.from(activityIdByMessage.values()),
+    ...sourceAudits
     .filter((audit) => audit.entityType === "activity" && audit.entityId)
-    .map((audit) => audit.entityId as string)));
+    .map((audit) => audit.entityId as string)
+  ]));
   if (!activityIds.length) return cards;
   const activities = await prisma.activityPlan.findMany({
     where: { id: { in: activityIds } },
     include: { owner: { include: { profile: true } } }
   });
   const activityById = new Map(activities.map((activity) => [activity.id, activity]));
-  for (const [messageId, sourceAuditId] of sourceByMessage.entries()) {
-    const source = sourceById.get(sourceAuditId);
-    if (source?.entityType !== "activity" || !source.entityId) continue;
-    const activity = activityById.get(source.entityId);
+  for (const [messageId, activityId] of activityIdByMessage.entries()) {
+    const activity = activityById.get(activityId);
     if (!activity) continue;
     const href = `/activities/${activity.slug}`;
     const permissions = sessionPermissions(activity, currentUserId, currentUserRole);

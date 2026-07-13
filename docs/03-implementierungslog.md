@@ -51,6 +51,7 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Die Aktionen verwenden weiterhin den bestehenden Contract `PATCH /api/external/sessions/{id}` mit Statuswerten `REQUESTED`, `PLANNED`, `DONE` und `DISCARDED`.
 - `GET /api/external/chat/circles` gibt als `currentCircleId` nur noch `null` oder eine ID aus `circles[]` zurueck, damit Admin-/View-Contexts keine Zirkel-ID aus einer anderen Seite mitschleppen.
 - `tracker_quota_reminder` wird aus dem normalen externen Eventfeed ausgeblendet, weil Kontingente separat ueber Tracker-/Quota-Endpunkte abgerufen werden.
+- `POST /api/external/chat/circle` kann jetzt direkt `entityType=session`, `entityId`, `entityTitle` und `targetScreen=sessions` speichern. Die Antwort sowie GET/Stream liefern daraus sofort die native Anfragekarte.
 
 ## Tracker-Fotos
 
