@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 const SettingsSchema = z.object({
   notificationPreviewMode: z.enum(["DISCREET", "TITLE", "FULL"])
-});
+}).strict();
 
 function serialize(mode?: string | null, showSensitiveMedia = false) {
   return {

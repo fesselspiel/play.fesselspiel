@@ -64,6 +64,7 @@ check(dataTransfer.includes("contentSpaces:") && dataTransfer.includes("contentS
 check(schema.includes("showSensitiveMedia") && profileSettings.includes('name="showSensitiveMedia"'), "Sensible Medien brauchen eine persoenliche Web-Einstellung");
 check(privacySettingsRoute.includes("showSensitiveMedia"), "iOS muss die Web-Einstellung fuer sensible Medien lesen koennen");
 check(!privacySettingsRoute.includes("showSensitiveMedia: z.boolean"), "Die iOS-API darf sensible Medien nicht selbst freischalten");
+check(privacySettingsRoute.includes("}).strict()"), "Die iOS-API muss unbekannte Privacy-Felder ablehnen");
 
 // There are no paid digital features in the reviewed iOS product. Shopify is
 // a catalogue for physical products. Introducing payment SDKs, subscription
