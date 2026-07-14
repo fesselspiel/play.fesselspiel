@@ -162,7 +162,7 @@ async function seed() {
       ownerId: created.ALEX.id,
       title: "Abend gemeinsam planen",
       slug: `${marker}-abend-planen`,
-      note: "Bitte bestaetigen oder eine andere Zeit vorschlagen.",
+      note: "Bitte bestätigen oder eine andere Zeit vorschlagen.",
       plannedAt: tomorrow,
       status: "REQUESTED",
       consentStatus: "PROPOSED",
@@ -224,7 +224,7 @@ async function seed() {
   await prisma.circleChatMessage.createMany({
     data: [
       { tenantId: tenant.id, circleId: circle.id, senderId: created.ALEX.id, body: "Passt der gemeinsame Abend morgen?" },
-      { tenantId: tenant.id, circleId: circle.id, senderId: created.SAM.id, body: "Ja, ich freue mich. Ich bestaetige gleich die Anfrage." }
+      { tenantId: tenant.id, circleId: circle.id, senderId: created.SAM.id, body: "Ja, ich freue mich. Ich bestätige gleich die Anfrage." }
     ]
   });
   await prisma.wikiPage.create({

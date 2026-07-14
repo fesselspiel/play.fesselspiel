@@ -16,6 +16,7 @@ Stand: 2026-07-14
 | OpenAI | Optionale Transkription/Assistenz | OpenAI nur bei konkreter Aktion/Einwilligung | Minimiert nach Funktions- und Anbieterregeln | Einwilligung widerrufen; Audiodatei nach Erfolg loeschen |
 | Shopify | Import physischer Produkte | Aktivierter Shop und berechtigte Nutzer | Solange Integration/Import besteht | Integration deaktivieren |
 | Audit, Meldung, Moderation | Sicherheit und Nachweis | Berechtigte Administratoren | Datensparsam nach Sicherheits-/Rechtsbedarf | Auskunft; Inhalte werden nicht ins Audit dupliziert |
+| IP-/Zugriffsprotokolle | Betriebssicherheit, Missbrauchsschutz und Rate Limiting | Betreiber; HMAC-Rate-Limit-Schluessel in der App-Datenbank, IP in Reverse-Proxy-Zugriffslogs | Kurzlebige Rate-Limits; Nginx rotiert taeglich und behaelt 14 Rotationen | Auskunft und Loesch-/Aufbewahrungskonzept |
 | Datenexport | Maschinenlesbare Nutzerkopie | Nur authentifizierter Nutzer | Temporaere ZIP-Datei mit iOS-Dateischutz | Share Sheet; lokale Temp-Datei wird geloescht |
 
 ## Technische Grenzen
@@ -25,3 +26,4 @@ Stand: 2026-07-14
 - Diskrete Push-Vorschau ist Standard und enthaelt keine privaten Titel, Notizen oder Medien.
 - Optionale Einwilligungen fuer Telegram, OpenAI, Push und Analyse werden getrennt gespeichert und sind widerrufbar.
 - Kontoloeschung sperrt neue Logins, widerruft Tokens/Geraete und bereinigt relationale sowie physische Daten idempotent.
+- Die daraus abgeleiteten App-Store-Datenschutzangaben sind unter `app-store-privacy-labels.md` dokumentiert. Der ASC-Zustand muss vor jeder Einreichung erneut damit abgeglichen werden.
