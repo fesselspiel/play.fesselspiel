@@ -4,6 +4,8 @@ import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import {
   contentSpaceAccess,
+  blockedContentOwnerIds,
+  hiddenContentIds,
   createLegacyIdeaEntry,
   createLegacyWikiEntry,
   LEGACY_IDEAS_SPACE_ID,
@@ -43,11 +45,19 @@ export async function GET(request: NextRequest, props: { params: Promise<{ space
   const limit = Math.min(200, Math.max(1, Number(searchParams.get("limit") || 50)));
   const cursor = searchParams.get("cursor") || undefined;
   const q = String(searchParams.get("q") || "").trim();
+  const excludedOwnerIds = await blockedContentOwnerIds(auth.user);
+  const [hiddenWikiIds, hiddenIdeaIds, hiddenEntryIds] = await Promise.all([
+    hiddenContentIds(auth.user, "wikiPage"),
+    hiddenContentIds(auth.user, "activity"),
+    hiddenContentIds(auth.user, "contentEntry")
+  ]);
 
   if (params.spaceId === LEGACY_WIKI_SPACE_ID) {
     const where: Prisma.WikiPageWhereInput = {
       AND: [
         await wikiPageAccessWhere(auth.user),
+        { ownerId: { notIn: excludedOwnerIds } },
+        { id: { notIn: hiddenWikiIds } },
         q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { content: { contains: q, mode: "insensitive" } }] } : {}
       ]
     };
@@ -59,7 +69,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ space
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
     });
     const pageItems = pages.slice(0, limit);
-    return NextResponse.json({ ok: true, count: pageItems.length, nextCursor: pages.length > limit ? pages[limit].id : null, items: pageItems.map((page) => serializeContentEntry(request, { legacyType: "wiki", page })) });
+    return NextResponse.json({ ok: true, count: pageItems.length, nextCursor: pages.length > limit ? pages[limit].id : null, items: pageItems.map((page) => serializeContentEntry(request, { legacyType: "wiki", page }, auth.user)) });
   }
 
   if (params.spaceId === LEGACY_IDEAS_SPACE_ID) {
@@ -67,6 +77,8 @@ export async function GET(request: NextRequest, props: { params: Promise<{ space
       where: {
         ...(await ownerScope(auth.user)),
         category: "IDEA_COLLECTION",
+        ownerId: { notIn: excludedOwnerIds },
+        id: { notIn: hiddenIdeaIds },
         ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { note: { contains: q, mode: "insensitive" as const } }] } : {})
       },
       include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } },
@@ -75,7 +87,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ space
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
     });
     const pageItems = ideas.slice(0, limit);
-    return NextResponse.json({ ok: true, count: pageItems.length, nextCursor: ideas.length > limit ? ideas[limit].id : null, items: pageItems.map((idea) => serializeContentEntry(request, { legacyType: "idea", idea })) });
+    return NextResponse.json({ ok: true, count: pageItems.length, nextCursor: ideas.length > limit ? ideas[limit].id : null, items: pageItems.map((idea) => serializeContentEntry(request, { legacyType: "idea", idea }, auth.user)) });
   }
 
   const resolved = await contentSpaceAccess(auth.user, params.spaceId);
@@ -84,6 +96,8 @@ export async function GET(request: NextRequest, props: { params: Promise<{ space
   const entries = await prisma.contentEntry.findMany({
     where: {
       spaceId: space.id,
+      ownerId: { notIn: excludedOwnerIds },
+      id: { notIn: hiddenEntryIds },
       ...(auth.user.tenantId ? { tenantId: auth.user.tenantId } : {}),
       ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { content: { contains: q, mode: "insensitive" } }] } : {})
     },
@@ -93,7 +107,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ space
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
   });
   const pageItems = entries.slice(0, limit);
-  return NextResponse.json({ ok: true, count: pageItems.length, nextCursor: entries.length > limit ? entries[limit].id : null, items: pageItems.map((entry) => serializeContentEntry(request, entry)) });
+  return NextResponse.json({ ok: true, count: pageItems.length, nextCursor: entries.length > limit ? entries[limit].id : null, items: pageItems.map((entry) => serializeContentEntry(request, entry, auth.user)) });
 }
 
 export async function POST(request: NextRequest, props: { params: Promise<{ spaceId: string }> }) {
@@ -118,8 +132,8 @@ export async function POST(request: NextRequest, props: { params: Promise<{ spac
     }
     await createWikiRevision(page.id, auth.user.id, "created_content_space_api");
     const refreshed = await prisma.wikiPage.findUnique({ where: { id: page.id }, include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } } });
-    await logAction({ actorId: auth.user.id, action: "content_entry_created_api", entityType: "wikiPage", entityId: page.id, title: `Tagebucheintrag angelegt: ${page.title}`, href: refreshed ? serializeContentEntry(request, { legacyType: "wiki", page: refreshed }).href : null });
-    return NextResponse.json({ ok: true, item: refreshed ? serializeContentEntry(request, { legacyType: "wiki", page: refreshed }) : null }, { status: 201 });
+    await logAction({ actorId: auth.user.id, action: "content_entry_created_api", entityType: "wikiPage", entityId: page.id, title: `Tagebucheintrag angelegt: ${page.title}`, href: refreshed ? serializeContentEntry(request, { legacyType: "wiki", page: refreshed }, auth.user).href : null });
+    return NextResponse.json({ ok: true, item: refreshed ? serializeContentEntry(request, { legacyType: "wiki", page: refreshed }, auth.user) : null }, { status: 201 });
   }
 
   if (params.spaceId === LEGACY_IDEAS_SPACE_ID) {
@@ -130,7 +144,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ spac
     }
     const refreshed = await prisma.activityPlan.findUnique({ where: { id: idea.id }, include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } } });
     await logAction({ actorId: auth.user.id, action: "content_entry_created_api", entityType: "activity", entityId: idea.id, title: `Idee angelegt: ${idea.title}`, href: `/ideas/${idea.slug}` });
-    return NextResponse.json({ ok: true, item: refreshed ? serializeContentEntry(request, { legacyType: "idea", idea: refreshed }) : null }, { status: 201 });
+    return NextResponse.json({ ok: true, item: refreshed ? serializeContentEntry(request, { legacyType: "idea", idea: refreshed }, auth.user) : null }, { status: 201 });
   }
 
   const resolved = await contentSpaceAccess(auth.user, params.spaceId);
@@ -154,5 +168,5 @@ export async function POST(request: NextRequest, props: { params: Promise<{ spac
   }
   const refreshed = await prisma.contentEntry.findUnique({ where: { id: entry.id }, include: { owner: { include: { profile: true } }, space: true, attachments: { include: { file: true }, orderBy: { createdAt: "asc" } } } });
   await logAction({ actorId: auth.user.id, action: "content_entry_created_api", entityType: "contentEntry", entityId: entry.id, title: `Inhalt angelegt: ${entry.title}`, href: `/content-spaces/${entry.spaceId}/entries/${entry.id}` });
-  return NextResponse.json({ ok: true, item: refreshed ? serializeContentEntry(request, refreshed) : null }, { status: 201 });
+  return NextResponse.json({ ok: true, item: refreshed ? serializeContentEntry(request, refreshed, auth.user) : null }, { status: 201 });
 }

@@ -38,6 +38,27 @@ function canEditOwner(user: AccessUser, ownerId: string) {
   return user.id === ownerId || user.role === "ADMIN" || user.role === "SUPER_ADMIN";
 }
 
+export async function blockedContentOwnerIds(user: AccessUser) {
+  if (!user.tenantId) return [] as string[];
+  const blocks = await prisma.userBlock.findMany({
+    where: {
+      tenantId: user.tenantId,
+      OR: [{ blockerId: user.id }, { blockedId: user.id }]
+    },
+    select: { blockerId: true, blockedId: true }
+  });
+  return [...new Set(blocks.map((block) => block.blockerId === user.id ? block.blockedId : block.blockerId))];
+}
+
+export async function hiddenContentIds(user: AccessUser, entityType: "wikiPage" | "activity" | "contentEntry") {
+  if (!user.tenantId) return [] as string[];
+  const rows = await prisma.moderatedContent.findMany({
+    where: { tenantId: user.tenantId, entityType, hidden: true },
+    select: { entityId: true }
+  });
+  return rows.map((row) => row.entityId);
+}
+
 function contentTenantWhere(user: AccessUser) {
   return user.tenantId ? { tenantId: user.tenantId } : {};
 }
@@ -52,8 +73,9 @@ function allowed(space: { ownerId: string; visibility: string; allowedUserIds?: 
 
 export async function contentSpaceAccess(user: AccessUser, spaceId: string) {
   if (spaceId === LEGACY_WIKI_SPACE_ID || spaceId === LEGACY_IDEAS_SPACE_ID) return { legacy: spaceId as typeof LEGACY_WIKI_SPACE_ID | typeof LEGACY_IDEAS_SPACE_ID };
+  const excludedOwnerIds = await blockedContentOwnerIds(user);
   const space = await prisma.contentSpace.findFirst({
-    where: { id: spaceId, archivedAt: null, ...contentTenantWhere(user) },
+    where: { id: spaceId, archivedAt: null, ownerId: { notIn: excludedOwnerIds }, ...contentTenantWhere(user) },
     include: { owner: { include: { profile: true } } }
   });
   if (!space || !allowed(space, user)) return null;
@@ -69,14 +91,19 @@ export async function editableContentSpace(user: AccessUser, spaceId: string) {
 }
 
 export async function legacySpaceCounts(user: AccessUser) {
+  const excludedOwnerIds = await blockedContentOwnerIds(user);
+  const [hiddenWikiIds, hiddenIdeaIds] = await Promise.all([
+    hiddenContentIds(user, "wikiPage"),
+    hiddenContentIds(user, "activity")
+  ]);
   const [wikiCount, ideaCount] = await Promise.all([
-    prisma.wikiPage.count({ where: await wikiPageAccessWhere(user) }),
-    prisma.activityPlan.count({ where: { ...(await ownerScope(user)), category: "IDEA_COLLECTION" } })
+    prisma.wikiPage.count({ where: { AND: [await wikiPageAccessWhere(user), { ownerId: { notIn: excludedOwnerIds } }, { id: { notIn: hiddenWikiIds } }] } }),
+    prisma.activityPlan.count({ where: { AND: [await ownerScope(user), { category: "IDEA_COLLECTION" }, { ownerId: { notIn: excludedOwnerIds } }, { id: { notIn: hiddenIdeaIds } }] } })
   ]);
   return { wikiCount, ideaCount };
 }
 
-export function serializeContentSpace(request: Request, space: SpaceWithCounts | "legacy-wiki" | "legacy-ideas", count = 0) {
+export function serializeContentSpace(request: Request, space: SpaceWithCounts | "legacy-wiki" | "legacy-ideas", count = 0, viewer?: AccessUser) {
   if (space === "legacy-wiki") {
     return {
       id: LEGACY_WIKI_SPACE_ID,
@@ -127,8 +154,9 @@ export function serializeContentSpace(request: Request, space: SpaceWithCounts |
     visibility: normalizeContentVisibility(space.visibility),
     allowedUserIds: stringArray(space.allowedUserIds),
     allowedCircleIds: stringArray(space.allowedCircleIds),
-    canEdit: true,
-    canDelete: true,
+    own: viewer ? viewer.id === space.ownerId : false,
+    canEdit: viewer ? canEditOwner(viewer, space.ownerId) : false,
+    canDelete: viewer ? canEditOwner(viewer, space.ownerId) : false,
     entryCount: space._count?.entries ?? count,
     legacy: false,
     sourceType: null,
@@ -156,9 +184,11 @@ function serializeAttachment(request: Request, attachment: { id: string; fileId:
   };
 }
 
-export function serializeContentEntry(request: Request, entry: EntryWithRelations | { legacyType: "wiki"; page: WikiWithRelations } | { legacyType: "idea"; idea: IdeaWithRelations }) {
+export function serializeContentEntry(request: Request, entry: EntryWithRelations | { legacyType: "wiki"; page: WikiWithRelations } | { legacyType: "idea"; idea: IdeaWithRelations }, viewer?: AccessUser) {
   if ("legacyType" in entry && entry.legacyType === "wiki") {
     const ownerSlug = wikiOwnerSlug(entry.page.owner);
+    const own = viewer ? viewer.id === entry.page.ownerId : false;
+    const canEdit = viewer ? canEditOwner(viewer, entry.page.ownerId) : false;
     return {
       id: `wiki:${entry.page.id}`,
       legacyId: entry.page.id,
@@ -173,13 +203,19 @@ export function serializeContentEntry(request: Request, entry: EntryWithRelation
       attachments: (entry.page.images || []).map((image) => serializeAttachment(request, image)),
       href: `/wiki/${ownerSlug}/${entry.page.slug}`,
       url: absoluteUrl(request, `/wiki/${ownerSlug}/${entry.page.slug}`),
-      canEdit: true,
-      canDelete: true,
+      owner: { id: entry.page.owner.id, username: entry.page.owner.username, displayName: displayName(entry.page.owner) },
+      own,
+      canEdit,
+      canDelete: canEdit,
+      canReport: Boolean(viewer && !own),
+      canHide: Boolean(viewer && !own),
       createdAt: entry.page.createdAt.toISOString(),
       updatedAt: entry.page.updatedAt.toISOString()
     };
   }
   if ("legacyType" in entry && entry.legacyType === "idea") {
+    const own = viewer ? viewer.id === entry.idea.ownerId : false;
+    const canEdit = viewer ? canEditOwner(viewer, entry.idea.ownerId) : false;
     return {
       id: `idea:${entry.idea.id}`,
       legacyId: entry.idea.id,
@@ -194,12 +230,18 @@ export function serializeContentEntry(request: Request, entry: EntryWithRelation
       attachments: (entry.idea.images || []).map((image) => serializeAttachment(request, image)),
       href: `/ideas/${entry.idea.slug}`,
       url: absoluteUrl(request, `/ideas/${entry.idea.slug}`),
-      canEdit: true,
-      canDelete: true,
+      owner: { id: entry.idea.owner.id, username: entry.idea.owner.username, displayName: displayName(entry.idea.owner) },
+      own,
+      canEdit,
+      canDelete: canEdit,
+      canReport: Boolean(viewer && !own),
+      canHide: Boolean(viewer && !own),
       createdAt: entry.idea.createdAt.toISOString(),
       updatedAt: entry.idea.updatedAt.toISOString()
     };
   }
+  const own = viewer ? viewer.id === entry.ownerId : false;
+  const canEdit = viewer ? canEditContentEntry(viewer, entry, entry.space) : false;
   return {
     id: entry.id,
     spaceId: entry.spaceId,
@@ -212,16 +254,21 @@ export function serializeContentEntry(request: Request, entry: EntryWithRelation
     attachments: entry.attachments.map((attachment) => serializeAttachment(request, attachment)),
     href: `/content-spaces/${entry.spaceId}/entries/${entry.id}`,
     url: absoluteUrl(request, `/content-spaces/${entry.spaceId}/entries/${entry.id}`),
-    canEdit: true,
-    canDelete: true,
+    owner: { id: entry.owner.id, username: entry.owner.username, displayName: displayName(entry.owner) },
+    own,
+    canEdit,
+    canDelete: canEdit,
+    canReport: Boolean(viewer && !own),
+    canHide: Boolean(viewer && !own),
     createdAt: entry.createdAt.toISOString(),
     updatedAt: entry.updatedAt.toISOString()
   };
 }
 
 export async function realSpacesForUser(user: AccessUser) {
+  const excludedOwnerIds = await blockedContentOwnerIds(user);
   const spaces = await prisma.contentSpace.findMany({
-    where: { ...contentTenantWhere(user), archivedAt: null },
+    where: { ...contentTenantWhere(user), archivedAt: null, ownerId: { notIn: excludedOwnerIds } },
     include: { owner: { include: { profile: true } }, _count: { select: { entries: true } } },
     orderBy: [{ sortOrder: "asc" }, { updatedAt: "desc" }]
   });
@@ -270,8 +317,15 @@ export async function contentEntryAccess(user: AccessUser, spaceId: string, entr
   const resolved = await contentSpaceAccess(user, spaceId);
   if (!resolved || !("space" in resolved) || !resolved.space) return null;
   const { space } = resolved;
+  const excludedOwnerIds = await blockedContentOwnerIds(user);
+  const hiddenEntryIds = await hiddenContentIds(user, "contentEntry");
   const entry = await prisma.contentEntry.findFirst({
-    where: { id: entryId, spaceId: space.id, ...contentTenantWhere(user) },
+    where: {
+      AND: [
+        { id: entryId, spaceId: space.id, ownerId: { notIn: excludedOwnerIds }, ...contentTenantWhere(user) },
+        { id: { notIn: hiddenEntryIds } }
+      ]
+    },
     include: { owner: { include: { profile: true } }, space: true, attachments: { include: { file: true }, orderBy: { createdAt: "asc" } } }
   });
   if (!entry) return null;

@@ -25,9 +25,9 @@ export async function GET(request: NextRequest) {
 
   const [counts, spaces] = await Promise.all([legacySpaceCounts(auth.user), realSpacesForUser(auth.user)]);
   const items = [
-    serializeContentSpace(request, "legacy-wiki", counts.wikiCount),
-    serializeContentSpace(request, "legacy-ideas", counts.ideaCount),
-    ...spaces.map((space) => serializeContentSpace(request, space))
+    serializeContentSpace(request, "legacy-wiki", counts.wikiCount, auth.user),
+    serializeContentSpace(request, "legacy-ideas", counts.ideaCount, auth.user),
+    ...spaces.map((space) => serializeContentSpace(request, space, 0, auth.user))
   ];
   return NextResponse.json({ ok: true, count: items.length, items });
 }
@@ -65,5 +65,5 @@ export async function POST(request: NextRequest) {
     title: `Inhaltsbereich angelegt: ${space.name}`,
     href: `/content-spaces/${space.id}`
   });
-  return NextResponse.json({ ok: true, item: serializeContentSpace(request, space) }, { status: 201 });
+  return NextResponse.json({ ok: true, item: serializeContentSpace(request, space, 0, auth.user) }, { status: 201 });
 }

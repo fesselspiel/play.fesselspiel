@@ -87,8 +87,8 @@ export async function POST(request: NextRequest, props: { params: Promise<{ spac
     }
     const refreshed = await prisma.wikiPage.findUniqueOrThrow({ where: { id: page.id }, include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } } });
     await createWikiRevision(page.id, auth.user.id, "transcribed_appended_content_space_api");
-    await logAction({ actorId: auth.user.id, action: "content_entry_transcription_appended_api", entityType: "wikiPage", entityId: page.id, title: `Tagebucheintrag per Sprache ergänzt: ${page.title}`, href: serializeContentEntry(request, { legacyType: "wiki", page: refreshed }).href });
-    return NextResponse.json({ ok: true, transcript, text: transcript, item: serializeContentEntry(request, { legacyType: "wiki", page: refreshed }) });
+    await logAction({ actorId: auth.user.id, action: "content_entry_transcription_appended_api", entityType: "wikiPage", entityId: page.id, title: `Tagebucheintrag per Sprache ergänzt: ${page.title}`, href: serializeContentEntry(request, { legacyType: "wiki", page: refreshed }, auth.user).href });
+    return NextResponse.json({ ok: true, transcript, text: transcript, item: serializeContentEntry(request, { legacyType: "wiki", page: refreshed }, auth.user) });
   }
   if (params.spaceId === LEGACY_IDEAS_SPACE_ID || parsed.type === "idea") {
     const existing = await prisma.activityPlan.findFirst({ where: { id: parsed.id, category: "IDEA_COLLECTION", ...(auth.user.tenantId ? { tenantId: auth.user.tenantId } : {}), ...(auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN" ? {} : { ownerId: auth.user.id }) } });
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ spac
     }
     const refreshed = await prisma.activityPlan.findUniqueOrThrow({ where: { id: idea.id }, include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } } });
     await logAction({ actorId: auth.user.id, action: "content_entry_transcription_appended_api", entityType: "activity", entityId: idea.id, title: `Idee per Sprache ergänzt: ${idea.title}`, href: `/ideas/${idea.slug}` });
-    return NextResponse.json({ ok: true, transcript, text: transcript, item: serializeContentEntry(request, { legacyType: "idea", idea: refreshed }) });
+    return NextResponse.json({ ok: true, transcript, text: transcript, item: serializeContentEntry(request, { legacyType: "idea", idea: refreshed }, auth.user) });
   }
 
   const resolved = await contentEntryAccess(auth.user, params.spaceId, parsed.id);
@@ -120,5 +120,5 @@ export async function POST(request: NextRequest, props: { params: Promise<{ spac
   }
   const refreshed = await prisma.contentEntry.findUniqueOrThrow({ where: { id: entry.id }, include: { owner: { include: { profile: true } }, space: true, attachments: { include: { file: true }, orderBy: { createdAt: "asc" } } } });
   await logAction({ actorId: auth.user.id, action: "content_entry_transcription_appended_api", entityType: "contentEntry", entityId: entry.id, title: `Inhalt per Sprache ergänzt: ${entry.title}`, href: `/content-spaces/${entry.spaceId}/entries/${entry.id}` });
-  return NextResponse.json({ ok: true, transcript, text: transcript, item: serializeContentEntry(request, refreshed) });
+  return NextResponse.json({ ok: true, transcript, text: transcript, item: serializeContentEntry(request, refreshed, auth.user) });
 }

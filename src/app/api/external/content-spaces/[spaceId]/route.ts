@@ -31,7 +31,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ space
     const counts = await legacySpaceCounts(auth.user);
     return NextResponse.json({
       ok: true,
-      item: serializeContentSpace(request, params.spaceId, params.spaceId === LEGACY_WIKI_SPACE_ID ? counts.wikiCount : counts.ideaCount)
+      item: serializeContentSpace(request, params.spaceId, params.spaceId === LEGACY_WIKI_SPACE_ID ? counts.wikiCount : counts.ideaCount, auth.user)
     });
   }
   const resolved = await contentSpaceAccess(auth.user, params.spaceId);
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ space
     include: { owner: { include: { profile: true } }, _count: { select: { entries: true } } }
   });
   if (!space) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
-  return NextResponse.json({ ok: true, item: serializeContentSpace(request, space) });
+  return NextResponse.json({ ok: true, item: serializeContentSpace(request, space, 0, auth.user) });
 }
 
 export async function PATCH(request: NextRequest, props: { params: Promise<{ spaceId: string }> }) {
@@ -77,7 +77,7 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ spa
     title: `Inhaltsbereich geändert: ${space.name}`,
     href: `/content-spaces/${space.id}`
   });
-  return NextResponse.json({ ok: true, item: serializeContentSpace(request, space) });
+  return NextResponse.json({ ok: true, item: serializeContentSpace(request, space, 0, auth.user) });
 }
 
 export async function DELETE(request: NextRequest, props: { params: Promise<{ spaceId: string }> }) {

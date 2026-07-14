@@ -3,6 +3,7 @@ import { mediaVisibilityScope, ownerScope } from "@/lib/access";
 import { accessibleCircleChats } from "@/lib/circle-chat";
 import { prisma } from "@/lib/prisma";
 import { wikiPageAccessWhere } from "@/lib/wiki";
+import { contentEntryAccess } from "@/lib/content-spaces";
 
 export async function blockedUserIds(userId: string, tenantId: string) {
   const blocks = await prisma.userBlock.findMany({
@@ -114,6 +115,15 @@ export async function resolveReportTarget(input: {
       select: { id: true, ownerId: true }
     });
     return item ? { entityType: "sessionComment", entityId: item.id, reportedUserId: item.ownerId } : null;
+  }
+  if (type === "contententry") {
+    const item = await prisma.contentEntry.findFirst({
+      where: { id: input.entityId, tenantId },
+      select: { id: true, spaceId: true }
+    });
+    if (!item) return null;
+    const resolved = await contentEntryAccess(input.user, item.spaceId, item.id);
+    return resolved ? { entityType: "contentEntry", entityId: resolved.entry.id, reportedUserId: resolved.entry.ownerId } : null;
   }
   return null;
 }

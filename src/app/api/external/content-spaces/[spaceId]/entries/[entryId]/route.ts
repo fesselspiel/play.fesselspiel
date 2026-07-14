@@ -3,6 +3,8 @@ import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import {
   canEditContentEntry,
+  blockedContentOwnerIds,
+  hiddenContentIds,
   contentEntryAccess,
   LEGACY_IDEAS_SPACE_ID,
   LEGACY_WIKI_SPACE_ID,
@@ -16,15 +18,19 @@ import { createWikiRevision, uniqueWikiSlug, wikiEditablePage, wikiPageAccessWhe
 export const runtime = "nodejs";
 
 async function legacyWikiPage(user: Parameters<typeof wikiPageAccessWhere>[0], id: string) {
+  const excludedOwnerIds = await blockedContentOwnerIds(user);
+  const hiddenIds = await hiddenContentIds(user, "wikiPage");
   return prisma.wikiPage.findFirst({
-    where: { id, ...(await wikiPageAccessWhere(user)) },
+    where: { AND: [{ id }, await wikiPageAccessWhere(user), { ownerId: { notIn: excludedOwnerIds } }, { id: { notIn: hiddenIds } }] },
     include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } }
   });
 }
 
 async function legacyIdea(user: Parameters<typeof ownerScope>[0], id: string) {
+  const excludedOwnerIds = await blockedContentOwnerIds(user);
+  const hiddenIds = await hiddenContentIds(user, "activity");
   return prisma.activityPlan.findFirst({
-    where: { id, ...(await ownerScope(user)), category: "IDEA_COLLECTION" },
+    where: { AND: [{ id }, await ownerScope(user), { category: "IDEA_COLLECTION" }, { ownerId: { notIn: excludedOwnerIds } }, { id: { notIn: hiddenIds } }] },
     include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } }
   });
 }
@@ -40,16 +46,16 @@ export async function GET(request: NextRequest, props: { params: Promise<{ space
   if (params.spaceId === LEGACY_WIKI_SPACE_ID || parsed.type === "wiki") {
     const page = await legacyWikiPage(auth.user, parsed.id);
     if (!page) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
-    return NextResponse.json({ ok: true, item: serializeContentEntry(request, { legacyType: "wiki", page }) });
+    return NextResponse.json({ ok: true, item: serializeContentEntry(request, { legacyType: "wiki", page }, auth.user) });
   }
   if (params.spaceId === LEGACY_IDEAS_SPACE_ID || parsed.type === "idea") {
     const idea = await legacyIdea(auth.user, parsed.id);
     if (!idea) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
-    return NextResponse.json({ ok: true, item: serializeContentEntry(request, { legacyType: "idea", idea }) });
+    return NextResponse.json({ ok: true, item: serializeContentEntry(request, { legacyType: "idea", idea }, auth.user) });
   }
   const resolved = await contentEntryAccess(auth.user, params.spaceId, parsed.id);
   if (!resolved) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
-  return NextResponse.json({ ok: true, item: serializeContentEntry(request, resolved.entry) });
+  return NextResponse.json({ ok: true, item: serializeContentEntry(request, resolved.entry, auth.user) });
 }
 
 export async function PATCH(request: NextRequest, props: { params: Promise<{ spaceId: string; entryId: string }> }) {
@@ -77,8 +83,8 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ spa
       include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } }
     });
     await createWikiRevision(page.id, auth.user.id, "updated_content_space_api");
-    await logAction({ actorId: auth.user.id, action: "content_entry_updated_api", entityType: "wikiPage", entityId: page.id, title: `Tagebucheintrag geändert: ${page.title}`, href: serializeContentEntry(request, { legacyType: "wiki", page }).href });
-    return NextResponse.json({ ok: true, item: serializeContentEntry(request, { legacyType: "wiki", page }) });
+    await logAction({ actorId: auth.user.id, action: "content_entry_updated_api", entityType: "wikiPage", entityId: page.id, title: `Tagebucheintrag geändert: ${page.title}`, href: serializeContentEntry(request, { legacyType: "wiki", page }, auth.user).href });
+    return NextResponse.json({ ok: true, item: serializeContentEntry(request, { legacyType: "wiki", page }, auth.user) });
   }
 
   if (params.spaceId === LEGACY_IDEAS_SPACE_ID || parsed.type === "idea") {
@@ -94,7 +100,7 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ spa
       include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } }
     });
     await logAction({ actorId: auth.user.id, action: "content_entry_updated_api", entityType: "activity", entityId: idea.id, title: `Idee geändert: ${idea.title}`, href: `/ideas/${idea.slug}` });
-    return NextResponse.json({ ok: true, item: serializeContentEntry(request, { legacyType: "idea", idea }) });
+    return NextResponse.json({ ok: true, item: serializeContentEntry(request, { legacyType: "idea", idea }, auth.user) });
   }
 
   const resolved = await contentEntryAccess(auth.user, params.spaceId, parsed.id);
@@ -110,7 +116,7 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ spa
     include: { owner: { include: { profile: true } }, space: true, attachments: { include: { file: true }, orderBy: { createdAt: "asc" } } }
   });
   await logAction({ actorId: auth.user.id, action: "content_entry_updated_api", entityType: "contentEntry", entityId: entry.id, title: `Inhalt geändert: ${entry.title}`, href: `/content-spaces/${entry.spaceId}/entries/${entry.id}` });
-  return NextResponse.json({ ok: true, item: serializeContentEntry(request, entry) });
+  return NextResponse.json({ ok: true, item: serializeContentEntry(request, entry, auth.user) });
 }
 
 export async function DELETE(request: NextRequest, props: { params: Promise<{ spaceId: string; entryId: string }> }) {

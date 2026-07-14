@@ -49,5 +49,5 @@ export async function POST(request: NextRequest, props: { params: Promise<{ spac
     include: { owner: { include: { profile: true } }, space: true, attachments: { include: { file: true }, orderBy: { createdAt: "asc" } } }
   });
   await logAction({ actorId: auth.user.id, action: "content_entry_attachment_added_api", entityType: "contentEntry", entityId: updated.id, title: `Anlage hinzugefügt: ${updated.title}`, href: `/content-spaces/${updated.spaceId}/entries/${updated.id}` });
-  return NextResponse.json({ ok: true, item: serializeContentEntry(request, updated) }, { status: 201 });
+  return NextResponse.json({ ok: true, item: serializeContentEntry(request, updated, auth.user) }, { status: 201 });
 }
