@@ -594,3 +594,10 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Szenen, Spielsachen und Shopify-Produkte nennen Objektart, Titel und Auswahlzustand. Visuelle Thumbnails bleiben erhalten, werden innerhalb der bereits beschrifteten Toggles aber nicht doppelt vorgelesen.
 - Fastlane-Store-Verifier sowie Debug-Builds auf iPhone 17e und iPad mini (A17 Pro) bestanden. Schnellplanung, geoeffnete Details und grosse Schrift wurden visuell ohne Ueberlagerung geprueft.
 - Formularzustand, API-Vertrag, 15-Minuten-Raster, Draft-Schutz und Fehlererhaltung bleiben unveraendert. Keine Backend-, Datenbank-, Produktiv-, Store- oder TestFlight-Aenderung. Zyklus `4/5` nach Build 106.
+
+## Zyklus 34: VoiceOver und UI-Testziele der Kontoloeschung
+
+- Der native zweite Loeschschritt spricht den Zustand des Bestaetigungstexts, den laufenden destruktiven Request, die Unwiderruflichkeit und Fehler eindeutig. Die vorhandene zweistufige Loeschlogik, Eingabeerhaltung und der echte Backend-Loeschvertrag bleiben unveraendert.
+- Stabile Accessibility-Identifier fuer Eingabe und Loeschbutton ermoeglichen spaetere native UI-Automation ohne personenbezogene Werte. Der iOS-Verifier prueft sieben Regeln gezielt im `AccountDeletionView`-Segment.
+- Fastlane-Store-Verifier und Debug-Builds auf iPhone 17e sowie iPad mini (A17 Pro) bestanden. Der zweite Schritt wurde auf kleinem iPhone mit grosser Schrift und auf iPad visuell ohne Ueberlagerung geprueft.
+- Vor dem vereinbarten fuenften Zyklusupload meldete App Store Connect 6 Builds im rollierenden 24-Stunden-Fenster. Keine Backend-, Datenbank- oder Produktivdatenaenderung; TestFlight-Readback folgt nach dem Fastlane-Upload.
