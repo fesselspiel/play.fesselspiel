@@ -712,9 +712,9 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Beide gekoppelten physischen Apple-Geraete waren weiterhin `unavailable`. Face ID, App-Switcher-Overlay und der komplette Review-Zugang bleiben deshalb als On-Device-Endabnahme offen.
 - Rueckbau: Der Store-Altersfragebogen und die Build-Auswahl koennen in App Store Connect wieder geaendert werden; diese Dokumentationskorrektur kann separat revertiert werden. Es wurden keine Produktivdaten veraendert und keine Review-Einreichung erzeugt.
 
-## 2026-07-14 - Manuelle App-Store-Veroeffentlichung
+## 2026-07-14 - Automatische App-Store-Veroeffentlichung per Fastlane
 
-- Die vorbereitete App-Store-Version `1.0` war trotz noch offener Backend- und Hardware-Endabnahmen auf automatische Veroeffentlichung nach Apple-Freigabe gestellt. Dieser Zustand war technisch gueltig, aber fuer den geforderten kontrollierten und reversiblen Launch ungeeignet.
-- App Store Connect ist nun sichtbar und gespeichert auf `Diese Version manuell veroeffentlichen` gestellt. Der deaktivierte `Sichern`-Button nach dem Speichern und der ausgewaehlte Radiozustand bestaetigen die Persistenz. `Zur Pruefung hinzufuegen` wurde nicht betaetigt.
-- Sichtnachweis ohne Zugangsdaten: iOS-Artefakt `build/screenshots/app-store-manual-release-cycle2.png`. Ein erster Rohscreenshot mit Review-Zugangsfeldern wurde sofort lokal geloescht und weder dokumentiert noch versendet.
-- Rueckbau: Auf derselben Versionsseite kann bewusst wieder `automatisch veroeffentlichen` oder eine terminierte Veroeffentlichung gewaehlt und gespeichert werden. Keine App-, Backend-, Datenbank-, TestFlight- oder Produktivdatenaenderung.
+- Der Nutzer hat klargestellt, dass die App nach Apple-Genehmigung bewusst automatisch live gehen soll. Der kurzzeitig manuell gesetzte Zwischenzustand wurde deshalb zurueckgenommen; `AFTER_APPROVAL` ist der kanonische Sollwert.
+- Die iOS-Konfiguration speichert `releaseType=AFTER_APPROVAL` in `fastlane/metadata/distribution.json`. `fastlane ios store_prepare_version` setzt den Wert ueber die App-Store-Connect-API und verlangt beim unmittelbaren Readback denselben Zustand. Damit wird die Einstellung nicht mehr per Browser gepflegt.
+- Die Lane erzeugt weiterhin keine Review-Submission, keinen Binary-Upload und keine direkte Veroeffentlichung. Automatisch live geht erst eine spaeter ausdruecklich zur Pruefung eingereichte und von Apple genehmigte Version.
+- Rueckbau: Den Konfigurationswert bewusst auf `MANUAL` oder `SCHEDULED` setzen und dieselbe Lane ausfuehren; Fastfile-, Verifier- und Dokumentationsaenderung gemeinsam revertieren. Keine Backend-, Schema- oder Produktivdatenaenderung.
