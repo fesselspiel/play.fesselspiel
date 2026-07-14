@@ -238,16 +238,33 @@ function payloadForAudit(audit: AuditForPush) {
 
 function discretePushText(action: string) {
   if (isChatPushAction(action)) return { title: "Playplaner", body: "Du hast eine neue Nachricht." };
+  if (action === "password_reset_requested") return { title: "Playplaner", body: "Du hast eine neue Kontobenachrichtigung." };
+  if (action === "item_shared" || action === "item_share_opened") return { title: "Playplaner", body: "Ein geteilter Eintrag wurde aktualisiert." };
   if (action.startsWith("activity_") || action.startsWith("self_bondage_order_") || action.startsWith("session_")) {
     return { title: "Playplaner", body: "Eine gemeinsame Planung wurde aktualisiert." };
   }
   return { title: "Playplaner", body: "In Playplaner gibt es eine neue Aktivitaet." };
 }
 
+function neutralPushTitle(action: string) {
+  if (isChatPushAction(action)) return "Neue Nachricht";
+  if (action === "password_reset_requested") return "Passwort zuruecksetzen";
+  if (action === "item_shared") return "Eintrag geteilt";
+  if (action === "item_share_opened") return "Geteilter Eintrag geoeffnet";
+  if (action.startsWith("activity_") || action.startsWith("self_bondage_order_") || action.startsWith("session_")) {
+    return "Planung aktualisiert";
+  }
+  return "Neue Aktivitaet";
+}
+
+function normalizedPreviewMode(previewMode?: string | null) {
+  return previewMode === "FULL" ? "FULL" : previewMode === "TITLE" ? "TITLE" : "DISCREET";
+}
+
 function payloadForAuditMessage(audit: AuditForPush, title: string, body: string, soundOverride?: string | null, previewMode = "DISCREET") {
   const fullTarget = targetForAudit(audit);
   const sound = soundOverride ? normalizeSound(soundOverride) : soundForAction(audit.action);
-  const mode = previewMode === "FULL" ? "FULL" : previewMode === "TITLE" ? "TITLE" : "DISCREET";
+  const mode = normalizedPreviewMode(previewMode);
   const protectsContent = mode !== "FULL";
   const target = protectsContent
     ? { screen: fullTarget.screen, id: fullTarget.id, href: null }
@@ -256,7 +273,7 @@ function payloadForAuditMessage(audit: AuditForPush, title: string, body: string
   const alert = mode === "FULL"
     ? { title, body }
     : mode === "TITLE"
-      ? { title: actionLabel(audit.action), body: discrete.body }
+      ? { title: neutralPushTitle(audit.action), body: discrete.body }
       : discrete;
   return {
     aps: {
@@ -266,8 +283,8 @@ function payloadForAuditMessage(audit: AuditForPush, title: string, body: string
     type: pushTypeForAction(audit.action),
     target,
     auditId: audit.id,
-    eventId: audit.entityType === "event" || audit.action.startsWith("event_") ? audit.entityId : null,
-    threadId: stringDetail(auditDetails(audit), ["threadId", "telegramThreadId", "messageThreadId"]),
+    eventId: !protectsContent && (audit.entityType === "event" || audit.action.startsWith("event_")) ? audit.entityId : null,
+    threadId: protectsContent ? null : stringDetail(auditDetails(audit), ["threadId", "telegramThreadId", "messageThreadId"]),
     circleId: stringDetail(auditDetails(audit), ["circleId"]),
     circleName: protectsContent ? null : stringDetail(auditDetails(audit), ["circleName"]),
     imageUrl: null,
@@ -279,34 +296,40 @@ function payloadForAuditMessage(audit: AuditForPush, title: string, body: string
   };
 }
 
-function payloadForTest(input: Required<Pick<TestPushInput, "title" | "body">> & Pick<TestPushInput, "tenantId" | "actorId" | "sound" | "action" | "href" | "targetScreen" | "targetId" | "entityType" | "entityId">) {
+function payloadForTest(input: Required<Pick<TestPushInput, "title" | "body">> & Pick<TestPushInput, "tenantId" | "actorId" | "sound" | "action" | "href" | "targetScreen" | "targetId" | "entityType" | "entityId">, previewMode = "DISCREET") {
   const sound = normalizeSound(input.sound);
+  const mode = normalizedPreviewMode(previewMode);
+  const protectsContent = mode !== "FULL";
+  const action = input.action || "native_push_test";
   const href = input.href || "/settings/push";
   const entityType = input.entityType || "tenant";
   const entityId = input.entityId || input.tenantId;
+  const discrete = discretePushText(action);
+  const alert = mode === "FULL"
+    ? { title: input.title, body: input.body }
+    : mode === "TITLE"
+      ? { title: neutralPushTitle(action), body: discrete.body }
+      : discrete;
   return {
     aps: {
-      alert: {
-        title: input.title,
-        body: input.body
-      },
+      alert,
       sound
     },
-    type: pushTypeForAction(input.action || "native_push_test"),
+    type: pushTypeForAction(action),
     target: {
       screen: input.targetScreen || "setup",
       id: input.targetId ?? entityId,
-      href
+      href: protectsContent ? null : href
     },
     eventId: null,
     threadId: null,
     imageUrl: null,
     sound,
-    action: input.action || "native_push_test",
-    entityType,
-    entityId,
-    href,
-    actorId: input.actorId
+    action: protectsContent ? null : action,
+    entityType: protectsContent ? null : entityType,
+    entityId: protectsContent ? null : entityId,
+    href: protectsContent ? null : href,
+    actorId: protectsContent ? null : input.actorId
   };
 }
 
@@ -885,14 +908,12 @@ export async function sendNativeTestPush(input: TestPushInput) {
       userId: { in: uniqueUserIds },
       ...(uniqueDeviceIds.length ? { id: { in: uniqueDeviceIds } } : {}),
       disabledAt: null
-    }
+    },
+    include: { user: { select: { settings: { select: { notificationPreviewMode: true } } } } }
   });
   if (!devices.length) return { sent: 0, failed: 0, devices: 0, error: "missing_devices" };
   const startedAt = new Date();
-  const delivery = {
-    auditId: null,
-    action: input.action || "native_push_test",
-    payload: payloadForTest({
+  const payloadInput = {
       tenantId: input.tenantId,
       actorId: input.actorId,
       title: input.title?.trim() || "Playplaner Test",
@@ -904,13 +925,29 @@ export async function sendNativeTestPush(input: TestPushInput) {
       targetId: input.targetId,
       entityType: input.entityType,
       entityId: input.entityId
-    })
   };
-  const result = await sendToNativeDevices(devices, delivery, config);
+  const groups = new Map<string, typeof devices>();
+  for (const device of devices) {
+    const mode = normalizedPreviewMode(device.user.settings?.notificationPreviewMode);
+    groups.set(mode, [...(groups.get(mode) || []), device]);
+  }
+  let result = { sent: 0, failed: 0, devices: 0 };
+  for (const [mode, targetDevices] of groups) {
+    const partial = await sendToNativeDevices(targetDevices, {
+      auditId: null,
+      action: input.action || "native_push_test",
+      payload: payloadForTest(payloadInput, mode)
+    }, config);
+    result = {
+      sent: result.sent + partial.sent,
+      failed: result.failed + partial.failed,
+      devices: result.devices + partial.devices
+    };
+  }
   const attempts = await prisma.nativePushDelivery.findMany({
     where: {
       tenantId: input.tenantId,
-      action: delivery.action,
+      action: input.action || "native_push_test",
       deviceId: { in: devices.map((device) => device.id) },
       createdAt: { gte: startedAt }
     },

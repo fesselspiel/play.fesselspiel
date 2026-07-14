@@ -30,6 +30,7 @@ const contentSpaceDetailRoute = read("src/app/api/external/content-spaces/[space
 const dataTransfer = read("src/lib/data-transfer.ts");
 const profileSettings = read("src/app/profile/page.tsx");
 const privacySettingsRoute = read("src/app/api/external/account/privacy-settings/route.ts");
+const nativePush = read("src/lib/native-push-notifications.ts");
 
 check(files.includes("await assertMalwareFree(bytes)"), "Uploads muessen vor dem Speichern gescannt werden");
 check(files.includes('scanStatus: "CLEAN" as const'), "Dateizugriff muss auf CLEAN begrenzt sein");
@@ -65,6 +66,12 @@ check(schema.includes("showSensitiveMedia") && profileSettings.includes('name="s
 check(privacySettingsRoute.includes("showSensitiveMedia"), "iOS muss die Web-Einstellung fuer sensible Medien lesen koennen");
 check(!privacySettingsRoute.includes("showSensitiveMedia: z.boolean"), "Die iOS-API darf sensible Medien nicht selbst freischalten");
 check(privacySettingsRoute.includes("}).strict()"), "Die iOS-API muss unbekannte Privacy-Felder ablehnen");
+check(nativePush.includes('function normalizedPreviewMode') && nativePush.includes('|| "DISCREET"'), "Push-Vorschauen muessen standardmaessig diskret sein");
+check(nativePush.includes('include: { user: { select: { settings: { select: { notificationPreviewMode: true } } } } }'), "Auch direkte Pushes muessen die Vorschau-Einstellung des Empfaengers laden");
+check(nativePush.includes('payloadForTest(payloadInput, mode)'), "Direkte Pushes muessen pro Vorschau-Modus erzeugt werden");
+check(nativePush.includes('href: protectsContent ? null : href') && nativePush.includes('actorId: protectsContent ? null : input.actorId'), "Diskrete Pushes duerfen keine URL oder Actor-ID uebertragen");
+check(nativePush.includes('eventId: !protectsContent') && nativePush.includes('threadId: protectsContent ? null'), "Geschuetzte Regel-Pushes duerfen keine Event- oder Thread-ID uebertragen");
+check(nativePush.includes('neutralPushTitle(audit.action)') && nativePush.includes('neutralPushTitle(action)'), "Titelvorschauen muessen neutrale Titel statt fachlicher Rohbezeichnungen verwenden");
 
 // There are no paid digital features in the reviewed iOS product. Shopify is
 // a catalogue for physical products. Introducing payment SDKs, subscription
