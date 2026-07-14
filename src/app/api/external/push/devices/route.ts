@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requestValues, requireApiUser } from "@/lib/external-api";
+import { deleteVisiblePushDevice } from "@/lib/native-push-devices";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -90,7 +91,15 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
+  const blocked = apiFeatureGate(auth.user, "externalApi");
+  if (blocked) return blocked;
   const values = await requestValues(request);
+  const deviceId = String(values.get("deviceId") || "").trim();
+  if (deviceId) {
+    const device = await deleteVisiblePushDevice(auth.user, deviceId);
+    if (!device) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+    return NextResponse.json({ ok: true, id: device.id });
+  }
   const platform = String(values.get("platform") || "ios").toLowerCase();
   if (!platforms.has(platform)) return NextResponse.json({ ok: false, error: "unsupported_platform" }, { status: 400 });
   const deviceToken = cleanDeviceToken(platform, String(values.get("deviceToken") || ""));

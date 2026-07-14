@@ -667,3 +667,12 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Der zentrale Report-Resolver akzeptiert `calendarEvent` und `calendarEntry`, prueft Tenant, Owner-Sichtbarkeit, Blockierung und Moderationsstatus und bestimmt `reportedUserId` ausschliesslich serverseitig aus `Event.ownerId`.
 - `scripts/verify-app-store-compliance.js` verlangt Rechte-Shape, zentralen Block-/Moderationsfilter, Nutzung in der Listenroute und serverseitige Report-Aufloesung fail-closed. Backend-TypeScript und `COMPLIANCE_STATIC_OK` bestanden lokal.
 - Keine Schema- oder Datenmigration und kein Produktivdateneingriff. Rueckbau: `src/lib/calendar-event-safety.ts`, Serializer-/Routenanpassungen, Resolverzweig und Verifierchecks gemeinsam revertieren. Erst ein bestaetigtes Deployment mit reversiblem Live-Smoke darf als produktiv abgenommen gelten.
+
+## Push-Geraete gezielt loeschen ab 2026-07-14
+
+- Neuer Vertrag: `DELETE /api/external/push/devices/{id}` entfernt ein aktives oder bereits deaktiviertes Push-Geraet physisch. Der kompatible Collection-Delete akzeptiert additiv `{deviceId}`; der vorhandene tokenbasierte Logoutpfad deaktiviert weiterhin nur das aktuelle Geraet.
+- Berechtigung: Normale Nutzer sind auf `userId` und ihren Tenant begrenzt. Admins/Superadmins koennen bei aktivem Tenant-/View-Context Geraete dieser Seite entfernen; ohne Tenant-Kontext bleiben auch sie auf eigene Geraete begrenzt. Nicht sichtbare IDs liefern `404 not_found` und verraten keine fremden Geraete.
+- `NativePushDelivery.deviceId` ist optional und besitzt `onDelete: SetNull`; historische Zustellnachweise bleiben deshalb ohne das entfernte Geraet erhalten. Das datensparsame Audit enthaelt nur Plattform, APNs-Umgebung und den vorherigen Aktivstatus, nie Device-Token oder Geraetename.
+- `native_push_device_deleted` wird als technischer Vorgang aus dem normalen Eventfeed ausgeschlossen. Capabilities weisen den ID-Vertrag explizit aus.
+- Statische Absicherung prueft Route, Eigentums-/Tenant-Scope, physisches Delete, Body-Fallback, Audit, Capability und Feed-Ausschluss. TypeScript und `COMPLIANCE_STATIC_OK` bestanden. Kein Schemawechsel, keine Migration und keine Produktivdaten-Aenderung; Deploy- und reversibler Live-Smoke mit temporaeren Geraeten stehen noch aus.
+- Rueckbau: `src/lib/native-push-devices.ts`, die dynamische Route, den `{deviceId}`-Zweig, Capability-/Audit-Ergaenzung und den Feed-Ausschluss als Einheit revertieren. Bestehende tokenbasierte Deaktivierung bleibt davon unabhaengig.

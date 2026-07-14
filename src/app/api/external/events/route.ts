@@ -81,6 +81,7 @@ export async function GET(request: NextRequest) {
             "telegram_notification_failed",
             "external_push_sent",
             "external_push_failed",
+            "native_push_device_deleted",
             "entity_like_anchor",
             "tracker_quota_reminder",
             "play_ready_expired"

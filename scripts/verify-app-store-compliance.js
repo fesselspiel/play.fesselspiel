@@ -41,6 +41,10 @@ const dataTransfer = read("src/lib/data-transfer.ts");
 const profileSettings = read("src/app/profile/page.tsx");
 const privacySettingsRoute = read("src/app/api/external/account/privacy-settings/route.ts");
 const nativePush = read("src/lib/native-push-notifications.ts");
+const nativePushDevices = read("src/lib/native-push-devices.ts");
+const nativePushDeviceDeleteRoute = read("src/app/api/external/push/devices/[id]/route.ts");
+const nativePushDevicesRoute = read("src/app/api/external/push/devices/route.ts");
+const eventsRoute = read("src/app/api/external/events/route.ts");
 
 check(files.includes("await assertMalwareFree(bytes)"), "Uploads muessen vor dem Speichern gescannt werden");
 check(files.includes('scanStatus: "CLEAN" as const'), "Dateizugriff muss auf CLEAN begrenzt sein");
@@ -98,6 +102,12 @@ check(nativePush.includes('payloadForTest(payloadInput, mode)'), "Direkte Pushes
 check(nativePush.includes('href: protectsContent ? null : href') && nativePush.includes('actorId: protectsContent ? null : input.actorId'), "Diskrete Pushes duerfen keine URL oder Actor-ID uebertragen");
 check(nativePush.includes('eventId: !protectsContent') && nativePush.includes('threadId: protectsContent ? null'), "Geschuetzte Regel-Pushes duerfen keine Event- oder Thread-ID uebertragen");
 check(nativePush.includes('neutralPushTitle(audit.action)') && nativePush.includes('neutralPushTitle(action)'), "Titelvorschauen muessen neutrale Titel statt fachlicher Rohbezeichnungen verwenden");
+check(nativePushDeviceDeleteRoute.includes("deleteVisiblePushDevice(auth.user, params.id)"), "Push-Geraete brauchen einen gezielten ID-basierten Loeschvertrag");
+check(nativePushDevices.includes('userId: user.id') && nativePushDevices.includes('tenantId: user.tenantId'), "Push-Geraete duerfen nur im eigenen oder aktuellen Admin-Mandanten geloescht werden");
+check(nativePushDevices.includes("nativePushDevice.delete") && nativePushDevices.includes('action: "native_push_device_deleted"'), "Push-Geraete muessen physisch und datensparsam protokolliert geloescht werden");
+check(nativePushDevicesRoute.includes('values.get("deviceId")') && nativePushDevicesRoute.includes("deleteVisiblePushDevice(auth.user, deviceId)"), "Der dokumentierte Body-Fallback fuer Push-Geraete muss ID-basiert funktionieren");
+check(capabilities.includes('{ method: "DELETE", path: "/api/external/push/devices/{id}"'), "Capabilities muessen den gezielten Push-Geraete-Delete ausweisen");
+check(eventsRoute.includes('"native_push_device_deleted"'), "Technische Push-Geraete-Loeschungen duerfen den normalen Feed nicht fuellen");
 
 // There are no paid digital features in the reviewed iOS product. Shopify is
 // a catalogue for physical products. Introducing payment SDKs, subscription

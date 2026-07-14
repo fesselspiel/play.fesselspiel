@@ -796,10 +796,11 @@ export const capabilities: readonly Capability[] = [
         description: "Listet native App-Geraete, sendet Test-Pushs und liefert das Versandprotokoll fuer iOS/Android.",
         apiEndpoints: [
           { method: "GET", path: "/api/external/push/devices", description: "Eigene bzw. admin-sichtbare native Push-Geraete listen." },
+          { method: "DELETE", path: "/api/external/push/devices/{id}", description: "Eigenes bzw. admin-sichtbares aktives oder abgelaufenes Push-Geraet dauerhaft entfernen." },
           { method: "POST", path: "/api/external/push/test", description: "Native Test-Pushnachricht senden. Body: deviceId?, userId?, circleId?, title?, body?, sound?, target?." },
           { method: "GET", path: "/api/external/push/logs?limit=50", description: "Native Push-Versandprotokoll lesen, optional mit deviceId." }
         ],
-        auditActions: ["native_push_test", "native_push_notification_sent", "native_push_notification_failed"]
+        auditActions: ["native_push_test", "native_push_notification_sent", "native_push_notification_failed", "native_push_device_deleted"]
       }
     ]
   },

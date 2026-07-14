@@ -1116,3 +1116,9 @@ Details:
 - Benutzerdefinierte Bereiche werden beim Loeschen archiviert und ihre Zuordnungen verlustfrei in die Standardbereiche verschoben.
 - Datenexport, Zirkel-Austritt, Capabilities, nativer Toolkatalog und statischer App-Store-Compliance-Test wurden nachgezogen.
 - Reversible Datenbankschritte: `prisma/manual-migrations/20260714_content_spaces/up.sql` und `down.sql`. Beide Richtungen wurden isoliert gegen PostgreSQL 16 geprueft; bestehende `WikiPage`- und `ActivityPlan`-Tabellen blieben beim Rueckbau erhalten.
+
+## 2026-07-14: Push-Geraete gezielt entfernen
+
+- `DELETE /api/external/push/devices/{id}` entfernt aktive und deaktivierte Geraete mit User-/Tenant-Scope; der Collection-Endpunkt akzeptiert `{deviceId}` als kompatiblen Alias.
+- Tokenbasiertes DELETE bleibt eine reine Deaktivierung fuer Logout. Zustellprotokolle bleiben durch `onDelete: SetNull` erhalten.
+- Capabilities, Mobile-Dokumentation und statischer Compliance-Verifier wurden ergaenzt. Das datensparsame Audit wird nicht im normalen Timeline-Feed angezeigt. Keine Migration und keine Produktivdaten-Aenderung.

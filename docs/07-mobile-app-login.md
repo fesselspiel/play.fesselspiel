@@ -419,6 +419,26 @@ Antwort:
 
 `devices` ist ein Alias von `items` fuer einfache App-Kompatibilitaet.
 
+### Geraet entfernen
+
+```http
+DELETE /api/external/push/devices/{deviceId}
+Authorization: Bearer fsp_...
+```
+
+Der Endpunkt entfernt aktive und bereits deaktivierte Geraete physisch. Normale Benutzer duerfen nur eigene Geraete entfernen; Admins nur Geraete der aktuell aktiven Seite. Ohne aktiven Seitenkontext bleibt auch ein Admin auf eigene Geraete begrenzt. Zustellprotokolle bleiben erhalten, enthalten danach aber keine Geraetebeziehung mehr.
+
+Antwort:
+
+```json
+{
+  "ok": true,
+  "id": "device_id"
+}
+```
+
+Als Kompatibilitaetsalias akzeptiert `DELETE /api/external/push/devices` den JSON-Body `{ "deviceId": "device_id" }`. Der bestehende Body mit `platform` und `deviceToken` bedeutet weiterhin nur Abmelden/Deaktivieren und wird beim Logout verwendet.
+
 ### Test-Push senden
 
 ```http
