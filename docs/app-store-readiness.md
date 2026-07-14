@@ -50,7 +50,7 @@ Generische Inhaltsbereiche sind additiv modelliert: bestehende Wiki-/Tagebuchsei
 | 15 Tests | Technisch erfuellt, physisch offen | statische, Live-, Rollen-, Rate-Limit-, Upload-, iPhone-/iPad- und Store-Checks gruen | kompletter realer Hardware-Regressionslauf |
 | 16 Dokumentation | Erfuellt | Compliance-/Rueckbauakte, Readiness, Datenschutzkarte, Loeschung, Moderation, iOS-Sicherheit und Review Notes | rechtliche Inhalte freigeben |
 
-Der Fastlane-Live-Preflight bestaetigt Version `1.0`, Build `111`, `PREPARE_FOR_SUBMISSION`, `AFTER_APPROVAL`, noch keine Submission, korrekte geschuetzte Review-Informationen, drei iPhone- und drei iPad-Screenshots sowie 15 veroeffentlichte trackingfreie Privacy-Deklarationen. Die Submit-Lane bleibt bis zu den beiden offenen realen Endabnahmen technisch gesperrt.
+Der Fastlane-Live-Preflight bestaetigt Version `1.0`, Build `111`, `PREPARE_FOR_SUBMISSION`, `AFTER_APPROVAL`, noch keine Submission, korrekte geschuetzte Review-Informationen, drei iPhone- und drei iPad-Screenshots sowie 15 veroeffentlichte trackingfreie Privacy-Deklarationen. Die Submit-Lane bleibt technisch gesperrt, bis eine lokale Datei mit Modus `600` exakt fuer Version 1.0/Build 111 neun getrennte reale Endabnahmen bestaetigt: Face ID, Privacy Overlay, Inaktivitaetssperre, Kernflows, Rechtstexte, besetzte Kontakte, Moderationsbetrieb, Drittanbieterangaben und Product Page.
 
 ## Kein hartes Standard-Altersgate
 
