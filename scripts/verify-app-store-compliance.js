@@ -28,6 +28,8 @@ const contentSpaces = read("src/lib/content-spaces.ts");
 const contentSpaceRoute = read("src/app/api/external/content-spaces/route.ts");
 const contentSpaceDetailRoute = read("src/app/api/external/content-spaces/[spaceId]/route.ts");
 const dataTransfer = read("src/lib/data-transfer.ts");
+const profileSettings = read("src/app/profile/page.tsx");
+const privacySettingsRoute = read("src/app/api/external/account/privacy-settings/route.ts");
 
 check(files.includes("await assertMalwareFree(bytes)"), "Uploads muessen vor dem Speichern gescannt werden");
 check(files.includes('scanStatus: "CLEAN" as const'), "Dateizugriff muss auf CLEAN begrenzt sein");
@@ -59,6 +61,9 @@ check(schema.includes("model ContentSpace {") && schema.includes("model ContentE
 check(contentSpaces.includes("LEGACY_WIKI_SPACE_ID") && contentSpaces.includes("LEGACY_IDEAS_SPACE_ID"), "Bestehende Tagebuch-/Wiki- und Ideeninhalte muessen als verlustfreie virtuelle Bereiche sichtbar bleiben");
 check(contentSpaceRoute.includes("allowedUserIds") && contentSpaceRoute.includes("allowedCircleIds") && contentSpaceDetailRoute.includes("archivedAt: new Date()"), "Inhaltsbereiche brauchen Freigaben und verlustfreies Archivieren");
 check(dataTransfer.includes("contentSpaces:") && dataTransfer.includes("contentSpaceEntries:") && dataTransfer.includes("contentEntryAttachments:"), "Datenexport muss Inhaltsbereiche, Eintraege und Anlagen enthalten");
+check(schema.includes("showSensitiveMedia") && profileSettings.includes('name="showSensitiveMedia"'), "Sensible Medien brauchen eine persoenliche Web-Einstellung");
+check(privacySettingsRoute.includes("showSensitiveMedia"), "iOS muss die Web-Einstellung fuer sensible Medien lesen koennen");
+check(!privacySettingsRoute.includes("showSensitiveMedia: z.boolean"), "Die iOS-API darf sensible Medien nicht selbst freischalten");
 
 // There are no paid digital features in the reviewed iOS product. Shopify is
 // a catalogue for physical products. Introducing payment SDKs, subscription

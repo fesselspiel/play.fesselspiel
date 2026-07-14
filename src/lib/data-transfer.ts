@@ -272,6 +272,7 @@ export async function buildPersonalDataExport(user: AccessUser) {
             shareMessageTemplate: true,
             timeOffsetMinutes: true,
             notificationPreviewMode: true,
+            showSensitiveMedia: true,
             createdAt: true,
             updatedAt: true
           }

@@ -9,9 +9,10 @@ const SettingsSchema = z.object({
   notificationPreviewMode: z.enum(["DISCREET", "TITLE", "FULL"])
 });
 
-function serialize(mode?: string | null) {
+function serialize(mode?: string | null, showSensitiveMedia = false) {
   return {
-    notificationPreviewMode: mode === "FULL" ? "FULL" : mode === "TITLE" ? "TITLE" : "DISCREET"
+    notificationPreviewMode: mode === "FULL" ? "FULL" : mode === "TITLE" ? "TITLE" : "DISCREET",
+    showSensitiveMedia
   };
 }
 
@@ -20,9 +21,9 @@ export async function GET(request: NextRequest) {
   if ("response" in auth) return auth.response;
   const settings = await prisma.userSettings.findUnique({
     where: { userId: auth.user.id },
-    select: { notificationPreviewMode: true }
+    select: { notificationPreviewMode: true, showSensitiveMedia: true }
   });
-  return NextResponse.json({ ok: true, settings: serialize(settings?.notificationPreviewMode) });
+  return NextResponse.json({ ok: true, settings: serialize(settings?.notificationPreviewMode, settings?.showSensitiveMedia) });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -34,7 +35,7 @@ export async function PATCH(request: NextRequest) {
     where: { userId: auth.user.id },
     update: { notificationPreviewMode: parsed.data.notificationPreviewMode },
     create: { userId: auth.user.id, notificationPreviewMode: parsed.data.notificationPreviewMode },
-    select: { notificationPreviewMode: true }
+    select: { notificationPreviewMode: true, showSensitiveMedia: true }
   });
-  return NextResponse.json({ ok: true, settings: serialize(settings.notificationPreviewMode) });
+  return NextResponse.json({ ok: true, settings: serialize(settings.notificationPreviewMode, settings.showSensitiveMedia) });
 }

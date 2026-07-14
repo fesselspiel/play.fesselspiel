@@ -1,0 +1,2 @@
+ALTER TABLE "UserSettings"
+  ADD COLUMN IF NOT EXISTS "showSensitiveMedia" BOOLEAN NOT NULL DEFAULT false;

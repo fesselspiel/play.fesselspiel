@@ -458,6 +458,7 @@ model UserSettings {
   inviteQuota               Int                        @default(3)
   timeOffsetMinutes         Int                        @default(0)
   notificationPreviewMode   String                     @default("DISCREET")
+  showSensitiveMedia        Boolean                    @default(false)
   telegramBotTokenEnc       String?
   openAiApiKeyEnc           String?
   telegramChats             TelegramChat[]

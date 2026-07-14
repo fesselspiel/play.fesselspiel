@@ -78,12 +78,14 @@ async function saveProfile(formData: FormData) {
           update: {
             theme: normalizeTheme(String(formData.get("theme") || "")),
             darkMode: normalizeThemeMode(String(formData.get("darkMode") || "")) === "dark",
+            showSensitiveMedia: formData.get("showSensitiveMedia") === "on",
             shareDefaultChannel: String(formData.get("shareDefaultChannel") || "all"),
             shareMessageTemplate: String(formData.get("shareMessageTemplate") || "").trim() || "Schau dir das an: {title}\n{url}"
           },
           create: {
             theme: normalizeTheme(String(formData.get("theme") || "")),
             darkMode: normalizeThemeMode(String(formData.get("darkMode") || "")) === "dark",
+            showSensitiveMedia: formData.get("showSensitiveMedia") === "on",
             shareDefaultChannel: String(formData.get("shareDefaultChannel") || "all"),
             shareMessageTemplate: String(formData.get("shareMessageTemplate") || "").trim() || "Schau dir das an: {title}\n{url}"
           }
@@ -263,6 +265,28 @@ export default async function ProfilePage(
             imageCropAspect="square"
           />
           <ThemePicker activeTheme={activeTheme} activeMode={activeMode} />
+          <details id="media-privacy" className="rounded-lg border border-line bg-paper p-4">
+            <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Private Medien</summary>
+            <div className="mt-4 space-y-3">
+              <label className="flex items-start gap-3 rounded-md border border-line bg-surface p-3 text-sm">
+                <input
+                  name="showSensitiveMedia"
+                  type="checkbox"
+                  defaultChecked={user.settings?.showSensitiveMedia === true}
+                  className="mt-0.5 h-5 w-5 shrink-0 accent-redbrand"
+                />
+                <span>
+                  <span className="block font-semibold text-ink">Nicht eingestufte private Bilder direkt anzeigen</span>
+                  <span className="mt-1 block leading-6 text-graphite">
+                    Gilt nur fuer deine eigene Ansicht in bekannten privaten Kreisen. Niemand Drittes muss Bilder freigeben oder sieht sie zur Kontrolle.
+                  </span>
+                </span>
+              </label>
+              <p className="text-xs leading-5 text-graphite">
+                Ohne diese Auswahl bleiben nicht eingestufte Bilder in der App verdeckt. Grafisch explizite sowie technisch gesperrte Inhalte bleiben in iOS immer verborgen und sind nur auf der Website im berechtigten privaten Bereich erreichbar.
+              </p>
+            </div>
+          </details>
           <details className="rounded-lg border border-line bg-paper p-4">
             <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Teilen konfigurieren</summary>
             <div className="mt-4 grid gap-4">

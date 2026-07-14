@@ -9,6 +9,7 @@ Stand: 2026-07-14
 | Planung und Zustimmung | Vorschlag, Termin, Status, Revision | Berechtigte Beteiligte | Bis Einzel- oder Kontoloeschung | Ablehnen, Gegenvorschlag, Widerruf |
 | Chat und Kommentare | Private Kommunikation | Gewaehlter Kreis/Empfaenger | Bis Inhalt- oder Kontoloeschung | Loeschen, melden, blockieren |
 | Bilder, Videos, Alben | Private Dokumentation | Gemaess PRIVATE/PARTNER/SHARED | Datei und Datensatz werden gemeinsam bereinigt | Sichtbarkeit, Loeschen, melden |
+| Persoenliche Medienansicht | `showSensitiveMedia` entscheidet nur, ob nicht eingestufte private Medien fuer diesen Benutzer in iOS direkt sichtbar sind | Nur eigenes Konto | Mit Kontoloeschung | Ausschliesslich auf der Website aenderbar; iOS liest den Zustand |
 | Tracker und Kalender | Zeit-/Aktivitaetsdokumentation | Nutzer und freigegebene Kreise | Bis Eintrag- oder Kontoloeschung | Bearbeiten, loeschen, exportieren |
 | Tagebuch, Ideen, Sammlungen | Persoenliche Dokumentation | Gewaehlte Freigabe | Bis Inhalt- oder Kontoloeschung | Bearbeiten, Freigabe, loeschen |
 | Push-Geraet | APNs-Zustellung | Apple APNs, Server | Bis Deaktivierung, Logout oder Kontoloeschung | Geraet deaktivieren, Push widerrufen |
@@ -23,6 +24,7 @@ Stand: 2026-07-14
 
 - API-Token nur als Bearer-Header; iOS speichert sie im Keychain.
 - Direkte Datei-URLs pruefen Tenant, Kreis, Sichtbarkeit, Blockierung und Quarantaene.
+- Die Medienansicht benoetigt keine Freigabe durch Dritte. Grafisch explizite und quarantinisierte Inhalte bleiben unabhaengig von der persoenlichen Einstellung in iOS verborgen.
 - Diskrete Push-Vorschau ist Standard und enthaelt keine privaten Titel, Notizen oder Medien.
 - Optionale Einwilligungen fuer Telegram, OpenAI, Push und Analyse werden getrennt gespeichert und sind widerrufbar.
 - Kontoloeschung sperrt neue Logins, widerruft Tokens/Geraete und bereinigt relationale sowie physische Daten idempotent.
