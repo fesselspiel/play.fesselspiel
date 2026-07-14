@@ -44,3 +44,9 @@ Die regulaere iOS-Konfiguration verwendet kein zusaetzliches hartes Altersgate. 
 - Fehlgeschlagene Logins schreiben keine Kennung oder IP in Auditlogs. Die iOS-App uebersetzt HTTP 429 in einen ruhigen Nutzerhinweis und behaelt Eingaben.
 - API-Tokens erscheinen nicht in URLs, Browser-Historie, Capability-Beispielen, Multipartfeldern oder Mobile-Dokumentationsbeispielen. Die externe Einladungserstellung ist ein Bearer-authentifizierter POST.
 - Reproduzierbare Nachweise: `npm run test:compliance:static` und `npm run test:rate-limit:live`; reversible Migration unter `prisma/manual-migrations/20260714_security_rate_limits/`.
+
+## Gezielter VoiceOver-Nachweis 2026-07-14
+
+- Der kompakte Dashboard-Feed bietet alle sichtbaren Interaktionen auch als benannte VoiceOver-Aktionen; Medienkacheln und Albumfilter besitzen gesprochene Typ-, Schutz-, Kommentar-, Auswahl- und Mengeninformationen.
+- `verify_store` sichert diese zentralen Beschriftungen fail-closed ab. iPhone- und iPad-Simulator-Builds bestanden, der Dark-Mode-Feed wurde auf beiden Geraeteklassen visuell geprueft.
+- Dies ist bewusst kein vollstaendiger VoiceOver-End-to-End-Nachweis. Die App-Store-Accessibility-Deklaration bleibt fuer VoiceOver bis zur kompletten Abnahme aller haeufigen Aufgaben auf `false`.

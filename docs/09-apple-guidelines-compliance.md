@@ -554,3 +554,12 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Fastlane-Debug-Builds auf iPhone 17e und iPad mini (A17 Pro) sowie ein produktionsnaher Fastlane-Release-Simulator-Build auf iPhone 17 bestanden. Chat-Anfragekarte und Hauptaktionen wurden im Dark Mode auf beiden Geraeteklassen sowie auf dem kleinen iPhone mit sehr grosser Schrift geprueft.
 - App Store Connect liest fuer iPhone und iPad jetzt `Dark Interface=true` und `Reduced Motion=true`; alle nicht vollstaendig auditierten Merkmale bleiben `false`. Beide Deklarationen bleiben bis zum ersten App-Store-Release erwartungsgemaess `DRAFT`.
 - Rueckbau: iOS-Bewegungsschutz und Verifier revertieren, `supportsReducedMotion=false` synchronisieren. Keine Backend-, Datenbank-, Produktivdaten-, Review- oder TestFlight-Aenderung. Zyklus `4/5` nach Build 105.
+
+## Zyklus 29: Benannte VoiceOver-Aktionen im Feed und in Medien
+
+- Feedzeilen stellen ihre sichtbaren Funktionen jetzt als benannte VoiceOver-Aktionen bereit: Oeffnen, Herz geben/entfernen, Kommentieren/Kommentare oeffnen, Mehrfachauswahl, Auswahl aufheben und Ausblenden. Auswahlzustand, Detail und Zeitpunkt werden gesprochen; nicht oeffenbare Eintraege erhalten keinen falschen Oeffnen-Hinweis.
+- Medienkacheln sprechen Typ, Titel, Schutzstatus und Kommentaranzahl. Albumfilter melden Auswahlzustand und Medienanzahl. Damit bleiben die kompakten visuellen Zeilen erhalten, ohne zentrale Funktionen fuer Screenreader zu verbergen.
+- Der Store-Verifier stoppt, wenn diese zentralen Aktionen oder Beschriftungen entfernt werden. `supportsVoiceover` bleibt dennoch konservativ `false`, bis die komplette App mit VoiceOver durch alle haeufigen Aufgaben abgenommen wurde.
+- Fastlane-Store-Verifier und Debug-Simulator-Builds auf iPhone 17e und iPad mini (A17 Pro) bestanden. Der Feed wurde im Dark Mode auf beiden Geraeteklassen visuell geprueft.
+- Version `1.0 (106)` wurde ausschliesslich ueber Fastlane archiviert, signiert und an App Store Connect uebertragen. Apple bestaetigte Build-ID `643f6807-3498-4a53-b3ba-303f93b7ae63`, Status `VALID`, `usesNonExemptEncryption=false`, `expired=false` und Uploadzeit `2026-07-14T04:52:01-07:00`. Danach lagen 10 Uploads im rollierenden 24-Stunden-Fenster; die Grenze 15 blieb eingehalten.
+- Rueckbau: iOS-Accessibility-Modifizierer und zugehoerige Verifier-Regeln revertieren. Keine Backend-, Datenbank-, Produktivdaten- oder Review-Aenderung. Zyklus `5/5`; mit bestaetigtem Build 106 beginnt der Zaehler wieder bei `0/5`.
