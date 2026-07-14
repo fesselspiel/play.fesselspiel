@@ -55,3 +55,9 @@ Die regulaere iOS-Konfiguration verwendet kein zusaetzliches hartes Altersgate. 
 - Kalender und Tracker-Jahresansicht ergaenzen den Teilnachweis um vollstaendige Datumswerte, textlich bezeichnetes Heute, verborgene leere Randtage, eine neutrale Zoombezeichnung und einzeln erreichbare Mehrfacheintraege. Die globale VoiceOver-Deklaration bleibt bis zum vollstaendigen End-to-End-Audit unveraendert `false`.
 - Die Anfrageplanung ergaenzt den Teilnachweis um eindeutig gesprochene Zeitwerte, Ausgangsobjekt, Auswahlzustaende, fehlende Pflichtangaben und Sendezustand. Der visuelle Schnell- und Detailflow bestand auf kleinem iPhone, grosser Schrift und iPad.
 - Die Self-Service-Kontoloeschung ergaenzt den Teilnachweis um gesprochenen Bestaetigungszustand, laufende Loeschung, Unwiderruflichkeit, Fehler und stabile UI-Testziele. Der zweite Schritt bestand visuell auf kleinem iPhone mit grosser Schrift und iPad.
+
+## Multi-Rollen-Review-Nachweis 2026-07-14
+
+- `npm run test:review-roles:live` prueft den dauerhaft erreichbaren Review-Mandanten mit Alex, Sam und Review Admin. Alle drei Logins muessen getrennte Benutzer, denselben Review-Zirkel, bestaetigte Pflichtdokumente sowie funktionsfaehige Status- und Chat-Endpunkte liefern.
+- Alex und Sam muessen Moderationswarteschlange und Benutzerverwaltung mit HTTP `403 forbidden` abgewiesen bekommen. Review Admin muss beide Routen mit HTTP `200` lesen koennen. Damit wird die Rollenabgrenzung nicht aus dem Seed oder aus sichtbaren Menues abgeleitet, sondern live serverseitig bewiesen.
+- Der Test widerruft jede erzeugte App-Sitzung in einem `finally`-Pfad und verlangt danach HTTP `401` vom ehemaligen Token. Der aktuelle Nachweis endete mit `APP_REVIEW_ROLES_LIVE_OK accounts=3 user=2 admin=1 sessions_revoked=3`.

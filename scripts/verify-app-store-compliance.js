@@ -22,6 +22,7 @@ const apiTokenSettings = read("src/app/settings/api/page.tsx");
 const capabilities = read("src/lib/capabilities.ts") + read("src/lib/capability-runtime.ts");
 const passwordPolicy = read("src/lib/password-policy.ts");
 const packageManifest = JSON.parse(read("package.json"));
+const reviewRolesLive = read("scripts/verify-app-review-roles-live.js");
 const mobileLoginDocs = read("docs/07-mobile-app-login.md");
 const implementationLog = read("docs/03-implementierungslog.md");
 const contentSpaces = read("src/lib/content-spaces.ts");
@@ -108,6 +109,10 @@ check(nativePushDevices.includes("nativePushDevice.delete") && nativePushDevices
 check(nativePushDevicesRoute.includes('values.get("deviceId")') && nativePushDevicesRoute.includes("deleteVisiblePushDevice(auth.user, deviceId)"), "Der dokumentierte Body-Fallback fuer Push-Geraete muss ID-basiert funktionieren");
 check(capabilities.includes('{ method: "DELETE", path: "/api/external/push/devices/{id}"'), "Capabilities muessen den gezielten Push-Geraete-Delete ausweisen");
 check(eventsRoute.includes('"native_push_device_deleted"'), "Technische Push-Geraete-Loeschungen duerfen den normalen Feed nicht fuellen");
+check(packageManifest.scripts?.["test:review-roles:live"] === "node scripts/verify-app-review-roles-live.js", "Reproduzierbarer Multi-Rollen-Review-Smoke fehlt in package.json");
+check(reviewRolesLive.includes('key: "ALEX"') && reviewRolesLive.includes('key: "SAM"') && reviewRolesLive.includes('key: "ADMIN"'), "Review-Smoke muss zwei normale Benutzer und einen Administrator pruefen");
+check(reviewRolesLive.includes('expectedRestrictedStatus = account.expectedAdmin ? 200 : 403'), "Review-Smoke muss Adminrechte und normale Benutzergrenzen pruefen");
+check(reviewRolesLive.includes("sessions_revoked=3") && reviewRolesLive.includes('await expectStatus("/api/external/status", 401'), "Review-Smoke muss alle Testsitzungen widerrufen und die Tokens danach ablehnen");
 
 // There are no paid digital features in the reviewed iOS product. Shopify is
 // a catalogue for physical products. Introducing payment SDKs, subscription
