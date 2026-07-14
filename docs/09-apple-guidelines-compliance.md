@@ -303,6 +303,9 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
   - `npm run test:upload-security` prueft sauberen Upload/Download/Loeschung, Ablehnung nicht erlaubter Bytes und optional mit `--scanner-unavailable` den HTTP-503-Pfad.
 - Lokaler isolierter Nachweis: Produktions-Dockerbuild und TypeScript erfolgreich; ClamAV healthy; `CLAMAV_INSTREAM_CLEAN_AND_EICAR_OK`; `UPLOAD_CLEAN_AND_DISALLOWED_BYTES_OK`; `UPLOAD_SCANNER_UNAVAILABLE_OK`; `COMPLIANCE_LIVE_OK`. Alle Test-Tokens wurden deaktiviert und die eigene Testdatenbank, Upload-Volumes, Container und Netzwerke entfernt.
 - Rueckbau: Vor dem Deploy App-Image, Compose/Quellstand und Datenbank sichern. Fuer einen vollstaendigen Rueckbau vorherige Compose-Datei und App-Image wiederherstellen und erst danach `clamav` stoppen; `clamav_data` kann anschliessend entfernt werden. Ein Rueckbau auf ungescannte Uploads ist sicherheitlich nicht empfohlen. Es gibt keine Datenbankmigration.
+- Produktivnachweis 2026-07-14: Vorheriges Image `kink-social-platform-app:pre-clamav-20260714`, Quell-/Compose-Sicherung `/root/pre-clamav-source-20260714.tgz` und `/root/pre-clamav-docker-compose-20260714.yml` sowie PostgreSQL-Dump `/root/pre-clamav-20260714.dump`, jeweils ausserhalb des Repositories und Modus 600.
+- Der Scanner wurde vor dem App-Wechsel gestartet und erst bei `healthy` verwendet. Der INSTREAM-Test im Produktionsnetz lieferte `CLAMAV_INSTREAM_CLEAN_AND_EICAR_OK`. Danach baute Next 15.5.20 alle 139 Routen erfolgreich; App und Scanner laufen gemeinsam.
+- Produktive Live-Smokes gegen `test.playplaner.com`: `COMPLIANCE_LIVE_OK` einschliesslich Eigenwiderruf/401 sowie `UPLOAD_CLEAN_AND_DISALLOWED_BYTES_OK` einschliesslich privatem CLEAN-Upload, authentifiziertem Download und API-Loeschung. Oeffentliche Datenschutz- und Supportseiten lieferten HTTP 200.
 
 ## Zyklus 8: Versionierte, widerrufbare Zustimmung
 
