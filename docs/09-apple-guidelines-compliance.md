@@ -551,6 +551,14 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Ein spaeterer echter Hintergrundwechsel startet weiterhin den konfigurierten Sperrzyklus. App-Umschalter-Inhalte bleiben auch waehrend des Systemdialogs verdeckt. Abbruch oder Fehler lassen den Gate geschlossen und erfordern den sichtbaren manuellen Entsperrbutton.
 - Ausfuehrbare Swift-Regressionstests und der fail-closed Store-Verifier pruefen die neue Grenze. Fastlane-Debug-Builds bestanden auf iPhone 17e und iPad mini (A17 Pro). Eine echte Face-ID-Erfolgskette bleibt mangels Simulator-Biometrie als physischer Geraetetest offen.
 - Rueckbau: ausschliesslich den zugehoerigen iOS-Commit revertieren. Es gab keine Backend-, Datenbank-, Produktivdaten-, App-Store-Connect- oder TestFlight-Aenderung.
+
+### Nativer Login- und Compliance-Einstieg (2026-07-14)
+
+- Der iOS-Login verhindert unvollstaendige sowie parallele Tastatur-/Button-Requests, fuehrt den Fokus nativ vom Benutzernamen zum Passwort und erhaelt beide Eingaben bei Netzwerk-, Server- oder Rate-Limit-Fehlern. Abgelehnte Zugangsdaten werden ohne technische Sitzungs- oder API-Sprache dargestellt.
+- Loginfelder, Fehler und Hauptaktion besitzen stabile lokale Accessibility-Identifier und konkrete VoiceOver-Hinweise. Das Passwort bleibt ein natives geschuetztes Eingabefeld und wird weder im Accessibility-Baum noch in Screenshots offengelegt.
+- Die optionale Alterspruefung wurde nicht verschaerft. Sie erscheint weiterhin ausschliesslich bei entsprechender Mandantenkonfiguration; Geburtsdatum und Alter werden nur lokal verwendet. Bestaetigung, Dokumente, Fehler und Kontowechsel sind nun eindeutig per VoiceOver und UI-Automation erreichbar.
+- Fastlane-Store-Verifier, iPhone-/iPad-Simulatorbuilds, Dark-Mode-Screenshots und ein echter Simulator-Accessibility-Baumtest bestanden. Keine Backend-, Datenbank-, Produktiv- oder Storekonfiguration wurde geaendert.
+- Rueckbau: zugehoerigen iOS-Commit und diesen Dokumentationsabschnitt revertieren.
 - Ausfuehrbarer Swift-Regressionssmoke, statischer Store-Verifier sowie Fastlane-Simulator-Builds auf iPhone 17e und iPad mini (A17 Pro) bestanden. Schutzseite und Dark-Mode-Einstellungen wurden visuell geprueft. Der physische Face-ID-Endtest bleibt als manuelle Hardwareabnahme offen.
 - Rueckbau: iOS-One-Shot-Zustand samt Tests und die getrennte Accessibility-Lane/JSON koennen unabhaengig revertiert werden. Es wurden weder Backend-/Produktivdaten noch eine Review-Einreichung oder ein neuer TestFlight-Build veraendert. Zyklusstand `3/5` nach Build 105.
 
