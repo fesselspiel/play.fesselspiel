@@ -24,7 +24,7 @@ function dynamicTrackerCapability(tracker: { key: string; title: string; descrip
         agentTool: undefined,
         telegramCommands: undefined,
         apiEndpoints: [
-          { method: "GET", path: `/api/external/trackers/quotas?token=...&trackerKey=${tracker.key}`, description: `Kontingent für ${tracker.title} abfragen.` },
+          { method: "GET", path: `/api/external/trackers/quotas?trackerKey=${tracker.key}`, description: `Kontingent für ${tracker.title} abfragen.` },
           { method: "GET", path: `/api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD&trackerKey=${tracker.key}`, description: `Historie für ${tracker.title} abfragen.` },
           { method: "POST", path: "/api/external/trackers/history", description: `Neuen ${tracker.title}-Eintrag mit trackerKey, Start, Ende, Dauer oder ganztägigem Datum anlegen.` },
           { method: "GET", path: "/api/external/trackers/stream", description: "Live-Stream für laufende Tracker, letzte Einträge und Kontingente." }
@@ -39,7 +39,7 @@ function dynamicTrackerCapability(tracker: { key: string; title: string; descrip
         agentTool: undefined,
         telegramCommands: undefined,
         apiEndpoints: [
-          { method: "GET", path: `/api/external/trackers/${tracker.key}/start?token=...&note=...`, description: `${tracker.title} starten.` },
+          { method: "GET", path: `/api/external/trackers/${tracker.key}/start?note=...`, description: `${tracker.title} starten.` },
           { method: "POST", path: `/api/external/trackers/${tracker.key}/start`, description: `${tracker.title} per POST starten.` }
         ],
         auditActions: [`tracker_${tracker.key}_started`, `tracker_${tracker.key}_started_api`, `tracker_${tracker.key}_started_control`]
@@ -52,7 +52,7 @@ function dynamicTrackerCapability(tracker: { key: string; title: string; descrip
         agentTool: undefined,
         telegramCommands: undefined,
         apiEndpoints: [
-          { method: "GET", path: `/api/external/trackers/${tracker.key}/stop?token=...&note=...`, description: `${tracker.title} beenden.` },
+          { method: "GET", path: `/api/external/trackers/${tracker.key}/stop?note=...`, description: `${tracker.title} beenden.` },
           { method: "POST", path: `/api/external/trackers/${tracker.key}/stop`, description: `${tracker.title} per POST beenden.` }
         ],
         auditActions: [`tracker_${tracker.key}_stopped`, `tracker_${tracker.key}_stopped_api`, `tracker_${tracker.key}_stopped_control`]

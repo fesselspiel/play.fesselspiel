@@ -1,29 +1,13 @@
 import { redirect } from "next/navigation";
-import { Clock, KeyRound, Plus, Trash2 } from "lucide-react";
+import { Clock, KeyRound, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { Badge, Button, Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
-import { createApiToken } from "@/lib/api-tokens";
+import { ApiTokenCreateForm } from "@/components/api-token-create-form";
+import { Badge, Button, PageGuide, PageHeader, Panel } from "@/components/ui";
 import { currentUser } from "@/lib/auth";
 import { apiEndpointSpecs, apiVariableNames } from "@/lib/capabilities";
 import { formatDateTime } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
-
-type ApiSearchParams = {
-  token?: string;
-  created?: string;
-};
-
-async function addToken(formData: FormData) {
-  "use server";
-  const user = await currentUser();
-  if (!user) redirect("/login");
-  await requireFeature("externalApi");
-  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");
-  const { token, record } = await createApiToken(user.id, String(formData.get("name") || ""));
-  const params = new URLSearchParams({ created: record.tokenLastSix, token });
-  redirect(`/settings/api?${params.toString()}`);
-}
 
 async function revokeToken(formData: FormData) {
   "use server";
@@ -47,8 +31,7 @@ async function deleteToken(formData: FormData) {
   redirect("/settings/api");
 }
 
-export default async function ApiSettingsPage(props: { searchParams: Promise<ApiSearchParams> }) {
-  const searchParams = await props.searchParams;
+export default async function ApiSettingsPage() {
   await requireFeature("externalApi");
   const user = await currentUser();
   if (!user) redirect("/login");
@@ -58,28 +41,16 @@ export default async function ApiSettingsPage(props: { searchParams: Promise<Api
   return (
     <AppShell>
       <PageHeader title="API Tokens" />
-      <PageGuide title="Externe Zugriffe mit Bearer Token oder URL-Token">
-        API Tokens erlauben externen Systemen wie Alexa, Kurzbefehlen oder anderen Apps gezielte Aktionen im Portal. Der Token kann im Header als Bearer Token oder als URL-Parameter `token` verwendet werden.
+      <PageGuide title="Externe Zugriffe mit Bearer Token">
+        API Tokens erlauben externen Systemen wie Kurzbefehlen oder anderen Apps gezielte Aktionen im Portal. Sie werden ausschließlich im Authorization-Header übertragen.
       </PageGuide>
 
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <Panel>
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><KeyRound className="h-5 w-5 text-redbrand" /> Token erzeugen</h2>
-          {searchParams.token ? (
-            <div className="mb-4 rounded-md border border-redbrand bg-redbrand/10 p-3 text-sm">
-              <div className="font-semibold text-ink">Neuer Token, nur jetzt sichtbar</div>
-              <code className="mt-2 block overflow-x-auto rounded-md bg-surface p-2 text-xs text-ink">{searchParams.token}</code>
-              <p className="mt-2 text-graphite">Endet auf ...{searchParams.created}</p>
-            </div>
-          ) : null}
-          <form action={addToken} className="space-y-4">
-            <Field label="Name">
-              <input className={inputClass} name="name" placeholder="Alexa Sessionsteuerung" required />
-            </Field>
-            <Button><Plus className="h-4 w-4" /> Token erzeugen</Button>
-          </form>
+          <ApiTokenCreateForm />
           <div className="mt-4 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
-            Für Alexa-Webaufrufe kannst du den Token als `?token=...` anhaengen. Für Apps ist `Authorization: Bearer ...` sauberer.
+            Der Token ist nur einmal sichtbar. Übertrage ihn als <code>Authorization: Bearer …</code> und nie als URL-Parameter.
           </div>
         </Panel>
 

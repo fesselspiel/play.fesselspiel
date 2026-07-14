@@ -6,6 +6,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { Field, inputClass, Panel } from "@/components/ui";
 import { findValidPasswordReset } from "@/lib/password-reset";
 import { prisma } from "@/lib/prisma";
+import { passwordPolicyError, passwordPolicyText } from "@/lib/password-policy";
 
 async function resetPassword(formData: FormData) {
   "use server";
@@ -13,7 +14,8 @@ async function resetPassword(formData: FormData) {
   const password = String(formData.get("password") || "");
   const reset = await findValidPasswordReset(token);
   if (!reset) redirect("/password/reset?error=invalid");
-  if (!password) redirect(`/password/reset?token=${encodeURIComponent(token)}&error=password`);
+  const passwordError = passwordPolicyError(password);
+  if (passwordError) redirect(`/password/reset?token=${encodeURIComponent(token)}&error=${passwordError}`);
   await prisma.$transaction([
     prisma.user.update({
       where: { id: reset.userId },
@@ -63,8 +65,9 @@ export default async function ResetPasswordPage(props: { searchParams?: Promise<
             <form action={resetPassword} className="space-y-4">
               <input type="hidden" name="token" value={token} />
               <Field label="Konto"><input className={inputClass} value={reset.user.username || reset.user.email} readOnly /></Field>
-              <Field label="Neues Passwort"><input className={inputClass} name="password" type="password" autoComplete="new-password" required /></Field>
-              {searchParams?.error === "password" ? <p className="text-sm font-semibold text-redbrand">Bitte ein Passwort eingeben.</p> : null}
+              <Field label="Neues Passwort"><input className={inputClass} name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></Field>
+              <p className="text-xs text-graphite">{passwordPolicyText()}</p>
+              {searchParams?.error?.startsWith("password_") ? <p className="text-sm font-semibold text-redbrand">Das Passwort muss zwischen 12 und 128 Zeichen lang sein.</p> : null}
               <SubmitButton pendingLabel="Passwort wird gespeichert...">Passwort speichern</SubmitButton>
             </form>
           )}

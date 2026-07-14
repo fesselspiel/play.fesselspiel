@@ -16,6 +16,7 @@ import { env } from "@/lib/env";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { isValidUsername, normalizeUsername } from "@/lib/usernames";
+import { passwordPolicyError, passwordPolicyText } from "@/lib/password-policy";
 
 async function adoptUploadedProfileImage(targetUserId: string, uploadedUrl: string) {
   const fileId = fileIdFromUrl(uploadedUrl);
@@ -48,6 +49,7 @@ async function createUser(formData: FormData) {
   const email = rawEmail || `${username}@local.fesselspiel`;
   const password = String(formData.get("password") || "");
   if (!password && !rawEmail) redirect("/settings/users?error=missing-password");
+  if (password && passwordPolicyError(password)) redirect("/settings/users?error=password-policy");
   const uploadedProfileImageUrl = String(formData.get("newProfileImageUploadedUrl") || "");
   if (uploadedProfileImageUrl && !fileIdFromUrl(uploadedProfileImageUrl)) redirect("/settings/users?error=upload");
   const passwordHash = await bcrypt.hash(password || randomBytes(24).toString("base64url"), 12);
@@ -208,6 +210,7 @@ async function setUserPassword(formData: FormData) {
   const repeatPassword = String(formData.get("repeatPassword") || "");
   if (!nextPassword || !repeatPassword) redirect(`/settings/users?error=password-missing#user-${id}`);
   if (nextPassword !== repeatPassword) redirect(`/settings/users?error=password-mismatch#user-${id}`);
+  if (passwordPolicyError(nextPassword)) redirect(`/settings/users?error=password-policy#user-${id}`);
   const membership = await prisma.tenantMembership.findUnique({
     where: { tenantId_userId: { tenantId: tenant.id, userId: id } },
     include: { user: { include: { profile: true } } }
@@ -634,7 +637,8 @@ export default async function UsersPage(props: { searchParams?: Promise<{ error?
                     <p className="mt-1 text-xs leading-5 text-graphite">Setzt ein neues Passwort für diesen Benutzer. Das Passwort selbst wird nicht protokolliert.</p>
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <Field label="Neues Passwort"><input className={inputClass} name="nextPassword" type="password" autoComplete="new-password" required /></Field>
+                    <Field label="Neues Passwort"><input className={inputClass} name="nextPassword" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></Field>
+                    <p className="text-xs text-graphite">{passwordPolicyText()}</p>
                     <Field label="Neues Passwort wiederholen"><input className={inputClass} name="repeatPassword" type="password" autoComplete="new-password" required /></Field>
                   </div>
                   <SubmitButton pendingLabel="Passwort wird gespeichert...">Passwort speichern</SubmitButton>

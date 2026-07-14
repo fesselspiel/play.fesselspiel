@@ -14,6 +14,7 @@ import { formatDateTime } from "@/lib/dates";
 import { sendEmailConfirmation } from "@/lib/email-confirmation";
 import { deleteOwnedFile, fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
+import { passwordPolicyError, passwordPolicyText } from "@/lib/password-policy";
 import { userPointTotal } from "@/lib/points";
 import { actionLabel } from "@/lib/notification-actions";
 import { normalizeTheme, normalizeThemeMode } from "@/lib/themes";
@@ -104,6 +105,7 @@ async function changeOwnPassword(formData: FormData) {
   const repeatPassword = String(formData.get("repeatPassword") || "");
   if (!currentPassword || !nextPassword || !repeatPassword) redirect("/profile?passwordError=missing#password");
   if (nextPassword !== repeatPassword) redirect("/profile?passwordError=mismatch#password");
+  if (passwordPolicyError(nextPassword)) redirect("/profile?passwordError=policy#password");
   const freshUser = await prisma.user.findUnique({ where: { id: user.id }, include: { profile: true } });
   if (!freshUser || !(await bcrypt.compare(currentPassword, freshUser.passwordHash))) redirect("/profile?passwordError=current#password");
   await prisma.user.update({
@@ -294,11 +296,14 @@ export default async function ProfilePage(
                   ? "Das aktuelle Passwort stimmt nicht."
                   : searchParams.passwordError === "mismatch"
                     ? "Die neuen Passwörter stimmen nicht überein."
+                    : searchParams.passwordError === "policy"
+                      ? "Das Passwort muss zwischen 12 und 128 Zeichen lang sein."
                     : "Bitte alle Passwortfelder ausfüllen."}
               </div>
             ) : null}
             <Field label="Aktuelles Passwort"><input className={inputClass} name="currentPassword" type="password" autoComplete="current-password" required /></Field>
-            <Field label="Neues Passwort"><input className={inputClass} name="nextPassword" type="password" autoComplete="new-password" required /></Field>
+            <Field label="Neues Passwort"><input className={inputClass} name="nextPassword" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></Field>
+            <p className="text-xs text-graphite">{passwordPolicyText()}</p>
             <Field label="Neues Passwort wiederholen"><input className={inputClass} name="repeatPassword" type="password" autoComplete="new-password" required /></Field>
             <SubmitButton pendingLabel="Passwort wird gespeichert..."><KeyRound className="h-4 w-4" /> Passwort speichern</SubmitButton>
           </form>

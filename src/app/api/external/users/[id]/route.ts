@@ -5,6 +5,7 @@ import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { normalizeUsername } from "@/lib/usernames";
+import { passwordPolicyError } from "@/lib/password-policy";
 
 export const runtime = "nodejs";
 
@@ -58,6 +59,9 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
   const existing = await findUser(auth.user, params.id);
   if (!existing) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+  if (body.password !== undefined && String(body.password || "") && passwordPolicyError(String(body.password))) {
+    return NextResponse.json({ ok: false, error: "password_policy", minimumLength: 12, maximumLength: 128 }, { status: 400 });
+  }
   const username = body.username === undefined ? undefined : normalizeUsername(String(body.username || ""));
   if (body.username !== undefined && !username) return NextResponse.json({ ok: false, error: "invalid_username" }, { status: 400 });
   if (username) {

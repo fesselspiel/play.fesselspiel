@@ -62,13 +62,15 @@ export function Button({
   type = "submit",
   variant = "primary",
   className = "",
-  onClick
+  onClick,
+  disabled = false
 }: {
   children: ReactNode;
   type?: "button" | "submit";
   variant?: "primary" | "secondary" | "danger";
   className?: string;
   onClick?: () => void;
+  disabled?: boolean;
 }) {
   const variants = {
     primary: "bg-redbrand text-white hover:bg-redbrandHover",
@@ -79,7 +81,8 @@ export function Button({
     <button
       type={type}
       onClick={onClick}
-      className={`focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition ${variants[variant]} ${className}`}
+      disabled={disabled}
+      className={`focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]} ${className}`}
     >
       {children}
     </button>

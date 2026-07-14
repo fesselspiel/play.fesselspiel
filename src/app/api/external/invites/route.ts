@@ -3,16 +3,16 @@ import { apiFeatureGate, requestValues, requireApiUser } from "@/lib/external-ap
 import { decryptSecret } from "@/lib/crypto";
 import { createInvite, inviteUrl, inviteUsage } from "@/lib/invites";
 import { prisma } from "@/lib/prisma";
+import { consumeRateLimit, requestClientAddress, requestHostScope } from "@/lib/security-rate-limit";
 
 export const runtime = "nodejs";
 
-async function handleInvite(request: NextRequest) {
+async function listInvites(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "invites");
   if (blocked) return blocked;
-  if (request.method === "GET" && !new URL(request.url).searchParams.get("create")) {
-    const usage = await inviteUsage(auth.user);
+  const usage = await inviteUsage(auth.user);
     const invites = await prisma.userInvite.findMany({
       where: {
         tenantId: auth.user.tenantId || undefined,
@@ -53,9 +53,23 @@ async function handleInvite(request: NextRequest) {
         } : null
       };
     });
-    return NextResponse.json({ ok: true, usage, count: items.length, items, invites: items });
-  }
+  return NextResponse.json({ ok: true, usage, count: items.length, items, invites: items });
+}
+
+async function createInviteRequest(request: NextRequest) {
+  const auth = await requireApiUser(request);
+  if ("response" in auth) return auth.response;
+  const blocked = apiFeatureGate(auth.user, "externalApi", "invites");
+  if (blocked) return blocked;
   if (!auth.user.tenantId) return NextResponse.json({ ok: false, error: "tenant_missing" }, { status: 400 });
+  const policy = { scope: "invite-create-api", limit: 10, windowMs: 60 * 60_000, blockMs: 60 * 60_000 };
+  const rate = await consumeRateLimit(policy, `${requestHostScope(request)}:${auth.user.id}:${requestClientAddress(request)}`);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { ok: false, error: "rate_limited", retryAfterSeconds: rate.retryAfterSeconds },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+    );
+  }
   const values = await requestValues(request);
   const result = await createInvite({
     tenantId: auth.user.tenantId,
@@ -70,9 +84,9 @@ async function handleInvite(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  return handleInvite(request);
+  return listInvites(request);
 }
 
 export async function POST(request: NextRequest) {
-  return handleInvite(request);
+  return createInviteRequest(request);
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { KeyRound } from "lucide-react";
 import { SubmitButton } from "@/components/submit-button";
@@ -7,10 +8,21 @@ import { createPasswordReset, notifyPasswordReset } from "@/lib/password-reset";
 import { sendTemplateEmail } from "@/lib/email";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { clientAddressFromHeaders, consumeRateLimit } from "@/lib/security-rate-limit";
+
+const RESET_IDENTIFIER = { scope: "password-reset-identifier", limit: 3, windowMs: 60 * 60_000, blockMs: 60 * 60_000 };
+const RESET_ADDRESS = { scope: "password-reset-address", limit: 10, windowMs: 60 * 60_000, blockMs: 60 * 60_000 };
 
 async function requestPasswordReset(formData: FormData) {
   "use server";
   const identifier = String(formData.get("identifier") || "").trim();
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("host")?.toLowerCase() || "unknown";
+  const [identifierLimit, addressLimit] = await Promise.all([
+    consumeRateLimit(RESET_IDENTIFIER, `${host}:${identifier}`),
+    consumeRateLimit(RESET_ADDRESS, `${host}:${clientAddressFromHeaders(requestHeaders)}`)
+  ]);
+  if (!identifierLimit.allowed || !addressLimit.allowed) redirect("/password/forgot?sent=1");
   const user = identifier
     ? await prisma.user.findFirst({
         where: {

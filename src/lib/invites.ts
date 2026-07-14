@@ -6,6 +6,7 @@ import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { sendTemplateEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
+import { passwordPolicyError } from "@/lib/password-policy";
 
 function tokenHash(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -145,6 +146,8 @@ export async function acceptInvite(input: {
   const email = input.email.trim().toLowerCase();
   const username = input.username?.trim() || null;
   if (!email.includes("@") || !input.password) return { ok: false as const, error: "missing" };
+  const passwordError = passwordPolicyError(input.password);
+  if (passwordError) return { ok: false as const, error: passwordError };
   if (invite.email && invite.email !== email) return { ok: false as const, error: "email_mismatch" };
   const [existingEmail, existingUsername] = await Promise.all([
     prisma.user.findUnique({ where: { email }, select: { id: true } }),

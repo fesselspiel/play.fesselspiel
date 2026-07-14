@@ -64,8 +64,8 @@ export const capabilities: readonly Capability[] = [
           { command: "/status", description: "kurze Übersicht" }
         ],
         apiEndpoints: [
-          { method: "GET", path: "/api/external/status?token=...", description: "Status, Benutzer und Grunddaten prüfen." },
-          { method: "GET", path: "/api/external/capabilities?token=...", description: "Aktive Fähigkeiten, Befehle und externe Endpunkte der aktuellen Seite abfragen." }
+          { method: "GET", path: "/api/external/status", description: "Status, Benutzer und Grunddaten prüfen." },
+          { method: "GET", path: "/api/external/capabilities", description: "Aktive Fähigkeiten, Befehle und externe Endpunkte der aktuellen Seite abfragen." }
         ],
         auditActions: ["login", "logout", "portal_status_requested", "password_reset_requested", "public_content_updated"]
       },
@@ -141,8 +141,8 @@ export const capabilities: readonly Capability[] = [
         type: "read",
         description: "Liest die letzten Nachrichten im eigenen Zirkel-Chat.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/chat/circle?token=...&limit=50&circleId=...", description: "Letzte Zirkel-Chat-Nachrichten inklusive Bildanhängen abrufen. `circleId` ist optional. Session-/Auftragskarten enthalten `entity`, `target`, `session` oder `order`, `permissions`, `capabilities`, `actions` und `actionTargets`." },
-          { method: "GET", path: "/api/external/chat/circle/stream?token=...&circleId=...&after=...", description: "Server-Sent-Events fuer echte Chat-Aktualisierung ohne Reload. Events liefern `type=messages` und `items[]` im selben Format wie der Listen-Endpunkt, inklusive Session-/Auftragsaktionen." }
+          { method: "GET", path: "/api/external/chat/circle?limit=50&circleId=...", description: "Letzte Zirkel-Chat-Nachrichten inklusive Bildanhängen abrufen. `circleId` ist optional. Session-/Auftragskarten enthalten `entity`, `target`, `session` oder `order`, `permissions`, `capabilities`, `actions` und `actionTargets`." },
+          { method: "GET", path: "/api/external/chat/circle/stream?circleId=...&after=...", description: "Server-Sent-Events fuer echte Chat-Aktualisierung ohne Reload. Events liefern `type=messages` und `items[]` im selben Format wie der Listen-Endpunkt, inklusive Session-/Auftragsaktionen." }
         ],
         auditActions: ["circle_chat_viewed"]
       },
@@ -192,7 +192,7 @@ export const capabilities: readonly Capability[] = [
         type: "read",
         description: "Liest den aktuellen Ampelstatus und sichtbare Ampeln aus Kreis oder Seite.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/play-ready?token=...", description: "Aktuellen Spielampelstatus inklusive `people[]` und Countdown-Feldern abfragen." }
+          { method: "GET", path: "/api/external/play-ready", description: "Aktuellen Spielampelstatus inklusive `people[]` und Countdown-Feldern abfragen." }
         ],
         auditActions: ["play_ready_viewed"]
       },
@@ -215,7 +215,7 @@ export const capabilities: readonly Capability[] = [
           }
         },
         apiEndpoints: [
-          { method: "GET", path: "/api/external/play-ready?token=...&state=green&hours=2&minutes=15", description: "Spielampel setzen. `state` kann green, yellow, red oder toggle sein; Dauer maximal 12 Stunden." },
+          { method: "GET", path: "/api/external/play-ready?state=green&hours=2&minutes=15", description: "Spielampel setzen. `state` kann green, yellow, red oder toggle sein; Dauer maximal 12 Stunden." },
           { method: "POST", path: "/api/external/play-ready", description: "Spielampel über JSON oder Form-Daten setzen. Unterstützt `state` (green/yellow/red/toggle), `expiresMinutes` oder `hours`/`minutes`." }
         ],
         auditActions: ["play_ready_changed", "play_ready_expired"]
@@ -469,8 +469,8 @@ export const capabilities: readonly Capability[] = [
         type: "read",
         description: "Listet Pack-Events, Packlisten und eingepackte Spielsachen.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/packing/lists?token=...", description: "Packlisten inklusive Packstatus, Pack-Event, Event und Spielzeug abrufen." },
-          { method: "GET", path: "/api/external/packing/events?token=...", description: "Pack-Events inklusive verknüpfter Events und Fortschritt abrufen." }
+          { method: "GET", path: "/api/external/packing/lists", description: "Packlisten inklusive Packstatus, Pack-Event, Event und Spielzeug abrufen." },
+          { method: "GET", path: "/api/external/packing/events", description: "Pack-Events inklusive verknüpfter Events und Fortschritt abrufen." }
         ],
         auditActions: ["packing_list_created", "packing_item_packed", "packing_item_unpacked"]
       },
@@ -527,8 +527,8 @@ export const capabilities: readonly Capability[] = [
         },
         telegramCommands: [{ command: "/kontingent", description: "Tracker-Kontingente und offene Todos anzeigen", aliases: ["/quota", "/quotas"] }],
         apiEndpoints: [
-          { method: "GET", path: "/api/external/trackers/quotas?token=...", description: "Kontingente und offene Tracker-Todos inklusive `eventId`, Likes und Kommentaren abfragen." },
-          { method: "GET", path: "/api/external/trackers/quotas?token=...&trackerKey={trackerKey}", description: "Kontingent eines bestimmten Trackers inklusive `eventId` abfragen, z. B. für Alexa." },
+          { method: "GET", path: "/api/external/trackers/quotas", description: "Kontingente und offene Tracker-Todos inklusive `eventId`, Likes und Kommentaren abfragen." },
+          { method: "GET", path: "/api/external/trackers/quotas?trackerKey={trackerKey}", description: "Kontingent eines bestimmten Trackers inklusive `eventId` abfragen, z. B. für Alexa." },
           { method: "GET", path: "/api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD", description: "Echte Tracker-Einträge im Zeitraum für Kalender und native Apps abfragen." },
           { method: "POST", path: "/api/external/trackers/history", description: "Tracker-Eintrag nativ anlegen. JSON: trackerKey, notes?, allDay?, date?, startTime, durationMinutes?, endTime?." },
           { method: "GET", path: "/api/external/trackers/stream", description: "SSE-Live-Stream für Tracker-Snapshot und Änderungen. Bearer Auth plus optional X-Playplaner-View-Context." },
@@ -545,8 +545,8 @@ export const capabilities: readonly Capability[] = [
         type: "write",
         description: "Startet einen beliebigen Tracker per Schlüssel.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/trackers/{trackerKey}/start?token=...&note=...&startTime=...", description: "Beliebigen Tracker starten." },
-          { method: "GET", path: "/api/external/trackers/{trackerKey}/start?token=...&allDay=true&date=2026-06-24&note=...", description: "Ganztägigen Tracker-Eintrag ohne Start-/Endzeit anlegen." },
+          { method: "GET", path: "/api/external/trackers/{trackerKey}/start?note=...&startTime=...", description: "Beliebigen Tracker starten." },
+          { method: "GET", path: "/api/external/trackers/{trackerKey}/start?allDay=true&date=2026-06-24&note=...", description: "Ganztägigen Tracker-Eintrag ohne Start-/Endzeit anlegen." },
           { method: "POST", path: "/api/external/trackers/{trackerKey}/start", description: "Per POST denselben Startvorgang auslösen; Parameter im Body oder als Form-Daten." }
         ],
         auditActions: ["tracker_started"]
@@ -557,7 +557,7 @@ export const capabilities: readonly Capability[] = [
         type: "write",
         description: "Beendet einen laufenden Tracker.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/trackers/{trackerKey}/stop?token=...&note=...", description: "Beliebigen laufenden Tracker beenden." },
+          { method: "GET", path: "/api/external/trackers/{trackerKey}/stop?note=...", description: "Beliebigen laufenden Tracker beenden." },
           { method: "POST", path: "/api/external/trackers/{trackerKey}/stop", description: "Beliebigen laufenden Tracker per POST beenden; `note` optional im Body." }
         ],
         auditActions: ["tracker_stopped"]
@@ -578,13 +578,13 @@ export const capabilities: readonly Capability[] = [
         type: "write",
         description: "Lädt ein geschütztes Bild oder Video hoch.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/images?token=...&source=all&limit=100", description: "Zentraler Bildfeed über Galerie, Spielsachen, Szenen, Ideen, Bondage-System und Profilbilder. Per `source` filterbar." },
-          { method: "GET", path: "/api/external/images?token=...&source=toys", description: "Bilder aus dem Spielzeugkatalog für native externe App-Anzeige abrufen." },
-          { method: "GET", path: "/api/external/images?token=...&source=positions", description: "Szenen-/Situationsbilder für native externe App-Anzeige abrufen." },
-          { method: "GET", path: "/api/external/images?token=...&source=ideas", description: "Ideenbilder für native externe App-Anzeige abrufen." },
-          { method: "GET", path: "/api/external/images?token=...&source=bondageSystem", description: "Bondage-System-Produktbilder für native externe App-Anzeige abrufen." },
-          { method: "GET", path: "/api/external/media?token=...&kind=IMAGE&limit=50", description: "Geschützte Bilder als JSON-Feed für externe Apps abrufen. Antwort enthält `downloadUrl` für native Bildanzeige." },
-          { method: "GET", path: "/api/external/files/{fileId}?token=...", description: "Geschützte Bild-/Videodatei nativ laden. Alternativ Bearer Token im Authorization-Header verwenden." },
+          { method: "GET", path: "/api/external/images?source=all&limit=100", description: "Zentraler Bildfeed über Galerie, Spielsachen, Szenen, Ideen, Bondage-System und Profilbilder. Per `source` filterbar." },
+          { method: "GET", path: "/api/external/images?source=toys", description: "Bilder aus dem Spielzeugkatalog für native externe App-Anzeige abrufen." },
+          { method: "GET", path: "/api/external/images?source=positions", description: "Szenen-/Situationsbilder für native externe App-Anzeige abrufen." },
+          { method: "GET", path: "/api/external/images?source=ideas", description: "Ideenbilder für native externe App-Anzeige abrufen." },
+          { method: "GET", path: "/api/external/images?source=bondageSystem", description: "Bondage-System-Produktbilder für native externe App-Anzeige abrufen." },
+          { method: "GET", path: "/api/external/media?kind=IMAGE&limit=50", description: "Geschützte Bilder als JSON-Feed für externe Apps abrufen. Antwort enthält `downloadUrl` für native Bildanzeige." },
+          { method: "GET", path: "/api/external/files/{fileId}", description: "Geschützte Bild-/Videodatei nativ laden. Bearer Token im Authorization-Header verwenden." },
           { method: "POST", path: "/api/external/media", description: "Bild/Video per Multipart hochladen. Token im Header oder als Feld `token`." }
         ],
         auditActions: ["media_uploaded", "media_updated", "media_deleted", "media_album_changed_telegram"]
@@ -613,7 +613,7 @@ export const capabilities: readonly Capability[] = [
         type: "read",
         description: "Zeigt Einladungskontingent und vorhandene Einladungen.",
         telegramCommands: [{ command: "/invites", description: "Einladungskontingent anzeigen" }],
-        apiEndpoints: [{ method: "GET", path: "/api/external/invites?token=...", description: "Einladungskontingent abfragen." }]
+        apiEndpoints: [{ method: "GET", path: "/api/external/invites", description: "Einladungskontingent und vorhandene Einladungen per Bearer-Authentifizierung abfragen." }]
       },
       {
         key: "create",
@@ -622,8 +622,7 @@ export const capabilities: readonly Capability[] = [
         description: "Erzeugt einen Einladungslink.",
         telegramCommands: [{ command: "/invite Name", description: "Einladungslink erzeugen" }],
         apiEndpoints: [
-          { method: "GET", path: "/api/external/invites?token=...&create=1&name=Anna&email=...", description: "Einladungslink erzeugen; Admins haben unbegrenzt Einladungen." },
-          { method: "POST", path: "/api/external/invites?name=Anna&email=...", description: "Einladung auch per POST erstellen; `name` und `email` im Body oder als Form-Daten." }
+          { method: "POST", path: "/api/external/invites", description: "Einladung per Bearer-Authentifizierung erstellen; `name` und `email` im JSON-Body oder als Form-Daten." }
         ],
         auditActions: ["invite_created", "invite_resent", "invite_deleted", "invite_accepted"]
       }
@@ -660,8 +659,8 @@ export const capabilities: readonly Capability[] = [
         type: "read",
         description: "Listet sichtbare Wiki-Seiten im eigenen oder freigegebenen Benutzer-Namensraum.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/wiki?token=...", description: "Sichtbare Wiki-Seiten lesen." },
-          { method: "GET", path: "/api/external/wiki/{id}?token=...", description: "Eine Wiki-Seite inklusive MediaWiki-Text lesen." }
+          { method: "GET", path: "/api/external/wiki", description: "Sichtbare Wiki-Seiten lesen." },
+          { method: "GET", path: "/api/external/wiki/{id}", description: "Eine Wiki-Seite inklusive MediaWiki-Text lesen." }
         ],
         auditActions: ["wiki_page_viewed", "wiki_page_viewed_api"]
       },
@@ -801,9 +800,9 @@ export const capabilities: readonly Capability[] = [
         type: "read",
         description: "Zeigt protokollierte Aktionen mit Filtern, Feed-Freigabe und Debug-Details.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/events?token=...&limit=50", description: "Paginierter Ereignisfeed fuer native Apps, inklusive push-tauglichem Titel, Body, Deeplink und Engagement-Daten." },
-          { method: "GET", path: "/api/external/events?token=...&since=2026-06-26T12:00:00.000Z&action=play_ready_changed", description: "Nur neue Ereignisse seit einem Zeitpunkt oder fuer bestimmte Aktionen abrufen." },
-          { method: "GET", path: "/api/external/events/actions?token=...", description: "Verfuegbare Aktionstypen inklusive lesbarem Label und Sichtbarkeitszaehler abrufen." },
+          { method: "GET", path: "/api/external/events?limit=50", description: "Paginierter Ereignisfeed fuer native Apps, inklusive push-tauglichem Titel, Body, Deeplink und Engagement-Daten." },
+          { method: "GET", path: "/api/external/events?since=2026-06-26T12:00:00.000Z&action=play_ready_changed", description: "Nur neue Ereignisse seit einem Zeitpunkt oder fuer bestimmte Aktionen abrufen." },
+          { method: "GET", path: "/api/external/events/actions", description: "Verfuegbare Aktionstypen inklusive lesbarem Label und Sichtbarkeitszaehler abrufen." },
           { method: "POST", path: "/api/external/events/{eventId}/like", description: "Einen sichtbaren Feed-/Protokolleintrag liken." },
           { method: "DELETE", path: "/api/external/events/{eventId}/like", description: "Den eigenen Like von einem sichtbaren Feed-/Protokolleintrag entfernen." },
           { method: "GET", path: "/api/external/events/{eventId}/comments", description: "Kommentare zu einem sichtbaren Feed-/Protokolleintrag lesen." },

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { Copy, Mail, Send, Ticket, Trash2, UserPlus } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
@@ -10,6 +11,7 @@ import { createInvite, inviteUsage, inviteUrl, resendInviteEmail } from "@/lib/i
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
 import { sendTelegramMessage, telegramHtml, telegramLink } from "@/lib/telegram";
+import { clientAddressFromHeaders, consumeRateLimit } from "@/lib/security-rate-limit";
 
 function inviteLabel(invite: { status: string; acceptedBy?: { profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null } | null }) {
   if (invite.status === "ACCEPTED") return "angenommen";
@@ -22,6 +24,13 @@ async function createInviteAction(formData: FormData) {
   await requireFeature("invites");
   const user = await currentUser();
   if (!user) redirect("/login");
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("host")?.toLowerCase() || "unknown";
+  const rate = await consumeRateLimit(
+    { scope: "invite-create-web", limit: 10, windowMs: 60 * 60_000, blockMs: 60 * 60_000 },
+    `${host}:${user.id}:${clientAddressFromHeaders(requestHeaders)}`
+  );
+  if (!rate.allowed) redirect("/settings/invites?error=rate-limit");
   const tenant = await currentTenant();
   const result = await createInvite({
     tenantId: tenant.id,
