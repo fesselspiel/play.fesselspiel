@@ -676,3 +676,9 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - `native_push_device_deleted` wird als technischer Vorgang aus dem normalen Eventfeed ausgeschlossen. Capabilities weisen den ID-Vertrag explizit aus.
 - Statische Absicherung prueft Route, Eigentums-/Tenant-Scope, physisches Delete, Body-Fallback, Audit, Capability und Feed-Ausschluss. TypeScript und `COMPLIANCE_STATIC_OK` bestanden. Kein Schemawechsel, keine Migration und keine Produktivdaten-Aenderung; Deploy- und reversibler Live-Smoke mit temporaeren Geraeten stehen noch aus.
 - Rueckbau: `src/lib/native-push-devices.ts`, die dynamische Route, den `{deviceId}`-Zweig, Capability-/Audit-Ergaenzung und den Feed-Ausschluss als Einheit revertieren. Bestehende tokenbasierte Deaktivierung bleibt davon unabhaengig.
+
+## 2026-07-14 - Neutrale Legacy-Produktbegriffe in der iOS-Diagnose
+
+- Die iOS-App neutralisiert nun auch rohe Backend-Capability-Labels, Aktionsnamen, Feature-Keys und den sichtbaren Legacy-Endpunkt fuer den Produktkatalog. Sichtbar werden ausschliesslich `Shopify-Produkte`, sprachlich passende Produktaktionen und `/api/external/shopify-products` als Diagnosealias.
+- Die tatsaechliche Backendroute, Requestfelder, Deep-Link-Aliase und interne Swift-Typen bleiben fuer Kompatibilitaet unveraendert. Nutzerinhalte werden nicht umgeschrieben. Es gab keine Backend-, Schema-, Produktivdaten- oder App-Store-Connect-Aenderung.
+- iOS Store-Verifier sowie Fastlane-Builds auf iPhone 17e und iPad mini (A17 Pro) bestanden. Ein DEBUG-Nachweis prueft absichtlich einen alten Capability-Response; der finale Screenshot zeigt keine alte sichtbare Produktbezeichnung. Rueckbau erfolgt ausschliesslich durch Revert des zugehoerigen iOS-Commits und dieser Dokumentationszeilen.
