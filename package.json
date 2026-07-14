@@ -18,6 +18,7 @@
     "test:compliance:static": "node scripts/verify-app-store-compliance.js",
     "test:compliance:live": "node scripts/verify-app-store-live.js",
     "test:review-roles:live": "node scripts/verify-app-review-roles-live.js",
+    "test:blocked-sharing:live": "node scripts/verify-blocked-sharing-live.js",
     "test:rate-limit:live": "node scripts/verify-login-rate-limit-live.js",
     "test:upload-security": "node scripts/verify-upload-scanning.js",
     "test:clamav": "node scripts/verify-clamav-instream.js"

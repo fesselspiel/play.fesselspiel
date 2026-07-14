@@ -23,6 +23,7 @@ const capabilities = read("src/lib/capabilities.ts") + read("src/lib/capability-
 const passwordPolicy = read("src/lib/password-policy.ts");
 const packageManifest = JSON.parse(read("package.json"));
 const reviewRolesLive = read("scripts/verify-app-review-roles-live.js");
+const blockedSharingLive = read("scripts/verify-blocked-sharing-live.js");
 const mobileLoginDocs = read("docs/07-mobile-app-login.md");
 const implementationLog = read("docs/03-implementierungslog.md");
 const contentSpaces = read("src/lib/content-spaces.ts");
@@ -113,6 +114,12 @@ check(packageManifest.scripts?.["test:review-roles:live"] === "node scripts/veri
 check(reviewRolesLive.includes('key: "ALEX"') && reviewRolesLive.includes('key: "SAM"') && reviewRolesLive.includes('key: "ADMIN"'), "Review-Smoke muss zwei normale Benutzer und einen Administrator pruefen");
 check(reviewRolesLive.includes('expectedRestrictedStatus = account.expectedAdmin ? 200 : 403'), "Review-Smoke muss Adminrechte und normale Benutzergrenzen pruefen");
 check(reviewRolesLive.includes("sessions_revoked=3") && reviewRolesLive.includes('await expectStatus("/api/external/status", 401'), "Review-Smoke muss alle Testsitzungen widerrufen und die Tokens danach ablehnen");
+check(packageManifest.scripts?.["test:blocked-sharing:live"] === "node scripts/verify-blocked-sharing-live.js", "Reproduzierbarer Blockierungs-/Share-Smoke fehlt in package.json");
+check(blockedSharingLive.includes('"/api/external/share"') && blockedSharingLive.includes('"/api/external/blocks"') && blockedSharingLive.includes("BLOCKED_SHARING_LIVE_OK"), "Blockierungs-/Share-Smoke muss Block, Share-Ablehnung und Cleanup pruefen");
+const shareSource = read("src/lib/share.ts");
+check(shareSource.includes("blockedUserIds(user.id, user.tenantId)") && shareSource.includes("!excluded.has(membership.user.id)"), "Blockierte Benutzer duerfen nicht als Share-Ziel angeboten werden");
+check(shareSource.includes("actorId: input.actor.id") && shareSource.includes("!excluded.has(user.id)"), "Direkte und Zirkel-Shares muessen blockierte Empfaenger serverseitig ausschliessen");
+check(shareSource.includes("usersAreBlocked(delivery.tenantId, delivery.actorId, delivery.targetUserId)"), "Bestehende Share-Links muessen nach einer Blockierung gesperrt sein");
 
 // There are no paid digital features in the reviewed iOS product. Shopify is
 // a catalogue for physical products. Introducing payment SDKs, subscription

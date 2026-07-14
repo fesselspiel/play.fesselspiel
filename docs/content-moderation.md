@@ -8,7 +8,7 @@ Meldegruende: expliziter Inhalt, fehlende Einwilligung, Belaestigung/Drohung, Mi
 
 ## Serverdurchsetzung
 
-- Blockierungen gelten fuer Chat, Shares, Einladungen, Push und geschuetzte Inhalte.
+- Blockierungen gelten fuer Chat, Shares, Einladungen, Push und geschuetzte Inhalte. Blockierte Personen verschwinden aus direkten Share-Zielen, werden bei Zirkel-Shares nicht beliefert und koennen bereits erzeugte persoenliche Share-Links nach der Blockierung nicht mehr oeffnen.
 - Gemeldete oder verdaechtige Medien koennen auf `QUARANTINED` gesetzt werden.
 - Quarantinisierte oder abgelehnte Dateien sind auch bei bekannter direkter ID nicht abrufbar.
 - Adminaktionen sind rollenbegrenzt und werden datensparsam auditierbar gespeichert.

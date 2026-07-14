@@ -6,6 +6,7 @@ import { sendNativeTestPush } from "@/lib/native-push-notifications";
 import { prisma } from "@/lib/prisma";
 import { sendTelegramMessage, telegramHtml } from "@/lib/telegram";
 import { logAction, userDisplayName } from "@/lib/audit";
+import { blockedUserIds, usersAreBlocked } from "@/lib/compliance/ugc";
 
 function jsonValue(value: unknown) {
   return JSON.parse(JSON.stringify(value ?? null)) as Prisma.InputJsonValue;
@@ -32,7 +33,7 @@ export type ShareTargets = {
 export async function shareTargetsForUser(user: ShareUser): Promise<ShareTargets> {
   if (!user.tenantId) return { users: [], circles: [] };
   const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
-  const [memberships, circles] = await Promise.all([
+  const [memberships, circles, excludedUserIds] = await Promise.all([
     prisma.tenantMembership.findMany({
       where: {
         tenantId: user.tenantId,
@@ -49,10 +50,14 @@ export async function shareTargetsForUser(user: ShareUser): Promise<ShareTargets
         ...(isAdmin ? {} : user.circleId ? { id: user.circleId } : { memberships: { some: { userId: user.id, active: true } } })
       },
       orderBy: { name: "asc" }
-    })
+    }),
+    blockedUserIds(user.id, user.tenantId)
   ]);
+  const excluded = new Set(excludedUserIds);
   return {
-    users: memberships.map((membership) => ({ id: membership.user.id, label: userDisplayName(membership.user) })),
+    users: memberships
+      .filter((membership) => !excluded.has(membership.user.id))
+      .map((membership) => ({ id: membership.user.id, label: userDisplayName(membership.user) })),
     circles: circles.map((circle) => ({ id: circle.id, label: circle.name }))
   };
 }
@@ -106,10 +111,11 @@ async function createShareDelivery(input: {
   };
 }
 
-async function recipientUsers(input: { tenantId: string; targetType: string; targetId: string }) {
+async function recipientUsers(input: { tenantId: string; actorId: string; targetType: string; targetId: string }) {
+  const excluded = new Set(await blockedUserIds(input.actorId, input.tenantId));
   if (input.targetType === "user") {
     const user = await prisma.user.findFirst({ where: { id: input.targetId, tenantId: input.tenantId, active: true }, include: { profile: true } });
-    return user ? [user] : [];
+    return user && !excluded.has(user.id) ? [user] : [];
   }
   if (input.targetType === "circle") {
     const memberships = await prisma.tenantMembership.findMany({
@@ -117,7 +123,7 @@ async function recipientUsers(input: { tenantId: string; targetType: string; tar
       include: { user: { include: { profile: true } } },
       orderBy: { createdAt: "asc" }
     });
-    return memberships.map((membership) => membership.user);
+    return memberships.map((membership) => membership.user).filter((user) => !excluded.has(user.id));
   }
   return [];
 }
@@ -260,7 +266,7 @@ export async function shareItem(input: {
 }) {
   if (!input.actor.tenantId) throw new Error("Keine Seite aktiv");
   const url = displayUrl(input.actor, input.href);
-  const users = await recipientUsers({ tenantId: input.actor.tenantId, targetType: input.targetType, targetId: input.targetId });
+  const users = await recipientUsers({ tenantId: input.actor.tenantId, actorId: input.actor.id, targetType: input.targetType, targetId: input.targetId });
   if (!users.length) throw new Error("Kein Ziel gefunden");
   const results: Record<string, unknown> = {};
   if (input.channel === "all" || input.channel === "email") results.email = await sendShareEmail({ actor: input.actor, users, title: input.title, text: input.text || "", href: input.href, entityType: input.entityType, entityId: input.entityId });
@@ -381,6 +387,7 @@ function loadShareDelivery(token: string) {
 export async function openShareDelivery(token: string) {
   const delivery = await loadShareDelivery(token);
   if (!delivery) return null;
+  if (delivery.tenantId && await usersAreBlocked(delivery.tenantId, delivery.actorId, delivery.targetUserId)) return null;
   const firstOpen = !delivery.openedAt;
   const now = new Date();
   await prisma.shareDelivery.update({
