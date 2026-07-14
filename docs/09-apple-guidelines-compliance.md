@@ -1,6 +1,6 @@
 # Apple App Store Compliance und Rueckbauprotokoll
 
-Stand: 2026-07-13
+Stand: 2026-07-14
 
 Diese Datei ist das kanonische Protokoll fuer den App-Store-Umbau von Playplaner. Sie dokumentiert Bestandsaufnahme, Entscheidungen, Datenbankmigrationen, API-Vertraege, iOS-Aenderungen, Tests und den Rueckbau jeder Massnahme. Sie ist kein Ersatz fuer Rechtsberatung. Rechtstexte, Aufbewahrungsfristen, Anbieterlisten und Kontaktangaben muessen vor der Einreichung fachlich und rechtlich freigegeben werden.
 
@@ -34,7 +34,7 @@ Besonders relevant sind 1.1.4, 1.2, 1.4.5, 1.5, 1.6, 2.1, 2.3, 3.1, 4.2 und 5.1.
 - Einladungsbasierte Mandanten- und Kreisstruktur ohne oeffentliche Discovery oder anonymen Zufallschat.
 - Native App-Funktionalitaet geht deutlich ueber einen WebView-Wrapper hinaus.
 
-### P0-Luecken
+### Historische P0-Luecken vor dem Umbau
 
 - Keine versionierte 18+-Bestaetigung und keine serverseitige Zugriffssperre vor der Bestaetigung.
 - Keine leicht auffindbare echte Self-Service-Kontoloeschung. `active=false` waere unzureichend.
@@ -743,3 +743,12 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Ausschliesslich `fastlane ios beta` erhoehte auf `1.0 (111)`, erstellte das Release-Archiv, exportierte die App-Store-IPA und lud sie hoch. `store_prepare_version` setzte Build 111 auf die vorbereitete Version 1.0, bestaetigte `AFTER_APPROVAL` und erzeugte keine Review-Submission.
 - Die neue read-only Lane `testflight_status` bestaetigte live: Build-ID `52a9430a-54ab-4ec2-8934-b3a82dd681a5`, `VALID`, intern `IN_BETA_TESTING`, extern `READY_FOR_BETA_SUBMISSION`, `usesNonExemptEncryption=false`, eine interne All-Builds-Gruppe mit einem Tester sowie `autoNotify=true`. Testeradressen werden weder geloggt noch dokumentiert.
 - Es gab keine Backend-, Schema- oder Produktivdatenaenderung. Rueckbau: In App Store Connect einen frueheren validen Build auswaehlen; Fastlane-Status-/Limit-Lanes, Verifier und Dokumentation gemeinsam revertieren. Der physische Face-ID-/App-Switcher-Endtest bleibt vor der Review-Submission offen. Zykluszaehler danach `0/5`.
+
+## 2026-07-14 - Fail-closed Store-Einreichungsweg und Live-Endkontrolle
+
+- Alle Apple-bezogenen Endkontrollen laufen ausschliesslich ueber Fastlane. `store_submission_preflight` liest die geschuetzten Review-Informationen, Version `1.0`, Build `111`, Export-Compliance, Status `PREPARE_FOR_SUBMISSION`, `AFTER_APPROVAL`, deutsche Metadaten, je drei vollstaendig verarbeitete iPhone-/iPad-Screenshots sowie die 15 veroeffentlichten trackingfreien Privacy-Deklarationen live zurueck.
+- Apple erlaubt fuer `appStoreVersionSubmissions` keinen Collection-GET. Die Lane prueft deshalb die direkte Beziehung `/v1/appStoreVersions/{id}/appStoreVersionSubmission`; nur der dokumentierte HTTP-404-Leerfall bedeutet „noch nicht eingereicht“. Jeder andere Fehler beendet den Lauf. Der aktuelle Preflight bestand vollstaendig und bestaetigte, dass noch keine Submission existiert.
+- `store_submit` wiederholt denselben Preflight und bricht vor jedem Schreibzugriff ab, solange nicht sowohl der reale Hardwaretest als auch die rechtlich-organisatorische Endabnahme bestaetigt sind. Der Negativtest ohne Hardwarefreigabe endete erwartungsgemaess mit `Physical on-device sign-off is missing`; es wurde keine Einreichung erzeugt.
+- Backend-Nachweise dieses Zyklus: `COMPLIANCE_STATIC_OK`, erfolgreicher TypeScript-/Next-Produktionsbuild, `COMPLIANCE_LIVE_OK`, `APP_REVIEW_ROLES_LIVE_OK accounts=3 user=2 admin=1 sessions_revoked=3`, `LOGIN_RATE_LIMIT_LIVE_OK` und `UPLOAD_CLEAN_AND_DISALLOWED_BYTES_OK`. Die Live-Tests widerriefen ihre Sitzungen und hinterliessen keine fachlichen Testdaten.
+- Offen bleiben zwei reale Abnahmen, die nicht wahrheitsgemaess durch Simulator oder Quellcode ersetzt werden koennen: Face ID samt App-Switcher-Schutz auf einem entsperrten physischen Geraet sowie die Bestaetigung der rechtlichen Texte, Kontakte, Moderationsbesetzung und operativen Anbieterangaben. Das gekoppelte iPhone wurde erkannt; der Fastlane-Start scheiterte ausschliesslich an Apples Geraetestatus `Locked`.
+- Rueckbau: Die neuen Fastlane-Lanes, den Privacy-Readback, die fail-closed Verifierregeln und die zugehoerige iOS-Dokumentation gemeinsam revertieren. Es gab keine Backend-, Schema- oder Produktivdatenaenderung und keine App-Review-Submission. Zyklus `1/5` nach TestFlight Build `111`.

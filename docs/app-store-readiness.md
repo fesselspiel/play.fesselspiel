@@ -29,6 +29,29 @@ Generische Inhaltsbereiche sind additiv modelliert: bestehende Wiki-/Tagebuchsei
 - Die Schutzvertraege fuer ContentEntry, Feed-Kommentare, Packlisten/-Events, Kalendereintraege und das physische Entfernen von Push-Geraeten sind auf dem gemeinsamen Produktions-/Review-Backend ausgerollt. Der anonyme Readback von `DELETE /api/external/push/devices/probe-id` liefert auf `playplaner.com` und `test.playplaner.com` jetzt HTTP `401` mit JSON statt `404` HTML. Ein reversibler Zwei-Nutzer-Live-Smoke bestaetigte alle Fremdrechte, Meldungen, Block-/Moderationsfilter sowie aktive und deaktivierte Geraeteloeschung; die anschliessende Datenbankpruefung ergab `0` Testreste.
 - Der finale App-Store-Build braucht einen vollstaendigen On-Device-Test mit Review-Zugang.
 
+## Vollstaendiger Anforderungsaudit 2026-07-14
+
+| Bereich | Technischer Stand | Nachweis | Verbleibende Endabnahme |
+| --- | --- | --- | --- |
+| 1 Altersbeschraenkung | Erfuellt | 18+-Positionierung, ASC-Altersdeklaration, versionierte Bedingungen; optionales nicht vorausgewaehltes Mandantengate | Rechtstext und regionale Einstufung manuell bestaetigen |
+| 2 Kontoloeschung | Erfuellt | echter Self-Service-Delete, letzter-Admin-Schutz, Token-/Datei-/Login-Nachweis | keine technische P0-Luecke |
+| 3 Datenschutz und Einwilligungen | Erfuellt | oeffentliche Dokumente, Versionierung, getrennte Widerrufe, Export, 15 veroeffentlichte Privacy-Deklarationen | Rechtsgrundlagen, Fristen und Anbieter juristisch bestaetigen |
+| 4 UGC, Melden, Blockieren | Erfuellt | fremde Kerninhalte meldbar/ausblendbar, Blockfilter, Admin-Moderation, reversible Live-Smokes | Moderationspostfach und SLA personell sicherstellen |
+| 5 Medien/NSFW | Erfuellt | Byte-Allowlist, Groessenlimit, ClamAV, Klassifikation, Quarantaene, private Kreise, keine oeffentliche Discovery | Betrieb und Alarmierung des Scanners ueberwachen |
+| 6 Koerperliche Sicherheit/Auftraege | Erfuellt | neutrale Auftraege, freiwillige Annahme, kein Zwang/Abzug, Widerruf und Gegenvorschlag | Review Notes fachlich endpruefen |
+| 7 Consent und Grenzen | Erfuellt | versionierte Zustimmung, Ablehnung, Aenderungsvorschlag, Widerruf, keine Vorauswahl | keine technische P0-Luecke |
+| 8 Native iOS-Qualitaet | Technisch erfuellt, physisch offen | SwiftUI-Kernflows, Keychain, Privacy Manifest, optionaler Lock, Privacy Overlay, iPhone-/iPad-Simulator-Smokes | Face ID, Inaktivitaet und App-Switcher auf entsperrtem realem Geraet abnehmen |
+| 9 Authentifizierung/Einladungen | Erfuellt | Bearer-only, persistente Limits, Reset-/Invite-Schutz, Sitzungsverwaltung und Widerruf | keine technische P0-Luecke |
+| 10 Push | Erfuellt | `DISCREET` als Standard, keine privaten Inhalte/Medien in geschuetzten Payloads | produktive Benachrichtigungseinstellungen organisatorisch beobachten |
+| 11 Telegram/OpenAI/Dritte | Erfuellt | getrennte optionale Einwilligungen, Widerruf, keine Client-Secrets, Datenminimierung | Vertraege, Drittlandtransfer und reale Anbieterlisten manuell bestaetigen |
+| 12 Store-Metadaten | Erfuellt | Fastlane-Live-Readback fuer Texte, Rating, Kategorien, Review Notes, sechs Screenshots und Privacy Labels | finale visuelle/inhaltliche Freigabe durch Verantwortlichen |
+| 13 Review-Mandant | Erfuellt | Alex, Sam und Admin live getestet; neutrale Daten; Rollenabgrenzung; Sitzungs-Cleanup | Zugang unmittelbar vor Submission nochmals kurz pruefen |
+| 14 Monetarisierung | Erfuellt fuer aktuellen Umfang | keine digitalen Kaufpfade; physische Shopify-Produkte klar getrennt; fail-closed Quellcodepruefung | bei jedem neuen Bezahlmodell erneut bewerten |
+| 15 Tests | Technisch erfuellt, physisch offen | statische, Live-, Rollen-, Rate-Limit-, Upload-, iPhone-/iPad- und Store-Checks gruen | kompletter realer Hardware-Regressionslauf |
+| 16 Dokumentation | Erfuellt | Compliance-/Rueckbauakte, Readiness, Datenschutzkarte, Loeschung, Moderation, iOS-Sicherheit und Review Notes | rechtliche Inhalte freigeben |
+
+Der Fastlane-Live-Preflight bestaetigt Version `1.0`, Build `111`, `PREPARE_FOR_SUBMISSION`, `AFTER_APPROVAL`, noch keine Submission, korrekte geschuetzte Review-Informationen, drei iPhone- und drei iPad-Screenshots sowie 15 veroeffentlichte trackingfreie Privacy-Deklarationen. Die Submit-Lane bleibt bis zu den beiden offenen realen Endabnahmen technisch gesperrt.
+
 ## Kein hartes Standard-Altersgate
 
 Die regulaere iOS-Konfiguration verwendet kein zusaetzliches hartes Altersgate. Der Dienst ist sichtbar als Angebot fuer Volljaehrige beschrieben und wird in App Store Connect entsprechend eingestuft. Das additive Mandantenfeld `iosRequiresAgeConfirmation` bleibt standardmaessig `false`; bei einer spaeteren ausdruecklichen Aktivierung ist die Checkbox nicht vorausgewaehlt.
