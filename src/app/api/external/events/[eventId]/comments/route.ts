@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { accessibleOwnerIds, type AccessUser } from "@/lib/access";
 import { logAction, userDisplayName } from "@/lib/audit";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
+import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -27,6 +28,8 @@ function serializeComment(comment: Awaited<ReturnType<typeof prisma.feedComment.
     createdAt: comment.createdAt.toISOString(),
     own: comment.authorId === currentUserId,
     canDelete: comment.authorId === currentUserId,
+    canReport: Boolean(comment.authorId && comment.authorId !== currentUserId),
+    canHide: Boolean(comment.authorId && comment.authorId !== currentUserId),
     author: comment.author ? {
       id: comment.author.id,
       username: comment.author.username,
@@ -36,9 +39,17 @@ function serializeComment(comment: Awaited<ReturnType<typeof prisma.feedComment.
   };
 }
 
-async function commentState(eventId: string, currentUserId: string) {
+async function commentState(eventId: string, currentUserId: string, tenantId: string) {
+  const [excludedAuthorIds, hiddenCommentIds] = await Promise.all([
+    blockedUserIds(currentUserId, tenantId),
+    hiddenEntityIds(tenantId, "feedComment")
+  ]);
   const comments = await prisma.feedComment.findMany({
-    where: { auditLogId: eventId },
+    where: {
+      auditLogId: eventId,
+      id: { notIn: hiddenCommentIds },
+      OR: [{ authorId: null }, { authorId: { notIn: excludedAuthorIds } }]
+    },
     include: { author: { include: { profile: true } } },
     orderBy: { createdAt: "asc" }
   });
@@ -57,7 +68,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ event
   if (blocked) return blocked;
   const auditLog = await findCommentableAuditLog(auth.user, params.eventId);
   if (!auditLog) return NextResponse.json({ ok: false, error: "event_not_found" }, { status: 404 });
-  const state = await commentState(auditLog.id, auth.user.id);
+  const state = await commentState(auditLog.id, auth.user.id, auth.user.tenantId || "");
   return NextResponse.json({ ok: true, eventId: auditLog.id, ...state });
 }
 
@@ -85,6 +96,6 @@ export async function POST(request: NextRequest, props: { params: Promise<{ even
     href: auditLog.href || "/",
     details: { auditLogId: auditLog.id, commentId: comment.id, commentPreview: text.slice(0, 160) }
   });
-  const state = await commentState(auditLog.id, auth.user.id);
+  const state = await commentState(auditLog.id, auth.user.id, auth.user.tenantId || "");
   return NextResponse.json({ ok: true, eventId: auditLog.id, item: serializeComment(comment, auth.user.id), ...state }, { status: 201 });
 }

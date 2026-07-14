@@ -29,6 +29,7 @@ const contentSpaceRoute = read("src/app/api/external/content-spaces/route.ts");
 const contentSpaceDetailRoute = read("src/app/api/external/content-spaces/[spaceId]/route.ts");
 const contentEntriesRoute = read("src/app/api/external/content-spaces/[spaceId]/entries/route.ts");
 const ugcSafety = read("src/lib/compliance/ugc.ts");
+const eventCommentsRoute = read("src/app/api/external/events/[eventId]/comments/route.ts");
 const dataTransfer = read("src/lib/data-transfer.ts");
 const profileSettings = read("src/app/profile/page.tsx");
 const privacySettingsRoute = read("src/app/api/external/account/privacy-settings/route.ts");
@@ -68,6 +69,9 @@ check(contentSpaces.includes("canEditContentEntry(viewer, entry, entry.space)") 
 check(contentSpaces.includes("blockedContentOwnerIds") && contentEntriesRoute.includes('ownerId: { notIn: excludedOwnerIds }'), "Blockierte Personen muessen aus Inhaltsbereichen und Eintraegen verschwinden");
 check(contentSpaces.includes("hiddenContentIds") && contentEntriesRoute.includes('hiddenContentIds(auth.user, \"contentEntry\")'), "Moderierte Inhaltsbereich-Eintraege muessen aus Listen und Details verschwinden");
 check(ugcSafety.includes('type === "contententry"') && ugcSafety.includes('entityType: "contentEntry"'), "ContentEntry-Meldungen muessen serverseitig auf sichtbare Urheber aufgeloest werden");
+check(ugcSafety.includes('"feedcomment", "eventcomment"') && ugcSafety.includes('entityType: "feedComment"'), "Feed-Kommentar-Meldungen muessen serverseitig auf sichtbare Urheber aufgeloest werden");
+check(eventCommentsRoute.includes('hiddenEntityIds(tenantId, "feedComment")') && eventCommentsRoute.includes("blockedUserIds(currentUserId, tenantId)"), "Blockierte und moderierte Feed-Kommentare muessen aus der Kommentaransicht verschwinden");
+check(eventCommentsRoute.includes("canReport:") && eventCommentsRoute.includes("canHide:"), "Feed-Kommentare brauchen viewer-relative Schutzrechte");
 check(dataTransfer.includes("contentSpaces:") && dataTransfer.includes("contentSpaceEntries:") && dataTransfer.includes("contentEntryAttachments:"), "Datenexport muss Inhaltsbereiche, Eintraege und Anlagen enthalten");
 check(schema.includes("showSensitiveMedia") && profileSettings.includes('name="showSensitiveMedia"'), "Sensible Medien brauchen eine persoenliche Web-Einstellung");
 check(privacySettingsRoute.includes("showSensitiveMedia"), "iOS muss die Web-Einstellung fuer sensible Medien lesen koennen");

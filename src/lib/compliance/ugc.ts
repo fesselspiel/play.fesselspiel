@@ -1,5 +1,5 @@
 import type { AccessUser } from "@/lib/access";
-import { mediaVisibilityScope, ownerScope } from "@/lib/access";
+import { accessibleOwnerIds, mediaVisibilityScope, ownerScope } from "@/lib/access";
 import { accessibleCircleChats } from "@/lib/circle-chat";
 import { prisma } from "@/lib/prisma";
 import { wikiPageAccessWhere } from "@/lib/wiki";
@@ -115,6 +115,17 @@ export async function resolveReportTarget(input: {
       select: { id: true, ownerId: true }
     });
     return item ? { entityType: "sessionComment", entityId: item.id, reportedUserId: item.ownerId } : null;
+  }
+  if (["feedcomment", "eventcomment"].includes(type)) {
+    const ownerIds = await accessibleOwnerIds(input.user);
+    const item = await prisma.feedComment.findFirst({
+      where: {
+        id: input.entityId,
+        auditLog: { actorId: { in: ownerIds } }
+      },
+      select: { id: true, authorId: true }
+    });
+    return item ? { entityType: "feedComment", entityId: item.id, reportedUserId: item.authorId } : null;
   }
   if (type === "contententry") {
     const item = await prisma.contentEntry.findFirst({
