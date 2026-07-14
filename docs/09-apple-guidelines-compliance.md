@@ -659,3 +659,11 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Der zentrale Report-Resolver akzeptiert `packingList`, `packingEvent` und den Alias `packEvent`, prueft Sichtbarkeit, Blockierung und Moderationszustand und leitet `reportedUserId` serverseitig aus `ownerId` ab.
 - `scripts/verify-app-store-compliance.js` verlangt Rechtefelder, beide Moderationsfilter, Routennutzung und Report-Aufloesung fail-closed. TypeScript und der statische Compliance-Test bestanden lokal.
 - Es gibt keine Schema- oder Datenmigration und keinen Produktivdateneingriff. Rueckbau: `src/lib/packing-safety.ts`, Serializerfelder, Routenfilter, Resolverzweige und zugehoerige Verifierchecks gemeinsam revertieren. Erst ein bestaetigtes Deployment mit reversiblem Live-Smoke darf als produktive Abnahme dokumentiert werden; `CalendarEvent` bleibt danach noch offen.
+
+## Kalendereintrag-Schutzvertrag (2026-07-14)
+
+- `serializeCalendarEvent` liefert additiv und relativ zum authentifizierten Betrachter `owner`, `own`, `canManage`, `canReport` und `canHide`. Verwaltungsrechte gelten nur dem Owner sowie `ADMIN`/`SUPER_ADMIN`; Schutzrechte gelten nur fremden sichtbaren Eintraegen.
+- `src/lib/calendar-event-safety.ts` kombiniert den bestehenden Owner-Scope mit gegenseitigen Benutzerblockierungen und `ModeratedContent(entityType=calendarEvent, hidden=true)`. Kalenderliste, direkter Detailzugriff, PATCH/DELETE und Check-in-Routen greifen dadurch auf denselben geschuetzten Datensatz zu.
+- Der zentrale Report-Resolver akzeptiert `calendarEvent` und `calendarEntry`, prueft Tenant, Owner-Sichtbarkeit, Blockierung und Moderationsstatus und bestimmt `reportedUserId` ausschliesslich serverseitig aus `Event.ownerId`.
+- `scripts/verify-app-store-compliance.js` verlangt Rechte-Shape, zentralen Block-/Moderationsfilter, Nutzung in der Listenroute und serverseitige Report-Aufloesung fail-closed. Backend-TypeScript und `COMPLIANCE_STATIC_OK` bestanden lokal.
+- Keine Schema- oder Datenmigration und kein Produktivdateneingriff. Rueckbau: `src/lib/calendar-event-safety.ts`, Serializer-/Routenanpassungen, Resolverzweig und Verifierchecks gemeinsam revertieren. Erst ein bestaetigtes Deployment mit reversiblem Live-Smoke darf als produktiv abgenommen gelten.

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
+import { calendarEventSafetyExclusions, visibleCalendarEventWhere } from "@/lib/calendar-event-safety";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { calendarEventInclude, serializeCalendarEvent } from "@/lib/external-calendar-events";
 import { prisma } from "@/lib/prisma";
@@ -25,16 +25,17 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(200, Math.max(1, Number(searchParams.get("limit") || 100)));
   const from = date(searchParams.get("from"));
   const to = date(searchParams.get("to"));
+  const exclusions = await calendarEventSafetyExclusions(auth.user);
   const items = await prisma.event.findMany({
     where: {
-      ...(await ownerScope(auth.user)),
+      ...(await visibleCalendarEventWhere(auth.user, exclusions)),
       ...(from || to ? { startsAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {})
     },
     include: calendarEventInclude,
     orderBy: [{ startsAt: "asc" }, { createdAt: "desc" }],
     take: limit
   });
-  return NextResponse.json({ ok: true, count: items.length, items: items.map((item) => serializeCalendarEvent(item, auth.user.id)) });
+  return NextResponse.json({ ok: true, count: items.length, items: items.map((item) => serializeCalendarEvent(item, auth.user)) });
 }
 
 export async function POST(request: NextRequest) {
@@ -59,5 +60,5 @@ export async function POST(request: NextRequest) {
     include: calendarEventInclude
   });
   await logAction({ actorId: auth.user.id, action: "event_created_api", entityType: "event", entityId: event.id, title: `Termin per API angelegt: ${event.title}`, href: `/events/${event.id}/edit` });
-  return NextResponse.json({ ok: true, item: serializeCalendarEvent(event, auth.user.id) }, { status: 201 });
+  return NextResponse.json({ ok: true, item: serializeCalendarEvent(event, auth.user) }, { status: 201 });
 }

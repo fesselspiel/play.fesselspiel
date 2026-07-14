@@ -29,7 +29,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
   if (blocked) return blocked;
   const event = await findCalendarEventForUser(auth.user, params.id);
   if (!event) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
-  return NextResponse.json({ ok: true, item: serializeCalendarEvent(event, auth.user.id) });
+  return NextResponse.json({ ok: true, item: serializeCalendarEvent(event, auth.user) });
 }
 
 export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
@@ -53,7 +53,7 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
     include: calendarEventInclude
   });
   await logAction({ actorId: auth.user.id, action: "event_updated_api", entityType: "event", entityId: event.id, title: `Termin per API geändert: ${event.title}`, href: `/events/${event.id}/edit` });
-  return NextResponse.json({ ok: true, item: serializeCalendarEvent(event, auth.user.id) });
+  return NextResponse.json({ ok: true, item: serializeCalendarEvent(event, auth.user) });
 }
 
 export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {

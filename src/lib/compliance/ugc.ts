@@ -169,5 +169,23 @@ export async function resolveReportTarget(input: {
     });
     return item ? { entityType: "packingEvent", entityId: item.id, reportedUserId: item.ownerId } : null;
   }
+  if (["calendarevent", "calendarentry"].includes(type)) {
+    const [blockedOwners, hiddenIds] = await Promise.all([
+      blockedUserIds(input.user.id, tenantId),
+      hiddenEntityIds(tenantId, "calendarEvent")
+    ]);
+    const item = await prisma.event.findFirst({
+      where: {
+        id: input.entityId,
+        ...(hiddenIds.length ? { NOT: { id: { in: hiddenIds } } } : {}),
+        AND: [
+          await ownerScope(input.user),
+          ...(blockedOwners.length ? [{ ownerId: { notIn: blockedOwners } }] : [])
+        ]
+      },
+      select: { id: true, ownerId: true }
+    });
+    return item ? { entityType: "calendarEvent", entityId: item.id, reportedUserId: item.ownerId } : null;
+  }
   return null;
 }

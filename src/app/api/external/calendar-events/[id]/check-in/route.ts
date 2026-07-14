@@ -26,7 +26,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
   });
   const updated = await prisma.event.findUniqueOrThrow({ where: { id: event.id }, include: calendarEventInclude });
   await logAction({ actorId: auth.user.id, action: "event_check_in_api", entityType: "event", entityId: event.id, title: `Bei Termin eingecheckt: ${event.title}`, href: `/events/${event.id}/edit` });
-  return NextResponse.json({ ok: true, item: serializeCalendarEvent(updated, auth.user.id) });
+  return NextResponse.json({ ok: true, item: serializeCalendarEvent(updated, auth.user) });
 }
 
 export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
@@ -40,5 +40,5 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
   await prisma.checkIn.deleteMany({ where: { eventId: event.id, userId: auth.user.id } });
   const updated = await prisma.event.findUniqueOrThrow({ where: { id: event.id }, include: calendarEventInclude });
   await logAction({ actorId: auth.user.id, action: "event_check_out_api", entityType: "event", entityId: event.id, title: `Check-in entfernt: ${event.title}`, href: `/events/${event.id}/edit` });
-  return NextResponse.json({ ok: true, item: serializeCalendarEvent(updated, auth.user.id) });
+  return NextResponse.json({ ok: true, item: serializeCalendarEvent(updated, auth.user) });
 }
