@@ -4,6 +4,7 @@ import { accessibleCircleChats } from "@/lib/circle-chat";
 import { prisma } from "@/lib/prisma";
 import { wikiPageAccessWhere } from "@/lib/wiki";
 import { contentEntryAccess } from "@/lib/content-spaces";
+import { packingVisibilityScope } from "@/lib/packing";
 
 export async function blockedUserIds(userId: string, tenantId: string) {
   const blocks = await prisma.userBlock.findMany({
@@ -135,6 +136,38 @@ export async function resolveReportTarget(input: {
     if (!item) return null;
     const resolved = await contentEntryAccess(input.user, item.spaceId, item.id);
     return resolved ? { entityType: "contentEntry", entityId: resolved.entry.id, reportedUserId: resolved.entry.ownerId } : null;
+  }
+  if (type === "packinglist") {
+    const [blockedOwners, hiddenIds] = await Promise.all([
+      blockedUserIds(input.user.id, tenantId),
+      hiddenEntityIds(tenantId, "packingList")
+    ]);
+    const item = await prisma.packingList.findFirst({
+      where: {
+        id: input.entityId,
+        ownerId: { notIn: blockedOwners },
+        ...(hiddenIds.length ? { NOT: { id: { in: hiddenIds } } } : {}),
+        ...packingVisibilityScope(input.user)
+      },
+      select: { id: true, ownerId: true }
+    });
+    return item ? { entityType: "packingList", entityId: item.id, reportedUserId: item.ownerId } : null;
+  }
+  if (["packingevent", "packevent"].includes(type)) {
+    const [blockedOwners, hiddenIds] = await Promise.all([
+      blockedUserIds(input.user.id, tenantId),
+      hiddenEntityIds(tenantId, "packingEvent")
+    ]);
+    const item = await prisma.packingEvent.findFirst({
+      where: {
+        id: input.entityId,
+        ownerId: { notIn: blockedOwners },
+        ...(hiddenIds.length ? { NOT: { id: { in: hiddenIds } } } : {}),
+        ...packingVisibilityScope(input.user)
+      },
+      select: { id: true, ownerId: true }
+    });
+    return item ? { entityType: "packingEvent", entityId: item.id, reportedUserId: item.ownerId } : null;
   }
   return null;
 }

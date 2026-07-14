@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
-import { canManagePacking, packingListInclude, packingVisibilityScope, serializePackingList } from "@/lib/packing";
+import { canManagePacking, packingListInclude, serializePackingList } from "@/lib/packing";
+import { packingSafetyExclusions, visiblePackingWhere } from "@/lib/packing-safety";
 import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlugForUpdate } from "@/lib/slug";
@@ -17,7 +18,8 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "packingLists");
   if (blocked) return blocked;
-  const item = await prisma.packingList.findFirst({ where: { id: params.id, ...packingVisibilityScope(auth.user) }, include: packingListInclude });
+  const exclusions = await packingSafetyExclusions(auth.user);
+  const item = await prisma.packingList.findFirst({ where: { id: params.id, ...visiblePackingWhere(auth.user, "list", exclusions) }, include: packingListInclude });
   if (!item) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   return NextResponse.json({ ok: true, item: serializePackingList(item, auth.user) });
 }
@@ -28,7 +30,8 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "packingLists");
   if (blocked) return blocked;
-  const existing = await prisma.packingList.findFirst({ where: { id: params.id, ...packingVisibilityScope(auth.user) } });
+  const exclusions = await packingSafetyExclusions(auth.user);
+  const existing = await prisma.packingList.findFirst({ where: { id: params.id, ...visiblePackingWhere(auth.user, "list", exclusions) } });
   if (!existing) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   if (!canManagePacking(auth.user, existing.ownerId)) return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   const payload = await request.json().catch(() => ({}));
@@ -55,7 +58,8 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "packingLists");
   if (blocked) return blocked;
-  const existing = await prisma.packingList.findFirst({ where: { id: params.id, ...packingVisibilityScope(auth.user) } });
+  const exclusions = await packingSafetyExclusions(auth.user);
+  const existing = await prisma.packingList.findFirst({ where: { id: params.id, ...visiblePackingWhere(auth.user, "list", exclusions) } });
   if (!existing) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   if (!canManagePacking(auth.user, existing.ownerId)) return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   await prisma.packingList.delete({ where: { id: existing.id } });

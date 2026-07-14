@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { canManagePacking, packingEventInclude, packingVisibilityScope, serializePackingEvent } from "@/lib/packing";
+import { packingSafetyExclusions, visiblePackingWhere } from "@/lib/packing-safety";
 import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlugForUpdate } from "@/lib/slug";
@@ -30,9 +31,10 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "packingLists");
   if (blocked) return blocked;
-  const item = await prisma.packingEvent.findFirst({ where: { id: params.id, ...packingVisibilityScope(auth.user) }, include: packingEventInclude });
+  const exclusions = await packingSafetyExclusions(auth.user);
+  const item = await prisma.packingEvent.findFirst({ where: { id: params.id, ...visiblePackingWhere(auth.user, "event", exclusions) }, include: packingEventInclude });
   if (!item) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
-  return NextResponse.json({ ok: true, item: serializePackingEvent(item, auth.user) });
+  return NextResponse.json({ ok: true, item: serializePackingEvent(item, auth.user, exclusions) });
 }
 
 export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
@@ -41,7 +43,8 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "packingLists");
   if (blocked) return blocked;
-  const existing = await prisma.packingEvent.findFirst({ where: { id: params.id, ...packingVisibilityScope(auth.user) } });
+  const exclusions = await packingSafetyExclusions(auth.user);
+  const existing = await prisma.packingEvent.findFirst({ where: { id: params.id, ...visiblePackingWhere(auth.user, "event", exclusions) } });
   if (!existing) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   if (!canManagePacking(auth.user, existing.ownerId)) return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   const payload = await request.json().catch(() => ({}));
@@ -75,7 +78,7 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
     return tx.packingEvent.findUniqueOrThrow({ where: { id: existing.id }, include: packingEventInclude });
   });
   await logAction({ actorId: auth.user.id, action: "packing_event_updated_api", entityType: "packingEvent", entityId: item.id, title: `Pack-Event per API geändert: ${item.title}`, href: "/packing" });
-  return NextResponse.json({ ok: true, item: serializePackingEvent(item, auth.user) });
+  return NextResponse.json({ ok: true, item: serializePackingEvent(item, auth.user, exclusions) });
 }
 
 export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
@@ -84,7 +87,8 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "packingLists");
   if (blocked) return blocked;
-  const existing = await prisma.packingEvent.findFirst({ where: { id: params.id, ...packingVisibilityScope(auth.user) } });
+  const exclusions = await packingSafetyExclusions(auth.user);
+  const existing = await prisma.packingEvent.findFirst({ where: { id: params.id, ...visiblePackingWhere(auth.user, "event", exclusions) } });
   if (!existing) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   if (!canManagePacking(auth.user, existing.ownerId)) return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   await prisma.packingEvent.delete({ where: { id: existing.id } });

@@ -651,3 +651,11 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Statische Absicherung: `scripts/verify-app-store-compliance.js` prueft Resolver, Block-/Moderationsfilter und Schutzrechte fail-closed. TypeScript und `COMPLIANCE_STATIC_OK` bestanden lokal.
 - Es gibt keine Schema- oder Datenmigration und keine Produktivdatenaenderung. Rollback: Resolverzweig in `src/lib/compliance/ugc.ts`, Filter/Rechte in der Event-Kommentarroute und die zugehoerigen Verifierchecks gemeinsam revertieren.
 - Der Stand ist auf GitHub vorbereitet, aber erst nach bestaetigtem Deployment und reversiblem Fremdkommentar-Smoke als produktiv abgenommen zu markieren. Die UGC-Zieltypen `PackingList`, `PackingEvent` und `CalendarEvent` bleiben danach noch offen.
+
+## Packlisten- und Pack-Event-Schutzvertrag (2026-07-14)
+
+- Die Pack-Serializer liefern additiv und betrachterbezogen `own`, `canReport` und `canHide`; bestehende `canManage`-Rechte bleiben unveraendert. Fremde Inhalte sind damit explizit erkennbar, ohne Eigentum aus Verwaltungsrechten abzuleiten.
+- `src/lib/packing-safety.ts` bildet den gemeinsamen Filter fuer gegenseitig blockierte Owner sowie ausgeblendete `packingList`-/`packingEvent`-IDs. Listen, direkte Details, PATCH/DELETE und verschachtelte Listen in Pack-Events verwenden diesen Filter.
+- Der zentrale Report-Resolver akzeptiert `packingList`, `packingEvent` und den Alias `packEvent`, prueft Sichtbarkeit, Blockierung und Moderationszustand und leitet `reportedUserId` serverseitig aus `ownerId` ab.
+- `scripts/verify-app-store-compliance.js` verlangt Rechtefelder, beide Moderationsfilter, Routennutzung und Report-Aufloesung fail-closed. TypeScript und der statische Compliance-Test bestanden lokal.
+- Es gibt keine Schema- oder Datenmigration und keinen Produktivdateneingriff. Rueckbau: `src/lib/packing-safety.ts`, Serializerfelder, Routenfilter, Resolverzweige und zugehoerige Verifierchecks gemeinsam revertieren. Erst ein bestaetigtes Deployment mit reversiblem Live-Smoke darf als produktive Abnahme dokumentiert werden; `CalendarEvent` bleibt danach noch offen.

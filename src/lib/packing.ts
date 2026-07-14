@@ -65,6 +65,9 @@ export function serializePackingList(list: any, user?: PackingUser) {
     note: list.note,
     visibility: list.visibility,
     canManage: user ? canManagePacking(user, list.ownerId) : false,
+    own: user ? user.id === list.ownerId : null,
+    canReport: user ? user.id !== list.ownerId : false,
+    canHide: user ? user.id !== list.ownerId : false,
     owner: {
       id: list.owner.id,
       displayName: userDisplayName(list.owner)
@@ -112,8 +115,14 @@ export function serializePackingList(list: any, user?: PackingUser) {
   };
 }
 
-export function serializePackingEvent(packingEvent: any, user?: PackingUser) {
-  const lists = packingEvent.lists || [];
+export function serializePackingEvent(
+  packingEvent: any,
+  user?: PackingUser,
+  exclusions?: { ownerIds: string[]; listIds: string[]; eventIds: string[] }
+) {
+  const lists = (packingEvent.lists || []).filter((list: any) =>
+    !exclusions?.ownerIds.includes(list.ownerId) && !exclusions?.listIds.includes(list.id)
+  );
   const totalItems = lists.reduce((sum: number, list: any) => sum + (list.items?.length || 0), 0);
   const packedItems = lists.reduce((sum: number, list: any) => sum + (list.items || []).filter((item: any) => item.packed).length, 0);
   return {
@@ -125,6 +134,9 @@ export function serializePackingEvent(packingEvent: any, user?: PackingUser) {
     startsAt: packingEvent.startsAt?.toISOString() || null,
     visibility: packingEvent.visibility,
     canManage: user ? canManagePacking(user, packingEvent.ownerId) : false,
+    own: user ? user.id === packingEvent.ownerId : null,
+    canReport: user ? user.id !== packingEvent.ownerId : false,
+    canHide: user ? user.id !== packingEvent.ownerId : false,
     owner: { id: packingEvent.owner.id, displayName: userDisplayName(packingEvent.owner) },
     event: packingEvent.event ? {
       id: packingEvent.event.id,

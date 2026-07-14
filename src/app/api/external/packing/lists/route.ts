@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
-import { packingListInclude, packingVisibilityScope, serializePackingList } from "@/lib/packing";
+import { packingListInclude, serializePackingList } from "@/lib/packing";
+import { packingSafetyExclusions, visiblePackingWhere } from "@/lib/packing-safety";
 import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
@@ -17,8 +18,9 @@ export async function GET(request: NextRequest) {
   const blocked = apiFeatureGate(auth.user, "externalApi", "packingLists");
   if (blocked) return blocked;
   const limit = Math.min(100, Math.max(1, Number(request.nextUrl.searchParams.get("limit") || 50)));
+  const exclusions = await packingSafetyExclusions(auth.user);
   const lists = await prisma.packingList.findMany({
-    where: packingVisibilityScope(auth.user),
+    where: visiblePackingWhere(auth.user, "list", exclusions),
     include: packingListInclude,
     orderBy: [{ sortOrder: "asc" }, { updatedAt: "desc" }],
     take: limit
