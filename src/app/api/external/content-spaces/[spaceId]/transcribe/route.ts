@@ -12,6 +12,7 @@ import {
 import { decryptSecret } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { apiFeatureGate, dateFromValue, requireApiUser } from "@/lib/external-api";
+import { saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { createWikiRevision } from "@/lib/wiki";
 
@@ -67,17 +68,28 @@ export async function POST(request: NextRequest, props: { params: Promise<{ spac
   const title = text(formData.get("title")) || transcript.split(/\s+/).slice(0, 6).join(" ") || "Neuer Eintrag";
   const calendarDate = dateFromValue(text(formData.get("calendarDate")) || text(formData.get("date")));
   const visibility = text(formData.get("visibility"));
+  const keepAudio = text(formData.get("keepAudio")).toLowerCase() === "true";
 
   if (params.spaceId === LEGACY_WIKI_SPACE_ID) {
     const page = await createLegacyWikiEntry(auth.user, title, transcript, visibility);
+    if (keepAudio) {
+      const asset = await saveUploadedFile(auth.user.id, file, auth.user.tenantId);
+      if (asset) await prisma.wikiPageImage.create({ data: { pageId: page.id, fileId: asset.id, title: "Sprachaufnahme" } });
+    }
     await createWikiRevision(page.id, auth.user.id, "transcribed_content_space_api");
-    await logAction({ actorId: auth.user.id, action: "content_entry_transcribed_api", entityType: "wikiPage", entityId: page.id, title: `Tagebucheintrag transkribiert: ${page.title}`, href: serializeContentEntry(request, { legacyType: "wiki", page }).href });
-    return NextResponse.json({ ok: true, transcript, text: transcript, item: serializeContentEntry(request, { legacyType: "wiki", page }) }, { status: 201 });
+    const refreshed = await prisma.wikiPage.findUniqueOrThrow({ where: { id: page.id }, include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } } });
+    await logAction({ actorId: auth.user.id, action: "content_entry_transcribed_api", entityType: "wikiPage", entityId: page.id, title: `Tagebucheintrag transkribiert: ${page.title}`, href: serializeContentEntry(request, { legacyType: "wiki", page: refreshed }).href });
+    return NextResponse.json({ ok: true, transcript, text: transcript, item: serializeContentEntry(request, { legacyType: "wiki", page: refreshed }) }, { status: 201 });
   }
   if (params.spaceId === LEGACY_IDEAS_SPACE_ID) {
     const idea = await createLegacyIdeaEntry(auth.user, title, transcript, calendarDate);
+    if (keepAudio) {
+      const asset = await saveUploadedFile(auth.user.id, file, auth.user.tenantId);
+      if (asset) await prisma.activityImage.create({ data: { activityId: idea.id, fileId: asset.id, title: "Sprachaufnahme" } });
+    }
+    const refreshed = await prisma.activityPlan.findUniqueOrThrow({ where: { id: idea.id }, include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } } });
     await logAction({ actorId: auth.user.id, action: "content_entry_transcribed_api", entityType: "activity", entityId: idea.id, title: `Idee transkribiert: ${idea.title}`, href: `/ideas/${idea.slug}` });
-    return NextResponse.json({ ok: true, transcript, text: transcript, item: serializeContentEntry(request, { legacyType: "idea", idea }) }, { status: 201 });
+    return NextResponse.json({ ok: true, transcript, text: transcript, item: serializeContentEntry(request, { legacyType: "idea", idea: refreshed }) }, { status: 201 });
   }
 
   const resolved = await contentSpaceAccess(auth.user, params.spaceId);
@@ -95,6 +107,11 @@ export async function POST(request: NextRequest, props: { params: Promise<{ spac
     },
     include: { owner: { include: { profile: true } }, space: true, attachments: { include: { file: true }, orderBy: { createdAt: "asc" } } }
   });
+  if (keepAudio) {
+    const asset = await saveUploadedFile(auth.user.id, file, auth.user.tenantId);
+    if (asset) await prisma.contentEntryAttachment.create({ data: { tenantId: auth.user.tenantId || undefined, ownerId: auth.user.id, entryId: entry.id, fileId: asset.id, title: "Sprachaufnahme" } });
+  }
+  const refreshed = await prisma.contentEntry.findUniqueOrThrow({ where: { id: entry.id }, include: { owner: { include: { profile: true } }, space: true, attachments: { include: { file: true }, orderBy: { createdAt: "asc" } } } });
   await logAction({ actorId: auth.user.id, action: "content_entry_transcribed_api", entityType: "contentEntry", entityId: entry.id, title: `Inhalt transkribiert: ${entry.title}`, href: `/content-spaces/${entry.spaceId}/entries/${entry.id}` });
-  return NextResponse.json({ ok: true, transcript, text: transcript, item: serializeContentEntry(request, entry) }, { status: 201 });
+  return NextResponse.json({ ok: true, transcript, text: transcript, item: serializeContentEntry(request, refreshed) }, { status: 201 });
 }

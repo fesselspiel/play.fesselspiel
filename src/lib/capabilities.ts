@@ -694,6 +694,7 @@ export const capabilities: readonly Capability[] = [
         apiEndpoints: [
           { method: "GET", path: "/api/external/content-spaces", description: "Sichtbare Bereiche lesen; bestehendes Tagebuch und bestehende Ideen erscheinen verlustfrei als virtuelle Standardbereiche." },
           { method: "POST", path: "/api/external/content-spaces", description: "Bereich anlegen. Body: name, kind?, icon?, sortOrder?, visibility?, allowedUserIds?, allowedCircleIds?." },
+          { method: "GET", path: "/api/external/content-spaces/share-targets", description: "Datensparsame, blockierungsbereinigte Nutzer- und Zirkelziele fuer die Freigabeauswahl lesen." },
           { method: "GET", path: "/api/external/content-spaces/{id}", description: "Bereich lesen." },
           { method: "PATCH", path: "/api/external/content-spaces/{id}", description: "Name, Icon, Reihenfolge und Freigaben aendern." },
           { method: "DELETE", path: "/api/external/content-spaces/{id}", description: "Eigenen benutzerdefinierten Bereich archivieren; Eintraege und Anlagen bleiben erhalten." },
