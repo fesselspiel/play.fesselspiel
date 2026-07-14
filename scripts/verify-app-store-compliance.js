@@ -22,6 +22,8 @@ const apiTokenSettings = read("src/app/settings/api/page.tsx");
 const capabilities = read("src/lib/capabilities.ts") + read("src/lib/capability-runtime.ts");
 const passwordPolicy = read("src/lib/password-policy.ts");
 const packageManifest = JSON.parse(read("package.json"));
+const mobileLoginDocs = read("docs/07-mobile-app-login.md");
+const implementationLog = read("docs/03-implementierungslog.md");
 
 check(files.includes("await assertMalwareFree(bytes)"), "Uploads muessen vor dem Speichern gescannt werden");
 check(files.includes('scanStatus: "CLEAN" as const'), "Dateizugriff muss auf CLEAN begrenzt sein");
@@ -42,6 +44,12 @@ check(!mobileLogin.includes("details: { identifier:"), "App-Login darf Kennungen
 check(webLogin.includes('status: 429') && mobileLogin.includes('status: 429'), "Web- und App-Login muessen Rate-Limits signalisieren");
 check(!apiTokenSettings.includes("params.set(\"token\"") && !apiTokenSettings.includes("searchParams.token"), "API-Token darf nicht in Browser-URLs gelangen");
 check(!capabilities.includes("?token=..."), "API-Dokumentation darf reguläre Tokens nicht in URLs empfehlen");
+check(!capabilities.match(/token-(?:query|url)|als Feld `token`/i), "Capabilities duerfen Query- oder Multipart-Token nicht empfehlen");
+check(!apiConsole.match(/token-query|bearer token oder token/i), "API-Konsole darf Query-Token nicht als Uploadoption anzeigen");
+check(!mobileLoginDocs.includes("?token=fsp_"), "Mobile-Dokumentation darf keine regulaeren Query-Token-Beispiele enthalten");
+check(!mobileLoginDocs.includes("URL-Token (`?token"), "Mobile-Dokumentation darf regulaere URL-Token nicht empfehlen");
+check(!mobileLoginDocs.includes("erzeugt `downloadUrlWithToken`"), "Mobile-Dokumentation darf keine tokenhaltigen Download-URLs empfehlen");
+check(!implementationLog.match(/\?token=\.\.\.|\?token=fsp_|files\/\{fileId\}\?token=/), "Implementierungslog enthaelt noch aktive Query-Token-Beispiele");
 check(passwordPolicy.includes("PASSWORD_MIN_LENGTH = 12") && passwordPolicy.includes("PASSWORD_MAX_LENGTH = 128"), "Zentrale Passwortregel muss 12 bis 128 Zeichen verlangen");
 
 // There are no paid digital features in the reviewed iOS product. Shopify is

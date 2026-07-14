@@ -585,7 +585,7 @@ export const capabilities: readonly Capability[] = [
           { method: "GET", path: "/api/external/images?source=bondageSystem", description: "Bondage-System-Produktbilder für native externe App-Anzeige abrufen." },
           { method: "GET", path: "/api/external/media?kind=IMAGE&limit=50", description: "Geschützte Bilder als JSON-Feed für externe Apps abrufen. Antwort enthält `downloadUrl` für native Bildanzeige." },
           { method: "GET", path: "/api/external/files/{fileId}", description: "Geschützte Bild-/Videodatei nativ laden. Bearer Token im Authorization-Header verwenden." },
-          { method: "POST", path: "/api/external/media", description: "Bild/Video per Multipart hochladen. Token im Header oder als Feld `token`." }
+          { method: "POST", path: "/api/external/media", description: "Bild/Video per Multipart hochladen. Authentifizierung ausschliesslich per Bearer-Header." }
         ],
         auditActions: ["media_uploaded", "media_updated", "media_deleted", "media_album_changed_telegram"]
       },

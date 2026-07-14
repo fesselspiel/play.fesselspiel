@@ -292,7 +292,7 @@ function endpointSampleForPath(
       ok: true,
       action: "upload",
       fileFields: ["file", "title", "visibility", "albumId", "notes?"],
-      message: "Multipart-Upload mit Bearer Token oder token-Query."
+      message: "Multipart-Upload mit Bearer Token im Authorization-Header."
     };
   }
   if (lowerPath.includes("/api/external/auth/login")) {

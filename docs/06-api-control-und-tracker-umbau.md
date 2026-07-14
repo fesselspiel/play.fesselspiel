@@ -155,7 +155,7 @@ Vor Merge sollte jemand mit Produktkontext pruefen, ob die API-Control-Seite nur
 
 - Die API-Control-Server-Actions pruefen jetzt selbst auf Admin/Super-Admin, nicht nur die Seite.
 - Die API-Konsole speichert eingegebene Tokens nur noch in der aktuellen Browser-Session.
-- Kuratierte Requests senden API-Tokens standardmaessig nur noch als Bearer-Header. Token-in-URL bleibt in den kopierbaren Beispielen bewusst als separate Alexa-/Webhook-Variante sichtbar.
+- Kuratierte Requests und kopierbare Beispiele senden regulaere API-Tokens ausschliesslich als Bearer-Header. Die fruehere Token-in-URL-Variante wurde entfernt.
 - Der Roh-Request-Modus ist auf die eigene Domain und `/api/external/*` begrenzt, damit Tokens nicht versehentlich an fremde Hosts gesendet werden.
 - Tokenwerte in angezeigten Request-URLs werden maskiert.
 - Datei-Downloads ueber `/api/external/files/:id` haengen nicht mehr pauschal am Medien-Feature, sondern an `externalApi` plus der bestehenden Dateizugriffspruefung. Dadurch funktionieren Bildfeeds fuer Spielsachen, Szenen, Ideen und Produkte auch ohne aktivierte Mediengalerie.

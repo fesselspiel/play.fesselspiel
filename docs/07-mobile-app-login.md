@@ -51,7 +51,7 @@ Der Login erzeugt einen normalen API-Token fuer die aktuelle Seite. Die App soll
 Authorization: Bearer fsp_...
 ```
 
-URL-Token (`?token=...`) bleibt fuer Alexa, Kurzbefehle und einfache Webhooks moeglich, sollte in nativen Apps aber nicht der Standard sein.
+Regulaere API-Tokens werden nicht in URLs, Queryparametern oder Formularfeldern akzeptiert. Ausnahmen sind eigenstaendige, kurzlebige Einmal-Tokens fuer genau begrenzte Flows wie die nachfolgende Web-Session-Bridge; sie sind keine API-Tokens.
 
 Fehler:
 
@@ -964,11 +964,7 @@ Authorization: Bearer fsp_...
 Accept: text/event-stream
 ```
 
-Alternativ kann der Token als Query-Parameter uebergeben werden:
-
-```http
-GET /api/external/chat/circle/stream?token=fsp_...&circleId=circle_id&after=2026-07-02T20:00:00.000Z
-```
+Der Stream verlangt wie alle regulaeren App-Endpunkte den Bearer-Header. Ein API-Token darf nicht als Query-Parameter uebergeben werden.
 
 Der Stream sendet Server-Sent-Events. Beim Verbinden kommt:
 
@@ -1112,7 +1108,7 @@ Parameter:
 - `categoryId`: Filter auf eine Kategorie.
 - `positionId`: Filter auf verknuepfte Szene.
 - `includeRelations=0`: Verknuepfungen ausblenden.
-- `token`: optional, erzeugt `downloadUrlWithToken` fuer Bildabrufe ohne Bearer-Header.
+- Bildabrufe verwenden denselben Bearer-Header wie die Listenabfrage. Es gibt keinen Token-Queryparameter und keine tokenhaltige Download-URL.
 
 Jeder Eintrag enthaelt `category`, `image`, `favorites`, `isFavorite`, `positions` und `activities`.
 Der Detail-Endpunkt akzeptiert die interne ID oder den Slug.
@@ -1274,7 +1270,7 @@ Parameter:
 - `toyId`: Filter auf verknuepftes Spielzeug.
 - `selfBondage=1`: nur Self-Bondage-faehige Szenen.
 - `includeRelations=0`: Verknuepfungen ausblenden.
-- `token`: optional, erzeugt `downloadUrlWithToken` fuer Bildabrufe ohne Bearer-Header.
+- Bildabrufe verwenden denselben Bearer-Header wie die Listenabfrage. Es gibt keinen Token-Queryparameter und keine tokenhaltige Download-URL.
 
 Jeder Eintrag enthaelt `category`, `image`, `favorites`, `isFavorite`, `selfBondageCapable`, `toys`, `bondageSystemItems` und `activities`.
 Der Detail-Endpunkt akzeptiert die interne ID oder den Slug.

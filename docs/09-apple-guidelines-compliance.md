@@ -464,3 +464,12 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Rueckbau: Die beiden zusaetzlichen statischen Pruefbloecke und diese Dokumentationszeilen koennen ohne Datenmigration revertiert werden. Es wurden keine Produktivdaten, Shopify-Daten oder Store-Einstellungen veraendert.
 - Negativnachweis: Eine temporaere Swift-Datei mit `import StoreKit` fuehrte reproduzierbar zu `APP_STORE_READINESS_FAILED` und wurde direkt danach entfernt. Der unveraenderte Produktcode bestand anschliessend wieder `APP_STORE_READINESS_OK`; der Backendcheck meldete `COMPLIANCE_STATIC_OK`.
 - Visueller Nachweis auf iPhone 17e: `/tmp/playplaner-guideline31-physical-products-cycle1-retry.png` zeigt die native Detailansicht mit dem eindeutigen Titel `Shopify-Produkte`, Relationen und Teilen/Sync, aber ohne Kauf-, Preis-, Abo- oder Checkout-Element. Dies ist iOS-Zyklus `1/5` nach TestFlight Build 104.
+
+## Zyklus 21: Bearer-only-Vertrag ohne widerspruechliche Beispiele
+
+- Die regulaere externe API akzeptierte bereits ausschliesslich `Authorization: Bearer`, waehrend eine Capability-Beschreibung, die API-Control-Vorschau und aeltere Mobile-/Implementierungsdokumentation noch Query- oder Multipart-Token empfahlen. Diese widerspruechlichen Hinweise wurden entfernt; kurzlebige signierte Einmal-Tokens fuer Web-Session-Bridge und Einladungen bleiben klar als eigener, begrenzter Vertrag dokumentiert.
+- `POST /api/external/media` beschreibt jetzt ausschliesslich Bearer-Authentifizierung. Die API-Control-Vorschau nennt weder Query- noch Multipart-Token. Chat-SSE, Katalogbilder und geschuetzte Dateien dokumentieren denselben Bearer-Header wie ihre Listenabfragen; `downloadUrlWithToken` bleibt nur als kompatibles `null`-Feld bestehen.
+- Der statische Compliance-Test stoppt jetzt bei Query-/Multipart-Token-Hinweisen in Capabilities, API-Control, Mobile-Dokumentation oder Implementierungslog. Er prueft weiterhin, dass `tokenFromRequest` keine Queryparameter liest.
+- Reversibler Live-Smoke gegen den Review-Mandant: Bearer-Aufruf von `/api/external/status` HTTP 200, derselbe API-Token als Queryparameter HTTP 401, derselbe Token als Multipartfeld bei `/api/external/media` HTTP 401. Die temporaere App-Sitzung wurde danach widerrufen.
+- Rueckbau: Text- und Testaenderungen koennen ohne Migration revertiert werden. Das Wiederzulassen oder erneute Empfehlen regulaerer Query-/Multipart-Tokens ist aus Sicherheitsgruenden nicht vorgesehen.
+- Dies ist iOS-/Backend-Zyklus `2/5` nach TestFlight Build 104; kein TestFlight-Upload.

@@ -40,5 +40,5 @@ Die regulaere iOS-Konfiguration verwendet kein zusaetzliches hartes Altersgate. 
 
 - Login, Passwort-Reset, Einladungsannahme/-erstellung und API-Token-Erzeugung sind persistent rate-limitiert. Schluessel werden ausschliesslich HMAC-hashiert gespeichert.
 - Fehlgeschlagene Logins schreiben keine Kennung oder IP in Auditlogs. Die iOS-App uebersetzt HTTP 429 in einen ruhigen Nutzerhinweis und behaelt Eingaben.
-- API-Tokens erscheinen nicht in URLs, Browser-Historie oder Capability-Beispielen. Die externe Einladungserstellung ist ein Bearer-authentifizierter POST.
+- API-Tokens erscheinen nicht in URLs, Browser-Historie, Capability-Beispielen, Multipartfeldern oder Mobile-Dokumentationsbeispielen. Die externe Einladungserstellung ist ein Bearer-authentifizierter POST.
 - Reproduzierbare Nachweise: `npm run test:compliance:static` und `npm run test:rate-limit:live`; reversible Migration unter `prisma/manual-migrations/20260714_security_rate_limits/`.

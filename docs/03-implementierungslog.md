@@ -476,12 +476,12 @@ Details:
 - Neues Datenmodell `ApiToken` für externe API-Zugriffe.
 - Tokens werden nur einmalig im Klartext angezeigt; gespeichert wird ein HMAC-Hash und die letzten sechs Zeichen.
 - Neue Einstellungsseite `API Tokens` unter `/settings/api`.
-- Tokens können per `Authorization: Bearer <token>` oder für einfache Alexa-/Shortcut-Aufrufe per URL-Parameter `?token=<token>` verwendet werden.
+- Regulaere API-Tokens werden ausschliesslich per `Authorization: Bearer <token>` verwendet. Die fruehere Query-Parameter-Variante wurde aus Sicherheitsgruenden entfernt.
 - Externe Endpunkte:
-  - `GET /api/external/status?token=...`
-  - `GET|POST /api/external/trackers/{trackerKey}/start?token=...&note=...`
-  - `GET|POST /api/external/trackers/{trackerKey}/stop?token=...&note=...`
-  - `GET /api/external/trackers/quotas?token=...`
+  - `GET /api/external/status`
+  - `GET|POST /api/external/trackers/{trackerKey}/start`
+  - `GET|POST /api/external/trackers/{trackerKey}/stop`
+  - `GET /api/external/trackers/quotas`
   - `POST /api/external/media` mit `multipart/form-data`, Feld `file`
 - Tracker-Endpunkte akzeptieren optionale ISO-Zeiten:
   - `startTime`
@@ -1014,7 +1014,7 @@ Details:
 ## Chat-Echtzeit fuer Apps
 
 - Die Web-App nutzt schon Server-Sent-Events unter `/api/chat/circle/stream` und zusätzlich Polling als Fallback.
-- Für native Apps gibt es jetzt analog `GET /api/external/chat/circle/stream?token=...&circleId=...&after=...`.
+- Fuer native Apps gibt es analog `GET /api/external/chat/circle/stream?circleId=...&after=...`; die Authentifizierung erfolgt ausschliesslich per Bearer-Header.
 - Der Stream liefert `connected` und `messages`-Events; `items[]` entspricht dem JSON-Format von `/api/external/chat/circle`.
 - Jede Nachricht enthält `createdAt`, daraus bilden Apps Tagestrenner wie `Heute`, `Gestern` oder ein formatiertes Datum sowie die Uhrzeit an der Nachricht.
 
@@ -1039,12 +1039,11 @@ Details:
 
 ### Externe Bild-API fuer native Apps
 
-- `GET /api/external/media?token=...&kind=IMAGE&limit=50` liefert die geschuetzte Bildergalerie als JSON-Feed.
-- `GET /api/external/images?token=...&source=all&limit=100` liefert einen zentralen Bildfeed aus Galerie, Spielsachen, Szenen, Ideen, Bondage-System-Produkten und Profilbildern.
+- `GET /api/external/media?kind=IMAGE&limit=50` liefert die geschuetzte Bildergalerie als JSON-Feed mit Bearer-Authentifizierung.
+- `GET /api/external/images?source=all&limit=100` liefert einen zentralen Bildfeed aus Galerie, Spielsachen, Szenen, Ideen, Bondage-System-Produkten und Profilbildern mit Bearer-Authentifizierung.
 - `source` kann auf `media`, `toys`, `positions`, `ideas`, `bondageSystem` oder `profiles` gesetzt werden.
-- Jedes Bildobjekt enthaelt `downloadUrl`, `downloadPath`, `fileId`, Metadaten zur Quelle und optional `downloadUrlWithToken`, wenn der API-Token als URL-Parameter verwendet wurde.
-- `GET /api/external/files/{fileId}?token=...` liefert die geschuetzte Datei direkt mit korrektem `Content-Type`, damit iOS/SwiftUI, Android oder andere externe Apps Bilder nativ anzeigen koennen.
-- Alternativ zum URL-Token kann `Authorization: Bearer ...` verwendet werden; dann wird `downloadUrl` ohne Token geliefert und die App setzt denselben Header beim Dateiaufruf.
+- Jedes Bildobjekt enthaelt `downloadUrl`, `downloadPath`, `fileId` und Metadaten zur Quelle. `downloadUrlWithToken` bleibt aus Kompatibilitaetsgruenden `null`.
+- `GET /api/external/files/{fileId}` liefert die geschuetzte Datei mit korrektem `Content-Type`; iOS, Android und andere Clients setzen denselben Bearer-Header wie bei der Listenabfrage.
 - Die Ideensammlung ist als eigenes Feature `ideas` konfigurierbar.
 - Shopify-Credentials können von Superadmins aus anderen Seiten übernommen werden.
 - Tenant-Erkennung nutzt zusätzlich den Subdomain-Slug für `*.playplaner.com`; Loginseite und HTML-Metadaten zeigen den aktuellen Seitennamen und die aktuelle Domain.
