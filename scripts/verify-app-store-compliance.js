@@ -26,7 +26,7 @@ const mobileLoginDocs = read("docs/07-mobile-app-login.md");
 const implementationLog = read("docs/03-implementierungslog.md");
 const contentSpaces = read("src/lib/content-spaces.ts");
 const contentSpaceRoute = read("src/app/api/external/content-spaces/route.ts");
-const contentSpaceDetailRoute = read("src/app/api/external/content-spaces/[id]/route.ts");
+const contentSpaceDetailRoute = read("src/app/api/external/content-spaces/[spaceId]/route.ts");
 const dataTransfer = read("src/lib/data-transfer.ts");
 
 check(files.includes("await assertMalwareFree(bytes)"), "Uploads muessen vor dem Speichern gescannt werden");
@@ -55,11 +55,10 @@ check(!mobileLoginDocs.includes("URL-Token (`?token"), "Mobile-Dokumentation dar
 check(!mobileLoginDocs.includes("erzeugt `downloadUrlWithToken`"), "Mobile-Dokumentation darf keine tokenhaltigen Download-URLs empfehlen");
 check(!implementationLog.match(/\?token=\.\.\.|\?token=fsp_|files\/\{fileId\}\?token=/), "Implementierungslog enthaelt noch aktive Query-Token-Beispiele");
 check(passwordPolicy.includes("PASSWORD_MIN_LENGTH = 12") && passwordPolicy.includes("PASSWORD_MAX_LENGTH = 128"), "Zentrale Passwortregel muss 12 bis 128 Zeichen verlangen");
-check(schema.includes("model ContentSpace {") && schema.includes("model ContentSpaceEntry {"), "Generische Inhaltsbereiche muessen additiv modelliert sein");
-check(schema.includes("sourceType   ContentSpaceEntrySource") && schema.includes("sourceId     String"), "Legacy-Inhalte muessen ueber stabile Quellreferenzen erhalten bleiben");
-check(contentSpaces.includes("ensureDefaultContentSpaces") && contentSpaces.includes('sourceType: "WIKI_PAGE"') && contentSpaces.includes('sourceType: "IDEA"'), "Bestehende Tagebuch-/Wiki- und Ideeninhalte muessen in Standardbereichen sichtbar bleiben");
-check(contentSpaceRoute.includes("replaceContentSpaceShares") && contentSpaceDetailRoute.includes("archivedAt: new Date()"), "Inhaltsbereiche brauchen Freigaben und verlustfreies Archivieren");
-check(dataTransfer.includes("contentSpaces:") && dataTransfer.includes("contentSpaceEntries:"), "Datenexport muss Inhaltsbereiche und Zuordnungen enthalten");
+check(schema.includes("model ContentSpace {") && schema.includes("model ContentEntry {") && schema.includes("model ContentEntryAttachment {"), "Generische Inhaltsbereiche und Eintraege muessen additiv modelliert sein");
+check(contentSpaces.includes("LEGACY_WIKI_SPACE_ID") && contentSpaces.includes("LEGACY_IDEAS_SPACE_ID"), "Bestehende Tagebuch-/Wiki- und Ideeninhalte muessen als verlustfreie virtuelle Bereiche sichtbar bleiben");
+check(contentSpaceRoute.includes("allowedUserIds") && contentSpaceRoute.includes("allowedCircleIds") && contentSpaceDetailRoute.includes("archivedAt: new Date()"), "Inhaltsbereiche brauchen Freigaben und verlustfreies Archivieren");
+check(dataTransfer.includes("contentSpaces:") && dataTransfer.includes("contentSpaceEntries:") && dataTransfer.includes("contentEntryAttachments:"), "Datenexport muss Inhaltsbereiche, Eintraege und Anlagen enthalten");
 
 // There are no paid digital features in the reviewed iOS product. Shopify is
 // a catalogue for physical products. Introducing payment SDKs, subscription

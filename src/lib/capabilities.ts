@@ -692,11 +692,11 @@ export const capabilities: readonly Capability[] = [
         type: "write",
         description: "Verwaltet frei benennbare private oder geteilte Bereiche und erhaelt vorhandene Tagebuch-, Wiki- und Ideeninhalte.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/content-spaces", description: "Sichtbare Bereiche lesen; legt verlustfrei die Standardbereiche Tagebuch und Ideen an." },
+          { method: "GET", path: "/api/external/content-spaces", description: "Sichtbare Bereiche lesen; bestehendes Tagebuch und bestehende Ideen erscheinen verlustfrei als virtuelle Standardbereiche." },
           { method: "POST", path: "/api/external/content-spaces", description: "Bereich anlegen. Body: name, kind?, icon?, sortOrder?, visibility?, allowedUserIds?, allowedCircleIds?." },
           { method: "GET", path: "/api/external/content-spaces/{id}", description: "Bereich lesen." },
           { method: "PATCH", path: "/api/external/content-spaces/{id}", description: "Name, Icon, Reihenfolge und Freigaben aendern." },
-          { method: "DELETE", path: "/api/external/content-spaces/{id}", description: "Eigenen benutzerdefinierten Bereich archivieren; Quelldaten bleiben erhalten." },
+          { method: "DELETE", path: "/api/external/content-spaces/{id}", description: "Eigenen benutzerdefinierten Bereich archivieren; Eintraege und Anlagen bleiben erhalten." },
           { method: "GET", path: "/api/external/content-spaces/{id}/entries", description: "Eintraege inklusive vorhandener Wiki- und Ideenobjekte lesen." },
           { method: "POST", path: "/api/external/content-spaces/{id}/entries", description: "Eintrag mit title, content und optional calendarDate anlegen." },
           { method: "GET", path: "/api/external/content-spaces/{id}/entries/{entryId}", description: "Eintrag lesen." },

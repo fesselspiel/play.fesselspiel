@@ -24,7 +24,15 @@ async function circleSummary(userId: string, tenantId?: string | null) {
     prisma.wikiPageShare.count({ where: { page: { ownerId: userId }, targetCircleId: circleId } }),
     otherUserIds.length ? prisma.wikiPageShare.count({ where: { targetUserId: userId, page: { ownerId: { in: otherUserIds } } } }) : 0,
     prisma.contentSpace.count({ where: { ownerId: userId, visibility: { in: ["CIRCLES", "SHARED"] } } }),
-    prisma.contentSpaceCircleShare.count({ where: { circleId, OR: [{ space: { ownerId: userId } }, { space: { ownerId: { in: otherUserIds } } }] } }),
+    prisma.contentSpace.count({
+      where: {
+        OR: [
+          { ownerId: userId, allowedCircleIds: { array_contains: circleId } },
+          { ownerId: { in: otherUserIds }, allowedCircleIds: { array_contains: circleId } },
+          { ownerId: { in: otherUserIds }, allowedUserIds: { array_contains: userId } }
+        ]
+      }
+    }),
     otherUserIds.length ? prisma.shareDelivery.count({ where: { actorId: userId, targetUserId: { in: otherUserIds } } }) : 0,
     otherUserIds.length ? prisma.shareDelivery.count({ where: { targetUserId: userId, actorId: { in: otherUserIds } } }) : 0,
     prisma.bondageSystemItem.count({ where: { tenantId, targetUserId: userId } })
@@ -51,14 +59,32 @@ export async function DELETE(request: NextRequest) {
   if (!summary || !auth.user.tenantId) return NextResponse.json({ ok: false, error: "not_in_circle" }, { status: 409 });
   const otherMemberships = await prisma.tenantMembership.findMany({ where: { tenantId: auth.user.tenantId, circleId: summary.circle.id, active: true, userId: { not: auth.user.id } }, select: { userId: true } });
   const otherUserIds = otherMemberships.map((entry) => entry.userId);
+  const sharedSpaces = await prisma.contentSpace.findMany({
+    where: {
+      ownerId: { in: otherUserIds },
+      OR: [
+        { allowedCircleIds: { array_contains: summary.circle.id } },
+        { allowedUserIds: { array_contains: auth.user.id } }
+      ]
+    },
+    select: { id: true, allowedCircleIds: true, allowedUserIds: true }
+  });
   await prisma.$transaction([
     prisma.media.updateMany({ where: { ownerId: auth.user.id, visibility: { in: ["PARTNER", "SHARED"] } }, data: { visibility: "PRIVATE" } }),
     prisma.album.updateMany({ where: { ownerId: auth.user.id, visibility: { in: ["PARTNER", "SHARED"] } }, data: { visibility: "PRIVATE" } }),
     prisma.wikiPage.updateMany({ where: { ownerId: auth.user.id, visibility: { in: ["PARTNER", "SHARED"] } }, data: { visibility: "PRIVATE" } }),
     prisma.wikiPageShare.deleteMany({ where: { OR: [{ page: { ownerId: auth.user.id }, targetCircleId: summary.circle.id }, { targetUserId: auth.user.id, page: { ownerId: { in: otherUserIds } } }] } }),
-    prisma.contentSpace.updateMany({ where: { ownerId: auth.user.id, visibility: { in: ["CIRCLES", "SHARED"] } }, data: { visibility: "PRIVATE" } }),
-    prisma.contentSpaceCircleShare.deleteMany({ where: { OR: [{ space: { ownerId: auth.user.id }, circleId: summary.circle.id }, { circleId: summary.circle.id, space: { ownerId: { in: otherUserIds } } }] } }),
-    prisma.contentSpaceUserShare.deleteMany({ where: { OR: [{ space: { ownerId: auth.user.id }, userId: { in: otherUserIds } }, { userId: auth.user.id, space: { ownerId: { in: otherUserIds } } }] } }),
+    prisma.contentSpace.updateMany({
+      where: { ownerId: auth.user.id },
+      data: { visibility: "PRIVATE", allowedCircleIds: [], allowedUserIds: [] }
+    }),
+    ...sharedSpaces.map((space) => prisma.contentSpace.update({
+      where: { id: space.id },
+      data: {
+        allowedCircleIds: Array.isArray(space.allowedCircleIds) ? space.allowedCircleIds.map(String).filter((id) => id !== summary.circle.id) : [],
+        allowedUserIds: Array.isArray(space.allowedUserIds) ? space.allowedUserIds.map(String).filter((id) => id !== auth.user.id) : []
+      }
+    })),
     prisma.shareDelivery.deleteMany({ where: { OR: [{ actorId: auth.user.id, targetUserId: { in: otherUserIds } }, { targetUserId: auth.user.id, actorId: { in: otherUserIds } }] } }),
     prisma.bondageSystemItem.updateMany({ where: { tenantId: auth.user.tenantId, targetUserId: auth.user.id }, data: { targetUserId: null } }),
     prisma.tenantMembership.update({ where: { id: summary.membershipId }, data: { circleId: null } }),

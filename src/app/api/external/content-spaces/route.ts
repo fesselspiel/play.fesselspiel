@@ -1,80 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { logAction } from "@/lib/audit";
 import {
-  contentSpaceAccessWhere,
-  contentSpaceInclude,
-  ensureDefaultContentSpaces,
-  parseContentSpaceKind,
-  parseContentSpaceVisibility,
-  replaceContentSpaceShares,
-  serializeContentSpace,
-  stringIds
+  legacySpaceCounts,
+  normalizeContentVisibility,
+  realSpacesForUser,
+  serializeContentSpace
 } from "@/lib/content-spaces";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
+function stringArray(value: unknown) {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  if (typeof value === "string" && value.trim()) return value.split(",").map((entry) => entry.trim()).filter(Boolean);
+  return [];
+}
+
 export async function GET(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
-  const blocked = apiFeatureGate(auth.user, "externalApi", "wiki");
+  const blocked = apiFeatureGate(auth.user, "externalApi");
   if (blocked) return blocked;
-  await ensureDefaultContentSpaces(auth.user);
-  const spaces = await prisma.contentSpace.findMany({
-    where: await contentSpaceAccessWhere(auth.user),
-    include: contentSpaceInclude,
-    orderBy: [{ sortOrder: "asc" }, { updatedAt: "desc" }]
-  });
-  return NextResponse.json({ ok: true, count: spaces.length, items: spaces.map((space) => serializeContentSpace(space, auth.user)) });
+
+  const [counts, spaces] = await Promise.all([legacySpaceCounts(auth.user), realSpacesForUser(auth.user)]);
+  const items = [
+    serializeContentSpace(request, "legacy-wiki", counts.wikiCount),
+    serializeContentSpace(request, "legacy-ideas", counts.ideaCount),
+    ...spaces.map((space) => serializeContentSpace(request, space))
+  ];
+  return NextResponse.json({ ok: true, count: items.length, items });
 }
 
 export async function POST(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
-  const blocked = apiFeatureGate(auth.user, "externalApi", "wiki");
+  const blocked = apiFeatureGate(auth.user, "externalApi");
   if (blocked) return blocked;
-  const body = await request.json().catch(() => null) as Record<string, unknown> | null;
-  if (!body) return NextResponse.json({ ok: false, error: "invalid_json" }, { status: 400 });
+
+  const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const name = String(body.name || "").trim();
-  if (!name) return NextResponse.json({ ok: false, error: "name_required" }, { status: 400 });
-  const visibility = parseContentSpaceVisibility(body.visibility);
-  const allowedUserIds = stringIds(body.allowedUserIds);
-  const allowedCircleIds = stringIds(body.allowedCircleIds);
-  let space;
-  try {
-    space = await prisma.contentSpace.create({
-      data: {
-        tenantId: auth.user.tenantId || undefined,
-        ownerId: auth.user.id,
-        name,
-        kind: parseContentSpaceKind(body.kind || body.templateKey),
-        icon: String(body.icon || "").trim() || null,
-        sortOrder: Number.isFinite(Number(body.sortOrder)) ? Number(body.sortOrder) : 100,
-        visibility
-      }
-    });
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return NextResponse.json({ ok: false, error: "name_exists" }, { status: 409 });
-    }
-    throw error;
-  }
-  await replaceContentSpaceShares(
-    space.id,
-    auth.user,
-    visibility === "USERS" ? allowedUserIds : [],
-    visibility === "CIRCLES" ? allowedCircleIds : []
-  );
-  const created = await prisma.contentSpace.findUniqueOrThrow({ where: { id: space.id }, include: contentSpaceInclude });
+  if (!name) return NextResponse.json({ ok: false, error: "name_required", message: "Name fehlt" }, { status: 400 });
+
+  const space = await prisma.contentSpace.create({
+    data: {
+      tenantId: auth.user.tenantId || undefined,
+      ownerId: auth.user.id,
+      name,
+      kind: String(body.kind || body.templateKey || "custom").trim() || "custom",
+      templateKey: body.templateKey ? String(body.templateKey).trim() : null,
+      icon: body.icon ? String(body.icon).trim() : null,
+      sortOrder: Number.isFinite(Number(body.sortOrder)) ? Number(body.sortOrder) : 0,
+      visibility: normalizeContentVisibility(body.visibility),
+      allowedUserIds: stringArray(body.allowedUserIds),
+      allowedCircleIds: stringArray(body.allowedCircleIds)
+    },
+    include: { owner: { include: { profile: true } }, _count: { select: { entries: true } } }
+  });
   await logAction({
     actorId: auth.user.id,
-    action: "content_space_created",
+    action: "content_space_created_api",
     entityType: "contentSpace",
-    entityId: created.id,
-    title: `Inhaltsbereich angelegt: ${created.name}`,
-    href: "/wiki"
+    entityId: space.id,
+    title: `Inhaltsbereich angelegt: ${space.name}`,
+    href: `/content-spaces/${space.id}`
   });
-  return NextResponse.json({ ok: true, item: serializeContentSpace(created, auth.user) }, { status: 201 });
+  return NextResponse.json({ ok: true, item: serializeContentSpace(request, space) }, { status: 201 });
 }
