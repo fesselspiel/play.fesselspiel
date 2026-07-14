@@ -579,3 +579,11 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Ursache des beim Einschalten beobachteten Face-ID-Loops war ein zweiter Sperrzyklus direkt nach der bereits erfolgreichen Aktivierungspruefung, besonders bei `Sofort`. Die Aktivierung setzt die aktuelle Sitzung nun explizit entsperrt, verwirft den Systemdialog-Hintergrundzeitpunkt und startet erst nach einem spaeteren echten Hintergrundwechsel erneut LocalAuthentication.
 - Der reine Swift-Zustandstest deckt aktive und inaktive Scene bei erfolgreicher Aktivierung ab. Fastlane-Store-Verifier sowie Debug-Builds auf iPhone 17e und iPad mini (A17 Pro) bestanden. Sperr- und Datenschutzansicht sowie der Spielsachenkatalog wurden im Simulator visuell geprueft; echter Face-ID-Erfolg bleibt mangels `simctl`-Biometriebefehl als physischer Geraetetest offen.
 - Rueckbau: iOS-Katalog-Accessibility samt Verifier und den getrennten Aktivierungszustand samt zwei Tests revertieren. Keine Backend-, Datenbank-, Produktiv-, Store-, Review- oder TestFlight-Aenderung. Zyklus `2/5` nach Build 106.
+
+## Zyklus 32: Kalender- und Tracker-Jahr-Accessibility
+
+- Die native Monatsansicht spricht vollstaendige Datumswerte, kennzeichnet `Heute` textlich, markiert bedienbare Tage als Buttons und blendet leere Randtage ausserhalb des Monats fuer VoiceOver aus.
+- Die Tracker-Jahresansicht besitzt eine neutrale Zoombezeichnung, einen gesprochenen Jahreswert und einzeln ausloesbare Accessibility-Aktionen fuer mehrere Tracker-Eintraege am selben Tag.
+- Das visuelle Raster, die bestehenden Zoom-/Verschiebegesten und alle Backendvertraege bleiben unveraendert. Die statische Readiness-Pruefung wertet die konkreten SwiftUI-View-Segmente fail-closed aus.
+- Fastlane-`verify_store` sowie Simulator-Builds auf iPhone 17e und iPad mini (A17 Pro) bestanden. Die Jahresansicht wurde auf beiden Geraeteklassen visuell ohne Layoutregression geprueft.
+- Keine Backend-, Datenbank-, Produktiv-, Store- oder TestFlight-Aenderung. Zyklus `3/5` nach Build 106.
