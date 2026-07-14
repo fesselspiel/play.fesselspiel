@@ -17,8 +17,15 @@ const local = loadEnvironment(path.join(process.env.HOME, ".playplaner", "app-re
 const baseURL = (process.env.APP_REVIEW_BASE_URL || local.APP_REVIEW_BASE_URL || "https://test.playplaner.com").replace(/\/$/, "");
 
 function credentials(prefix) {
+  const defaultIdentifiers = {
+    ALEX: "app-review-alex@playplaner.com",
+    SAM: "app-review-sam@playplaner.com"
+  };
   return {
-    identifier: process.env[`APP_REVIEW_${prefix}_USER`] || local[`APP_REVIEW_${prefix}_USER`],
+    identifier:
+      process.env[`APP_REVIEW_${prefix}_IDENTIFIER`] ||
+      local[`APP_REVIEW_${prefix}_IDENTIFIER`] ||
+      defaultIdentifiers[prefix],
     password: process.env[`APP_REVIEW_${prefix}_PASSWORD`] || local[`APP_REVIEW_${prefix}_PASSWORD`]
   };
 }
