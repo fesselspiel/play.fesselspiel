@@ -51,14 +51,14 @@ Offizielle Grundlage:
 - Shopify dient dem Import beziehungsweise der Darstellung physischer Produkte. Keine digitalen iOS-Kaeufe oder Zahlungsdaten werden im geprueften Stand verarbeitet.
 - SMTP-/E-Mail-Dienstleister verarbeiten E-Mail-Adresse und funktionsbezogene Nachrichten fuer Anmeldung, Einladung, Reset und Benachrichtigung.
 
-## Manuelle ASC-Abnahme
+## App Store Connect Synchronisierung
 
-1. Unter App-Datenschutz `Daten werden gesammelt` auswaehlen.
-2. Exakt die in der Tabelle genannten Datentypen aktivieren.
-3. Fuer jeden Typ die genannten Zwecke, `mit Benutzer verknuepft: Ja` und `fuer Tracking verwendet: Nein` setzen.
-4. Privacy Policy URL auf die oeffentliche Playplaner-Datenschutzerklaerung setzen.
-5. Privacy Choices URL auf `https://playplaner.com/privacy` setzen. Die oeffentliche Seite nennt Datenexport, Einwilligungen und Kontoloeschung. ASC-Readback vom 2026-07-14 bestaetigt Privacy Policy URL und Privacy Choices URL auf diesem Ziel.
-6. Product Page Preview kontrollieren und den finalen ASC-Zustand per Screenshot/Readback dokumentieren.
+1. Die kanonische maschinenlesbare Konfiguration liegt im iOS-Repository unter `fastlane/metadata/privacy_labels.json`.
+2. `bundle exec fastlane ios store_privacy_labels` sichert den vorherigen ASC-Zustand lokal, synchronisiert die exakten Datentyp-/Zweck-/Schutzkombinationen, veroeffentlicht sie und verlangt einen identischen Readback.
+3. Der Lauf vom 2026-07-14 bestaetigte exakt `15` Deklarationen, `DATA_LINKED_TO_YOU`, keine Tracking-Zeile und `published=true`. Ein zweiter Lauf blieb idempotent.
+4. Der Rueckbau verwendet eine lokale Sicherung: `PLAYPLANER_PRIVACY_LABELS_ROLLBACK=~/.playplaner/<backup>.json bundle exec fastlane ios store_privacy_labels`.
+5. Privacy Policy URL und Privacy Choices URL zeigen auf `https://playplaner.com/privacy`; ASC-Readback vom 2026-07-14 bestaetigt beide Ziele.
+6. Die Product Page Preview wird vor der finalen Einreichung weiterhin visuell kontrolliert. Das ist eine menschliche Abnahme des bereits gespeicherten Zustands, kein offener Konfigurationsschritt.
 
 ## Aenderungsausloeser
 
