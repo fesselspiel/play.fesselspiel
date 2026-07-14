@@ -563,3 +563,11 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Fastlane-Store-Verifier und Debug-Simulator-Builds auf iPhone 17e und iPad mini (A17 Pro) bestanden. Der Feed wurde im Dark Mode auf beiden Geraeteklassen visuell geprueft.
 - Version `1.0 (106)` wurde ausschliesslich ueber Fastlane archiviert, signiert und an App Store Connect uebertragen. Apple bestaetigte Build-ID `643f6807-3498-4a53-b3ba-303f93b7ae63`, Status `VALID`, `usesNonExemptEncryption=false`, `expired=false` und Uploadzeit `2026-07-14T04:52:01-07:00`. Der Beta-Detail-Readback meldete `internalBuildState=IN_BETA_TESTING` und `autoNotifyEnabled=true`; die interne Gruppe besitzt Zugriff auf alle Builds. Danach lagen 10 Uploads im rollierenden 24-Stunden-Fenster; die Grenze 15 blieb eingehalten.
 - Rueckbau: iOS-Accessibility-Modifizierer und zugehoerige Verifier-Regeln revertieren. Keine Backend-, Datenbank-, Produktivdaten- oder Review-Aenderung. Zyklus `5/5`; mit bestaetigtem Build 106 beginnt der Zaehler wieder bei `0/5`.
+
+## Zyklus 30: VoiceOver-Aktionen fuer Chatnachrichten
+
+- Chatnachrichten bieten die ueber Long-Press erreichbaren, tatsaechlich erlaubten Funktionen nun auch als benannte VoiceOver-Aktionen: Informationen, Loeschen, Melden, Blockieren und Ausblenden. Eigene, fremde und geloeschte Nachrichten erhalten weiterhin nur die jeweils zulaessigen Aktionen.
+- Die Chatblase bleibt ein Container mit erreichbaren Kindaktionen fuer Bilder, strukturierte Objektkarten und Consent-Aktionen. Ihre gesprochene Zusammenfassung nennt Absender, Inhalt beziehungsweise Medientyp und Zeitpunkt.
+- Kontextmenue und VoiceOver verwenden denselben Meldepfad. Der Store-Verifier verhindert das unbemerkte Entfernen der zentralen Aktionen und der gesprochenen Zusammenfassung. Die globale VoiceOver-Deklaration bleibt bis zur kompletten End-to-End-Abnahme konservativ aus.
+- Fastlane-Store-Verifier und Debug-Simulator-Builds auf iPhone 17e und iPad mini (A17 Pro) bestanden. Der Dark-Mode-Chat wurde auf beiden Geraeteklassen visuell geprueft; ein schwarzer iPad-Launchframe zaehlt nicht als Nachweis.
+- Rueckbau: Chat-Accessibility-Modifizierer, Helper und zugehoerige Verifier-Regeln revertieren. Keine Backend-, Datenbank-, Produktivdaten-, Store-, Review- oder TestFlight-Aenderung. Zyklus `1/5` nach Build 106.
