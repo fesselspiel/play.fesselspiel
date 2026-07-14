@@ -5,7 +5,8 @@ import { absolutePathForAsset, fileAssetForAccess } from "@/lib/files";
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi");

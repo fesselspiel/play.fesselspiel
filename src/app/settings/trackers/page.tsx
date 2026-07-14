@@ -156,7 +156,8 @@ async function saveTracker(formData: FormData) {
   redirect("/settings/trackers?saved=updated");
 }
 
-export default async function TrackerSettingsPage({ searchParams }: { searchParams: { saved?: string; error?: string } }) {
+export default async function TrackerSettingsPage(props: { searchParams: Promise<{ saved?: string; error?: string }> }) {
+  const searchParams = await props.searchParams;
   const { actor, tenant } = await currentSessionContext();
   if (!actor) redirect("/login");
   if (actor.role !== "ADMIN" && actor.role !== "SUPER_ADMIN") redirect("/");

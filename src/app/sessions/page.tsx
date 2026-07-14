@@ -136,7 +136,10 @@ async function stopAllSessionTrackers(formData: FormData) {
 
 const months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
-export default async function SessionsPage({ searchParams }: { searchParams: { year?: string; tracker?: string; date?: string } }) {
+export default async function SessionsPage(
+  props: { searchParams: Promise<{ year?: string; tracker?: string; date?: string }> }
+) {
+  const searchParams = await props.searchParams;
   await requireFeature("trackers");
   const user = await currentUser();
   if (!user) redirect("/login");

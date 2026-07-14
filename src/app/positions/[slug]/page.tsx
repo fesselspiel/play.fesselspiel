@@ -36,7 +36,8 @@ async function togglePositionFavorite(formData: FormData) {
   redirect(`/positions/${position.slug}`);
 }
 
-export default async function PositionDetailPage({ params }: { params: { slug: string } }) {
+export default async function PositionDetailPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("positions");

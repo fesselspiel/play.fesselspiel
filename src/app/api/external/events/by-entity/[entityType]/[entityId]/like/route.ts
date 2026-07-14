@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-type Params = { params: { entityType: string; entityId: string } };
+type Params = { params: Promise<{ entityType: string; entityId: string }> };
 type ResolvedAnchor =
   | { response: NextResponse }
   | {
@@ -32,7 +32,7 @@ function responsePayload(
   };
 }
 
-async function resolveAnchor(request: NextRequest, params: Params["params"]): Promise<ResolvedAnchor> {
+async function resolveAnchor(request: NextRequest, params: Awaited<Params["params"]>): Promise<ResolvedAnchor> {
   const auth = await requireApiUser(request);
   const user = auth.user;
   if (!user) return { response: auth.response || NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 }) };
@@ -48,7 +48,8 @@ async function resolveAnchor(request: NextRequest, params: Params["params"]): Pr
   return { user, entity, anchor };
 }
 
-export async function POST(request: NextRequest, { params }: Params) {
+export async function POST(request: NextRequest, props: Params) {
+  const params = await props.params;
   const resolved = await resolveAnchor(request, params);
   if ("response" in resolved) return resolved.response;
   const existing = await prisma.feedLike.findUnique({
@@ -70,7 +71,8 @@ export async function POST(request: NextRequest, { params }: Params) {
   return NextResponse.json(responsePayload(resolved, state));
 }
 
-export async function DELETE(request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest, props: Params) {
+  const params = await props.params;
   const resolved = await resolveAnchor(request, params);
   if ("response" in resolved) return resolved.response;
   const existing = await prisma.feedLike.findUnique({

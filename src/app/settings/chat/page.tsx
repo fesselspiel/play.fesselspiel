@@ -94,7 +94,10 @@ async function testChatNotificationRuleAction(formData: FormData) {
   redirect(`/settings/chat?${params.toString()}#notifications`);
 }
 
-export default async function ChatSettingsPage({ searchParams }: { searchParams: { action?: string; saved?: string; ruleTest?: string; ruleSent?: string; ruleFailed?: string } }) {
+export default async function ChatSettingsPage(
+  props: { searchParams: Promise<{ action?: string; saved?: string; ruleTest?: string; ruleSent?: string; ruleFailed?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const { tenant } = await requireChatAdmin();
   const requestedAction = String(searchParams.action || "").trim();
   const [circles, rules, auditActions] = await Promise.all([

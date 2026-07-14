@@ -7,7 +7,8 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-export async function DELETE(request: NextRequest, { params }: { params: { messageId: string } }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ messageId: string }> }) {
+  const params = await props.params;
   const user = await currentUser();
   if (!user) return NextResponse.json({ ok: false, error: "Nicht angemeldet" }, { status: 401 });
   if (!featureEnabled(user.tenant?.features, "circleChat")) return NextResponse.json({ ok: false, error: "Feature deaktiviert" }, { status: 403 });

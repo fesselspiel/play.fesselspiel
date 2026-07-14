@@ -17,13 +17,13 @@ export function normalizeHostname(value?: string | null) {
     .replace(/:\d+$/, "");
 }
 
-export function requestHostname() {
-  const headerList = headers();
+export async function requestHostname() {
+  const headerList = await headers();
   return normalizeHostname(headerList.get("x-forwarded-host") || headerList.get("host") || "");
 }
 
-export function requestTenantSlug() {
-  return (headers().get("x-playplaner-tenant-slug") || "").trim().toLowerCase();
+export async function requestTenantSlug() {
+  return ((await headers()).get("x-playplaner-tenant-slug") || "").trim().toLowerCase();
 }
 
 export async function ensureDefaultTenant() {
@@ -73,12 +73,12 @@ export async function getTenantByHost(hostname: string) {
 }
 
 export async function currentTenant() {
-  const slug = requestTenantSlug();
+  const slug = await requestTenantSlug();
   if (slug) {
     const tenantBySlug = await prisma.tenant.findUnique({ where: { slug }, include: { domains: true, features: true } });
     if (tenantBySlug) return tenantBySlug;
   }
-  const tenant = await getTenantByHost(requestHostname());
+  const tenant = await getTenantByHost(await requestHostname());
   if (tenant) return tenant;
   const fallback = await ensureDefaultTenant();
   const defaultTenant = await prisma.tenant.findUnique({ where: { id: fallback.id }, include: { domains: true, features: true } });

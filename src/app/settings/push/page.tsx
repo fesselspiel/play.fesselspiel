@@ -282,7 +282,10 @@ async function testPushNotificationRule(formData: FormData) {
   redirect(`/settings/push?ruleTest=${result.error || "done"}&ruleSent=${result.sent}&ruleFailed=${result.failed}&ruleDevices=${result.devices}#notifications`);
 }
 
-export default async function PushSettingsPage({ searchParams }: { searchParams: { saved?: string; test?: string; sent?: string; failed?: string; devices?: string; action?: string; ruleTest?: string; ruleSent?: string; ruleFailed?: string; ruleDevices?: string; logLimit?: string } }) {
+export default async function PushSettingsPage(
+  props: { searchParams: Promise<{ saved?: string; test?: string; sent?: string; failed?: string; devices?: string; action?: string; ruleTest?: string; ruleSent?: string; ruleFailed?: string; ruleDevices?: string; logLimit?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const { tenant } = await requirePushAdmin();
   const requestedAction = String(searchParams.action || "").trim();
   const logLimit = Math.min(500, Math.max(120, Number(searchParams.logLimit || 120)));

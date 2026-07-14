@@ -10,7 +10,7 @@ import { contentIsHidden, usersAreBlocked } from "@/lib/compliance/ugc";
 
 export const runtime = "nodejs";
 
-type MediaRouteParams = { params: { id: string } };
+type MediaRouteParams = { params: Promise<{ id: string }> };
 
 function publicOrigin(request: NextRequest) {
   const forwardedHost = request.headers.get("x-forwarded-host");
@@ -163,7 +163,8 @@ async function detailPayload(request: NextRequest, user: { id: string; tenantId?
   };
 }
 
-export async function GET(request: NextRequest, { params }: MediaRouteParams) {
+export async function GET(request: NextRequest, props: MediaRouteParams) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "media");
@@ -173,7 +174,8 @@ export async function GET(request: NextRequest, { params }: MediaRouteParams) {
   return NextResponse.json(payload);
 }
 
-export async function PATCH(request: NextRequest, { params }: MediaRouteParams) {
+export async function PATCH(request: NextRequest, props: MediaRouteParams) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "media");
@@ -223,7 +225,8 @@ export async function PATCH(request: NextRequest, { params }: MediaRouteParams) 
   return NextResponse.json(payload);
 }
 
-export async function DELETE(request: NextRequest, { params }: MediaRouteParams) {
+export async function DELETE(request: NextRequest, props: MediaRouteParams) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "media");

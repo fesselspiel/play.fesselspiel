@@ -42,7 +42,8 @@ async function requestPasswordReset(formData: FormData) {
   redirect("/password/forgot?sent=1");
 }
 
-export default function ForgotPasswordPage({ searchParams }: { searchParams?: { sent?: string } }) {
+export default async function ForgotPasswordPage(props: { searchParams?: Promise<{ sent?: string }> }) {
+  const searchParams = await props.searchParams;
   return (
     <main className="min-h-screen bg-canvas px-4 py-10 text-ink">
       <div className="mx-auto max-w-lg">

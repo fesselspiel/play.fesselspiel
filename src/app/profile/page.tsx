@@ -132,7 +132,10 @@ async function resendOwnEmailConfirmation() {
   redirect("/profile?sent=email-confirmation");
 }
 
-export default async function ProfilePage({ searchParams }: { searchParams?: { error?: string; sent?: string; saved?: string; passwordError?: string } }) {
+export default async function ProfilePage(
+  props: { searchParams?: Promise<{ error?: string; sent?: string; saved?: string; passwordError?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const user = await currentUser();
   if (!user) redirect("/login");
   const activeTheme = normalizeTheme(user.settings?.theme);

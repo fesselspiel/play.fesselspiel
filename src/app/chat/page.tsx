@@ -33,7 +33,8 @@ function ChatHeader() {
   );
 }
 
-export default async function CircleChatPage({ searchParams }: { searchParams?: { circleId?: string } }) {
+export default async function CircleChatPage(props: { searchParams?: Promise<{ circleId?: string }> }) {
+  const searchParams = await props.searchParams;
   await requireFeature("circleChat");
   const user = await currentUser();
   if (!user) redirect("/login");

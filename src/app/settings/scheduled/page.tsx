@@ -241,7 +241,8 @@ function RuleForm({
   );
 }
 
-export default async function ScheduledRulesPage({ searchParams }: { searchParams?: { saved?: string } }) {
+export default async function ScheduledRulesPage(props: { searchParams?: Promise<{ saved?: string }> }) {
+  const searchParams = await props.searchParams;
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("scheduledRules");

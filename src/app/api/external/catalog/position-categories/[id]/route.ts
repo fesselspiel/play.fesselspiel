@@ -24,7 +24,8 @@ function tenantWhere(tenantId?: string | null) {
   return tenantId ? { tenantId } : { tenantId: null };
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "positions");

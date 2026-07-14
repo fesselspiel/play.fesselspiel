@@ -30,7 +30,8 @@ function actionForStatus(status: ActivityStatus) {
   return "self_bondage_order_updated";
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "orders");

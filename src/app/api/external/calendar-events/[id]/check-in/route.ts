@@ -10,7 +10,8 @@ function text(value: unknown) {
   return String(value || "").trim();
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi");
@@ -28,7 +29,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   return NextResponse.json({ ok: true, item: serializeCalendarEvent(updated, auth.user.id) });
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi");

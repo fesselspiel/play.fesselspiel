@@ -10,7 +10,8 @@ import { requireFeature } from "@/lib/features";
 import { sanitizeShopifyHtml } from "@/lib/html";
 import { prisma } from "@/lib/prisma";
 
-export default async function BondageSystemDetailPage({ params }: { params: { slug: string } }) {
+export default async function BondageSystemDetailPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   await requireFeature("shopifyBondageSystem");
   const { user, tenant } = await currentSessionContext();
   if (!user) redirect("/login");

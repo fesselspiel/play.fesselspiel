@@ -146,7 +146,7 @@ async function updateAlbum(formData: FormData) {
   if (!album) redirect("/media");
   const defaultAlbum = await ensureDefaultAlbum(album.ownerId);
   const requestedTitle = String(formData.get("title") || album.title).trim() || album.title;
-  const nextTitle = await isDefaultAlbumTitle(album.ownerId, requestedTitle) && album.id !== defaultAlbum.id ? album.title : requestedTitle;
+  const nextTitle = (await isDefaultAlbumTitle(album.ownerId, requestedTitle)) && album.id !== defaultAlbum.id ? album.title : requestedTitle;
   const updated = await prisma.album.update({
     where: { id: album.id },
     data: {
@@ -389,7 +389,8 @@ function mediaUrl(params: Record<string, string | undefined>) {
   return query ? `/media?${query}` : "/media";
 }
 
-export default async function MediaPage({ searchParams }: { searchParams: MediaSearchParams }) {
+export default async function MediaPage(props: { searchParams: Promise<MediaSearchParams> }) {
+  const searchParams = await props.searchParams;
   await requireFeature("media");
   const user = await currentUser();
   if (!user) redirect("/login");
@@ -470,7 +471,6 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
       <PageGuide title="Bilder und Videos als geschuetzter, bildzentrierter Feed">
         Die Bilderseite zeigt Bilder und Videos zuerst als kompakten Feed. Upload, Alben und Filter liegen oben als aufklappbare Werkzeuge; Details, Dateiinfos und Aktionen erscheinen beim Öffnen eines Bildes.
       </PageGuide>
-
       <div className="space-y-4">
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8">
           <Link
@@ -480,7 +480,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
             {allCover ? (
               allCover.kind === "IMAGE" ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={allCover.url} alt="" className="h-full w-full object-cover transition group-hover:scale-[1.04]" />
+                (<img src={allCover.url} alt="" className="h-full w-full object-cover transition group-hover:scale-[1.04]" />)
               ) : (
                 <video src={allCover.url} className="h-full w-full object-cover transition group-hover:scale-[1.04]" muted playsInline />
               )
@@ -504,7 +504,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                 {cover ? (
                   cover.kind === "IMAGE" ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={cover.url} alt="" className="h-full w-full object-cover transition group-hover:scale-[1.04]" />
+                    (<img src={cover.url} alt="" className="h-full w-full object-cover transition group-hover:scale-[1.04]" />)
                   ) : (
                     <video src={cover.url} className="h-full w-full object-cover transition group-hover:scale-[1.04]" muted playsInline />
                   )
@@ -534,7 +534,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                 >
                   {entry.kind === "IMAGE" ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={entry.url} alt={entry.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" />
+                    (<img src={entry.url} alt={entry.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" />)
                   ) : (
                     <video src={entry.url} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" muted playsInline />
                   )}
@@ -628,7 +628,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
                           <input name="mediaIds" type="checkbox" value={entry.id} className="peer absolute left-2 top-2 z-10 h-4 w-4 accent-redbrand" />
                           {entry.kind === "IMAGE" ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={entry.url} alt={entry.title} className="h-full w-full object-cover transition group-hover:scale-[1.04]" />
+                            (<img src={entry.url} alt={entry.title} className="h-full w-full object-cover transition group-hover:scale-[1.04]" />)
                           ) : (
                             <video src={entry.url} className="h-full w-full object-cover transition group-hover:scale-[1.04]" muted playsInline />
                           )}
@@ -723,7 +723,6 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
           </details>
         </div>
       </div>
-
       {selected ? (
         <div className="fixed inset-0 z-50 bg-black/80 px-3 py-5 backdrop-blur-sm sm:px-6">
           <div className="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-lg bg-surface shadow-soft lg:grid lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -828,7 +827,6 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
           </div>
         </div>
       ) : null}
-
       {selected && searchParams.viewer === "1" ? (
         <div className="fixed inset-0 z-[60] bg-black">
           <Link
@@ -862,7 +860,7 @@ export default async function MediaPage({ searchParams }: { searchParams: MediaS
           <div className="flex h-full w-full items-center justify-center p-3 sm:p-6">
             {selected.kind === "IMAGE" ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={selected.url} alt={selected.title} className="max-h-full max-w-full object-contain" />
+              (<img src={selected.url} alt={selected.title} className="max-h-full max-w-full object-contain" />)
             ) : (
               <video src={selected.url} className="max-h-full max-w-full object-contain" controls autoPlay />
             )}

@@ -146,7 +146,8 @@ async function replaceActivityImage(formData: FormData) {
   redirect(activity.category === "IDEA_COLLECTION" ? `/ideas/${activity.slug}` : `/activities/${activity.slug}`);
 }
 
-export default async function ActivityDetailPage({ params }: { params: { slug: string } }) {
+export default async function ActivityDetailPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const user = await currentUser();
   if (!user) redirect("/login");
   const toolsEnabled = await hasFeature("toys");
@@ -268,7 +269,7 @@ export default async function ActivityDetailPage({ params }: { params: { slug: s
                 <article key={image.key} className="overflow-hidden rounded-lg border border-line bg-paper">
                   {image.kind === "IMAGE" ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={image.url} alt={image.title} className="aspect-square w-full object-cover" />
+                    (<img src={image.url} alt={image.title} className="aspect-square w-full object-cover" />)
                   ) : (
                     <video src={image.url} className="aspect-square w-full object-cover" controls />
                   )}

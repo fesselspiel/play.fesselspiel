@@ -39,7 +39,8 @@ async function toggleToyFavorite(formData: FormData) {
   redirect(`/toys/${toy.slug}`);
 }
 
-export default async function ToyDetailPage({ params }: { params: { slug: string } }) {
+export default async function ToyDetailPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("toys");

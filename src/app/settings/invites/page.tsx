@@ -128,7 +128,10 @@ async function sendInviteTelegram(formData: FormData) {
   redirect(`/settings/invites?telegram=sent#invite-${invite.id}`);
 }
 
-export default async function InvitesPage({ searchParams }: { searchParams?: { created?: string; invite?: string; error?: string; telegram?: string; mail?: string; deleted?: string } }) {
+export default async function InvitesPage(
+  props: { searchParams?: Promise<{ created?: string; invite?: string; error?: string; telegram?: string; mail?: string; deleted?: string }> }
+) {
+  const searchParams = await props.searchParams;
   await requireFeature("invites");
   const user = await currentUser();
   if (!user) redirect("/login");

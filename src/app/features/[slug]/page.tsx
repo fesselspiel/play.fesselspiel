@@ -10,7 +10,8 @@ export function generateStaticParams() {
   return publicFeatures.map((feature) => ({ slug: feature.slug }));
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const tenant = await currentTenant();
   const overrides = await publicContentOverrides(tenant?.id);
   const feature = mergePublicFeatures(overrides).find((item) => item.slug === params.slug) || featureBySlug(params.slug);
@@ -21,7 +22,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-export default async function FeaturePage({ params }: { params: { slug: string } }) {
+export default async function FeaturePage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const tenant = await currentTenant();
   const { actor } = await currentSessionContext();
   const overrides = await publicContentOverrides(tenant?.id);

@@ -97,7 +97,8 @@ async function addMediaComment(formData: FormData) {
   redirect(`/sessions/${await ensureSessionSlug(session)}#media-${mediaId}`);
 }
 
-export default async function SessionDetailPage({ params }: { params: { slug: string } }) {
+export default async function SessionDetailPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   await requireFeature("tracker.segufix");
   const user = await currentUser();
   if (!user) redirect("/login");
@@ -154,7 +155,6 @@ export default async function SessionDetailPage({ params }: { params: { slug: st
       <PageGuide title="Session-Details, Bilder und Kommentare">
         Diese Detailseite sammelt Zeiten, Stimmungen, Sessionkommentar, Bilder und Kommentare zu einer Session. Lade Bilder hoch, kommentiere einzelne Bilder oder füge einen Kommentar zur Session insgesamt hinzu.
       </PageGuide>
-
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <SoftPanel>
@@ -206,7 +206,7 @@ export default async function SessionDetailPage({ params }: { params: { slug: st
                 <article key={media.id} id={`media-${media.id}`} className="overflow-hidden rounded-lg border border-line bg-paper">
                   {media.kind === "IMAGE" ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={media.url} alt={media.title} className="aspect-square w-full object-cover" />
+                    (<img src={media.url} alt={media.title} className="aspect-square w-full object-cover" />)
                   ) : (
                     <video src={media.url} className="aspect-square w-full object-cover" controls />
                   )}

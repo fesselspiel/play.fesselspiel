@@ -5,7 +5,8 @@ import { absolutePathForAsset, fileAssetForAccess } from "@/lib/files";
 
 export const runtime = "nodejs";
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await currentUser();
   if (!user) return new NextResponse("Nicht angemeldet", { status: 401 });
   const asset = await fileAssetForAccess(user, params.id);

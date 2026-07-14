@@ -10,7 +10,8 @@ import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { stopKgSession } from "@/lib/session-actions";
 
-export default async function KgSessionDetailPage({ params }: { params: { id: string } }) {
+export default async function KgSessionDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   await requireFeature("tracker.kg");
   const user = await currentUser();
   if (!user) redirect("/login");

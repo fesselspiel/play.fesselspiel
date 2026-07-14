@@ -121,7 +121,8 @@ async function relationData(user: any, body: Record<string, unknown>) {
   return { toys, positions, bondageSystemItems };
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "trackers");
@@ -138,7 +139,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }, auth.user.id)) });
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "trackers");
@@ -187,7 +189,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }, auth.user.id)) });
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "trackers");

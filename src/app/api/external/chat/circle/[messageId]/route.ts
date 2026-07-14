@@ -6,7 +6,8 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-export async function DELETE(_request: NextRequest, { params }: { params: { messageId: string } }) {
+export async function DELETE(_request: NextRequest, props: { params: Promise<{ messageId: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(_request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "circleChat");

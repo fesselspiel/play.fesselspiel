@@ -257,3 +257,17 @@ Wichtig:
 - Aktions-E-Mails werden unter `/settings/email#notifications` konfiguriert und verwenden die protokollierten Aktionen aus dem Audit-Log.
 - Für verlässliche Zustellung nach außen müssen DNS/SPF/DKIM/Reverse-DNS passend zur Domain gepflegt werden.
 - Operative Testmails dürfen nicht an die frühere Yahoo-Testadresse gesendet werden. Für künftige Mailtests ist `playplaner@mx.fesselspiel.com` zu verwenden.
+
+## Reproduzierbare Node-Abhaengigkeiten
+
+- `package-lock.json` gehoert zum Repository und muss gemeinsam mit `package.json` aktualisiert werden.
+- Lokale und CI-Installationen verwenden `npm ci`; im Produktions-Runner wird `npm ci --omit=dev` verwendet.
+- Ein Deployment darf nicht auf `npm install` zurueckfallen, weil dadurch transitive Versionen vom geprueften Build abweichen koennen.
+- Vor einem Backend-Deploy mindestens `npm audit --omit=dev`, den vollstaendigen Docker-Produktionsbuild und `git diff --check` ausfuehren.
+
+## Docker-Speicher vor Builds
+
+- Vor jedem Serverbuild `df -h /` pruefen. Ein voll belegter Host kann einen bereits erfolgreich kompilierten Build erst beim Image-Export abbrechen lassen.
+- Nur unreferenzierte Builddaten bereinigen. Laufende Container und persistente Volumes duerfen nicht entfernt werden.
+- Konservativer erster Schritt: `docker image prune -f`. Den belegten und freien Speicher danach erneut pruefen.
+- Vor produktivem Recreate weiterhin einen Datenbank-Dump anlegen. Bei einem dateibasierten Overlay nur versionierte geaenderte Dateien ueberschreiben, damit parallele serverseitige Agentenarbeit nicht geloescht wird.

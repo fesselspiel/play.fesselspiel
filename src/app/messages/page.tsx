@@ -189,7 +189,10 @@ async function testExternalRule(formData: FormData) {
   redirect(`/messages?externalSent=${result.sent}&externalFailed=${result.failed}#external-push`);
 }
 
-export default async function MessagesPage({ searchParams }: { searchParams?: { page?: string; action?: string; actor?: string; externalSent?: string; externalFailed?: string } }) {
+export default async function MessagesPage(
+  props: { searchParams?: Promise<{ page?: string; action?: string; actor?: string; externalSent?: string; externalFailed?: string }> }
+) {
+  const searchParams = await props.searchParams;
   await requireFeature("auditLog");
   const user = await currentUser();
   if (!user) redirect("/login");

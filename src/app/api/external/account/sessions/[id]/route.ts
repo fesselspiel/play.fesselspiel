@@ -5,7 +5,8 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request, { allowUnaccepted: true, ignoreViewContext: true });
   if ("response" in auth) return auth.response;
   const session = await prisma.apiToken.findFirst({ where: { id: params.id, userId: auth.user.id, active: true }, select: { id: true, name: true } });

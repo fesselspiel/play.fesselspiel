@@ -12,7 +12,11 @@ function bool(value: unknown) {
   return ["1", "true", "yes", "on", "packed"].includes(text);
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string; itemId: string } }) {
+export async function PATCH(
+  request: NextRequest,
+  props: { params: Promise<{ id: string; itemId: string }> }
+) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "packingLists");

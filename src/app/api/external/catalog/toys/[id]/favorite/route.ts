@@ -10,7 +10,8 @@ async function findToy(user: { id: string; tenantId?: string | null; circleId?: 
   return prisma.toy.findFirst({ where: { ...(await ownerScope(user)), OR: [{ id }, { slug: id }] }, select: { id: true, title: true, slug: true } });
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "toys");
@@ -26,7 +27,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   return NextResponse.json({ ok: true, favorite: true, item: { id: favorite.id, toyId: toy.id, userId: auth.user.id, createdAt: favorite.createdAt.toISOString() } });
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "toys");

@@ -54,7 +54,11 @@ async function payload(request: NextRequest) {
   return { formData: null, body: await request.json().catch(() => ({})) as Record<string, unknown> };
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string; imageId: string } }) {
+export async function GET(
+  request: NextRequest,
+  props: { params: Promise<{ id: string; imageId: string }> }
+) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "trackers");
@@ -64,7 +68,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   return NextResponse.json({ ok: true, image: imageItem(request, image), item: imageItem(request, image) });
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string; imageId: string } }) {
+export async function PATCH(
+  request: NextRequest,
+  props: { params: Promise<{ id: string; imageId: string }> }
+) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "trackers");
@@ -100,7 +108,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   return NextResponse.json({ ok: true, image: imageItem(request, updated), item: imageItem(request, updated) });
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string; imageId: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  props: { params: Promise<{ id: string; imageId: string }> }
+) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "trackers");

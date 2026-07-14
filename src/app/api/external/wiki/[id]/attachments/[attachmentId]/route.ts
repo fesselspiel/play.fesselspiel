@@ -7,7 +7,11 @@ import { createWikiRevision, wikiEditablePage, wikiOwnerSlug } from "@/lib/wiki"
 
 export const runtime = "nodejs";
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string; attachmentId: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  props: { params: Promise<{ id: string; attachmentId: string }> }
+) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "wiki");

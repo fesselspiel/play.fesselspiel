@@ -723,7 +723,10 @@ function telegramLogDayGroups<T extends { createdAt: Date }>(logs: T[]) {
   });
 }
 
-export default async function TelegramPage({ searchParams }: { searchParams?: { saved?: string; testSent?: string; testFailed?: string; action?: string; adminSynced?: string; adminSyncFailed?: string; memberDiscovery?: string; telegramActor?: string; telegramChat?: string; telegramThread?: string } }) {
+export default async function TelegramPage(
+  props: { searchParams?: Promise<{ saved?: string; testSent?: string; testFailed?: string; action?: string; adminSynced?: string; adminSyncFailed?: string; memberDiscovery?: string; telegramActor?: string; telegramChat?: string; telegramThread?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const user = await currentAdminUser();
   const { tenant } = await currentSessionContext();
   if (!tenant) redirect("/");

@@ -12,7 +12,8 @@ async function findIdea(user: any, id: string) {
   return prisma.activityPlan.findFirst({ where: { ...(await ownerScope(user)), OR: [{ id }, { slug: id }], category: "IDEA_COLLECTION" }, include: activityInclude });
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "ideas");

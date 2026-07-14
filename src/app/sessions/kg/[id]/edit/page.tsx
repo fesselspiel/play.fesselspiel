@@ -62,7 +62,8 @@ async function deleteKgSession(formData: FormData) {
   redirect(`/sessions?tracker=kg&year=${year}`);
 }
 
-export default async function EditKgSessionPage({ params }: { params: { id: string } }) {
+export default async function EditKgSessionPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   await requireFeature("tracker.kg");
   const user = await currentUser();
   if (!user) redirect("/login");

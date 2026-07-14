@@ -27,7 +27,7 @@ async function updateSession(formData: FormData) {
   const updated = await prisma.segufixSession.update({
     where: { id: session.id },
     data: {
-      slug: session.slug || await uniqueSessionSlug(startTime, session.id, user.tenantId),
+      slug: session.slug || (await uniqueSessionSlug(startTime, session.id, user.tenantId)),
       startTime,
       endTime,
       durationMinutes: minutesBetween(startTime, endTime),
@@ -69,7 +69,8 @@ async function deleteSession(formData: FormData) {
   redirect(`/sessions?year=${year}`);
 }
 
-export default async function EditSessionPage({ params }: { params: { slug: string } }) {
+export default async function EditSessionPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const user = await currentUser();
   if (!user) redirect("/login");
   const session = await prisma.segufixSession.findFirst({ where: { ...(await ownerScope(user)), OR: [{ id: params.slug }, { slug: params.slug }] } });

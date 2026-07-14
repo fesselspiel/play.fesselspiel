@@ -253,7 +253,10 @@ async function testEmailRule(formData: FormData) {
   redirect(`/settings/email?ruleTestSent=${result.sent}&ruleTestFailed=${result.failed}#notifications`);
 }
 
-export default async function EmailSettingsPage({ searchParams }: { searchParams?: { saved?: string; test?: string; template?: string; error?: string; action?: string; ruleTestSent?: string; ruleTestFailed?: string } }) {
+export default async function EmailSettingsPage(
+  props: { searchParams?: Promise<{ saved?: string; test?: string; template?: string; error?: string; action?: string; ruleTestSent?: string; ruleTestFailed?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const admin = await currentAdminOrRedirect();
   await requireFeature("email");
   const { tenant } = await currentSessionContext();

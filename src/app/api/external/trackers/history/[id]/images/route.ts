@@ -38,7 +38,8 @@ function imageItem(request: NextRequest, image: {
   };
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "trackers");
@@ -53,7 +54,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   return NextResponse.json({ ok: true, count: images.length, items: images.map((image) => imageItem(request, image)) });
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "trackers");

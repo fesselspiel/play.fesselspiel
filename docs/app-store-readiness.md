@@ -19,7 +19,7 @@ Diese Matrix ist die operative Abnahme fuer die iOS-Einreichung. Ausfuehrliche R
 
 ## Einreichungsblocker
 
-- Die vier versionierten Rechtsdokumente muessen auf Produktions- und Review-Mandant veroeffentlicht und inhaltlich geprueft sein.
+- Die vier versionierten Rechtsdokumente sind auf Produktions- und Review-Mandant veroeffentlicht; ihre finale rechtliche Freigabe bleibt manuell.
 - Support-, Moderations-, Datenschutz- und Sicherheitspostfach muessen erreichbar und organisatorisch besetzt sein.
 - App Store Connect braucht ehrliche Altersfreigabe, Privacy Labels, Support-/Privacy-URL und neutrale Screenshots.
 - Der finale App-Store-Build braucht einen vollstaendigen On-Device-Test mit Review-Zugang.
@@ -27,3 +27,10 @@ Diese Matrix ist die operative Abnahme fuer die iOS-Einreichung. Ausfuehrliche R
 ## Kein hartes Standard-Altersgate
 
 Die regulaere iOS-Konfiguration verwendet kein zusaetzliches hartes Altersgate. Der Dienst ist sichtbar als Angebot fuer Volljaehrige beschrieben und wird in App Store Connect entsprechend eingestuft. Das additive Mandantenfeld `iosRequiresAgeConfirmation` bleibt standardmaessig `false`; bei einer spaeteren ausdruecklichen Aktivierung ist die Checkbox nicht vorausgewaehlt.
+
+## Abhaengigkeits- und Buildnachweis 2026-07-14
+
+- `package-lock.json` ist kanonisch; Docker verwendet ausschliesslich `npm ci` und `npm ci --omit=dev`.
+- Next.js `15.5.20`, `eslint-config-next` `15.5.20` und PostCSS `8.5.10` sind exakt fixiert. Der frische Audit meldet null bekannte Build- oder Produktionsschwachstellen.
+- Lokaler und serverseitiger Produktionsbuild bestanden Kompilierung, Lint/Typecheck und Seitengenerierung.
+- Ein isoliertes Serverimage bestand mit dem Review-Tenant die oeffentlichen Seiten sowie Login, Compliance, Status, Capabilities, Sitzungen, Chat, Medien, Tracker-History und Kalender. Der Testtoken wurde anschliessend widerrufen und mit HTTP 401 nachgeprueft.

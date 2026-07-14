@@ -209,7 +209,10 @@ async function copyCatalogToSite(formData: FormData) {
   }
 }
 
-export default async function SitesPage({ searchParams }: { searchParams: { saved?: string; deleted?: string; disabled?: string; domainSkipped?: string; catalogCopied?: string; catalogSkipped?: string; error?: string } }) {
+export default async function SitesPage(
+  props: { searchParams: Promise<{ saved?: string; deleted?: string; disabled?: string; domainSkipped?: string; catalogCopied?: string; catalogSkipped?: string; error?: string }> }
+) {
+  const searchParams = await props.searchParams;
   await requireSuperAdmin();
   const sites = await prisma.tenant.findMany({
     include: {

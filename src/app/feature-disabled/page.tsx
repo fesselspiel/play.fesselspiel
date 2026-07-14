@@ -6,9 +6,10 @@ import { currentSessionContext } from "@/lib/auth";
 import { featureCatalog } from "@/lib/features";
 import { currentTenant, primaryTenantDomain } from "@/lib/tenancy";
 
-export default async function FeatureDisabledPage({ searchParams }: { searchParams: { feature?: string } }) {
+export default async function FeatureDisabledPage(props: { searchParams: Promise<{ feature?: string }> }) {
+  const searchParams = await props.searchParams;
   const { actor, user, tenant } = await currentSessionContext();
-  const pageTenant = tenant || await currentTenant();
+  const pageTenant = tenant || (await currentTenant());
   const feature = featureCatalog.find((entry) => entry.key === searchParams.feature);
   const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" || actor?.role === "SUPER_ADMIN";
   const isSuperAdmin = actor?.role === "SUPER_ADMIN";

@@ -28,10 +28,12 @@ async function stopTracker(request: NextRequest, trackerKey: string) {
   return NextResponse.json({ ok: true, entry });
 }
 
-export async function GET(request: NextRequest, { params }: { params: { trackerKey: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ trackerKey: string }> }) {
+  const params = await props.params;
   return stopTracker(request, params.trackerKey);
 }
 
-export async function POST(request: NextRequest, { params }: { params: { trackerKey: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ trackerKey: string }> }) {
+  const params = await props.params;
   return stopTracker(request, params.trackerKey);
 }

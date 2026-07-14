@@ -49,7 +49,8 @@ async function savePlayReadySettings(formData: FormData) {
   redirect("/settings/play-ready?saved=1");
 }
 
-export default async function PlayReadySettingsPage({ searchParams }: { searchParams?: { saved?: string } }) {
+export default async function PlayReadySettingsPage(props: { searchParams?: Promise<{ saved?: string }> }) {
+  const searchParams = await props.searchParams;
   await requireFeature("playReady");
   const user = await currentUser();
   if (!user) redirect("/login");

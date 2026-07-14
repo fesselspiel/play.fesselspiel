@@ -36,7 +36,8 @@ function displayName(user: { profile?: { displayName?: string | null } | null; n
   return user.profile?.displayName || user.name || user.username || user.email;
 }
 
-export default async function ConfirmEmailPage({ searchParams }: { searchParams?: { token?: string; error?: string } }) {
+export default async function ConfirmEmailPage(props: { searchParams?: Promise<{ token?: string; error?: string }> }) {
+  const searchParams = await props.searchParams;
   const token = String(searchParams?.token || "");
   const confirmation = await findValidEmailConfirmation(token);
   const invalid = searchParams?.error === "invalid" || !confirmation || Boolean(confirmation.email && confirmation.email !== confirmation.user.email);

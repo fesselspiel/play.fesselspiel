@@ -51,7 +51,8 @@ async function saveTenantSettings(formData: FormData) {
   redirect("/settings/tenant?saved=1");
 }
 
-export default async function TenantSettingsPage({ searchParams }: { searchParams: { saved?: string } }) {
+export default async function TenantSettingsPage(props: { searchParams: Promise<{ saved?: string }> }) {
+  const searchParams = await props.searchParams;
   const { actor, tenant } = await currentSessionContext();
   if (!actor) redirect("/login");
   if (actor.role !== "ADMIN" && actor.role !== "SUPER_ADMIN") redirect("/");

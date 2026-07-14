@@ -12,7 +12,11 @@ async function findIdea(user: any, id: string) {
   return prisma.activityPlan.findFirst({ where: { ...(await ownerScope(user)), OR: [{ id }, { slug: id }], category: "IDEA_COLLECTION" }, include: activityInclude });
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string; imageId: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  props: { params: Promise<{ id: string; imageId: string }> }
+) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "ideas");

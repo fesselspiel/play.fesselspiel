@@ -7,7 +7,11 @@ import { findExternalSession, serializeExternalSession } from "../../../_helpers
 
 export const runtime = "nodejs";
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string; imageId: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  props: { params: Promise<{ id: string; imageId: string }> }
+) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "activities");

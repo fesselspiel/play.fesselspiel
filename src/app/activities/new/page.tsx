@@ -138,7 +138,10 @@ async function createActivity(formData: FormData) {
   redirect(selfBondageTemplate ? "/orders" : ideaTemplate ? `/ideas/${slug}` : `/activities/${slug}`);
 }
 
-export default async function NewActivityPage({ searchParams }: { searchParams?: { date?: string; template?: string; error?: string } }) {
+export default async function NewActivityPage(
+  props: { searchParams?: Promise<{ date?: string; template?: string; error?: string }> }
+) {
+  const searchParams = await props.searchParams;
   await requireFeature("activities");
   const user = await currentUser();
   if (!user) redirect("/login");

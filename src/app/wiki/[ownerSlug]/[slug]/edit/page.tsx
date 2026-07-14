@@ -9,7 +9,8 @@ import { wikiEditablePage, wikiOwnerBySlug } from "@/lib/wiki";
 import { updateWikiPage } from "../../../actions";
 import { WikiForm } from "../../../wiki-form";
 
-export default async function EditWikiPage({ params }: { params: { ownerSlug: string; slug: string } }) {
+export default async function EditWikiPage(props: { params: Promise<{ ownerSlug: string; slug: string }> }) {
+  const params = await props.params;
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("wiki");

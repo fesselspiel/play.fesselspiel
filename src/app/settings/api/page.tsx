@@ -47,7 +47,8 @@ async function deleteToken(formData: FormData) {
   redirect("/settings/api");
 }
 
-export default async function ApiSettingsPage({ searchParams }: { searchParams: ApiSearchParams }) {
+export default async function ApiSettingsPage(props: { searchParams: Promise<ApiSearchParams> }) {
+  const searchParams = await props.searchParams;
   await requireFeature("externalApi");
   const user = await currentUser();
   if (!user) redirect("/login");

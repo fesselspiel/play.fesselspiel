@@ -13,7 +13,8 @@ async function findDismissibleAuditLog(user: AccessUser, eventId: string) {
   });
 }
 
-export async function POST(request: NextRequest, { params }: { params: { eventId: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ eventId: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "auditLog");
@@ -28,7 +29,8 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
   return NextResponse.json({ ok: true, eventId: auditLog.id, dismissedForMe: true });
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { eventId: string } }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ eventId: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "auditLog");

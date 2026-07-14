@@ -220,8 +220,8 @@ function buildImageFeedItem(
   };
 }
 
-function requestBaseFromHeaders() {
-  const requestHeaders = headers();
+async function requestBaseFromHeaders() {
+  const requestHeaders = await headers();
   const host = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host") || "playplaner.com";
   const proto = requestHeaders.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
   return `${proto}://${host}`;
@@ -620,7 +620,8 @@ async function uploadMedia(formData: FormData) {
   redirect("/settings/api-control?feedback=media-uploaded");
 }
 
-export default async function ApiControlPage({ searchParams }: { searchParams: ApiControlSearchParams }) {
+export default async function ApiControlPage(props: { searchParams: Promise<ApiControlSearchParams> }) {
+  const searchParams = await props.searchParams;
   const user = await requireApiControlAdmin();
 
   await requireFeature("externalApi");
@@ -718,7 +719,7 @@ export default async function ApiControlPage({ searchParams }: { searchParams: A
   const fileLimit = clampFileLimit(searchParams.fileLimit);
   const endpointQuery = String(searchParams.endpointQuery || "").trim().toLowerCase();
   const endpointGroupFilter = String(searchParams.endpointGroup || "").trim().toLowerCase();
-  const requestBase = requestBaseFromHeaders();
+  const requestBase = await requestBaseFromHeaders();
 
   const mediaWhere = {
     ...mediaWhereScope,

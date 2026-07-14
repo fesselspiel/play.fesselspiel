@@ -69,7 +69,8 @@ async function deletePosition(formData: FormData) {
   redirect("/positions");
 }
 
-export default async function EditPositionPage({ params }: { params: { slug: string } }) {
+export default async function EditPositionPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("positions");

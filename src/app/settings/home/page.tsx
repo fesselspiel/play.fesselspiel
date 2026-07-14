@@ -5,7 +5,8 @@ import { PageGuide, PageHeader, Panel } from "@/components/ui";
 import { currentSessionContext } from "@/lib/auth";
 import { homeSections, normalizeHomeLayout } from "@/lib/home-layout";
 
-export default async function HomeSettingsPage({ searchParams }: { searchParams: { saved?: string } }) {
+export default async function HomeSettingsPage(props: { searchParams: Promise<{ saved?: string }> }) {
+  const searchParams = await props.searchParams;
   const { actor, tenant } = await currentSessionContext();
   if (!actor) redirect("/login");
   if (actor.role !== "ADMIN" && actor.role !== "SUPER_ADMIN") redirect("/");

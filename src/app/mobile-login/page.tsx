@@ -27,8 +27,8 @@ function safeCallback(raw: string | undefined) {
   }
 }
 
-function currentBaseUrl() {
-  const headerStore = headers();
+async function currentBaseUrl() {
+  const headerStore = await headers();
   const host = headerStore.get("x-forwarded-host") || headerStore.get("host") || "playplaner.com";
   const proto = headerStore.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
   return `${proto}://${host}`;
@@ -55,7 +55,7 @@ async function connectMobileApp(formData: FormData) {
   if (!callback || !state) redirect("/mobile-login?error=callback");
 
   const device = String(formData.get("device") || "").trim().slice(0, 60) || "iPhone App";
-  const baseUrl = String(formData.get("baseUrl") || "").trim() || currentBaseUrl();
+  const baseUrl = String(formData.get("baseUrl") || "").trim() || await currentBaseUrl();
   const { token } = await createApiToken(user.id, `Mobile App: ${device}`);
 
   callback.searchParams.set("token", token);
@@ -65,7 +65,8 @@ async function connectMobileApp(formData: FormData) {
   redirect(callback.toString());
 }
 
-export default async function MobileLoginPage({ searchParams }: { searchParams: MobileLoginSearchParams }) {
+export default async function MobileLoginPage(props: { searchParams: Promise<MobileLoginSearchParams> }) {
+  const searchParams = await props.searchParams;
   const callback = safeCallback(searchParams.callback);
   const state = String(searchParams.state || "").trim();
   const device = String(searchParams.device || "iPhone").trim().slice(0, 60) || "iPhone";
@@ -90,7 +91,7 @@ export default async function MobileLoginPage({ searchParams }: { searchParams: 
   if (!user) redirect(`/login?next=${encodeURIComponent(mobileLoginPath(searchParams))}`);
   await requireFeature("externalApi");
 
-  const baseUrl = currentBaseUrl();
+  const baseUrl = await currentBaseUrl();
   const displayName = user.profile?.displayName || user.name || user.username || user.email;
 
   return (

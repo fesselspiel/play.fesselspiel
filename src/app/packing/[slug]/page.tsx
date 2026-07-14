@@ -53,7 +53,8 @@ async function toggleItem(formData: FormData) {
   redirect(`/packing/${item.list.slug}`);
 }
 
-export default async function PackingDetailPage({ params }: { params: { slug: string } }) {
+export default async function PackingDetailPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("packingLists");

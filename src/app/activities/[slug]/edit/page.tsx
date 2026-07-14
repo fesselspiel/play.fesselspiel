@@ -140,7 +140,11 @@ async function deleteActivity(formData: FormData) {
   redirect(selfBondageOrder ? "/orders" : "/activities");
 }
 
-export default async function EditActivityPage({ params, searchParams }: { params: { slug: string }; searchParams?: { error?: string } }) {
+export default async function EditActivityPage(
+  props: { params: Promise<{ slug: string }>; searchParams?: Promise<{ error?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   await requireFeature("activities");
   const user = await currentUser();
   if (!user) redirect("/login");

@@ -237,7 +237,8 @@ async function deleteEntry(formData: FormData) {
   redirect(`/sessions?tracker=${entry.trackerType.key}&year=${entry.startTime.getFullYear()}`);
 }
 
-export default async function TrackerEntryPage({ params }: { params: { trackerKey: string; slug: string } }) {
+export default async function TrackerEntryPage(props: { params: Promise<{ trackerKey: string; slug: string }> }) {
+  const params = await props.params;
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature(`tracker.${params.trackerKey}`);

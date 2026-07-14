@@ -309,7 +309,8 @@ async function updateTimeSettings(formData: FormData) {
   redirect("/settings/users#systemzeit");
 }
 
-export default async function UsersPage({ searchParams }: { searchParams?: { error?: string; saved?: string } }) {
+export default async function UsersPage(props: { searchParams?: Promise<{ error?: string; saved?: string }> }) {
+  const searchParams = await props.searchParams;
   const user = await currentUser();
   if (!user) redirect("/login");
   if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");
@@ -429,7 +430,7 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
                                 <span className="flex min-w-0 items-center gap-3">
                                   {entry.profile?.imageUrl ? (
                                     // eslint-disable-next-line @next/next/no-img-element
-                                    <img src={entry.profile.imageUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
+                                    (<img src={entry.profile.imageUrl} alt="" className="h-9 w-9 rounded-full object-cover" />)
                                   ) : (
                                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-redbrand text-xs font-semibold text-white">{label.slice(0, 1).toUpperCase()}</span>
                                   )}
@@ -558,7 +559,7 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
                   <span className="flex min-w-0 items-center gap-3">
                     {entry.profile?.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={entry.profile.imageUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
+                      (<img src={entry.profile.imageUrl} alt="" className="h-10 w-10 rounded-full object-cover" />)
                     ) : (
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-redbrand text-sm font-semibold text-white">{(entry.profile?.displayName || entry.name || entry.email).slice(0, 1).toUpperCase()}</span>
                     )}
@@ -580,7 +581,7 @@ export default async function UsersPage({ searchParams }: { searchParams?: { err
                   <div className="flex min-w-0 items-center gap-3">
                     {entry.profile?.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={entry.profile.imageUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
+                      (<img src={entry.profile.imageUrl} alt="" className="h-10 w-10 rounded-full object-cover" />)
                     ) : (
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-redbrand text-sm font-semibold text-white">{(entry.profile?.displayName || entry.name || entry.email).slice(0, 1).toUpperCase()}</span>
                     )}

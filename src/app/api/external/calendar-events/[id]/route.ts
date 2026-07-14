@@ -21,7 +21,8 @@ function canManage(user: { id: string; role?: string | null }, ownerId: string) 
   return user.id === ownerId || user.role === "ADMIN" || user.role === "SUPER_ADMIN";
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi");
@@ -31,7 +32,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   return NextResponse.json({ ok: true, item: serializeCalendarEvent(event, auth.user.id) });
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi");
@@ -54,7 +56,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   return NextResponse.json({ ok: true, item: serializeCalendarEvent(event, auth.user.id) });
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi");

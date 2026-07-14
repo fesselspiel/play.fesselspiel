@@ -87,7 +87,10 @@ function visibleChips(items: CalendarItem[]) {
   return [...items].sort((a, b) => priority.indexOf(a.kind) - priority.indexOf(b.kind) || a.startsAt.getTime() - b.startsAt.getTime()).slice(0, 3);
 }
 
-export default async function CalendarPage({ searchParams }: { searchParams: { year?: string; month?: string; date?: string } }) {
+export default async function CalendarPage(
+  props: { searchParams: Promise<{ year?: string; month?: string; date?: string }> }
+) {
+  const searchParams = await props.searchParams;
   await requireFeature("activities");
   const user = await currentUser();
   if (!user) redirect("/login");

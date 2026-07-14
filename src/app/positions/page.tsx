@@ -11,7 +11,10 @@ import { catalogCategories, defaultCategoryNames } from "@/lib/catalog-categorie
 import { hasFeature, requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 
-export default async function PositionsPage({ searchParams }: { searchParams: { q?: string; toy?: string; category?: string; favoritesFirst?: string } }) {
+export default async function PositionsPage(
+  props: { searchParams: Promise<{ q?: string; toy?: string; category?: string; favoritesFirst?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("positions");

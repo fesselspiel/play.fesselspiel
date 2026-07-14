@@ -14,7 +14,8 @@ type DataSearchParams = {
   positions?: string;
 };
 
-export default async function DataSettingsPage({ searchParams }: { searchParams: DataSearchParams }) {
+export default async function DataSettingsPage(props: { searchParams: Promise<DataSearchParams> }) {
+  const searchParams = await props.searchParams;
   await requireFeature("dataTransfer");
   const user = await currentUser();
   if (!user) redirect("/login");

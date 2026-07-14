@@ -147,7 +147,7 @@ function withEffectiveMembership(user: IncludedUser, membership: Awaited<ReturnT
 }
 
 export async function currentUser() {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const session = verifySessionToken(token);
   if (!session) return null;
   const actor = await loadUser(session.userId);
@@ -166,7 +166,7 @@ export async function currentUser() {
 }
 
 export async function currentSessionUser() {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const session = verifySessionToken(token);
   if (!session) return null;
   const user = await loadUser(session.userId);
@@ -174,7 +174,7 @@ export async function currentSessionUser() {
 }
 
 export async function currentSessionContext() {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const session = verifySessionToken(token);
   if (!session) return { actor: null, user: null, tenant: null, viewAsUserId: null, viewAsTenantId: null };
   const actor = await loadUser(session.userId);

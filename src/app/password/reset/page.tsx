@@ -34,7 +34,8 @@ function displayName(user: { profile?: { displayName?: string | null } | null; n
   return user.profile?.displayName || user.name || user.username || user.email;
 }
 
-export default async function ResetPasswordPage({ searchParams }: { searchParams?: { token?: string; error?: string } }) {
+export default async function ResetPasswordPage(props: { searchParams?: Promise<{ token?: string; error?: string }> }) {
+  const searchParams = await props.searchParams;
   const token = String(searchParams?.token || "");
   const reset = await findValidPasswordReset(token);
   const invalid = searchParams?.error === "invalid" || !reset;

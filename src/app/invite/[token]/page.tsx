@@ -27,7 +27,11 @@ function errorText(error?: string) {
   return "Die Einladung konnte nicht angenommen werden.";
 }
 
-export default async function InviteAcceptPage({ params, searchParams }: { params: { token: string }; searchParams?: { error?: string } }) {
+export default async function InviteAcceptPage(
+  props: { params: Promise<{ token: string }>; searchParams?: Promise<{ error?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const invite = await findValidInvite(params.token);
   const invalid = !invite;
   return (

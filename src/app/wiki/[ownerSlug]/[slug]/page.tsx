@@ -67,7 +67,8 @@ function lineDiff(before: string, after: string) {
   return rows.filter((row) => row.type !== "same" || row.text.trim()).slice(0, 220);
 }
 
-export default async function WikiDetailPage({ params }: { params: { ownerSlug: string; slug: string } }) {
+export default async function WikiDetailPage(props: { params: Promise<{ ownerSlug: string; slug: string }> }) {
+  const params = await props.params;
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("wiki");

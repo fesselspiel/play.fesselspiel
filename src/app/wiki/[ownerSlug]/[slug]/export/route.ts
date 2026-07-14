@@ -3,7 +3,11 @@ import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { wikiExportText, wikiOwnerBySlug, wikiPageAccessWhere } from "@/lib/wiki";
 
-export async function GET(_request: NextRequest, { params }: { params: { ownerSlug: string; slug: string } }) {
+export async function GET(
+  _request: NextRequest,
+  props: { params: Promise<{ ownerSlug: string; slug: string }> }
+) {
+  const params = await props.params;
   const user = await currentUser();
   if (!user) return new NextResponse("Nicht angemeldet", { status: 401 });
   const owner = await wikiOwnerBySlug(params.ownerSlug, user);

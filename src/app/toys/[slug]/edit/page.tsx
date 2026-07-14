@@ -63,7 +63,8 @@ async function deleteToy(formData: FormData) {
   redirect("/toys");
 }
 
-export default async function EditToyPage({ params }: { params: { slug: string } }) {
+export default async function EditToyPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("toys");

@@ -62,7 +62,8 @@ async function deleteEvent(formData: FormData) {
   redirect("/events");
 }
 
-export default async function EditEventPage({ params }: { params: { id: string } }) {
+export default async function EditEventPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await currentUser();
   if (!user) redirect("/login");
   const event = await prisma.event.findFirst({ where: { id: params.id, ...(await ownerScope(user)) } });

@@ -9,7 +9,8 @@ import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { wikiOwnerBySlug, wikiOwnerSlug, wikiPageAccessWhere } from "@/lib/wiki";
 
-export default async function WikiOwnerPage({ params }: { params: { ownerSlug: string } }) {
+export default async function WikiOwnerPage(props: { params: Promise<{ ownerSlug: string }> }) {
+  const params = await props.params;
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("wiki");

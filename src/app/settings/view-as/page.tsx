@@ -8,8 +8,8 @@ import { createSessionToken, currentSessionContext, requireAdmin, SESSION_COOKIE
 import { prisma } from "@/lib/prisma";
 import { primaryTenantDomain } from "@/lib/tenancy";
 
-function currentCookieMaxAge() {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+async function currentCookieMaxAge() {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const session = verifySessionToken(token);
   if (!session) return 60 * 60 * 12;
   return Math.max(60, Math.floor((session.exp - Date.now()) / 1000));
@@ -38,8 +38,9 @@ async function switchView(formData: FormData) {
   if (targetTenantId && !targetTenant) redirect("/settings/view-as");
   const viewAsUserId = target && target.id !== admin.id ? target.id : undefined;
   const viewAsTenantId = effectiveTenantId || targetTenant?.id || undefined;
-  const token = createSessionToken(admin.id, currentCookieMaxAge() > 60 * 60 * 12, viewAsUserId, viewAsTenantId, admin.sessionRevision);
-  cookies().set(SESSION_COOKIE, token, sessionCookieOptions(currentCookieMaxAge()));
+  const maxAge = await currentCookieMaxAge();
+  const token = createSessionToken(admin.id, maxAge > 60 * 60 * 12, viewAsUserId, viewAsTenantId, admin.sessionRevision);
+  (await cookies()).set(SESSION_COOKIE, token, sessionCookieOptions(maxAge));
   await logAction({
     actorId: admin.id,
     action: "admin_view_as",
@@ -56,8 +57,9 @@ async function switchView(formData: FormData) {
 async function returnToOwnView() {
   "use server";
   const admin = await requireAdmin();
-  const token = createSessionToken(admin.id, currentCookieMaxAge() > 60 * 60 * 12, undefined, undefined, admin.sessionRevision);
-  cookies().set(SESSION_COOKIE, token, sessionCookieOptions(currentCookieMaxAge()));
+  const maxAge = await currentCookieMaxAge();
+  const token = createSessionToken(admin.id, maxAge > 60 * 60 * 12, undefined, undefined, admin.sessionRevision);
+  (await cookies()).set(SESSION_COOKIE, token, sessionCookieOptions(maxAge));
   await logAction({
     actorId: admin.id,
     action: "admin_view_own",
@@ -154,7 +156,7 @@ export default async function ViewAsPage() {
                     <div className="flex min-w-0 items-center gap-3">
                       {entry.profile?.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={entry.profile.imageUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
+                        (<img src={entry.profile.imageUrl} alt="" className="h-12 w-12 rounded-full object-cover" />)
                       ) : (
                         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-redbrand text-sm font-semibold text-white">{label.slice(0, 1).toUpperCase()}</span>
                       )}

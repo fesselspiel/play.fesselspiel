@@ -133,7 +133,10 @@ function progressClass(percent: number) {
   return "bg-graphite";
 }
 
-export default async function PackingPage({ searchParams }: { searchParams?: { packingEvent?: string; error?: string } }) {
+export default async function PackingPage(
+  props: { searchParams?: Promise<{ packingEvent?: string; error?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature("packingLists");

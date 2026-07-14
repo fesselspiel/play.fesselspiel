@@ -208,7 +208,10 @@ async function setAllItemsVisibility(formData: FormData) {
   redirect("/settings/shopify?saved=1#products");
 }
 
-export default async function ShopifySettingsPage({ searchParams }: { searchParams?: { saved?: string; synced?: string; token?: string; error?: string } }) {
+export default async function ShopifySettingsPage(
+  props: { searchParams?: Promise<{ saved?: string; synced?: string; token?: string; error?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const { actor, tenant } = await requireShopifyAdmin();
   const [integration, products, users, circles, reusableIntegrations] = await Promise.all([
     prisma.shopifyIntegration.findUnique({ where: { tenantId: tenant.id } }),

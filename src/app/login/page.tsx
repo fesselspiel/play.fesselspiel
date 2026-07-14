@@ -3,7 +3,10 @@ import { currentSessionContext } from "@/lib/auth";
 import { landingContent, mergePublicFeatures, publicContentOverrides } from "@/lib/public-content";
 import { currentTenant, primaryTenantDomain } from "@/lib/tenancy";
 
-export default async function LoginPage({ searchParams }: { searchParams?: { confirmed?: string; reset?: string; next?: string } }) {
+export default async function LoginPage(
+  props: { searchParams?: Promise<{ confirmed?: string; reset?: string; next?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const tenant = await currentTenant();
   const { actor } = await currentSessionContext();
   const overrides = await publicContentOverrides(tenant?.id);

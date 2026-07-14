@@ -40,7 +40,8 @@ async function savePointRules(formData: FormData) {
   redirect("/settings/points?saved=1");
 }
 
-export default async function PointsSettingsPage({ searchParams }: { searchParams?: { saved?: string } }) {
+export default async function PointsSettingsPage(props: { searchParams?: Promise<{ saved?: string }> }) {
+  const searchParams = await props.searchParams;
   const user = await currentUser();
   if (!user) redirect("/login");
   if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");

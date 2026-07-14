@@ -12,14 +12,14 @@ const UpdateSchema = z.object({
   moderationNote: z.string().trim().max(2000).optional()
 });
 
-export async function PATCH(request: NextRequest, context: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   if (auth.user.role !== "ADMIN" && auth.user.role !== "SUPER_ADMIN") return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   if (!auth.user.tenantId) return NextResponse.json({ ok: false, error: "tenant_required" }, { status: 409 });
   const parsed = UpdateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false, error: "invalid_input" }, { status: 400 });
-  const report = await prisma.contentReport.findFirst({ where: { id: context.params.id, tenantId: auth.user.tenantId } });
+  const report = await prisma.contentReport.findFirst({ where: { id: (await context.params).id, tenantId: auth.user.tenantId } });
   if (!report) return NextResponse.json({ ok: false, error: "report_not_found" }, { status: 404 });
   const action = parsed.data.action || report.action || "NONE";
 
