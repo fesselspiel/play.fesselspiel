@@ -587,3 +587,10 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Das visuelle Raster, die bestehenden Zoom-/Verschiebegesten und alle Backendvertraege bleiben unveraendert. Die statische Readiness-Pruefung wertet die konkreten SwiftUI-View-Segmente fail-closed aus.
 - Fastlane-`verify_store` sowie Simulator-Builds auf iPhone 17e und iPad mini (A17 Pro) bestanden. Die Jahresansicht wurde auf beiden Geraeteklassen visuell ohne Layoutregression geprueft.
 - Keine Backend-, Datenbank-, Produktiv-, Store- oder TestFlight-Aenderung. Zyklus `3/5` nach Build 106.
+
+## Zyklus 33: VoiceOver in der Anfrageplanung
+
+- Die native Anfrageplanung spricht Stunden- und Minutenwert, Ausgangsobjekt, Auswahlzusammenfassung und den konkreten Sendezustand. Ein deaktivierter Sendebutton erklaert den fehlenden Titel oder die noch fehlende inhaltliche Auswahl.
+- Szenen, Spielsachen und Shopify-Produkte nennen Objektart, Titel und Auswahlzustand. Visuelle Thumbnails bleiben erhalten, werden innerhalb der bereits beschrifteten Toggles aber nicht doppelt vorgelesen.
+- Fastlane-Store-Verifier sowie Debug-Builds auf iPhone 17e und iPad mini (A17 Pro) bestanden. Schnellplanung, geoeffnete Details und grosse Schrift wurden visuell ohne Ueberlagerung geprueft.
+- Formularzustand, API-Vertrag, 15-Minuten-Raster, Draft-Schutz und Fehlererhaltung bleiben unveraendert. Keine Backend-, Datenbank-, Produktiv-, Store- oder TestFlight-Aenderung. Zyklus `4/5` nach Build 106.
