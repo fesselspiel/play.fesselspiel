@@ -205,7 +205,7 @@ export async function GET(request: NextRequest) {
       include: {
         owner: { include: { profile: true } },
         images: {
-          where: { file: { contentClassification: { not: "QUARANTINED" }, scanStatus: { not: "REJECTED" } } },
+          where: { file: { contentClassification: { not: "QUARANTINED" }, scanStatus: "CLEAN" } },
           include: { file: true },
           orderBy: { createdAt: "asc" }
         }

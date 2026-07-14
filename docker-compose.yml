@@ -8,6 +8,8 @@ services:
         condition: service_healthy
       postfix:
         condition: service_started
+      clamav:
+        condition: service_healthy
     ports:
       - "127.0.0.1:${APP_PORT:-8097}:8097"
     environment:
@@ -23,6 +25,9 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_TRANSCRIPTION_MODEL: ${OPENAI_TRANSCRIPTION_MODEL:-whisper-1}
       UPLOAD_PATH: ${UPLOAD_PATH:-/app/uploads}
+      FILE_SCANNER_HOST: clamav
+      FILE_SCANNER_PORT: 3310
+      FILE_SCANNER_TIMEOUT_MS: ${FILE_SCANNER_TIMEOUT_MS:-30000}
       STARTUP_LOG_DIR: /app/logs
       EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-postfix}
       EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-25}
@@ -52,6 +57,14 @@ services:
       retries: 20
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  clamav:
+    image: clamav/clamav@sha256:7f5389ccaa2368c383fa80e167ccfe44348d71e685f926fce4755eed1757673a
+    platform: linux/amd64
+    container_name: kink_social_clamav
+    restart: unless-stopped
+    volumes:
+      - clamav_data:/var/lib/clamav
 
   postfix:
     image: boky/postfix:latest
@@ -84,3 +97,4 @@ services:
 volumes:
   postgres_data:
   uploads_data:
+  clamav_data:

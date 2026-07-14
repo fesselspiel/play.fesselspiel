@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
 import { contentIsHidden } from "@/lib/compliance/ugc";
+import { assertMalwareFree } from "@/lib/file-scanner";
 
 function safeExtension(name: string) {
   const ext = path.extname(name).toLowerCase().replace(/[^a-z0-9.]/g, "");
@@ -88,15 +89,6 @@ function fileInfoFromBytes(bytes: Buffer, originalName: string, declaredMimeType
   };
 }
 
-function assertFileSafety(bytes: Buffer) {
-  // The EICAR marker is harmless test data used to verify malware rejection.
-  // Real malware scanning can be layered on later without changing upload callers.
-  const probe = bytes.subarray(0, Math.min(bytes.length, 1024 * 1024)).toString("latin1");
-  if (probe.includes("X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*")) {
-    throw new Error("Die Datei wurde durch die Sicherheitsprüfung abgelehnt");
-  }
-}
-
 function assetUrl(id: string) {
   return `/api/files/${id}`;
 }
@@ -126,7 +118,7 @@ export async function saveUploadedFile(ownerId: string, file: File | null | unde
 
   const bytes = Buffer.from(await file.arrayBuffer());
   const fileInfo = fileInfoFromBytes(bytes, file.name || "", file.type);
-  assertFileSafety(bytes);
+  await assertMalwareFree(bytes);
   const id = randomUUID();
   const relativeDir = path.join(ownerId, new Date().toISOString().slice(0, 10));
   const filename = `${id}${fileInfo.extension}`;
@@ -169,7 +161,7 @@ export async function saveFileBuffer({
   if (bytes.length > env.maxUploadBytes) throw new Error(`Datei ist größer als ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB`);
 
   const fileInfo = fileInfoFromBytes(bytes, originalName, mimeType);
-  assertFileSafety(bytes);
+  await assertMalwareFree(bytes);
   const id = randomUUID();
   const relativeDir = path.join(ownerId, new Date().toISOString().slice(0, 10));
   const filename = `${id}${fileInfo.extension}`;
@@ -215,7 +207,7 @@ export async function fileAssetForAccess(user: AccessUser, id: string) {
   const tenantScope = user.tenantId ? { tenantId: user.tenantId } : {};
   const safetyScope = {
     contentClassification: { not: "QUARANTINED" as const },
-    scanStatus: { not: "REJECTED" as const }
+    scanStatus: "CLEAN" as const
   };
   const asset = await prisma.fileAsset.findFirst({ where: { id, ...tenantScope, ...safetyScope, ownerId: { in: ownerIds } } });
   if (asset) return asset;

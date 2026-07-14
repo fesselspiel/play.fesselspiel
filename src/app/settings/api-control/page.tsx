@@ -231,16 +231,10 @@ function endpointCurl(base: string, method: string, path: string) {
   return `curl -X ${method} \"${base}${path}\" -H \"Authorization: Bearer <API_TOKEN>\"`;
 }
 
-function endpointCurlWithQuery(base: string, method: string, path: string) {
-  const hasTokenPlaceholder = path.includes("token=");
-  const route = hasTokenPlaceholder ? path : `${path}${path.includes("?") ? "&" : "?"}token=<API_TOKEN>`;
-  return `curl -X ${method} \"${base}${route}\"`;
-}
-
 function endpointRequestHint(endpoint: EndpointSpec, method: string) {
   const lowerPath = endpoint.path.toLowerCase();
   if (lowerPath.includes("/api/external/trackers/") && lowerPath.includes("/start")) {
-    return method === "POST" ? "Pflicht: trackerKey im Pfad, Token im Header oder als token-Param. Für Ganztag: allDay=true&date=YYYY-MM-DD." : "Starten ohne Startzeit: allDay=true&date=YYYY-MM-DD";
+    return method === "POST" ? "Pflicht: trackerKey im Pfad und Bearer-Token im Authorization-Header. Für Ganztag: allDay=true&date=YYYY-MM-DD." : "Starten ohne Startzeit: allDay=true&date=YYYY-MM-DD";
   }
   if (lowerPath.includes("/api/external/trackers/") && lowerPath.includes("/stop")) {
     return "Pflicht: trackerKey im Pfad. Notiz optional über `note=`.";
@@ -1814,10 +1808,6 @@ export default async function ApiControlPage(props: { searchParams: Promise<ApiC
                       <CopyLink
                         value={endpointCurl(requestBase, endpoint.method, endpoint.path)}
                         label={`copy: curl ${endpoint.method} ${endpoint.path}`}
-                      />
-                      <CopyLink
-                        value={endpointCurlWithQuery(requestBase, endpoint.method, endpoint.path)}
-                        label={`copy: curl ${endpoint.method} ${endpoint.path} (token in URL)`}
                       />
                       <a
                         href={endpoint.path}

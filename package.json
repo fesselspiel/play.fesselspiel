@@ -14,7 +14,11 @@
     "review:seed": "node scripts/app-review-tenant.js",
     "review:cleanup": "node scripts/app-review-tenant.js --cleanup",
     "legal:publish": "node scripts/publish-legal-documents.js --publish",
-    "legal:rollback": "node scripts/publish-legal-documents.js --rollback"
+    "legal:rollback": "node scripts/publish-legal-documents.js --rollback",
+    "test:compliance:static": "node scripts/verify-app-store-compliance.js",
+    "test:compliance:live": "node scripts/verify-app-store-live.js",
+    "test:upload-security": "node scripts/verify-upload-scanning.js",
+    "test:clamav": "node scripts/verify-clamav-instream.js"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",

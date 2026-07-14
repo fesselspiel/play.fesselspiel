@@ -8,6 +8,7 @@ import { entityLikeStateMap } from "@/lib/entity-likes";
 import { fileAssetUrl, fileIdFromUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { blockedUserIds, hiddenEntityIds } from "@/lib/compliance/ugc";
+import { FileRejectedError, FileScanUnavailableError } from "@/lib/file-scanner";
 
 export const runtime = "nodejs";
 
@@ -173,8 +174,17 @@ export async function POST(request: NextRequest) {
   try {
     asset = await saveUploadedFile(auth.user.id, formData.get("file") as File | null);
   } catch (error) {
+    if (error instanceof FileScanUnavailableError) {
+      return NextResponse.json(
+        { ok: false, error: "security_scan_unavailable", message: error.message },
+        { status: 503, headers: { "Retry-After": "60" } }
+      );
+    }
     const message = error instanceof Error ? error.message : "Die Datei konnte nicht sicher verarbeitet werden";
-    return NextResponse.json({ ok: false, error: "invalid_upload", message }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: error instanceof FileRejectedError ? "unsafe_upload" : "invalid_upload", message },
+      { status: 400 }
+    );
   }
   if (!asset) return NextResponse.json({ ok: false, error: "Keine Datei erhalten" }, { status: 400 });
   const url = fileAssetUrl(asset.id);

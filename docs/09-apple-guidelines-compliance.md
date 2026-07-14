@@ -227,7 +227,7 @@ Die Grenze wird serverseitig als normale Produktkonfiguration und in den externe
 | Melden und Blockieren | Erfuellt | Typisierte Schutzmenues und serverseitige Durchsetzung decken Chat, Medien, Kommentare, Profile, Szenen, Aktivitaeten, Auftraege, Ideen und geteilte Tagebuchinhalte ab; produktiver Fremdinhalts-Smoke bestanden. |
 | Moderationsprozess | App fertig / Betrieb offen | Native Admin-Warteschlange, serverseitige Massnahmen, Auditierung, veroeffentlichter Moderationskontakt und 24-48-Stunden-Ziel sind umgesetzt. Die tatsaechliche Besetzung bleibt organisatorisch. |
 | Diskrete Push-Nachrichten | Erfuellt | `DISCREET` ist Backend- und iOS-Standard; vollstaendige Vorschau erfordert eine ausdrueckliche Warnbestaetigung. |
-| Sicherer Medienumgang | In Arbeit | Byte-Signatur, MIME-Allowlist, Groessenlimit, Klassifikation und serverseitige Quarantaene sind produktiv. Die Entscheidung ueber einen vollwertigen externen Malware-Scanner bleibt offen. |
+| Sicherer Medienumgang | Erfuellt | Byte-Signatur, MIME-Allowlist, Groessenlimit, Klassifikation, serverseitige Quarantaene und ein echter ClamAV-INSTREAM-Scan sind umgesetzt. Uploads schlagen bei Scanner-Ausfall geschlossen fehl; nur `CLEAN` ist abrufbar. |
 | Auftrags- und Risikoreduzierung | Erfuellt | Neutrale Nutzertexte sowie versionierte Annahme, Gegenvorschlag, Ablehnung und jederzeitiger Widerruf sind produktiv und mit zwei Benutzern getestet. |
 | Demo-Account/Mandant | Erfuellt | Isolierter neutraler Mandant unter `test.playplaner.com`; idempotenter Seed und gezielter Cleanup mit vier Review-Rollen live getestet. |
 | Echte native Funktionalitaet | Erfuellt | SwiftUI-App mit nativen Kernflows |
@@ -288,6 +288,21 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Dateisicherheits-Smoke: Eine Datei mit korrekter PNG-Signatur und EICAR-Testmarker wurde mit HTTP 400 und `invalid_upload` abgewiesen. Es wurde kein Medium angelegt.
 - Bereinigung: Testmedium und FileAsset wurden vollstaendig geloescht, der kurzlebige API-Token deaktiviert. Abschliessende Datenbankzaehler: `smokeMedia=0`, `smokeFiles=0`, `activeSmokeTokens=0`.
 - iOS-Nachweis: Fastlane-Simulator-Build auf iPhone 17 und iPad Pro 11-inch (M5) erfolgreich. Schutzflaeche und Klassifikationseditor wurden visuell geprueft; Screenshots `/tmp/playplaner-media-safety-cycle2-final.png` und `/tmp/playplaner-media-safety-ipad-cycle2.png`.
+
+## Zyklus 9: Vollwertiger Malware-Scanner und automatisierte Compliance-Smokes
+
+- Uploads werden nach Byte-Signatur/MIME-Allowlist und Groessenlimit ueber das ClamAV-INSTREAM-Protokoll geprueft. Erst eine echte `OK`-Antwort erlaubt Dateisystem- und Datenbankspeicherung mit `scanStatus=CLEAN` und `safetyCheckedAt`.
+- Der Scanner laeuft als separater Compose-Dienst mit dem fest gepinnten Image `clamav/clamav@sha256:7f5389ccaa2368c383fa80e167ccfe44348d71e685f926fce4755eed1757673a`. Die App wartet auf dessen Healthcheck. Signaturen liegen im eigenen Volume `clamav_data`.
+- Scanner-Timeout, Netzwerkfehler und unbekannte Antworten sind fail-closed. Die native Medienroute liefert `503 security_scan_unavailable` und `Retry-After: 60`; es werden dabei weder Datei noch FileAsset/Media angelegt.
+- Direkte Dateiabrufe und der Ideen-Bildfeed akzeptieren ausschliesslich `scanStatus=CLEAN`. `PENDING` und `REJECTED` sind damit auch bei bekannter Datei-ID nicht erreichbar.
+- Die API-Konsole zeigt nur noch Bearer-Header-Beispiele. Der veraltete Query-Token-Curl und der Hinweis auf `token` in URLs wurden entfernt.
+- Wiederholbare Pruefungen:
+  - `npm run test:compliance:static` kontrolliert Scannervertrag, CLEAN-only, Digest-Pinning und Bearer-only-Quellcode.
+  - `npm run test:compliance:live` prueft Legal-/Supportseiten, Login, zentrale geschuetzte APIs, ZIP-Datenexport, Token-Eigenwiderruf und anschliessendes HTTP 401.
+  - `npm run test:clamav` prueft eine harmlose Probe und die exakte EICAR-Testdatei ueber INSTREAM.
+  - `npm run test:upload-security` prueft sauberen Upload/Download/Loeschung, Ablehnung nicht erlaubter Bytes und optional mit `--scanner-unavailable` den HTTP-503-Pfad.
+- Lokaler isolierter Nachweis: Produktions-Dockerbuild und TypeScript erfolgreich; ClamAV healthy; `CLAMAV_INSTREAM_CLEAN_AND_EICAR_OK`; `UPLOAD_CLEAN_AND_DISALLOWED_BYTES_OK`; `UPLOAD_SCANNER_UNAVAILABLE_OK`; `COMPLIANCE_LIVE_OK`. Alle Test-Tokens wurden deaktiviert und die eigene Testdatenbank, Upload-Volumes, Container und Netzwerke entfernt.
+- Rueckbau: Vor dem Deploy App-Image, Compose/Quellstand und Datenbank sichern. Fuer einen vollstaendigen Rueckbau vorherige Compose-Datei und App-Image wiederherstellen und erst danach `clamav` stoppen; `clamav_data` kann anschliessend entfernt werden. Ein Rueckbau auf ungescannte Uploads ist sicherheitlich nicht empfohlen. Es gibt keine Datenbankmigration.
 
 ## Zyklus 8: Versionierte, widerrufbare Zustimmung
 
