@@ -503,3 +503,19 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Beide Transkriptionspfade akzeptieren `keepAudio`. Ohne ausdrueckliche Auswahl wird keine Audiodatei gespeichert. Bei `keepAudio=true` wird die bereits transkribierte Aufnahme erst danach durch die zentrale bytebasierte Typpruefung und Malware-Pruefung gespeichert und als Anlage mit dem jeweiligen Eintrag verknuepft.
 - Der Nachtrag ist additiv und rueckbaubar: Entfernen der Share-Targets-Route und der `keepAudio`-Verzweigungen stellt den vorherigen Vertrag wieder her; bestehende Inhalte werden dadurch nicht veraendert. Der Tabellen-Rueckbau bleibt in `prisma/manual-migrations/20260714_content_spaces/down.sql` dokumentiert.
 - Verifikation des Nachtrags: `npx prisma generate`, TypeScript, `COMPLIANCE_STATIC_OK` und ein frischer Next-15.5.20-Dockerbuild mit sichtbaren Content-Space-, Share-Targets-, Anlagen- und Transkriptionsrouten bestanden.
+
+## Zyklus 23: Selbstbestimmte private Medien
+
+- Private Bilder bekannter Paare und Zirkel durchlaufen keinen manuellen Vorabgenehmigungsprozess durch Dritte. Technische Dateipruefung, Zugriffsrechte, freiwilliges Melden/Blockieren und Quarantaene bleiben getrennte Schutzmechanismen.
+- `SAFE` und `MATURE_SUGGESTIVE` sind im berechtigten privaten iOS-Kontext sichtbar. `UNKNOWN` ist standardmaessig verdeckt und wird nur nach persoenlicher Aktivierung im eingeloggten Webprofil sichtbar. `EXPLICIT` und `QUARANTINED` bleiben in iOS immer gesperrt.
+- `UserSettings.showSensitiveMedia` ist additiv und standardmaessig `false`. Die iOS-API liefert den Zustand lesend; ihr strikter PATCH-Vertrag weist einen Aenderungsversuch fuer diesen Webschalter mit HTTP 400 ab.
+- Produktiver Live-Smoke: GET 200 mit booleschem Wert, unbekanntes PATCH-Feld 400, Sitzungswiderruf danach 401. Der Review-Benutzer wurde reversibel auf `true` gesetzt, die App-Lesung bestaetigt und exakt auf den Ausgangswert `false` zurueckgesetzt.
+- Rueckbau: iOS-Commit fuer die Leselogik und Backend-/Web-Commit revertieren; danach kann optional `prisma/manual-migrations/20260714_sensitive_media_preference/down.sql` ausgefuehrt werden. Medien, Klassifikationen und Dateien werden dadurch nicht veraendert.
+
+## Zyklus 24: Lokaler Geraeteschutz und TestFlight-Zyklus 5
+
+- Der iOS-Zustandsautomat der optionalen App-Sperre behandelt einen fehlenden Hintergrundzeitpunkt nach erfolgreicher Authentifizierung nicht mehr als unendliche Inaktivitaet. Dadurch kann ein direkt folgendes Aktivierungsereignis keine zweite, unnoetige Authentifizierung ausloesen.
+- `scripts/verify_app_store_readiness.rb` prueft jetzt verbindlich den globalen Privacy-Gate, `LocalAuthentication.deviceOwnerAuthentication`, App-Umschalter-/Hintergrundabdeckung, kontrolliertes Zuruecksetzen des Hintergrundzeitpunkts, native Aktivierung/Timeouts und die ausschliessliche DEBUG-Verfuegbarkeit des Screenshot-Hooks.
+- Fastlane-Store-Pruefung und Simulatorbuilds auf iPhone 17 und iPad mini (A17 Pro) bestanden. Der normale iPhone-Simulatorlauf bestaetigte `canEvaluatePolicy=YES` und den gestarteten Systemdialog; die App zeigte dabei keine privaten Inhalte. Schutzansichten auf iPhone und iPad wurden visuell geprueft.
+- Rueckbau: iOS-Commit revertieren. Es gibt keine Backend-, Datenbank- oder Produktivdatenaenderung. Die App-Sperre bleibt fuer Benutzer standardmaessig aus; vorhandene lokale Einstellungen werden durch den Code-Rueckbau nicht serverseitig veraendert.
+- Offene manuelle Endabnahme: Face-ID-Erfolg und App-Umschalter-Snapshot auf einem entsperrten physischen Geraet. Die beim Zyklusabschluss gekoppelten Geraete waren nicht erreichbar; dieser Punkt bleibt in der Readiness-Matrix ausdruecklich organisatorisch offen.
