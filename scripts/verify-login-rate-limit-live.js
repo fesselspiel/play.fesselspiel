@@ -1,5 +1,6 @@
 const base = String(process.env.APP_REVIEW_BASE_URL || "https://playplaner.com").replace(/\/$/, "");
-const identifier = `rate-limit-${Date.now()}@invalid.playplaner.test`;
+const identifier = process.env.RATE_LIMIT_TEST_IDENTIFIER || `rate-limit-${Date.now()}@invalid.playplaner.test`;
+const deviceName = process.env.RATE_LIMIT_TEST_DEVICE_NAME || "Rate Limit Live Test";
 
 async function main() {
   let finalResponse = null;
@@ -7,7 +8,7 @@ async function main() {
     const response = await fetch(`${base}/api/external/auth/login`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-real-ip": `198.51.100.${20 + attempt}` },
-      body: JSON.stringify({ identifier, password: "definitely-wrong", deviceName: "Rate Limit Live Test" })
+      body: JSON.stringify({ identifier, password: "definitely-wrong", deviceName })
     });
     if (attempt < 5 && response.status !== 401) throw new Error(`Versuch ${attempt}: erwartet 401, erhalten ${response.status}`);
     finalResponse = response;
