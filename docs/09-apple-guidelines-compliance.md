@@ -682,3 +682,9 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Die iOS-App neutralisiert nun auch rohe Backend-Capability-Labels, Aktionsnamen, Feature-Keys und den sichtbaren Legacy-Endpunkt fuer den Produktkatalog. Sichtbar werden ausschliesslich `Shopify-Produkte`, sprachlich passende Produktaktionen und `/api/external/shopify-products` als Diagnosealias.
 - Die tatsaechliche Backendroute, Requestfelder, Deep-Link-Aliase und interne Swift-Typen bleiben fuer Kompatibilitaet unveraendert. Nutzerinhalte werden nicht umgeschrieben. Es gab keine Backend-, Schema-, Produktivdaten- oder App-Store-Connect-Aenderung.
 - iOS Store-Verifier sowie Fastlane-Builds auf iPhone 17e und iPad mini (A17 Pro) bestanden. Ein DEBUG-Nachweis prueft absichtlich einen alten Capability-Response; der finale Screenshot zeigt keine alte sichtbare Produktbezeichnung. Rueckbau erfolgt ausschliesslich durch Revert des zugehoerigen iOS-Commits und dieser Dokumentationszeilen.
+
+## 2026-07-14 - Build 109 fuer App Store und Review-Live-Smoke
+
+- Die nicht einreichende iOS-Fastlane-Lane hat Version `1.0` in App Store Connect auf den bereits verarbeiteten Build `109` gesetzt und die Auswahl zurueckgelesen. Es gab keinen Upload und keine Review-Submission.
+- `https://test.playplaner.com` bestand den reversiblen Compliance-Live-Smoke mit dem geschuetzten Review-Zugang: vier oeffentliche Rechts-/Supportseiten, Login, Kern-APIs, ZIP-Datenexport mit `no-store`, Sitzungswiderruf und anschliessender HTTP-401-Nachweis. Die Testsitzung blieb nicht aktiv.
+- Die native Datenschutzansicht wurde auf iPhone 17e und iPad mini visuell geprueft. Physischer Face-ID-/App-Umschalter-/Review-Endtest bleibt offen, da beide gekoppelten Geraete weiterhin nicht erreichbar waren. Rueckbau erfolgt durch Auswahl eines anderen gueltigen Builds beziehungsweise Entfernen der Build-Beziehung in App Store Connect.
