@@ -1108,3 +1108,11 @@ Details:
 - Die vom iPhone-Agenten angeforderten Paritätsrouten sind live nachgezogen: `POST /api/external/catalog/reorder`, Album-CRUD unter `/api/external/media/albums`, Tracker-History-Detail-CRUD unter `/api/external/trackers/history/{id}`, Ideenbilder unter `/api/external/ideas/{id}/images`, Wiki-Anhänge unter `/api/external/wiki/{id}/attachments` und `DELETE /api/external/orders/{id}`.
 - Upload-Routen prüfen den Bearer-Token vor dem Lesen von `multipart/form-data`, damit ungültige Proben sauber `401` statt `500` liefern.
 - Native Grundrouten für Profil, Benutzerverwaltung und Seitenverwaltung sind ergänzt: `/api/external/profile`, `/api/external/users` und `/api/external/tenants`.
+## 2026-07-14: Generische Inhaltsbereiche
+
+- Additive Modelle fuer frei benennbare Bereiche, Nutzer-/Zirkel-Freigaben und stabile Legacy-Zuordnungen ergaenzt.
+- Neue Bearer-Endpunkte unter `/api/external/content-spaces` decken Bereichs-CRUD, Entry-CRUD sowie Audio-Erstellen und -Erweitern ab.
+- Bestehende Wiki-/Tagebuchseiten und Ideen bleiben kanonische Quelldaten; Standardbereiche und Zuordnungen werden idempotent ueber `scripts/content-spaces-backfill.js` erzeugt.
+- Benutzerdefinierte Bereiche werden beim Loeschen archiviert und ihre Zuordnungen verlustfrei in die Standardbereiche verschoben.
+- Datenexport, Zirkel-Austritt, Capabilities, nativer Toolkatalog und statischer App-Store-Compliance-Test wurden nachgezogen.
+- Reversible Datenbankschritte: `prisma/manual-migrations/20260714_content_spaces/up.sql` und `down.sql`. Beide Richtungen wurden isoliert gegen PostgreSQL 16 geprueft; bestehende `WikiPage`- und `ActivityPlan`-Tabellen blieben beim Rueckbau erhalten.

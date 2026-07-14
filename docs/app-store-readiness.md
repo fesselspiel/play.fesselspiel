@@ -17,6 +17,8 @@ Diese Matrix ist die operative Abnahme fuer die iOS-Einreichung. Ausfuehrliche R
 | 4.2 | Mindestfunktionalitaet | Native SwiftUI-Flows fuer Login, Dashboard, Kalender, Chat, Medien, Tracker, Konto und Sicherheit | iOS-Projekt | iPhone-/iPad-Fastlane-Smokes | Erfuellt | Abschliessender On-Device-Regressionslauf |
 | 5.1.1 | Datenschutz/Loeschung | Oeffentliche Datenschutzerklaerung, Datenexport, native getrennt widerrufbare Einwilligungen und echte Self-Service-Loeschung | `/privacy`, `/api/external/account/*`, `/api/external/compliance/consents`, iOS `ComplianceViews.swift` | Datei-, Token-, Login-, Consent-Restore- und letzter-Admin-Test | Erfuellt nach Live-Publish | Rechtliche Freigabe der Texte |
 
+Generische Inhaltsbereiche sind additiv modelliert: bestehende Wiki-/Tagebuchseiten und Ideen bleiben die kanonischen Quelldaten und werden nur ueber stabile IDs Bereichen zugeordnet. Bereiche und Zuordnungen sind Teil des persoenlichen Datenexports; Kontoloeschung entfernt sie ueber relationale Kaskaden. Zirkel-Austritt setzt eigene geteilte Bereiche auf privat und entfernt Nutzer-/Zirkel-Freigaben.
+
 ## Einreichungsblocker
 
 - Die vier versionierten Rechtsdokumente sind auf Produktions- und Review-Mandant veroeffentlicht; ihre finale rechtliche Freigabe bleibt manuell.

@@ -679,6 +679,39 @@ export const capabilities: readonly Capability[] = [
     ]
   },
   {
+    key: "contentSpaces",
+    label: "Inhaltsbereiche",
+    featureKey: "wiki",
+    aliases: ["tagebuch", "wiki", "ideen", "inhaltsbereich", "notizbuch"],
+    intents: ["bereich anlegen", "tagebuch anzeigen", "eintrag schreiben", "eintrag diktieren"],
+    route: "/wiki",
+    actions: [
+      {
+        key: "manage",
+        label: "Inhaltsbereiche verwalten",
+        type: "write",
+        description: "Verwaltet frei benennbare private oder geteilte Bereiche und erhaelt vorhandene Tagebuch-, Wiki- und Ideeninhalte.",
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/content-spaces", description: "Sichtbare Bereiche lesen; legt verlustfrei die Standardbereiche Tagebuch und Ideen an." },
+          { method: "POST", path: "/api/external/content-spaces", description: "Bereich anlegen. Body: name, kind?, icon?, sortOrder?, visibility?, allowedUserIds?, allowedCircleIds?." },
+          { method: "GET", path: "/api/external/content-spaces/{id}", description: "Bereich lesen." },
+          { method: "PATCH", path: "/api/external/content-spaces/{id}", description: "Name, Icon, Reihenfolge und Freigaben aendern." },
+          { method: "DELETE", path: "/api/external/content-spaces/{id}", description: "Eigenen benutzerdefinierten Bereich archivieren; Quelldaten bleiben erhalten." },
+          { method: "GET", path: "/api/external/content-spaces/{id}/entries", description: "Eintraege inklusive vorhandener Wiki- und Ideenobjekte lesen." },
+          { method: "POST", path: "/api/external/content-spaces/{id}/entries", description: "Eintrag mit title, content und optional calendarDate anlegen." },
+          { method: "GET", path: "/api/external/content-spaces/{id}/entries/{entryId}", description: "Eintrag lesen." },
+          { method: "PATCH", path: "/api/external/content-spaces/{id}/entries/{entryId}", description: "Titel, Inhalt oder explizites Kalenderdatum aendern." },
+          { method: "DELETE", path: "/api/external/content-spaces/{id}/entries/{entryId}", description: "Eigenen Eintrag loeschen beziehungsweise eine Legacy-Idee verwerfen." },
+          { method: "POST", path: "/api/external/content-spaces/{id}/entries/{entryId}/attachments", description: "Datei per geprueftem Multipart-Upload an einen Eintrag anhaengen." },
+          { method: "DELETE", path: "/api/external/content-spaces/{id}/entries/{entryId}/attachments/{attachmentId}", description: "Eigene Anlage und zugehoerige Datei entfernen." },
+          { method: "POST", path: "/api/external/content-spaces/{id}/transcribe", description: "Eintrag per Audio in diesem Bereich anlegen; Audio wird standardmaessig nach erfolgreicher Transkription verworfen." },
+          { method: "POST", path: "/api/external/content-spaces/{id}/entries/{entryId}/transcribe", description: "Bestehenden Eintrag per Audio erweitern." }
+        ],
+        auditActions: ["content_space_created", "content_space_updated", "content_space_archived", "content_space_entry_created", "content_space_entry_updated", "content_space_entry_deleted"]
+      }
+    ]
+  },
+  {
     key: "shopifyBondageSystem",
     label: "Bondage-System",
     featureKey: "shopifyBondageSystem",

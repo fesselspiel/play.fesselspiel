@@ -1564,6 +1564,28 @@ Der Seiten-Slug wird automatisch aus dem Titel erzeugt. `GET /api/external/wiki/
 
 ## Hinweise fuer Weiterentwicklung
 
+## Generische Inhaltsbereiche
+
+Die nativen Clients koennen Tagebuch, Wiki, Ideen und weitere frei benennbare Sammlungen ueber einen gemeinsamen, additiven Vertrag darstellen:
+
+```http
+GET|POST /api/external/content-spaces
+GET|PATCH|DELETE /api/external/content-spaces/{spaceId}
+GET|POST /api/external/content-spaces/{spaceId}/entries
+GET|PATCH|DELETE /api/external/content-spaces/{spaceId}/entries/{entryId}
+POST /api/external/content-spaces/{spaceId}/entries/{entryId}/attachments
+DELETE /api/external/content-spaces/{spaceId}/entries/{entryId}/attachments/{attachmentId}
+POST /api/external/content-spaces/{spaceId}/transcribe
+POST /api/external/content-spaces/{spaceId}/entries/{entryId}/transcribe
+Authorization: Bearer fsp_...
+```
+
+Bereiche liefern `name`, `kind`, `icon`, `sortOrder`, `visibility`, `allowedUserIds`, `allowedCircleIds`, Berechtigungen und `entryCount`. Sichtbarkeiten sind `PRIVATE`, `USERS`, `CIRCLES` und `SHARED`. Die App darf eine Freigabe nie automatisch erweitern.
+
+Eintraege liefern eine stabile Bereichs-ID und zusaetzlich `sourceType`/`sourceId`. Bestehende Wiki-/Tagebuchseiten werden als `WIKI_PAGE`, bestehende Ideen als `IDEA` referenziert. Die Altobjekte werden weder kopiert noch geloescht; die bisherigen `/wiki`- und `/ideas`-Endpunkte bleiben kompatibel. Neue Eintraege verwenden intern Wiki-Seiten, sodass Titel, Inhalt, Dateien, Kalenderdatum, Revisionen und bestehende Sicherheitspruefungen weiter gelten.
+
+`DELETE /content-spaces/{spaceId}` archiviert nur benutzerdefinierte Bereiche. Deren Zuordnungen werden in die Standardbereiche Tagebuch beziehungsweise Ideen verschoben. Das explizite Loeschen eines Eintrags bleibt davon getrennt. Transkription verwendet denselben OpenAI-/Audiovertrag wie das Tagebuch; Audio bleibt nur bei ausdruecklichem `keepAudio=true` erhalten.
+
 - Native APNs-Zustellung und Device-Token-Registrierung sind in [08-native-pushnachrichten.md](./08-native-pushnachrichten.md) beschrieben.
 - Wenn systemweite Ereignisse ohne Actor in der App erscheinen sollen, sollte `AuditLog` ein `tenantId` bekommen.
 - Die Event-API ist bewusst lesend. Likes/Kommentare laufen weiterhin ueber die bestehenden Feed-/Protokollfunktionen.

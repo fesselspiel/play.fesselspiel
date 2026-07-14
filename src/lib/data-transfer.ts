@@ -33,6 +33,8 @@ type TransferData = {
   mediaComments: ExportRecord[];
   wikiPages: ExportRecord[];
   wikiImages: ExportRecord[];
+  contentSpaces: ExportRecord[];
+  contentSpaceEntries: ExportRecord[];
   events: ExportRecord[];
   checkIns: ExportRecord[];
   feedRules: ExportRecord[];
@@ -104,6 +106,8 @@ export async function buildDataExport(user: AccessUser) {
     mediaComments,
     wikiPages,
     wikiImages,
+    contentSpaces,
+    contentSpaceEntries,
     events,
     checkIns,
     feedRules
@@ -124,6 +128,8 @@ export async function buildDataExport(user: AccessUser) {
     prisma.mediaComment.findMany({ where: { ownerId: { in: ownerIds } }, orderBy: { createdAt: "asc" } }),
     prisma.wikiPage.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
     prisma.wikiPageImage.findMany({ where: { page: ownerScope }, orderBy: { createdAt: "asc" } }),
+    prisma.contentSpace.findMany({ where: ownerScope, include: { userShares: true, circleShares: true }, orderBy: { createdAt: "asc" } }),
+    prisma.contentSpaceEntry.findMany({ where: { space: ownerScope }, orderBy: { createdAt: "asc" } }),
     prisma.event.findMany({ where: ownerScope, orderBy: { startsAt: "asc" } }),
     prisma.checkIn.findMany({ where: { userId: { in: ownerIds } }, orderBy: { createdAt: "asc" } }),
     user.tenantId && (user.role === "ADMIN" || user.role === "SUPER_ADMIN")
@@ -200,6 +206,14 @@ export async function buildDataExport(user: AccessUser) {
       title: entry.title,
       createdAt: entry.createdAt
     })),
+    contentSpaces: contentSpaces.map((entry) => ({
+      ...withoutOwner(entry),
+      allowedUserIds: entry.userShares.map((share) => share.userId),
+      allowedCircleIds: entry.circleShares.map((share) => share.circleId),
+      userShares: undefined,
+      circleShares: undefined
+    })),
+    contentSpaceEntries: contentSpaceEntries,
     events: events.map(withoutOwner),
     checkIns: checkIns.map(({ userId: _userId, ...entry }) => entry),
     feedRules: feedRules.map(({ tenantId: _tenantId, ...entry }) => entry)

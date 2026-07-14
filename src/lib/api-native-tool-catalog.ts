@@ -190,6 +190,24 @@ const manualToolCatalog = ([
     category: "Ideen"
   },
   {
+    id: "contentSpaces",
+    method: "GET",
+    methods: ["GET", "POST"],
+    path: "/api/external/content-spaces",
+    title: "Inhaltsbereiche",
+    description: "Frei benennbare Bereiche fuer Tagebuch, Wiki, Ideen und eigene Sammlungen lesen oder anlegen.",
+    category: "Dokumentation"
+  },
+  {
+    id: "contentSpaceEntries",
+    method: "GET",
+    methods: ["GET", "POST"],
+    path: "/api/external/content-spaces/{id}/entries",
+    title: "Bereichseintraege",
+    description: "Eintraege eines Bereichs lesen oder nativ anlegen.",
+    category: "Dokumentation"
+  },
+  {
     id: "orders",
     method: "GET",
     methods: ["GET", "POST"],

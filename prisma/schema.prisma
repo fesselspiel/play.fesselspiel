@@ -34,6 +34,25 @@ enum Visibility {
   SHARED
 }
 
+enum ContentSpaceKind {
+  DIARY
+  WIKI
+  IDEAS
+  CUSTOM
+}
+
+enum ContentSpaceVisibility {
+  PRIVATE
+  USERS
+  CIRCLES
+  SHARED
+}
+
+enum ContentSpaceEntrySource {
+  WIKI_PAGE
+  IDEA
+}
+
 enum ActivityStatus {
   REQUESTED
   PLANNED
@@ -214,6 +233,7 @@ model Tenant {
   contentReports              ContentReport[]
   moderatedContent            ModeratedContent[]
   userBlocks                  UserBlock[]
+  contentSpaces               ContentSpace[]
 
   @@index([status])
 }
@@ -326,6 +346,8 @@ model User {
   reportsModerated              ContentReport[]              @relation("ContentReportModerator")
   blocksInitiated               UserBlock[]                  @relation("UserBlockActor")
   blocksReceived                UserBlock[]                  @relation("UserBlockTarget")
+  contentSpaces                 ContentSpace[]
+  contentSpaceUserShares        ContentSpaceUserShare[]
 
   @@index([tenantId])
   @@index([circleId])
@@ -395,6 +417,7 @@ model Circle {
   bondageSystemTargets          BondageSystemItem[]          @relation("BondageSystemTargetCircle")
   chatMessages                  CircleChatMessage[]
   wikiPageShares                WikiPageShare[]
+  contentSpaceCircleShares      ContentSpaceCircleShare[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -1266,6 +1289,69 @@ model WikiPageShare {
   @@unique([pageId, targetCircleId])
   @@index([targetUserId])
   @@index([targetCircleId])
+}
+
+model ContentSpace {
+  id           String                    @id @default(cuid())
+  tenantId     String?
+  ownerId      String
+  name         String
+  kind         ContentSpaceKind          @default(CUSTOM)
+  icon         String?
+  sortOrder    Int                       @default(0)
+  visibility   ContentSpaceVisibility    @default(PRIVATE)
+  archivedAt   DateTime?
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  tenant       Tenant?                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner        User                      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  userShares   ContentSpaceUserShare[]
+  circleShares ContentSpaceCircleShare[]
+  entries      ContentSpaceEntry[]
+
+  @@unique([tenantId, ownerId, kind, name])
+  @@index([tenantId, ownerId, archivedAt, sortOrder])
+  @@index([visibility])
+}
+
+model ContentSpaceUserShare {
+  id        String       @id @default(cuid())
+  spaceId   String
+  userId    String
+  createdAt DateTime     @default(now())
+  space     ContentSpace @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, userId])
+  @@index([userId])
+}
+
+model ContentSpaceCircleShare {
+  id        String       @id @default(cuid())
+  spaceId   String
+  circleId  String
+  createdAt DateTime     @default(now())
+  space     ContentSpace @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  circle    Circle       @relation(fields: [circleId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, circleId])
+  @@index([circleId])
+}
+
+model ContentSpaceEntry {
+  id           String                  @id @default(cuid())
+  spaceId      String
+  sourceType   ContentSpaceEntrySource
+  sourceId     String
+  calendarDate DateTime?
+  sortOrder    Int                     @default(0)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  space        ContentSpace            @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceType, sourceId])
+  @@index([spaceId, sortOrder, createdAt])
+  @@index([calendarDate])
 }
 
 model ActivityPlan {
