@@ -15,7 +15,7 @@ Diese Matrix ist die operative Abnahme fuer die iOS-Einreichung. Ausfuehrliche R
 | 2.3 | Metadaten | Deutsche Store-Texte, Support-/Privacy-/Privacy-Choices-URL, Copyright, Lifestyle-/Productivity-Kategorien, Review Notes, Review-Kontakt, Demo-Zugang, neutrale iPhone-/iPad-Screenshots und ehrliche Altersdeklaration in ASC gesetzt | iOS `fastlane/metadata`, `fastlane/screenshots`, `docs/app-review-notes.md`, `store_review_details` | Fastlane-Laeufe, ASC-API-Readback und echter Demo-Login | Teilweise erfuellt | Privacy Labels bleiben in ASC manuell zu speichern und visuell zu kontrollieren |
 | 3.1 | Bezahlinhalte | Keine digitale iOS-Kauffunktion im geprueften Stand; physische Shopify-Produkte getrennt | Shopify-Produktansicht | Quellcodepruefung | Manuell pruefen | Bei neuem Abo/IAP erneut bewerten |
 | 4.2 | Mindestfunktionalitaet | Native SwiftUI-Flows fuer Login, Dashboard, Kalender, Chat, Medien, Tracker, Konto und Sicherheit | iOS-Projekt | iPhone-/iPad-Fastlane-Smokes | Erfuellt | Abschliessender On-Device-Regressionslauf |
-| 5.1.1 | Datenschutz/Loeschung | Oeffentliche Datenschutzerklaerung, Datenexport, Einwilligungen und echte Self-Service-Loeschung | `/privacy`, `/api/external/account/*` | Datei-, Token-, Login- und letzter-Admin-Test | Erfuellt nach Live-Publish | Rechtliche Freigabe der Texte |
+| 5.1.1 | Datenschutz/Loeschung | Oeffentliche Datenschutzerklaerung, Datenexport, native getrennt widerrufbare Einwilligungen und echte Self-Service-Loeschung | `/privacy`, `/api/external/account/*`, `/api/external/compliance/consents`, iOS `ComplianceViews.swift` | Datei-, Token-, Login-, Consent-Restore- und letzter-Admin-Test | Erfuellt nach Live-Publish | Rechtliche Freigabe der Texte |
 
 ## Einreichungsblocker
 
