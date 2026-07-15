@@ -63,6 +63,8 @@ Die regulaere iOS-Konfiguration verwendet kein zusaetzliches hartes Altersgate. 
 - Lokaler und serverseitiger Produktionsbuild bestanden Kompilierung, Lint/Typecheck und Seitengenerierung.
 - Ein isoliertes Serverimage bestand mit dem Review-Tenant die oeffentlichen Seiten sowie Login, Compliance, Status, Capabilities, Sitzungen, Chat, Medien, Tracker-History und Kalender. Der Testtoken wurde anschliessend widerrufen und mit HTTP 401 nachgeprueft.
 - Bestehende Dateien wurden nach Einfuehrung des fail-closed Scanstatus einmalig vollstaendig mit ClamAV nachgeprueft. Alle 71 Datenbank-Assets waren sauber und sind wieder abrufbar; ein produktiver Live-Smoke bestaetigte Profilbild und Galerie-Binaerdownload und widerrief beide temporaeren Tokens. Ein validierter Datenbank-Dump liegt unmittelbar vor dem Backfill vor.
+- Die native Einstellung `Sensible Inhalte` speichert die persoenliche Ansicht serverseitig, ohne Freigaben zu erweitern. Ein reversibler Produktions-Smoke bestaetigte Aenderung, Wiederherstellung und strikte Payload-Pruefung.
+- Seiten-/Mandantenansichten sind fail-closed an einen aktiven Repraesentativbenutzer des Zielmandanten gebunden. Ein produktiver Live-Smoke bestaetigte Tenant-, Capability- und Profilidentitaet sowie das Beenden des Kontextes; Produktionsprofile und Zirkelstatus koennen nicht mehr als Fallback in einer fremden Seitenansicht erscheinen.
 
 ## Authentifizierung und Missbrauchsschutz 2026-07-14
 
