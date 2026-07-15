@@ -6,7 +6,7 @@ Diese Matrix ist die operative Abnahme fuer die iOS-Einreichung. Ausfuehrliche R
 
 | Guideline | Relevanz | Implementierte Massnahme | Quellcode/Route | Test | Status | Restrisiko |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1.1.4 | Erwachsene Themen | Private Planerpositionierung, keine oeffentliche Discovery; nicht eingestufte reife UGC-Medien standardmaessig verborgen und nur nach persoenlicher Website-Einstellung sichtbar; grafisch explizite Medien bleiben in iOS gesperrt | `src/lib/ios-product-policy.ts`, `UserSettings.showSensitiveMedia`, Medien-API, iOS Safety Views, iOS `fastlane/metadata/age_rating.json` | Review-Mandant, Medien-Smoke, Website-/API-Vertrag, neutrale Store-Screenshots und ASC-Readback fuer 175 Regionen | Erfuellt | Store-Inhalte bei jeder Produktfunktionsaenderung erneut pruefen |
+| 1.1.4 | Erwachsene Themen | Private Planerpositionierung, keine oeffentliche Discovery; sensible private UGC-Medien standardmaessig verborgen und nur nach persoenlicher nativer oder Web-Einstellung sichtbar; grafisch explizite Medien bleiben in iOS gesperrt | `src/lib/ios-product-policy.ts`, `UserSettings.showSensitiveMedia`, Privacy-/Medien-API, iOS Safety Views, iOS `fastlane/metadata/age_rating.json` | Review-Mandant, Medien-Smoke, nativer Privacy-Screenshot, API-Vertrag, neutrale Store-Screenshots und ASC-Readback fuer 175 Regionen | Erfuellt | Store-Inhalte bei jeder Produktfunktionsaenderung erneut pruefen |
 | 1.2 | UGC | Bytepruefung, Melden, Blockieren, Ausblenden, Moderation und Kontakte | `/api/external/reports`, `/blocks`, `/moderation`, Datei-API | Fremdinhalts-, Block-, Moderations- und Quarantaene-Smokes | Erfuellt | Organisatorische Moderationsbereitschaft und Reaktionszeiten dauerhaft sicherstellen |
 | 1.4.5 | Koerperliche Sicherheit | Auftraege nur freiwillig; versionierte Zustimmung, Gegenvorschlag, Widerruf; keine negative Punktefolge | Consent-Routen, Session-/Auftrags-API | Zwei-Nutzer-Live-Smoke | Erfuellt | App-Review-Texte muessen Produktgrenze klar erklaeren |
 | 1.5 | Kontakt | Oeffentliche Support-, Moderations-, Datenschutz- und Sicherheitskontakte | `/support`, Legal-Publish-Skript | Oeffentliche HTTP- und Inhaltspruefung | Erfuellt nach Live-Publish | Erreichbarkeit organisatorisch pruefen |
@@ -62,6 +62,7 @@ Die regulaere iOS-Konfiguration verwendet kein zusaetzliches hartes Altersgate. 
 - Next.js `15.5.20`, `eslint-config-next` `15.5.20` und PostCSS `8.5.10` sind exakt fixiert. Der frische Audit meldet null bekannte Build- oder Produktionsschwachstellen.
 - Lokaler und serverseitiger Produktionsbuild bestanden Kompilierung, Lint/Typecheck und Seitengenerierung.
 - Ein isoliertes Serverimage bestand mit dem Review-Tenant die oeffentlichen Seiten sowie Login, Compliance, Status, Capabilities, Sitzungen, Chat, Medien, Tracker-History und Kalender. Der Testtoken wurde anschliessend widerrufen und mit HTTP 401 nachgeprueft.
+- Bestehende Dateien wurden nach Einfuehrung des fail-closed Scanstatus einmalig vollstaendig mit ClamAV nachgeprueft. Alle 71 Datenbank-Assets waren sauber und sind wieder abrufbar; ein produktiver Live-Smoke bestaetigte Profilbild und Galerie-Binaerdownload und widerrief beide temporaeren Tokens. Ein validierter Datenbank-Dump liegt unmittelbar vor dem Backfill vor.
 
 ## Authentifizierung und Missbrauchsschutz 2026-07-14
 

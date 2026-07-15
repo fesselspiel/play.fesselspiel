@@ -24,6 +24,8 @@ const passwordPolicy = read("src/lib/password-policy.ts");
 const packageManifest = JSON.parse(read("package.json"));
 const reviewRolesLive = read("scripts/verify-app-review-roles-live.js");
 const blockedSharingLive = read("scripts/verify-blocked-sharing-live.js");
+const fileScanBackfill = read("scripts/backfill-file-scan-status.js");
+const mediaAccessLive = read("scripts/verify-media-access-live.js");
 const mobileLoginDocs = read("docs/07-mobile-app-login.md");
 const implementationLog = read("docs/03-implementierungslog.md");
 const contentSpaces = read("src/lib/content-spaces.ts");
@@ -96,7 +98,7 @@ check(ugcSafety.includes('["calendarevent", "calendarentry"]') && ugcSafety.incl
 check(dataTransfer.includes("contentSpaces:") && dataTransfer.includes("contentSpaceEntries:") && dataTransfer.includes("contentEntryAttachments:"), "Datenexport muss Inhaltsbereiche, Eintraege und Anlagen enthalten");
 check(schema.includes("showSensitiveMedia") && profileSettings.includes('name="showSensitiveMedia"'), "Sensible Medien brauchen eine persoenliche Web-Einstellung");
 check(privacySettingsRoute.includes("showSensitiveMedia"), "iOS muss die Web-Einstellung fuer sensible Medien lesen koennen");
-check(!privacySettingsRoute.includes("showSensitiveMedia: z.boolean"), "Die iOS-API darf sensible Medien nicht selbst freischalten");
+check(privacySettingsRoute.includes("showSensitiveMedia: z.boolean().optional()"), "Die native persoenliche Medienansicht muss typisiert speicherbar sein");
 check(privacySettingsRoute.includes("}).strict()"), "Die iOS-API muss unbekannte Privacy-Felder ablehnen");
 check(nativePush.includes('function normalizedPreviewMode') && nativePush.includes('|| "DISCREET"'), "Push-Vorschauen muessen standardmaessig diskret sein");
 check(nativePush.includes('include: { user: { select: { settings: { select: { notificationPreviewMode: true } } } } }'), "Auch direkte Pushes muessen die Vorschau-Einstellung des Empfaengers laden");
@@ -120,6 +122,11 @@ const shareSource = read("src/lib/share.ts");
 check(shareSource.includes("blockedUserIds(user.id, user.tenantId)") && shareSource.includes("!excluded.has(membership.user.id)"), "Blockierte Benutzer duerfen nicht als Share-Ziel angeboten werden");
 check(shareSource.includes("actorId: input.actor.id") && shareSource.includes("!excluded.has(user.id)"), "Direkte und Zirkel-Shares muessen blockierte Empfaenger serverseitig ausschliessen");
 check(shareSource.includes("usersAreBlocked(delivery.tenantId, delivery.actorId, delivery.targetUserId)"), "Bestehende Share-Links muessen nach einer Blockierung gesperrt sein");
+check(packageManifest.scripts?.["files:scan-backfill"] === "node scripts/backfill-file-scan-status.js", "Reproduzierbarer Scanner-Backfill fehlt in package.json");
+check(fileScanBackfill.includes('process.argv.includes("--apply")') && fileScanBackfill.includes("await assertScanner()"), "Scanner-Backfill muss standardmaessig dry-run und fail-closed scannergeprueft sein");
+check(fileScanBackfill.includes('scanStatus: "CLEAN"') && fileScanBackfill.includes('scanStatus: "REJECTED"') && fileScanBackfill.includes('contentClassification: "QUARANTINED"'), "Scanner-Backfill muss saubere und infizierte Altdateien getrennt behandeln");
+check(packageManifest.scripts?.["test:media-access:live"] === "node scripts/verify-media-access-live.js", "Reproduzierbarer Medienzugriffs-Smoke fehlt in package.json");
+check(mediaAccessLive.includes('"/api/external/profile"') && mediaAccessLive.includes('"/api/external/media?kind=ALL&limit=100"') && mediaAccessLive.includes("temporary_tokens_revoked=2"), "Medienzugriffs-Smoke muss Profil, Galerie und Token-Cleanup pruefen");
 
 // There are no paid digital features in the reviewed iOS product. Shopify is
 // a catalogue for physical products. Introducing payment SDKs, subscription

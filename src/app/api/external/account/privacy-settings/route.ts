@@ -6,8 +6,12 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 
 const SettingsSchema = z.object({
-  notificationPreviewMode: z.enum(["DISCREET", "TITLE", "FULL"])
-}).strict();
+  notificationPreviewMode: z.enum(["DISCREET", "TITLE", "FULL"]).optional(),
+  showSensitiveMedia: z.boolean().optional()
+}).strict().refine(
+  (value) => value.notificationPreviewMode !== undefined || value.showSensitiveMedia !== undefined,
+  { message: "at_least_one_setting_required" }
+);
 
 function serialize(mode?: string | null, showSensitiveMedia = false) {
   return {
@@ -30,11 +34,18 @@ export async function PATCH(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
   const parsed = SettingsSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ ok: false, error: "invalid_preview_mode" }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ ok: false, error: "invalid_privacy_settings" }, { status: 400 });
   const settings = await prisma.userSettings.upsert({
     where: { userId: auth.user.id },
-    update: { notificationPreviewMode: parsed.data.notificationPreviewMode },
-    create: { userId: auth.user.id, notificationPreviewMode: parsed.data.notificationPreviewMode },
+    update: {
+      notificationPreviewMode: parsed.data.notificationPreviewMode,
+      showSensitiveMedia: parsed.data.showSensitiveMedia
+    },
+    create: {
+      userId: auth.user.id,
+      notificationPreviewMode: parsed.data.notificationPreviewMode,
+      showSensitiveMedia: parsed.data.showSensitiveMedia
+    },
     select: { notificationPreviewMode: true, showSensitiveMedia: true }
   });
   return NextResponse.json({ ok: true, settings: serialize(settings.notificationPreviewMode, settings.showSensitiveMedia) });

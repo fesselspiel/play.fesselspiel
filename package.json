@@ -21,6 +21,8 @@
     "test:blocked-sharing:live": "node scripts/verify-blocked-sharing-live.js",
     "test:rate-limit:live": "node scripts/verify-login-rate-limit-live.js",
     "test:upload-security": "node scripts/verify-upload-scanning.js",
+    "files:scan-backfill": "node scripts/backfill-file-scan-status.js",
+    "test:media-access:live": "node scripts/verify-media-access-live.js",
     "test:clamav": "node scripts/verify-clamav-instream.js"
   },
   "dependencies": {
