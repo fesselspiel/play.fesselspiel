@@ -784,3 +784,9 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Die mandantenweite Admin-Sicht verwendet jetzt immer einen realen aktiven Repraesentativbenutzer des Zielmandanten. Ein Cross-Tenant-Kontext darf weder den urspruenglichen Superadmin noch dessen Zirkel als Fallback behalten. Leere Zielmandanten werden mit HTTP 409 abgewiesen.
 - `scripts/verify-view-context-isolation-live.js` aktiviert einen fremden Mandanten, verlangt identische Tenant-IDs in Kontext und Capabilities sowie exakt die Repraesentativ-ID im Profil und beendet anschliessend den Kontext. Ergebnis: `VIEW_CONTEXT_ISOLATION_LIVE_OK tenant=1 representative=1 profile=1 cleared=1`. Vor dem Rollout liegt das Backup unter `/opt/kink-social-platform/backups/pre-view-context-isolation-20260715-090136`.
 - Es gab keine Schema- oder Datenmigration. Rueckbau der Seitenisolierung: die View-Context-Route und den Live-Verifier gemeinsam auf den vorherigen Commit zuruecksetzen und das zuvor gesicherte Image starten. Die Medienpraeferenz kann separat durch Revert des PATCH-Vertrags zurueckgebaut werden; gespeicherte boolesche Werte sind bereits bestehende Benutzereinstellungen.
+
+## 2026-07-15 - TestFlight Build 112
+
+- Der iOS-Fastlane-Preflight meldete vor dem Upload `7/15` Builds im rollierenden 24-Stunden-Fenster. Build `1.0 (112)` wurde ausschliesslich ueber die dokumentierte Fastlane-Lane archiviert, exportiert und hochgeladen.
+- App Store Connect bestaetigte Build-ID `dd589c5e-7f1a-4cef-99bf-d5427a22e365`, `VALID`, `IN_BETA_TESTING`, `READY_FOR_BETA_SUBMISSION`, `usesNonExemptEncryption=false`, interne All-Builds-Gruppe, einen Tester und `autoNotify=true`.
+- Die vorbereitete Store-Version verwendet nun Build 112 und `AFTER_APPROVAL`; es wurde keine App-Review-Submission erzeugt. Die buildgebundenen manuellen Endabnahmen muessen vor einer spaeteren Submission ausdruecklich fuer Build 112 erneuert werden.
