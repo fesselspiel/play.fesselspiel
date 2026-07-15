@@ -73,7 +73,8 @@ async function main() {
       const capabilitiesBody = await capabilities.json();
       const profileBody = await profile.json();
       if (capabilitiesBody.tenantId !== targetTenant.id) throw new Error("Capabilities leaked the source tenant");
-      if (profileBody?.profile?.id !== representativeId) throw new Error("Profile did not match the target representative");
+      const scopedProfileId = profileBody?.profile?.id || profileBody?.user?.id || profileBody?.item?.id;
+      if (scopedProfileId !== representativeId) throw new Error("Profile did not match the target representative");
       if (actor.tenantId !== targetTenant.id && representativeId === actor.id && alternativeTarget.userId !== actor.id) {
         throw new Error("Cross-tenant view retained the source actor");
       }
