@@ -790,3 +790,10 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Der iOS-Fastlane-Preflight meldete vor dem Upload `7/15` Builds im rollierenden 24-Stunden-Fenster. Build `1.0 (112)` wurde ausschliesslich ueber die dokumentierte Fastlane-Lane archiviert, exportiert und hochgeladen.
 - App Store Connect bestaetigte Build-ID `dd589c5e-7f1a-4cef-99bf-d5427a22e365`, `VALID`, `IN_BETA_TESTING`, `READY_FOR_BETA_SUBMISSION`, `usesNonExemptEncryption=false`, interne All-Builds-Gruppe, einen Tester und `autoNotify=true`.
 - Die vorbereitete Store-Version verwendet nun Build 112 und `AFTER_APPROVAL`; es wurde keine App-Review-Submission erzeugt. Die buildgebundenen manuellen Endabnahmen muessen vor einer spaeteren Submission ausdruecklich fuer Build 112 erneuert werden.
+
+## 2026-07-15 - TestFlight Build 113
+
+- Der ausschliesslich ueber Fastlane erzeugte Build `1.0 (113)` wurde mit dem App-Store-Profil signiert und erfolgreich hochgeladen. App Store Connect meldet Build-ID `b121a906-9b9a-45d3-9343-14d55fbfb517`, `VALID`, intern `IN_BETA_TESTING`, extern `READY_FOR_BETA_SUBMISSION` und `usesNonExemptEncryption=false`.
+- Die interne All-Builds-Gruppe enthaelt einen Tester und `autoNotify=true`. Die vorbereitete Store-Version verwendet Build 113 mit `AFTER_APPROVAL`; es wurde keine App-Review-Submission erzeugt.
+- Build 113 stellt das Tagebuch-Icon robust aus dem plattformneutralen Backendwert dar und bietet die Sammlungsbearbeitung nativ direkt in der geoeffneten eigenen Sammlung. Fuer persistente Overrides der virtuellen Standardbereiche `legacy-wiki` und `legacy-ideas` wurde der fehlende Backendvertrag separat beauftragt; die App simuliert bis zum Deploy keinen Erfolg.
+- Die buildgebundenen manuellen Endabnahmen muessen vor einer spaeteren Submission ausdruecklich fuer Build 113 erneuert werden. Rueckbau: Store-Buildauswahl ueber Fastlane auf einen anderen validierten Build setzen; kein Produktionsschema wurde in diesem iOS-Zyklus geaendert.
