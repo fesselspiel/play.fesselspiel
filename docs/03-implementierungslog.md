@@ -1112,8 +1112,8 @@ Details:
 
 - Additive Modelle fuer frei benennbare Bereiche, Nutzer-/Zirkel-Freigaben und stabile Legacy-Zuordnungen ergaenzt.
 - Neue Bearer-Endpunkte unter `/api/external/content-spaces` decken Bereichs-CRUD, Entry-CRUD sowie Audio-Erstellen und -Erweitern ab.
-- Bestehende Wiki-/Tagebuchseiten und Ideen bleiben kanonische Quelldaten; Standardbereiche und Zuordnungen werden idempotent ueber `scripts/content-spaces-backfill.js` erzeugt.
-- Benutzerdefinierte Bereiche werden beim Loeschen archiviert und ihre Zuordnungen verlustfrei in die Standardbereiche verschoben.
+- Bestehende Wiki-/Tagebuchseiten und Ideen werden idempotent ueber `scripts/content-spaces-backfill.js` in echte Standardbereiche und `ContentEntry`-Datensaetze migriert. `sourceType/sourceId` halten die Herkunft nachvollziehbar.
+- Benutzerdefinierte Bereiche werden beim Loeschen archiviert. Standardbereiche koennen umbenannt und freigegeben, aber nicht geloescht werden.
 - Datenexport, Zirkel-Austritt, Capabilities, nativer Toolkatalog und statischer App-Store-Compliance-Test wurden nachgezogen.
 - Reversible Datenbankschritte: `prisma/manual-migrations/20260714_content_spaces/up.sql` und `down.sql`. Beide Richtungen wurden isoliert gegen PostgreSQL 16 geprueft; bestehende `WikiPage`- und `ActivityPlan`-Tabellen blieben beim Rueckbau erhalten.
 

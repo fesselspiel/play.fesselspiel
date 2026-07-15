@@ -1,12 +1,12 @@
-import type { ActivityPlan, ContentEntry, ContentEntryAttachment, ContentSpace, FileAsset, User, WikiPage } from "@prisma/client";
-import { accessibleOwnerIds, ownerScope, type AccessUser } from "@/lib/access";
+import type { ContentEntry, ContentEntryAttachment, ContentSpace, FileAsset, User } from "@prisma/client";
+import { accessibleOwnerIds, type AccessUser } from "@/lib/access";
 import { absoluteUrl, displayName, externalFileUrl } from "@/lib/external-mobile-serializers";
 import { prisma } from "@/lib/prisma";
-import { normalizeSlug, uniqueSlug } from "@/lib/slug";
-import { uniqueWikiSlug, wikiOwnerSlug, wikiPageAccessWhere } from "@/lib/wiki";
 
 export const LEGACY_WIKI_SPACE_ID = "legacy-wiki";
 export const LEGACY_IDEAS_SPACE_ID = "legacy-ideas";
+export const DEFAULT_WIKI_TEMPLATE_KEY = "wiki";
+export const DEFAULT_IDEAS_TEMPLATE_KEY = "ideas";
 
 export type ContentSpaceVisibility = "PRIVATE" | "USERS" | "CIRCLES" | "SHARED";
 
@@ -16,14 +16,24 @@ type EntryWithRelations = ContentEntry & {
   space?: ContentSpace | null;
   attachments: (ContentEntryAttachment & { file: FileAsset })[];
 };
-type WikiWithRelations = WikiPage & {
-  owner: User & { profile?: { displayName?: string | null } | null };
-  images?: { id: string; fileId: string; title: string | null; createdAt: Date; file: FileAsset }[];
-};
-type IdeaWithRelations = ActivityPlan & {
-  owner: User & { profile?: { displayName?: string | null } | null };
-  images?: { id: string; fileId: string; title: string | null; createdAt: Date; file: FileAsset }[];
-};
+const defaultSpaceDefinitions = {
+  [LEGACY_WIKI_SPACE_ID]: {
+    name: "Tagebuch",
+    kind: "default-wiki",
+    templateKey: DEFAULT_WIKI_TEMPLATE_KEY,
+    icon: "book-open",
+    sortOrder: -20,
+    sourceType: "wiki"
+  },
+  [LEGACY_IDEAS_SPACE_ID]: {
+    name: "Ideensammlung",
+    kind: "default-ideas",
+    templateKey: DEFAULT_IDEAS_TEMPLATE_KEY,
+    icon: "lightbulb",
+    sortOrder: -10,
+    sourceType: "idea"
+  }
+} as const;
 
 function stringArray(value: unknown) {
   return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
@@ -63,6 +73,20 @@ function contentTenantWhere(user: AccessUser) {
   return user.tenantId ? { tenantId: user.tenantId } : {};
 }
 
+function legacyAliasDefinition(spaceId: string) {
+  return spaceId === LEGACY_WIKI_SPACE_ID || spaceId === LEGACY_IDEAS_SPACE_ID ? defaultSpaceDefinitions[spaceId] : null;
+}
+
+function defaultDefinitionByTemplateKey(templateKey?: string | null) {
+  if (templateKey === DEFAULT_WIKI_TEMPLATE_KEY) return defaultSpaceDefinitions[LEGACY_WIKI_SPACE_ID];
+  if (templateKey === DEFAULT_IDEAS_TEMPLATE_KEY) return defaultSpaceDefinitions[LEGACY_IDEAS_SPACE_ID];
+  return null;
+}
+
+export function isDefaultContentSpace(space: { templateKey?: string | null; kind?: string | null }) {
+  return Boolean(defaultDefinitionByTemplateKey(space.templateKey) || String(space.kind || "").startsWith("default-"));
+}
+
 function allowed(space: { ownerId: string; visibility: string; allowedUserIds?: unknown; allowedCircleIds?: unknown }, user: AccessUser) {
   if (canEditOwner(user, space.ownerId)) return true;
   if (space.visibility === "SHARED") return true;
@@ -72,7 +96,8 @@ function allowed(space: { ownerId: string; visibility: string; allowedUserIds?: 
 }
 
 export async function contentSpaceAccess(user: AccessUser, spaceId: string) {
-  if (spaceId === LEGACY_WIKI_SPACE_ID || spaceId === LEGACY_IDEAS_SPACE_ID) return { legacy: spaceId as typeof LEGACY_WIKI_SPACE_ID | typeof LEGACY_IDEAS_SPACE_ID };
+  const legacyDefault = await contentSpaceFromAlias(user, spaceId);
+  if (legacyDefault) return { space: legacyDefault };
   const excludedOwnerIds = await blockedContentOwnerIds(user);
   const space = await prisma.contentSpace.findFirst({
     where: { id: spaceId, archivedAt: null, ownerId: { notIn: excludedOwnerIds }, ...contentTenantWhere(user) },
@@ -83,67 +108,124 @@ export async function contentSpaceAccess(user: AccessUser, spaceId: string) {
 }
 
 export async function editableContentSpace(user: AccessUser, spaceId: string) {
-  if (spaceId === LEGACY_WIKI_SPACE_ID || spaceId === LEGACY_IDEAS_SPACE_ID) return null;
   const resolved = await contentSpaceAccess(user, spaceId);
   if (!resolved || !("space" in resolved) || !resolved.space) return null;
   const { space } = resolved;
   return canEditOwner(user, space.ownerId) ? space : null;
 }
 
-export async function legacySpaceCounts(user: AccessUser) {
-  const excludedOwnerIds = await blockedContentOwnerIds(user);
-  const [hiddenWikiIds, hiddenIdeaIds] = await Promise.all([
-    hiddenContentIds(user, "wikiPage"),
-    hiddenContentIds(user, "activity")
-  ]);
-  const [wikiCount, ideaCount] = await Promise.all([
-    prisma.wikiPage.count({ where: { AND: [await wikiPageAccessWhere(user), { ownerId: { notIn: excludedOwnerIds } }, { id: { notIn: hiddenWikiIds } }] } }),
-    prisma.activityPlan.count({ where: { AND: [await ownerScope(user), { category: "IDEA_COLLECTION" }, { ownerId: { notIn: excludedOwnerIds } }, { id: { notIn: hiddenIdeaIds } }] } })
-  ]);
-  return { wikiCount, ideaCount };
+export async function ensureDefaultContentSpace(user: AccessUser, alias: typeof LEGACY_WIKI_SPACE_ID | typeof LEGACY_IDEAS_SPACE_ID) {
+  const definition = defaultSpaceDefinitions[alias];
+  const existing = await prisma.contentSpace.findFirst({
+    where: {
+      ...contentTenantWhere(user),
+      ownerId: user.id,
+      templateKey: definition.templateKey,
+      archivedAt: null
+    },
+    include: { owner: { include: { profile: true } }, _count: { select: { entries: true } } },
+    orderBy: [{ createdAt: "asc" }]
+  });
+  if (existing) return existing;
+  return prisma.contentSpace.create({
+    data: {
+      tenantId: user.tenantId || undefined,
+      ownerId: user.id,
+      name: definition.name,
+      kind: definition.kind,
+      templateKey: definition.templateKey,
+      icon: definition.icon,
+      sortOrder: definition.sortOrder,
+      visibility: "PRIVATE",
+      allowedUserIds: [],
+      allowedCircleIds: []
+    },
+    include: { owner: { include: { profile: true } }, _count: { select: { entries: true } } }
+  });
 }
 
-export function serializeContentSpace(request: Request, space: SpaceWithCounts | "legacy-wiki" | "legacy-ideas", count = 0, viewer?: AccessUser) {
-  if (space === "legacy-wiki") {
-    return {
-      id: LEGACY_WIKI_SPACE_ID,
-      name: "Tagebuch",
-      kind: "legacy-wiki",
-      templateKey: "wiki",
-      icon: "book-open",
-      sortOrder: -20,
-      visibility: "PRIVATE",
-      allowedUserIds: [],
-      allowedCircleIds: [],
-      canEdit: false,
-      canDelete: false,
-      entryCount: count,
-      legacy: true,
-      sourceType: "wiki",
-      createdAt: null,
-      updatedAt: null
+export async function ensureDefaultContentSpaces(user: AccessUser) {
+  const [wiki, ideas] = await Promise.all([
+    ensureDefaultContentSpace(user, LEGACY_WIKI_SPACE_ID),
+    ensureDefaultContentSpace(user, LEGACY_IDEAS_SPACE_ID)
+  ]);
+  return { wiki, ideas };
+}
+
+export async function contentSpaceFromAlias(user: AccessUser, spaceId: string) {
+  const definition = legacyAliasDefinition(spaceId);
+  if (!definition) return null;
+  return ensureDefaultContentSpace(user, spaceId as typeof LEGACY_WIKI_SPACE_ID | typeof LEGACY_IDEAS_SPACE_ID);
+}
+
+async function syncAttachment(entryId: string, ownerId: string, tenantId: string | null | undefined, fileId: string, title?: string | null) {
+  const existing = await prisma.contentEntryAttachment.findFirst({ where: { entryId, fileId }, select: { id: true } });
+  if (existing) return existing;
+  return prisma.contentEntryAttachment.create({
+    data: {
+      tenantId: tenantId || undefined,
+      ownerId,
+      entryId,
+      fileId,
+      title: title || null
+    }
+  });
+}
+
+export async function syncLegacyContentEntriesForUser(user: AccessUser) {
+  const { wiki, ideas } = await ensureDefaultContentSpaces(user);
+  const [pages, ideaRows] = await Promise.all([
+    prisma.wikiPage.findMany({
+      where: { ...contentTenantWhere(user), ownerId: user.id },
+      include: { images: { include: { file: true }, orderBy: { createdAt: "asc" } } }
+    }),
+    prisma.activityPlan.findMany({
+      where: { ...contentTenantWhere(user), ownerId: user.id, category: "IDEA_COLLECTION" },
+      include: { images: { include: { file: true }, orderBy: { createdAt: "asc" } } }
+    })
+  ]);
+
+  for (const page of pages) {
+    const existing = await prisma.contentEntry.findFirst({ where: { spaceId: wiki.id, sourceType: "wikiPage", sourceId: page.id } });
+    const data = {
+      tenantId: page.tenantId || undefined,
+      ownerId: page.ownerId,
+      spaceId: wiki.id,
+      title: page.title,
+      content: page.content,
+      calendarDate: page.createdAt,
+      visibility: page.visibility === "PARTNER" ? "CIRCLES" : page.visibility === "SHARED" ? "SHARED" : "PRIVATE",
+      sourceType: "wikiPage",
+      sourceId: page.id
     };
+    const entry = existing
+      ? await prisma.contentEntry.update({ where: { id: existing.id }, data })
+      : await prisma.contentEntry.create({ data });
+    for (const image of page.images || []) await syncAttachment(entry.id, page.ownerId, page.tenantId, image.fileId, image.title || image.file?.originalName || null);
   }
-  if (space === "legacy-ideas") {
-    return {
-      id: LEGACY_IDEAS_SPACE_ID,
-      name: "Ideensammlung",
-      kind: "legacy-ideas",
-      templateKey: "ideas",
-      icon: "lightbulb",
-      sortOrder: -10,
-      visibility: "PRIVATE",
-      allowedUserIds: [],
-      allowedCircleIds: [],
-      canEdit: false,
-      canDelete: false,
-      entryCount: count,
-      legacy: true,
-      sourceType: "idea",
-      createdAt: null,
-      updatedAt: null
+
+  for (const idea of ideaRows) {
+    const existing = await prisma.contentEntry.findFirst({ where: { spaceId: ideas.id, sourceType: "activity", sourceId: idea.id } });
+    const data = {
+      tenantId: idea.tenantId || undefined,
+      ownerId: idea.ownerId,
+      spaceId: ideas.id,
+      title: idea.title,
+      content: idea.note || "",
+      calendarDate: idea.plannedAt || idea.createdAt,
+      visibility: "CIRCLES",
+      sourceType: "activity",
+      sourceId: idea.id
     };
+    const entry = existing
+      ? await prisma.contentEntry.update({ where: { id: existing.id }, data })
+      : await prisma.contentEntry.create({ data });
+    for (const image of idea.images || []) await syncAttachment(entry.id, idea.ownerId, idea.tenantId, image.fileId, image.title || image.file?.originalName || null);
   }
+}
+
+export function serializeContentSpace(request: Request, space: SpaceWithCounts, count = 0, viewer?: AccessUser) {
+  const defaultDefinition = defaultDefinitionByTemplateKey(space.templateKey);
   return {
     id: space.id,
     name: space.name,
@@ -156,10 +238,11 @@ export function serializeContentSpace(request: Request, space: SpaceWithCounts |
     allowedCircleIds: stringArray(space.allowedCircleIds),
     own: viewer ? viewer.id === space.ownerId : false,
     canEdit: viewer ? canEditOwner(viewer, space.ownerId) : false,
-    canDelete: viewer ? canEditOwner(viewer, space.ownerId) : false,
+    canDelete: defaultDefinition ? false : viewer ? canEditOwner(viewer, space.ownerId) : false,
     entryCount: space._count?.entries ?? count,
     legacy: false,
-    sourceType: null,
+    legacyAlias: defaultDefinition?.templateKey === DEFAULT_WIKI_TEMPLATE_KEY ? LEGACY_WIKI_SPACE_ID : defaultDefinition?.templateKey === DEFAULT_IDEAS_TEMPLATE_KEY ? LEGACY_IDEAS_SPACE_ID : null,
+    sourceType: defaultDefinition?.sourceType || null,
     owner: {
       id: space.owner.id,
       username: space.owner.username,
@@ -184,62 +267,7 @@ function serializeAttachment(request: Request, attachment: { id: string; fileId:
   };
 }
 
-export function serializeContentEntry(request: Request, entry: EntryWithRelations | { legacyType: "wiki"; page: WikiWithRelations } | { legacyType: "idea"; idea: IdeaWithRelations }, viewer?: AccessUser) {
-  if ("legacyType" in entry && entry.legacyType === "wiki") {
-    const ownerSlug = wikiOwnerSlug(entry.page.owner);
-    const own = viewer ? viewer.id === entry.page.ownerId : false;
-    const canEdit = viewer ? canEditOwner(viewer, entry.page.ownerId) : false;
-    return {
-      id: `wiki:${entry.page.id}`,
-      legacyId: entry.page.id,
-      legacyType: "wiki",
-      sourceType: "wiki",
-      sourceId: entry.page.id,
-      spaceId: LEGACY_WIKI_SPACE_ID,
-      title: entry.page.title,
-      content: entry.page.content,
-      calendarDate: entry.page.createdAt.toISOString(),
-      visibility: entry.page.visibility === "PARTNER" ? "CIRCLES" : entry.page.visibility === "SHARED" ? "SHARED" : "PRIVATE",
-      attachments: (entry.page.images || []).map((image) => serializeAttachment(request, image)),
-      href: `/wiki/${ownerSlug}/${entry.page.slug}`,
-      url: absoluteUrl(request, `/wiki/${ownerSlug}/${entry.page.slug}`),
-      owner: { id: entry.page.owner.id, username: entry.page.owner.username, displayName: displayName(entry.page.owner) },
-      own,
-      canEdit,
-      canDelete: canEdit,
-      canReport: Boolean(viewer && !own),
-      canHide: Boolean(viewer && !own),
-      createdAt: entry.page.createdAt.toISOString(),
-      updatedAt: entry.page.updatedAt.toISOString()
-    };
-  }
-  if ("legacyType" in entry && entry.legacyType === "idea") {
-    const own = viewer ? viewer.id === entry.idea.ownerId : false;
-    const canEdit = viewer ? canEditOwner(viewer, entry.idea.ownerId) : false;
-    return {
-      id: `idea:${entry.idea.id}`,
-      legacyId: entry.idea.id,
-      legacyType: "idea",
-      sourceType: "idea",
-      sourceId: entry.idea.id,
-      spaceId: LEGACY_IDEAS_SPACE_ID,
-      title: entry.idea.title,
-      content: entry.idea.note || "",
-      calendarDate: (entry.idea.plannedAt || entry.idea.createdAt).toISOString(),
-      visibility: "CIRCLES",
-      attachments: (entry.idea.images || []).map((image) => serializeAttachment(request, image)),
-      href: `/ideas/${entry.idea.slug}`,
-      url: absoluteUrl(request, `/ideas/${entry.idea.slug}`),
-      owner: { id: entry.idea.owner.id, username: entry.idea.owner.username, displayName: displayName(entry.idea.owner) },
-      own,
-      canEdit,
-      canDelete: canEdit,
-      canReport: Boolean(viewer && !own),
-      canHide: Boolean(viewer && !own),
-      createdAt: entry.idea.createdAt.toISOString(),
-      updatedAt: entry.idea.updatedAt.toISOString()
-    };
-  }
+export function serializeContentEntry(request: Request, entry: EntryWithRelations, viewer?: AccessUser) {
   const own = viewer ? viewer.id === entry.ownerId : false;
   const canEdit = viewer ? canEditContentEntry(viewer, entry, entry.space) : false;
   return {
@@ -273,44 +301,6 @@ export async function realSpacesForUser(user: AccessUser) {
     orderBy: [{ sortOrder: "asc" }, { updatedAt: "desc" }]
   });
   return spaces.filter((space) => allowed(space, user));
-}
-
-export function parseEntryId(entryId: string) {
-  if (entryId.startsWith("wiki:")) return { type: "wiki" as const, id: entryId.slice(5) };
-  if (entryId.startsWith("idea:")) return { type: "idea" as const, id: entryId.slice(5) };
-  return { type: "content" as const, id: entryId };
-}
-
-export async function createLegacyWikiEntry(user: AccessUser, title: string, content: string, visibilityValue: string) {
-  const slug = await uniqueWikiSlug(user.id, user.tenantId, title, title);
-  return prisma.wikiPage.create({
-    data: {
-      tenantId: user.tenantId || undefined,
-      ownerId: user.id,
-      title,
-      slug,
-      content,
-      visibility: visibilityValue === "SHARED" ? "SHARED" : visibilityValue === "CIRCLES" ? "PARTNER" : "PRIVATE"
-    },
-    include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } }
-  });
-}
-
-export async function createLegacyIdeaEntry(user: AccessUser, title: string, content: string, calendarDate?: Date | null) {
-  const slug = await uniqueSlug("activityPlan", normalizeSlug(title, title), user.tenantId);
-  return prisma.activityPlan.create({
-    data: {
-      tenantId: user.tenantId || undefined,
-      ownerId: user.id,
-      title,
-      slug,
-      category: "IDEA_COLLECTION",
-      note: content,
-      plannedAt: calendarDate || undefined,
-      status: "PLANNED"
-    },
-    include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } }
-  });
 }
 
 export async function contentEntryAccess(user: AccessUser, spaceId: string, entryId: string) {

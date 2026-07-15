@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Prisma } from "@prisma/client";
-import { ownerScope } from "@/lib/access";
 import { logAction } from "@/lib/audit";
 import {
   contentSpaceAccess,
   blockedContentOwnerIds,
   hiddenContentIds,
-  createLegacyIdeaEntry,
-  createLegacyWikiEntry,
-  LEGACY_IDEAS_SPACE_ID,
-  LEGACY_WIKI_SPACE_ID,
   serializeContentEntry
 } from "@/lib/content-spaces";
 import { apiFeatureGate, dateFromValue, requireApiUser } from "@/lib/external-api";
 import { saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
-import { createWikiRevision, wikiPageAccessWhere } from "@/lib/wiki";
 
 export const runtime = "nodejs";
 
@@ -46,49 +39,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ space
   const cursor = searchParams.get("cursor") || undefined;
   const q = String(searchParams.get("q") || "").trim();
   const excludedOwnerIds = await blockedContentOwnerIds(auth.user);
-  const [hiddenWikiIds, hiddenIdeaIds, hiddenEntryIds] = await Promise.all([
-    hiddenContentIds(auth.user, "wikiPage"),
-    hiddenContentIds(auth.user, "activity"),
-    hiddenContentIds(auth.user, "contentEntry")
-  ]);
-
-  if (params.spaceId === LEGACY_WIKI_SPACE_ID) {
-    const where: Prisma.WikiPageWhereInput = {
-      AND: [
-        await wikiPageAccessWhere(auth.user),
-        { ownerId: { notIn: excludedOwnerIds } },
-        { id: { notIn: hiddenWikiIds } },
-        q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { content: { contains: q, mode: "insensitive" } }] } : {}
-      ]
-    };
-    const pages = await prisma.wikiPage.findMany({
-      where,
-      include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } },
-      orderBy: [{ updatedAt: "desc" }],
-      take: limit + 1,
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
-    });
-    const pageItems = pages.slice(0, limit);
-    return NextResponse.json({ ok: true, count: pageItems.length, nextCursor: pages.length > limit ? pages[limit].id : null, items: pageItems.map((page) => serializeContentEntry(request, { legacyType: "wiki", page }, auth.user)) });
-  }
-
-  if (params.spaceId === LEGACY_IDEAS_SPACE_ID) {
-    const ideas = await prisma.activityPlan.findMany({
-      where: {
-        ...(await ownerScope(auth.user)),
-        category: "IDEA_COLLECTION",
-        ownerId: { notIn: excludedOwnerIds },
-        id: { notIn: hiddenIdeaIds },
-        ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { note: { contains: q, mode: "insensitive" as const } }] } : {})
-      },
-      include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } },
-      orderBy: [{ updatedAt: "desc" }, { title: "asc" }],
-      take: limit + 1,
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
-    });
-    const pageItems = ideas.slice(0, limit);
-    return NextResponse.json({ ok: true, count: pageItems.length, nextCursor: ideas.length > limit ? ideas[limit].id : null, items: pageItems.map((idea) => serializeContentEntry(request, { legacyType: "idea", idea }, auth.user)) });
-  }
+  const hiddenEntryIds = await hiddenContentIds(auth.user, "contentEntry");
 
   const resolved = await contentSpaceAccess(auth.user, params.spaceId);
   if (!resolved || !("space" in resolved) || !resolved.space) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
@@ -123,29 +74,6 @@ export async function POST(request: NextRequest, props: { params: Promise<{ spac
   const content = String(values.get("content") || values.get("text") || "").trim();
   const calendarDate = dateFromValue(values.get("calendarDate") || values.get("date"));
   const visibility = String(values.get("visibility") || "").trim();
-
-  if (params.spaceId === LEGACY_WIKI_SPACE_ID) {
-    const page = await createLegacyWikiEntry(auth.user, title, content, visibility);
-    for (const file of files) {
-      const asset = await saveUploadedFile(auth.user.id, file, auth.user.tenantId);
-      if (asset) await prisma.wikiPageImage.create({ data: { pageId: page.id, fileId: asset.id, title: file.name || asset.originalName } });
-    }
-    await createWikiRevision(page.id, auth.user.id, "created_content_space_api");
-    const refreshed = await prisma.wikiPage.findUnique({ where: { id: page.id }, include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } } });
-    await logAction({ actorId: auth.user.id, action: "content_entry_created_api", entityType: "wikiPage", entityId: page.id, title: `Tagebucheintrag angelegt: ${page.title}`, href: refreshed ? serializeContentEntry(request, { legacyType: "wiki", page: refreshed }, auth.user).href : null });
-    return NextResponse.json({ ok: true, item: refreshed ? serializeContentEntry(request, { legacyType: "wiki", page: refreshed }, auth.user) : null }, { status: 201 });
-  }
-
-  if (params.spaceId === LEGACY_IDEAS_SPACE_ID) {
-    const idea = await createLegacyIdeaEntry(auth.user, title, content, calendarDate);
-    for (const file of files) {
-      const asset = await saveUploadedFile(auth.user.id, file, auth.user.tenantId);
-      if (asset) await prisma.activityImage.create({ data: { activityId: idea.id, fileId: asset.id, title: file.name || asset.originalName } });
-    }
-    const refreshed = await prisma.activityPlan.findUnique({ where: { id: idea.id }, include: { owner: { include: { profile: true } }, images: { include: { file: true }, orderBy: { createdAt: "asc" } } } });
-    await logAction({ actorId: auth.user.id, action: "content_entry_created_api", entityType: "activity", entityId: idea.id, title: `Idee angelegt: ${idea.title}`, href: `/ideas/${idea.slug}` });
-    return NextResponse.json({ ok: true, item: refreshed ? serializeContentEntry(request, { legacyType: "idea", idea: refreshed }, auth.user) : null }, { status: 201 });
-  }
 
   const resolved = await contentSpaceAccess(auth.user, params.spaceId);
   if (!resolved || !("space" in resolved) || !resolved.space) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });

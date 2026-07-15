@@ -3,9 +3,7 @@ import { logAction } from "@/lib/audit";
 import {
   contentSpaceAccess,
   editableContentSpace,
-  LEGACY_IDEAS_SPACE_ID,
-  LEGACY_WIKI_SPACE_ID,
-  legacySpaceCounts,
+  isDefaultContentSpace,
   normalizeContentVisibility,
   serializeContentSpace
 } from "@/lib/content-spaces";
@@ -27,13 +25,6 @@ export async function GET(request: NextRequest, props: { params: Promise<{ space
   const blocked = apiFeatureGate(auth.user, "externalApi");
   if (blocked) return blocked;
 
-  if (params.spaceId === LEGACY_WIKI_SPACE_ID || params.spaceId === LEGACY_IDEAS_SPACE_ID) {
-    const counts = await legacySpaceCounts(auth.user);
-    return NextResponse.json({
-      ok: true,
-      item: serializeContentSpace(request, params.spaceId, params.spaceId === LEGACY_WIKI_SPACE_ID ? counts.wikiCount : counts.ideaCount, auth.user)
-    });
-  }
   const resolved = await contentSpaceAccess(auth.user, params.spaceId);
   if (!resolved || !("space" in resolved) || !resolved.space) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   const { space: resolvedSpace } = resolved;
@@ -89,6 +80,7 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ sp
 
   const editable = await editableContentSpace(auth.user, params.spaceId);
   if (!editable) return NextResponse.json({ ok: false, error: "not_found_or_readonly" }, { status: 404 });
+  if (isDefaultContentSpace(editable)) return NextResponse.json({ ok: false, error: "default_space_cannot_be_deleted" }, { status: 409 });
   await prisma.contentSpace.update({ where: { id: editable.id }, data: { archivedAt: new Date() } });
   await logAction({
     actorId: auth.user.id,

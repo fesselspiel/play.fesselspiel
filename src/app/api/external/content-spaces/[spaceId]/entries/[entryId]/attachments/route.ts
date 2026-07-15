@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { POST as uploadWikiAttachment } from "@/app/api/external/wiki/[id]/attachments/route";
 import { logAction } from "@/lib/audit";
 import {
   canEditContentEntry,
   contentEntryAccess,
-  LEGACY_WIKI_SPACE_ID,
-  parseEntryId,
   serializeContentEntry
 } from "@/lib/content-spaces";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
@@ -21,13 +18,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ spac
   const blocked = apiFeatureGate(auth.user, "externalApi", "wiki");
   if (blocked) return blocked;
 
-  const parsed = parseEntryId(params.entryId);
-  if (params.spaceId === LEGACY_WIKI_SPACE_ID || parsed.type === "wiki") {
-    return uploadWikiAttachment(request, { params: Promise.resolve({ id: parsed.id }) });
-  }
-  if (parsed.type !== "content") return NextResponse.json({ ok: false, error: "attachment_not_supported" }, { status: 409 });
-
-  const resolved = await contentEntryAccess(auth.user, params.spaceId, parsed.id);
+  const resolved = await contentEntryAccess(auth.user, params.spaceId, params.entryId);
   if (!resolved || !canEditContentEntry(auth.user, resolved.entry, resolved.space)) {
     return NextResponse.json({ ok: false, error: "not_found_or_readonly" }, { status: 404 });
   }

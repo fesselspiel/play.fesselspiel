@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logAction } from "@/lib/audit";
 import {
-  legacySpaceCounts,
   normalizeContentVisibility,
+  syncLegacyContentEntriesForUser,
   realSpacesForUser,
   serializeContentSpace
 } from "@/lib/content-spaces";
@@ -23,12 +23,9 @@ export async function GET(request: NextRequest) {
   const blocked = apiFeatureGate(auth.user, "externalApi");
   if (blocked) return blocked;
 
-  const [counts, spaces] = await Promise.all([legacySpaceCounts(auth.user), realSpacesForUser(auth.user)]);
-  const items = [
-    serializeContentSpace(request, "legacy-wiki", counts.wikiCount, auth.user),
-    serializeContentSpace(request, "legacy-ideas", counts.ideaCount, auth.user),
-    ...spaces.map((space) => serializeContentSpace(request, space, 0, auth.user))
-  ];
+  await syncLegacyContentEntriesForUser(auth.user);
+  const spaces = await realSpacesForUser(auth.user);
+  const items = spaces.map((space) => serializeContentSpace(request, space, 0, auth.user));
   return NextResponse.json({ ok: true, count: items.length, items });
 }
 

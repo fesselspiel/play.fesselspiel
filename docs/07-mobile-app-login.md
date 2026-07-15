@@ -1602,9 +1602,11 @@ Authorization: Bearer fsp_...
 
 Bereiche liefern `name`, `kind`, `icon`, `sortOrder`, `visibility`, `allowedUserIds`, `allowedCircleIds`, Berechtigungen und `entryCount`. Sichtbarkeiten sind `PRIVATE`, `USERS`, `CIRCLES` und `SHARED`. Die App darf eine Freigabe nie automatisch erweitern.
 
-Eintraege liefern eine stabile Bereichs-ID und zusaetzlich `sourceType`/`sourceId`. Bestehende Wiki-/Tagebuchseiten werden als `WIKI_PAGE`, bestehende Ideen als `IDEA` referenziert. Die Altobjekte werden weder kopiert noch geloescht; die bisherigen `/wiki`- und `/ideas`-Endpunkte bleiben kompatibel. Neue Eintraege verwenden intern Wiki-Seiten, sodass Titel, Inhalt, Dateien, Kalenderdatum, Revisionen und bestehende Sicherheitspruefungen weiter gelten.
+Bestehende Wiki-/Tagebuchseiten und Ideen werden in echte Standardbereiche migriert. Die Bereiche haben normale `ContentSpace`-IDs und zusaetzlich `legacyAlias` (`legacy-wiki` beziehungsweise `legacy-ideas`), damit bestehende native Clients diese Aliase weiter verwenden koennen. Die Aliase loesen serverseitig auf die echten Bereiche des angemeldeten Benutzers auf. `PATCH /content-spaces/{id}` funktioniert dadurch auch fuer die Standardbereiche und darf `name`, `icon`, `visibility`, `allowedUserIds` und `allowedCircleIds` aendern. Standardbereiche koennen nicht geloescht werden.
 
-`DELETE /content-spaces/{spaceId}` archiviert nur benutzerdefinierte Bereiche. Deren Zuordnungen werden in die Standardbereiche Tagebuch beziehungsweise Ideen verschoben. Das explizite Loeschen eines Eintrags bleibt davon getrennt. Transkription verwendet denselben OpenAI-/Audiovertrag wie das Tagebuch; Audio bleibt nur bei ausdruecklichem `keepAudio=true` erhalten.
+Eintraege liefern eine stabile Bereichs-ID und zusaetzlich `sourceType`/`sourceId`. Bestehende Wiki-/Tagebuchseiten werden als `wikiPage`, bestehende Ideen als `activity` referenziert und als `ContentEntry` gespiegelt. `scripts/content-spaces-backfill.js` erzeugt beziehungsweise aktualisiert diese Zuordnungen idempotent inklusive vorhandener Bildanhaenge. Neue Eintraege verwenden direkt `ContentEntry`.
+
+`DELETE /content-spaces/{spaceId}` archiviert nur benutzerdefinierte Bereiche. Standardbereiche antworten mit `409 default_space_cannot_be_deleted`. Das explizite Loeschen eines Eintrags bleibt davon getrennt. Transkription verwendet denselben OpenAI-/Audiovertrag wie das Tagebuch; Audio bleibt nur bei ausdruecklichem `keepAudio=true` erhalten.
 
 - Native APNs-Zustellung und Device-Token-Registrierung sind in [08-native-pushnachrichten.md](./08-native-pushnachrichten.md) beschrieben.
 - Wenn systemweite Ereignisse ohne Actor in der App erscheinen sollen, sollte `AuditLog` ein `tenantId` bekommen.
