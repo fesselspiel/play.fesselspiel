@@ -227,12 +227,12 @@ export default async function ActivityDetailPage(props: { params: Promise<{ slug
           </SoftPanel> : null}
           {!isSelfBondageOrder && bondageSystemEnabled ? (
             <SoftPanel>
-              <h2 className="mb-3 text-lg font-semibold">Bondage-System</h2>
+              <h2 className="mb-3 text-lg font-semibold">Shopify-Produkte</h2>
               <div className="space-y-2">
                 {activityBondageItems.map((item) => (
                   <Link key={item.id} href={`/bondage-system/${item.product.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{item.product.title}</Link>
                 ))}
-                {!activityBondageItems.length ? <p className="text-sm text-graphite">Keine Bondage-System-Produkte ausgewählt.</p> : null}
+                {!activityBondageItems.length ? <p className="text-sm text-graphite">Keine Shopify-Produkte ausgewählt.</p> : null}
               </div>
             </SoftPanel>
           ) : null}

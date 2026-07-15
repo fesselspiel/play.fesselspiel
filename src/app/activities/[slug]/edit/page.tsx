@@ -238,7 +238,7 @@ export default async function EditActivityPage(
             </section> : null}
             {!isSelfBondageOrder && bondageSystemEnabled ? (
               <section>
-                <h2 className="mb-2 text-sm font-semibold text-graphite">Bondage-System</h2>
+                <h2 className="mb-2 text-sm font-semibold text-graphite">Shopify-Produkte</h2>
                 <div className="space-y-2">
                   {bondageItems.map((item) => (
                     <label key={item.id} className="flex gap-3 rounded-md bg-paper p-3 text-sm">

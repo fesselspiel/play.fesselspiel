@@ -578,11 +578,11 @@ export const capabilities: readonly Capability[] = [
         type: "write",
         description: "Lädt ein geschütztes Bild oder Video hoch.",
         apiEndpoints: [
-          { method: "GET", path: "/api/external/images?source=all&limit=100", description: "Zentraler Bildfeed über Galerie, Spielsachen, Szenen, Ideen, Bondage-System und Profilbilder. Per `source` filterbar." },
+          { method: "GET", path: "/api/external/images?source=all&limit=100", description: "Zentraler Bildfeed über Galerie, Spielsachen, Szenen, Ideen, Shopify-Produkte und Profilbilder. Per `source` filterbar." },
           { method: "GET", path: "/api/external/images?source=toys", description: "Bilder aus dem Spielzeugkatalog für native externe App-Anzeige abrufen." },
           { method: "GET", path: "/api/external/images?source=positions", description: "Szenen-/Situationsbilder für native externe App-Anzeige abrufen." },
           { method: "GET", path: "/api/external/images?source=ideas", description: "Ideenbilder für native externe App-Anzeige abrufen." },
-          { method: "GET", path: "/api/external/images?source=bondageSystem", description: "Bondage-System-Produktbilder für native externe App-Anzeige abrufen." },
+          { method: "GET", path: "/api/external/images?source=bondageSystem", description: "Shopify-Produktbilder für native externe App-Anzeige abrufen." },
           { method: "GET", path: "/api/external/media?kind=IMAGE&limit=50", description: "Geschützte Bilder als JSON-Feed für externe Apps abrufen. Antwort enthält `downloadUrl` für native Bildanzeige." },
           { method: "GET", path: "/api/external/files/{fileId}", description: "Geschützte Bild-/Videodatei nativ laden. Bearer Token im Authorization-Header verwenden." },
           { method: "POST", path: "/api/external/media", description: "Bild/Video per Multipart hochladen. Authentifizierung ausschliesslich per Bearer-Header." }
@@ -714,7 +714,7 @@ export const capabilities: readonly Capability[] = [
   },
   {
     key: "shopifyBondageSystem",
-    label: "Bondage-System",
+    label: "Shopify-Produkte",
     featureKey: "shopifyBondageSystem",
     aliases: ["shopify", "bondage-system", "produkte"],
     intents: ["shopify synchronisieren", "produkte anzeigen", "bondage system"],
@@ -724,7 +724,7 @@ export const capabilities: readonly Capability[] = [
         key: "sync",
         label: "Shopify synchronisieren",
         type: "admin",
-        description: "Synchronisiert ausgewählte Shopify-Produkte als Bondage-System-Spielsachen.",
+        description: "Synchronisiert ausgewählte Shopify-Produkte für den Produktbereich.",
         auditActions: ["shopify_sync_started", "shopify_sync_finished", "shopify_product_enabled"]
       }
     ]
@@ -875,7 +875,7 @@ const capabilityLabelByFeature = new Map(capabilities.map((capability) => [capab
 export const featureCatalog = [
   { key: "positions", label: capabilityLabelByFeature.get("positions") || "Szenen" },
   { key: "toys", label: capabilityLabelByFeature.get("toys") || "Spielsachen" },
-  { key: "shopifyBondageSystem", label: capabilityLabelByFeature.get("shopifyBondageSystem") || "Bondage-System" },
+  { key: "shopifyBondageSystem", label: capabilityLabelByFeature.get("shopifyBondageSystem") || "Shopify-Produkte" },
   { key: "ideas", label: capabilityLabelByFeature.get("ideas") || "Ideensammlung" },
   { key: "wiki", label: capabilityLabelByFeature.get("wiki") || "Wiki" },
   { key: "playReady", label: capabilityLabelByFeature.get("playReady") || "Spielampel" },

@@ -113,6 +113,6 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
     },
     include: { product: true, positions: { include: { category: true } }, activities: true }
   });
-  await logAction({ actorId: auth.user.id, action: "bondage_system_item_updated_api", entityType: "bondageSystemItem", entityId: item.id, title: `Bondage-System per API geändert: ${item.product.title}`, href: `/bondage-system/${item.product.slug}` });
+  await logAction({ actorId: auth.user.id, action: "bondage_system_item_updated_api", entityType: "bondageSystemItem", entityId: item.id, title: `Shopify-Produkt geändert: ${item.product.title}`, href: `/bondage-system/${item.product.slug}` });
   return NextResponse.json({ ok: true, item: serialize(request, item) });
 }

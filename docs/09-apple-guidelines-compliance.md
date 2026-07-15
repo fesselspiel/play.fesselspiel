@@ -811,3 +811,7 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 - Die interne All-Builds-Gruppe enthaelt einen Tester und `autoNotify=true`. Die vorbereitete Store-Version verwendet Build 114 mit `AFTER_APPROVAL`; es wurde keine App-Review-Submission erzeugt.
 - Build 114 ersetzt in der nativen Medien-Detailansicht den irrefuehrenden Webverweis durch eine direkte lokale Einblendung fuer bereits berechtigte, aber noch `UNKNOWN` oder `MATURE_SUGGESTIVE` eingestufte Medien. `EXPLICIT` bleibt in iOS verborgen und `QUARANTINED` technisch gesperrt; weder Backendberechtigungen noch Produktivdaten wurden geaendert.
 - Die buildgebundenen manuellen Endabnahmen muessen vor einer spaeteren Submission ausdruecklich fuer Build 114 erneuert werden. Rueckbau: Store-Buildauswahl ueber Fastlane auf einen anderen validierten Build setzen und den isolierten iOS-Reveal-Commit revertieren; keine Backendmigration ist erforderlich.
+## Neutrale Shopify-Bezeichnung am 15.07.2026
+
+- Die dauerhaft ausgelieferte Weboberflaeche bezeichnet den importierten Produktbereich als `Shopify-Produkte`. Der alte sichtbare Produktname wurde auch aus Navigation, Details, Formularen und nutzernahen Meldungen entfernt.
+- Dies ist kein Review-Schalter: dieselbe Bezeichnung gilt fuer alle Mandanten und fuer normale Web- sowie authentifizierte In-App-Browser-Aufrufe. Technische Kompatibilitaetspfade bleiben intern erhalten.

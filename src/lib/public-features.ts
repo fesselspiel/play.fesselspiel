@@ -85,7 +85,7 @@ export const publicFeatures: PublicFeature[] = [
     eyebrow: "Baukasten",
     summary: "Sammelt Szenen mit Bild, Beschreibung, Beauftragungsoption und passenden Spielsachen.",
     description: [
-      "Szenen sind wiederverwendbare Bausteine. Sie lassen sich mit Spielsachen, Bondage-System-Produkten und Trackern verbinden.",
+      "Szenen sind wiederverwendbare Bausteine. Sie lassen sich mit Spielsachen, Shopify-Produkten und Trackern verbinden.",
       "Kategorien und Favoriten halten lange Listen übersichtlich, ohne wichtige Details zu verstecken."
     ],
     icon: "PanelsTopLeft",
@@ -111,17 +111,17 @@ export const publicFeatures: PublicFeature[] = [
   {
     slug: "spielsachen-und-bondage-system",
     navTitle: "Spielsachen",
-    title: "Spielsachen und Bondage-System",
+    title: "Spielsachen und Shopify-Produkte",
     eyebrow: "Ausrüstung",
     summary: "Dokumentiert private Ausrüstung und importiert ausgewählte Shopify-Produkte in einen eigenen Bereich.",
     description: [
-      "Spielsachen haben Bilder, Beschreibungen, Kategorien, Favoriten und Verknüpfungen zu Szenen. Das Bondage-System kann Produkte aus Shopify übernehmen und getrennt darstellen.",
+      "Spielsachen haben Bilder, Beschreibungen, Kategorien, Favoriten und Verknüpfungen zu Szenen. Shopify-Produkte können übernommen und getrennt dargestellt werden.",
       "Die Darstellung ist kompakt, aufklappbar und sortierbar, damit auch größere Sammlungen schnell bedienbar bleiben."
     ],
     icon: "ToyBrick",
     highlights: ["Bild und Beschreibung", "Kategorien", "Shopify-Sync", "Sortierung und Favoriten"],
     walkthrough: [
-      "Spielsache anlegen oder aus dem Bondage-System aktivieren.",
+      "Spielsache anlegen oder aus Shopify-Produkten aktivieren.",
       "Foto hochladen, transparentes PNG bleibt transparent.",
       "Kategorie auswählen oder neu anlegen.",
       "Mit Szenen verbinden und Favoriten markieren."

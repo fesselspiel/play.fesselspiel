@@ -29,7 +29,7 @@ export default async function BondageSystemDetailPage(props: { params: Promise<{
   return (
     <AppShell>
       <PageHeader title={item.product.title} subtitle={`/bondage-system/${item.product.slug}`} />
-      <PageGuide title="Bondage-System im Detail">
+      <PageGuide title="Shopify-Produkt im Detail">
         Diese Seite zeigt ein aus Shopify synchronisiertes und freigegebenes Produkt. Es ist getrennt von deinen privaten Spielsachen, kann aber mit Szenen und Spielplänen verbunden werden.
       </PageGuide>
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">

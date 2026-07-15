@@ -1122,3 +1122,8 @@ Details:
 - `DELETE /api/external/push/devices/{id}` entfernt aktive und deaktivierte Geraete mit User-/Tenant-Scope; der Collection-Endpunkt akzeptiert `{deviceId}` als kompatiblen Alias.
 - Tokenbasiertes DELETE bleibt eine reine Deaktivierung fuer Logout. Zustellprotokolle bleiben durch `onDelete: SetNull` erhalten.
 - Capabilities, Mobile-Dokumentation und statischer Compliance-Verifier wurden ergaenzt. Das datensparsame Audit wird nicht im normalen Timeline-Feed angezeigt. Keine Migration und keine Produktivdaten-Aenderung.
+## Sichtbare Bezeichnung Shopify-Produkte am 15.07.2026
+
+- Der bisher sichtbare Produktname `Bondage-System` wurde in Navigation, Produktseiten, Verknuepfungsfeldern, Shopify-Einstellungen, Capability-Texten und nutzernahen Auditmeldungen durch `Shopify-Produkte` ersetzt.
+- Technische Routen, API-Pfade, Datenmodelle, Capability-Keys und bestehende Integrationen bleiben unveraendert. Insbesondere `/bondage-system` und `/api/external/bondage-system` bestehen fuer Deep Links und alte Clients weiter.
+- Rueckbau: diesen reinen Text-Commit revertieren und erneut deployen; keine Migration und keine Datenveraenderung erforderlich.

@@ -406,7 +406,7 @@ export default async function TrackerEntryPage(props: { params: Promise<{ tracke
             </div>
           ) : null}
           <TrackerLinkedCards title="Verknüpfte Spielsachen" items={linkedToys} />
-          <TrackerLinkedCards title="Verknüpfte Bondage-System-Produkte" items={linkedBondageItems} />
+          <TrackerLinkedCards title="Verknüpfte Shopify-Produkte" items={linkedBondageItems} />
           <TrackerLinkedCards title="Verknüpfte Szenen" items={linkedPositions} />
           {entry.ownerId === user.id ? (
             <div className="mt-6 rounded-md border border-line bg-paper p-4">

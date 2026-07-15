@@ -103,7 +103,7 @@ export function TrackerLinkPicker({
       <div className="space-y-3 border-t border-line p-3">
         <LinkSection title="Spielsachen" name="toys" options={toys} selectedIds={selectedToyIds} />
         <LinkSection title="Szenen" name="positions" options={positions} selectedIds={selectedPositionIds} />
-        <LinkSection title="Bondage-System" name="bondageItems" options={bondageItems} selectedIds={selectedBondageItemIds} />
+        <LinkSection title="Shopify-Produkte" name="bondageItems" options={bondageItems} selectedIds={selectedBondageItemIds} />
       </div>
     </details>
   );

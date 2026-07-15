@@ -25,7 +25,7 @@ export default async function BondageSystemPage() {
   });
   return (
     <AppShell>
-      <PageHeader title="Bondage-System" />
+      <PageHeader title="Shopify-Produkte" />
       <PageGuide title="Synchronisierte Ausrüstung aus Shopify">
         Hier siehst du freigegebene Produkte aus dem verbundenen Shopify-Shop. Diese Produkte sind vom privaten Spielzeugkatalog getrennt und können mit Szenen und Spielplänen verknüpft werden.
       </PageGuide>

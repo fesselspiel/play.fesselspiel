@@ -140,7 +140,7 @@ export default async function EditPositionPage(props: { params: Promise<{ slug: 
           ) : null}
           {bondageSystemEnabled ? (
             <div>
-              <div className="mb-2 text-sm font-medium text-graphite">Bondage-System</div>
+              <div className="mb-2 text-sm font-medium text-graphite">Shopify-Produkte</div>
               <div className="grid gap-2 sm:grid-cols-2">
                 {bondageItems.map((item) => (
                   <label key={item.id} className="flex items-center gap-3 rounded-md bg-paper p-3 text-sm">

@@ -89,12 +89,12 @@ export default async function PositionDetailPage(props: { params: Promise<{ slug
           ) : null}
           {bondageSystemEnabled ? (
             <SoftPanel>
-              <h2 className="mb-3 text-lg font-semibold">Bondage-System</h2>
+              <h2 className="mb-3 text-lg font-semibold">Shopify-Produkte</h2>
               <div className="space-y-2">
                 {positionBondageItems.map((item) => (
                   <Link key={item.id} href={`/bondage-system/${item.product.slug}`} className="block rounded-md bg-paper px-3 py-2 text-sm text-ink hover:text-redbrand">{item.product.title}</Link>
                 ))}
-                {!positionBondageItems.length ? <p className="text-sm text-graphite">Keine Bondage-System-Produkte verknüpft.</p> : null}
+                {!positionBondageItems.length ? <p className="text-sm text-graphite">Keine Shopify-Produkte verknüpft.</p> : null}
               </div>
             </SoftPanel>
           ) : null}

@@ -55,7 +55,7 @@ export const mainNavigationSections: readonly AppNavSection[] = [
       { label: "Szenen", href: "/positions", icon: ShieldCheck, feature: "positions" },
       { label: "Spielsachen", href: "/toys", icon: ToyBrick, feature: "toys" },
       {
-        label: "Bondage-System",
+        label: "Shopify-Produkte",
         href: "/bondage-system",
         icon: PackageSearch,
         feature: "shopifyBondageSystem"

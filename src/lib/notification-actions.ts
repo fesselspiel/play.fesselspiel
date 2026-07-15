@@ -211,7 +211,7 @@ export function actionLabel(action: string) {
     activity: "Spielplan",
     api: "API",
     auto: "automatisch",
-    bondage: "Bondage-System",
+    bondage: "Shopify-Produkte",
     changed: "geändert",
     closed: "geschlossen",
     completed: "abgeschlossen",

@@ -53,6 +53,8 @@ const nativePushDevices = read("src/lib/native-push-devices.ts");
 const nativePushDeviceDeleteRoute = read("src/app/api/external/push/devices/[id]/route.ts");
 const nativePushDevicesRoute = read("src/app/api/external/push/devices/route.ts");
 const eventsRoute = read("src/app/api/external/events/route.ts");
+const appNavigation = read("src/lib/app-navigation.ts");
+const shopifyProductsPage = read("src/app/bondage-system/page.tsx");
 
 check(files.includes("await assertMalwareFree(bytes)"), "Uploads muessen vor dem Speichern gescannt werden");
 check(files.includes('scanStatus: "CLEAN" as const'), "Dateizugriff muss auf CLEAN begrenzt sein");
@@ -118,6 +120,8 @@ check(nativePushDevices.includes("nativePushDevice.delete") && nativePushDevices
 check(nativePushDevicesRoute.includes('values.get("deviceId")') && nativePushDevicesRoute.includes("deleteVisiblePushDevice(auth.user, deviceId)"), "Der dokumentierte Body-Fallback fuer Push-Geraete muss ID-basiert funktionieren");
 check(capabilities.includes('{ method: "DELETE", path: "/api/external/push/devices/{id}"'), "Capabilities muessen den gezielten Push-Geraete-Delete ausweisen");
 check(eventsRoute.includes('"native_push_device_deleted"'), "Technische Push-Geraete-Loeschungen duerfen den normalen Feed nicht fuellen");
+check(appNavigation.includes('label: "Shopify-Produkte"'), "Die Web-Navigation muss den neutralen Namen Shopify-Produkte verwenden");
+check(shopifyProductsPage.includes("Shopify-Produkte") && !shopifyProductsPage.includes("Bondage-System"), "Die Produktseite darf den alten sichtbaren Namen Bondage-System nicht mehr anzeigen");
 check(packageManifest.scripts?.["test:review-roles:live"] === "node scripts/verify-app-review-roles-live.js", "Reproduzierbarer Multi-Rollen-Review-Smoke fehlt in package.json");
 check(reviewRolesLive.includes('key: "ALEX"') && reviewRolesLive.includes('key: "SAM"') && reviewRolesLive.includes('key: "ADMIN"'), "Review-Smoke muss zwei normale Benutzer und einen Administrator pruefen");
 check(reviewRolesLive.includes('expectedRestrictedStatus = account.expectedAdmin ? 200 : 403'), "Review-Smoke muss Adminrechte und normale Benutzergrenzen pruefen");

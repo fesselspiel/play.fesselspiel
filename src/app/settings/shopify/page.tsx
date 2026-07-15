@@ -57,7 +57,7 @@ async function saveIntegration(formData: FormData) {
     action: "shopify_settings_updated",
     entityType: "tenant",
     entityId: tenant.id,
-    title: `${userDisplayName(actor)} hat Shopify für das Bondage-System gespeichert`,
+    title: `${userDisplayName(actor)} hat die Shopify-Verbindung gespeichert`,
     href: "/settings/shopify",
     details: { hasClientId: Boolean(existing?.clientIdEnc || clientId), hasClientSecret: Boolean(existing?.clientSecretEnc || clientSecret), productTag, apiVersion }
   });
@@ -181,7 +181,7 @@ async function saveAllItems(formData: FormData) {
     action: "bondage_system_items_updated",
     entityType: "tenant",
     entityId: tenant.id,
-    title: `${userDisplayName(actor)} hat ${items.length} Bondage-System-Produkte gespeichert`,
+    title: `${userDisplayName(actor)} hat ${items.length} Shopify-Produkte gespeichert`,
     href: "/settings/shopify",
     details: { count: items.length }
   });
@@ -201,7 +201,7 @@ async function setAllItemsVisibility(formData: FormData) {
     action: "bondage_system_items_bulk_visibility_updated",
     entityType: "tenant",
     entityId: tenant.id,
-    title: `${userDisplayName(actor)} hat ${result.count} Bondage-System-Produkte ${visible ? "sichtbar geschaltet" : "verborgen"}`,
+    title: `${userDisplayName(actor)} hat ${result.count} Shopify-Produkte ${visible ? "sichtbar geschaltet" : "verborgen"}`,
     href: "/settings/shopify",
     details: { visible, count: result.count }
   });
@@ -233,8 +233,8 @@ export default async function ShopifySettingsPage(
   return (
     <AppShell>
       <PageHeader title="Shopify" />
-      <PageGuide title="Shopify-Produkte als Bondage-System">
-        Verbinde hier Shopify, lies Produkte anhand eines Tags ein und entscheide danach einzeln, welche Produkte im Bondage-System sichtbar sind.
+      <PageGuide title="Shopify-Produkte">
+        Verbinde hier Shopify, lies Produkte anhand eines Tags ein und entscheide danach einzeln, welche Produkte sichtbar sind.
       </PageGuide>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
@@ -337,7 +337,7 @@ export default async function ShopifySettingsPage(
                       </div>
                       <label className="flex items-center gap-3 text-sm font-medium text-ink">
                         <input name={`visible:${item.id}`} type="checkbox" defaultChecked={item.visible} data-shopify-visible-checkbox="true" className="h-4 w-4 accent-redbrand" />
-                        Im Bondage-System anzeigen
+                        Bei Shopify-Produkten anzeigen
                       </label>
                       <label className="flex items-center gap-3 text-sm font-medium text-ink">
                         <input name={`showExternalLink:${item.id}`} type="checkbox" defaultChecked={item.showExternalLink} className="h-4 w-4 accent-redbrand" />

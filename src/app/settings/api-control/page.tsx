@@ -1620,7 +1620,7 @@ export default async function ApiControlPage(props: { searchParams: Promise<ApiC
                   <option value="toys">Spielsachen</option>
                   <option value="positions">Szenen</option>
                   <option value="ideas">Ideen</option>
-                  <option value="bondage-system">Bondage-System</option>
+                  <option value="bondage-system">Shopify-Produkte</option>
                   <option value="profiles">Profile</option>
                 </select>
               </Field>

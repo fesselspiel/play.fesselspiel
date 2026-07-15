@@ -238,16 +238,16 @@ const manualToolCatalog = ([
     id: "bondageSystem",
     method: "GET",
     path: "/api/external/bondage-system",
-    title: "Bondage-System",
-    description: "Freigegebene Bondage-System-Produkte lesen.",
+    title: "Shopify-Produkte",
+    description: "Freigegebene Shopify-Produkte lesen.",
     category: "Katalog"
   },
   {
     id: "bondageSystemDetail",
     method: "GET",
     path: "/api/external/bondage-system/{id}",
-    title: "Bondage-System Detail",
-    description: "Bondage-System-Produkt per ID oder Slug lesen.",
+    title: "Shopify-Produkt im Detail",
+    description: "Shopify-Produkt per ID oder Slug lesen.",
     category: "Katalog"
   },
   {
