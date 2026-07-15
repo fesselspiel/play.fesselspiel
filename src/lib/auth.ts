@@ -55,8 +55,7 @@ export function verifySessionToken(token?: string | null): SessionPayload | null
   }
 }
 
-export async function login(identifier: string, password: string, remember: boolean) {
-  const tenant = await currentTenant();
+export async function authenticateCredentials(identifier: string, password: string) {
   const normalizedIdentifier = identifier.trim();
   const normalizedUsername = normalizeUsername(normalizedIdentifier);
   const user = await prisma.user.findFirst({
@@ -71,6 +70,13 @@ export async function login(identifier: string, password: string, remember: bool
     }
   });
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) return null;
+  return user;
+}
+
+export async function login(identifier: string, password: string, remember: boolean) {
+  const tenant = await currentTenant();
+  const user = await authenticateCredentials(identifier, password);
+  if (!user) return null;
   const membership = tenant?.id
     ? await ensureTenantMembership(user.id, tenant.id)
     : null;

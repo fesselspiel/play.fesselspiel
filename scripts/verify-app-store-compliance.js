@@ -19,6 +19,7 @@ const schema = read("prisma/schema.prisma");
 const rateLimit = read("src/lib/security-rate-limit.ts");
 const webLogin = read("src/app/api/auth/login/route.ts");
 const mobileLogin = read("src/app/api/external/auth/login/route.ts");
+const auth = read("src/lib/auth.ts");
 const apiTokenSettings = read("src/app/settings/api/page.tsx");
 const capabilities = read("src/lib/capabilities.ts") + read("src/lib/capability-runtime.ts");
 const passwordPolicy = read("src/lib/password-policy.ts");
@@ -64,6 +65,8 @@ check(compose.includes("condition: service_healthy"), "App muss auf einen gesund
 check(!apiConsole.includes("endpointCurlWithQuery"), "API-Konsole darf keine Query-Token-Beispiele enthalten");
 check(!apiConsole.includes("token in URL"), "API-Konsole darf Token nicht in URLs beschreiben");
 check(apiTokens.includes('if (bearer) return bearer;') && apiTokens.includes('url.searchParams.get("token")'), "Externe API muss Bearer- und bewusst aktivierte URL-Tokens unterstuetzen");
+check(auth.includes("authenticateCredentials") && mobileLogin.includes("requestedMembership") && mobileLogin.includes("primaryTenantDomain(tenant)"), "Mobile Login muss erst gueltige Zugangsdaten pruefen und danach die zulaessige Seitendomain aufloesen");
+check(mobileLogin.includes("createApiToken(user.id, tokenName, tenant.id)") && apiTokens.includes("tenantId: tenantId || (await currentTenant()).id"), "Automatisch aufgeloeste App-Logins muessen den Token an die bestaetigte Zielseite binden");
 check(schema.includes("model SecurityRateLimit"), "Rate-Limits muessen persistent gespeichert werden");
 check(rateLimit.includes('createHmac("sha256"'), "Rate-Limit-Schluessel muessen HMAC-hashiert werden");
 check(rateLimit.includes('isolationLevel: "Serializable"'), "Rate-Limit-Aktualisierungen muessen konkurrierende Requests behandeln");

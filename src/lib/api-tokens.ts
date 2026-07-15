@@ -28,12 +28,12 @@ export function apiTokenLastSix(token: string) {
   return token.slice(-6);
 }
 
-export async function createApiToken(userId: string, name: string) {
+export async function createApiToken(userId: string, name: string, tenantId?: string) {
   const token = createPlainApiToken();
   const record = await prisma.apiToken.create({
     data: {
       userId,
-      tenantId: (await currentTenant()).id,
+      tenantId: tenantId || (await currentTenant()).id,
       name: name.trim() || "API Token",
       tokenHash: tokenHash(token),
       tokenLastSix: apiTokenLastSix(token)

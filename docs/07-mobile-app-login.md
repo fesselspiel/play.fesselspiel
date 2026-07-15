@@ -1584,6 +1584,12 @@ Der Seiten-Slug wird automatisch aus dem Titel erzeugt. `GET /api/external/wiki/
 
 ## Hinweise fuer Weiterentwicklung
 
+## Seitendomain beim nativen Login
+
+Die App startet mit `playplaner.com`, kann aber im Login ueber `Andere Seite` eine andere Domain senden. `POST /api/external/auth/login` prueft Benutzername beziehungsweise E-Mail und Passwort zuerst ohne Account-Auskunft. Erst bei gueltigen Zugangsdaten wird eine aktive Seitenmitgliedschaft aufgeloest: Die angefragte Seite wird bevorzugt, ansonsten die primaere Seite des Benutzers und danach seine erste aktive Mitgliedschaft. Die Antwort enthaelt unter `tenant.domain` die kanonische Primaerdomain; der native Client uebernimmt sie vor dem ersten Datenabruf.
+
+Ungueltige Zugangsdaten und Benutzer ohne zulaessige Seitenmitgliedschaft erhalten dieselbe generische Login-Ablehnung. Passwoerter oder Kontoinformationen werden nicht in URLs geschrieben. Externe API-Aufrufe behalten unabhaengig davon den zentralen Tokenvertrag: Bearer ist bevorzugt, bewusst eingerichtete Alexa-/URL-Aufrufe duerfen weiterhin `?token=...` verwenden.
+
 ## Generische Inhaltsbereiche
 
 Die nativen Clients koennen Tagebuch, Wiki, Ideen und weitere frei benennbare Sammlungen ueber einen gemeinsamen, additiven Vertrag darstellen:

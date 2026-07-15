@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createApiToken } from "@/lib/api-tokens";
-import { login } from "@/lib/auth";
+import { authenticateCredentials } from "@/lib/auth";
 import { logAction, userDisplayName } from "@/lib/audit";
 import { publicCapabilitySummaryForTenant } from "@/lib/capability-runtime";
 import { featureEnabled } from "@/lib/features";
@@ -44,8 +44,8 @@ export async function POST(request: NextRequest) {
     return limited(Math.max(identifierLimit.retryAfterSeconds, addressLimit.retryAfterSeconds));
   }
 
-  const result = await login(parsed.data.identifier, parsed.data.password, Boolean(parsed.data.remember));
-  if (!result) {
+  const user = await authenticateCredentials(parsed.data.identifier, parsed.data.password);
+  if (!user) {
     const [identifierFailure, addressFailure] = await Promise.all([
       recordRateLimitFailure(LOGIN_IDENTIFIER, identifierSubject),
       recordRateLimitFailure(LOGIN_ADDRESS, addressSubject)
@@ -62,20 +62,38 @@ export async function POST(request: NextRequest) {
   }
   await clearRateLimit(LOGIN_IDENTIFIER, identifierSubject);
 
-  const tenant = await currentTenant();
+  const requestedTenant = await currentTenant();
+  let tenant = requestedTenant;
+  if (user.role !== "SUPER_ADMIN") {
+    const requestedMembership = await prisma.tenantMembership.findUnique({
+      where: { tenantId_userId: { tenantId: requestedTenant.id, userId: user.id } }
+    });
+    if (!requestedMembership?.active) {
+      const memberships = await prisma.tenantMembership.findMany({
+        where: { userId: user.id, active: true, tenant: { status: "ACTIVE" } },
+        include: { tenant: { include: { domains: true, features: true } } },
+        orderBy: { createdAt: "asc" }
+      });
+      const preferred = memberships.find((membership) => membership.tenantId === user.tenantId) || memberships[0];
+      if (!preferred) {
+        return NextResponse.json({ ok: false, error: "login_failed" }, { status: 401 });
+      }
+      tenant = preferred.tenant;
+    }
+  }
   if (!featureEnabled(tenant?.features, "externalApi")) {
     return NextResponse.json({ ok: false, error: "feature_disabled", feature: "externalApi" }, { status: 403 });
   }
 
   const tokenName = parsed.data.deviceName ? `Mobile App: ${parsed.data.deviceName}` : "Mobile App";
-  const { token, record } = await createApiToken(result.user.id, tokenName);
-  await prisma.user.update({ where: { id: result.user.id }, data: { lastLoginAt: new Date() } });
+  const { token, record } = await createApiToken(user.id, tokenName, tenant.id);
+  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   await logAction({
-    actorId: result.user.id,
+    actorId: user.id,
     action: "api_mobile_login",
     entityType: "apiToken",
     entityId: record.id,
-    title: `${userDisplayName(result.user)} hat sich in der App angemeldet`,
+    title: `${userDisplayName(user)} hat sich in der App angemeldet`,
     details: {
       deviceName: parsed.data.deviceName || null,
       tokenLastSix: record.tokenLastSix
@@ -84,7 +102,7 @@ export async function POST(request: NextRequest) {
   });
 
   const capabilities = await publicCapabilitySummaryForTenant(tenant.id, tenant.features);
-  const compliance = await complianceStatusForUser(result.user.id, tenant.id);
+  const compliance = await complianceStatusForUser(user.id, tenant.id);
 
   return NextResponse.json({
     ok: true,
@@ -92,10 +110,10 @@ export async function POST(request: NextRequest) {
     tokenType: "Bearer",
     tokenLastSix: record.tokenLastSix,
     user: {
-      id: result.user.id,
-      username: result.user.username,
-      email: result.user.email,
-      name: userDisplayName(result.user)
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      name: userDisplayName(user)
     },
     tenant: {
       id: tenant.id,
