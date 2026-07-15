@@ -1127,3 +1127,8 @@ Details:
 - Der bisher sichtbare Produktname `Bondage-System` wurde in Navigation, Produktseiten, Verknuepfungsfeldern, Shopify-Einstellungen, Capability-Texten und nutzernahen Auditmeldungen durch `Shopify-Produkte` ersetzt.
 - Technische Routen, API-Pfade, Datenmodelle, Capability-Keys und bestehende Integrationen bleiben unveraendert. Insbesondere `/bondage-system` und `/api/external/bondage-system` bestehen fuer Deep Links und alte Clients weiter.
 - Rueckbau: diesen reinen Text-Commit revertieren und erneut deployen; keine Migration und keine Datenveraenderung erforderlich.
+
+## Kurze Login-Sperre am 15.07.2026
+
+- Nach fuenf falschen Versuchen fuer eine Kennung beziehungsweise dreissig Versuchen einer Adresse blockieren Web- und App-Login fuer 15 Sekunden statt zuvor 15 Minuten. Das 15-Minuten-Zaehlfenster bleibt bestehen; weitere falsche Versuche koennen die kurze Sperre erneut ausloesen.
+- `Retry-After` und `retryAfterSeconds` bleiben Teil der HTTP-429-Antwort. Keine Migration und keine Aenderung an bestehenden Benutzerkonten oder Tokens.

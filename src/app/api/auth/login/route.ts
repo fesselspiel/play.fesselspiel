@@ -14,8 +14,8 @@ const LoginSchema = z.object({
   remember: z.boolean().optional()
 });
 
-const LOGIN_IDENTIFIER = { scope: "web-login-identifier", limit: 5, windowMs: 15 * 60_000, blockMs: 15 * 60_000 };
-const LOGIN_ADDRESS = { scope: "web-login-address", limit: 30, windowMs: 15 * 60_000, blockMs: 15 * 60_000 };
+const LOGIN_IDENTIFIER = { scope: "web-login-identifier", limit: 5, windowMs: 15 * 60_000, blockMs: 15_000 };
+const LOGIN_ADDRESS = { scope: "web-login-address", limit: 30, windowMs: 15 * 60_000, blockMs: 15_000 };
 
 function limited(retryAfterSeconds: number) {
   return NextResponse.json(

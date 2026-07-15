@@ -75,6 +75,7 @@ check(rateLimit.includes('isolationLevel: "Serializable"'), "Rate-Limit-Aktualis
 check(!webLogin.includes("details: { identifier:"), "Web-Login darf Kennungen nicht im Auditlog speichern");
 check(!mobileLogin.includes("details: { identifier:"), "App-Login darf Kennungen nicht im Auditlog speichern");
 check(webLogin.includes('status: 429') && mobileLogin.includes('status: 429'), "Web- und App-Login muessen Rate-Limits signalisieren");
+check(webLogin.includes("blockMs: 15_000") && mobileLogin.includes("blockMs: 15_000"), "Web- und App-Login muessen nach zu vielen Versuchen eine kurze 15-Sekunden-Sperre verwenden");
 check(apiTokenSettings.includes("Bearer") && apiTokenSettings.includes("?token=…") && apiTokenSettings.includes("Zugriffslogs"), "Tokenverwaltung muss Bearer, URL-Token und das URL-Leak-Risiko erklaeren");
 check(!capabilities.includes("?token=..."), "API-Dokumentation darf reguläre Tokens nicht in URLs empfehlen");
 check(!capabilities.match(/token-(?:query|url)|als Feld `token`/i), "Capabilities duerfen Query- oder Multipart-Token nicht empfehlen");
