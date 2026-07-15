@@ -41,8 +41,8 @@ export default async function ApiSettingsPage() {
   return (
     <AppShell>
       <PageHeader title="API Tokens" />
-      <PageGuide title="Externe Zugriffe mit Bearer Token">
-        API Tokens erlauben externen Systemen wie Kurzbefehlen oder anderen Apps gezielte Aktionen im Portal. Sie werden ausschließlich im Authorization-Header übertragen.
+      <PageGuide title="Externe Zugriffe mit API Token">
+        API Tokens erlauben externen Systemen wie Alexa, Kurzbefehlen oder anderen Apps gezielte Aktionen im Portal. Bearer-Header und URL-Parameter werden unterstützt.
       </PageGuide>
 
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
@@ -50,7 +50,7 @@ export default async function ApiSettingsPage() {
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><KeyRound className="h-5 w-5 text-redbrand" /> Token erzeugen</h2>
           <ApiTokenCreateForm />
           <div className="mt-4 rounded-md bg-paper p-3 text-sm leading-6 text-graphite">
-            Der Token ist nur einmal sichtbar. Übertrage ihn als <code>Authorization: Bearer …</code> und nie als URL-Parameter.
+            Der Token ist nur einmal sichtbar. Bevorzuge <code>Authorization: Bearer …</code>. Für Alexa, Browser- und Shortcut-Aufrufe kann alternativ <code>?token=…</code> verwendet werden. Solche URLs vertraulich behandeln, da sie in Verlauf und Zugriffslogs erscheinen können.
           </div>
         </Panel>
 

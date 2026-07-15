@@ -471,12 +471,12 @@ Details:
 - Album-Cover werden beim Import auf die neu importierten Bilder gemappt.
 - Bestehende Inhalte werden beim Import nicht gelöscht oder überschrieben.
 
-## Externe API und Bearer Tokens
+## Externe API und API Tokens
 
 - Neues Datenmodell `ApiToken` für externe API-Zugriffe.
 - Tokens werden nur einmalig im Klartext angezeigt; gespeichert wird ein HMAC-Hash und die letzten sechs Zeichen.
 - Neue Einstellungsseite `API Tokens` unter `/settings/api`.
-- Regulaere API-Tokens werden ausschliesslich per `Authorization: Bearer <token>` verwendet. Die fruehere Query-Parameter-Variante wurde aus Sicherheitsgruenden entfernt.
+- API-Tokens werden bevorzugt per `Authorization: Bearer <token>` verwendet. Fuer bewusst URL-basierte Integrationen wie Alexa, Browseraufrufe und Kurzbefehle akzeptieren alle externen API-Requests alternativ den Query-Parameter `token`. URL-Tokens muessen wie Zugangsdaten behandelt werden, da vollstaendige URLs in Verlauf, Proxy- und Serverlogs erscheinen koennen.
 - Externe Endpunkte:
   - `GET /api/external/status`
   - `GET|POST /api/external/trackers/{trackerKey}/start`
