@@ -26,6 +26,7 @@ const reviewRolesLive = read("scripts/verify-app-review-roles-live.js");
 const blockedSharingLive = read("scripts/verify-blocked-sharing-live.js");
 const fileScanBackfill = read("scripts/backfill-file-scan-status.js");
 const mediaAccessLive = read("scripts/verify-media-access-live.js");
+const viewContextLive = read("scripts/verify-view-context-isolation-live.js");
 const mobileLoginDocs = read("docs/07-mobile-app-login.md");
 const implementationLog = read("docs/03-implementierungslog.md");
 const contentSpaces = read("src/lib/content-spaces.ts");
@@ -127,6 +128,8 @@ check(fileScanBackfill.includes('process.argv.includes("--apply")') && fileScanB
 check(fileScanBackfill.includes('scanStatus: "CLEAN"') && fileScanBackfill.includes('scanStatus: "REJECTED"') && fileScanBackfill.includes('contentClassification: "QUARANTINED"'), "Scanner-Backfill muss saubere und infizierte Altdateien getrennt behandeln");
 check(packageManifest.scripts?.["test:media-access:live"] === "node scripts/verify-media-access-live.js", "Reproduzierbarer Medienzugriffs-Smoke fehlt in package.json");
 check(mediaAccessLive.includes('"/api/external/profile"') && mediaAccessLive.includes('"/api/external/media?kind=ALL&limit=100"') && mediaAccessLive.includes("temporary_tokens_revoked=2"), "Medienzugriffs-Smoke muss Profil, Galerie und Token-Cleanup pruefen");
+check(packageManifest.scripts?.["test:view-context:live"] === "node scripts/verify-view-context-isolation-live.js", "Reproduzierbarer Seitenisolations-Smoke fehlt in package.json");
+check(viewContextLive.includes('"X-Playplaner-View-Context"') && viewContextLive.includes("Cross-tenant view retained the source actor") && viewContextLive.includes("Cleared context remained usable"), "Seitenisolations-Smoke muss Zielprofil, Mandant und Context-Cleanup pruefen");
 
 // There are no paid digital features in the reviewed iOS product. Shopify is
 // a catalogue for physical products. Introducing payment SDKs, subscription

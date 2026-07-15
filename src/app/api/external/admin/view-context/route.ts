@@ -114,6 +114,40 @@ export async function POST(request: NextRequest) {
       where: { tenantId_userId: { tenantId: targetTenant.id, userId: targetUser.id } }
     });
     if (!targetMembership && targetUser.role !== "SUPER_ADMIN") return NextResponse.json({ ok: false, error: "membership_not_found" }, { status: 404 });
+  } else {
+    const ownMembership = targetTenant.id === auth.user.tenantId
+      ? await prisma.tenantMembership.findFirst({
+          where: { tenantId: targetTenant.id, userId: auth.user.id, active: true, user: { active: true } },
+          include: { user: { include: { profile: true } } }
+        })
+      : null;
+    const representativeMembership = ownMembership
+      || await prisma.tenantMembership.findFirst({
+        where: {
+          tenantId: targetTenant.id,
+          active: true,
+          userId: { not: auth.user.id },
+          role: { in: ["ADMIN", "SUPER_ADMIN"] },
+          user: { active: true }
+        },
+        include: { user: { include: { profile: true } } },
+        orderBy: { createdAt: "asc" }
+      })
+      || await prisma.tenantMembership.findFirst({
+        where: { tenantId: targetTenant.id, active: true, userId: { not: auth.user.id }, user: { active: true } },
+        include: { user: { include: { profile: true } } },
+        orderBy: { createdAt: "asc" }
+      })
+      || await prisma.tenantMembership.findFirst({
+        where: { tenantId: targetTenant.id, active: true, user: { active: true } },
+        include: { user: { include: { profile: true } } },
+        orderBy: { createdAt: "asc" }
+      });
+    if (!representativeMembership) {
+      return NextResponse.json({ ok: false, error: "tenant_has_no_active_user" }, { status: 409 });
+    }
+    targetMembership = representativeMembership;
+    targetUser = representativeMembership.user;
   }
 
   const contextId = createPlainViewContextId();
@@ -123,7 +157,7 @@ export async function POST(request: NextRequest) {
       tokenId: apiTokenId,
       actorId: auth.user.id,
       tenantId: targetTenant.id,
-      userId: targetUser?.id || null,
+      userId: targetUser.id,
       mode,
       contextHash: hashViewContextId(contextId),
       expiresAt
@@ -133,12 +167,12 @@ export async function POST(request: NextRequest) {
     actorId: auth.user.id,
     action: "external_admin_view_context_created",
     entityType: mode === "user" ? "user" : "tenant",
-    entityId: targetUser?.id || targetTenant.id,
-    title: targetUser
+    entityId: mode === "user" ? targetUser.id : targetTenant.id,
+    title: mode === "user"
       ? `${userDisplayName(auth.user)} hat die mobile Ansicht von ${userDisplayName(targetUser)} geöffnet`
       : `${userDisplayName(auth.user)} hat die mobile Seite ${targetTenant.name} geöffnet`,
     href: "/settings/view-as",
-    details: { mode, tenantId: targetTenant.id, userId: targetUser?.id || null, expiresAt: expiresAt.toISOString() }
+    details: { mode, tenantId: targetTenant.id, userId: targetUser.id, expiresAt: expiresAt.toISOString() }
   });
 
   return NextResponse.json({
@@ -150,7 +184,7 @@ export async function POST(request: NextRequest) {
       mode,
       expiresAt: expiresAt.toISOString(),
       tenant: serializeTenant(targetTenant),
-      user: targetUser ? serializeUser(targetUser, targetMembership?.role || targetUser.role) : null
+      user: serializeUser(targetUser, targetMembership?.role || targetUser.role)
     }
   });
 }
