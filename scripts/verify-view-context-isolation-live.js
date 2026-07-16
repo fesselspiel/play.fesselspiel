@@ -76,8 +76,7 @@ async function main() {
       const scopedProfileId = profileBody?.profile?.id || profileBody?.user?.id || profileBody?.item?.id;
       if (scopedProfileId !== actor.id) throw new Error("Profile did not retain the authenticated actor");
 
-      if (targetCircles[0]) {
-        const selectedCircle = targetCircles[0];
+      for (const selectedCircle of targetCircles) {
         const circleContext = await request("/api/external/admin/view-context", token, {
           method: "POST",
           body: JSON.stringify({ mode: "circle", tenantId: targetTenant.id, circleId: selectedCircle.id })
@@ -108,7 +107,7 @@ async function main() {
       const expiredContext = await request("/api/external/profile", token, { headers: scopedHeaders });
       if (expiredContext.status !== 401) throw new Error(`Cleared context remained usable: ${expiredContext.status}`);
       completed = true;
-      console.log(`VIEW_CONTEXT_ISOLATION_LIVE_OK tenant=1 actor=1 profile=1 circle=${targetCircles[0] ? 1 : 0} cleared=1`);
+      console.log(`VIEW_CONTEXT_ISOLATION_LIVE_OK tenant=1 actor=1 profile=1 circles=${targetCircles.length} cleared=1`);
       break;
     } finally {
       await prisma.externalViewContext.deleteMany({ where: { tokenId: tokenRecord.id } }).catch(() => null);
