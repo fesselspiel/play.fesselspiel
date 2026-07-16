@@ -55,14 +55,15 @@ async function tokenRecordId(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await requireApiUser(request, { ignoreViewContext: true });
   if ("response" in auth) return auth.response;
-  if (auth.user.role !== "ADMIN" && auth.user.role !== "SUPER_ADMIN") {
+  const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+  const mode = text(body.mode) || "clear";
+  const actorIsAdmin = auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN";
+  if (!actorIsAdmin && mode !== "circle" && mode !== "clear") {
     return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   }
   const apiTokenId = await tokenRecordId(request);
   if (!apiTokenId) return NextResponse.json({ ok: false, error: "token_not_found" }, { status: 401 });
 
-  const body = await request.json().catch(() => ({})) as Record<string, unknown>;
-  const mode = text(body.mode) || "clear";
   if (mode === "clear") {
     await prisma.externalViewContext.deleteMany({ where: { tokenId: apiTokenId } });
     await logAction({
@@ -75,12 +76,13 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ ok: true, context: null, contextId: null, expiresAt: null });
   }
-  if (mode !== "tenant" && mode !== "user") {
+  if (mode !== "tenant" && mode !== "user" && mode !== "circle") {
     return NextResponse.json({ ok: false, error: "invalid_mode" }, { status: 400 });
   }
 
   const requestedTenantId = text(body.tenantId);
   const requestedUserId = text(body.userId);
+  const requestedCircleId = text(body.circleId);
   const targetTenant = requestedTenantId
     ? await prisma.tenant.findFirst({
         where: {
@@ -93,7 +95,7 @@ export async function POST(request: NextRequest) {
       ? await prisma.tenant.findUnique({ where: { id: auth.user.tenantId }, include: { domains: true, features: true } })
       : null;
   if (!targetTenant) return NextResponse.json({ ok: false, error: "tenant_not_found" }, { status: 404 });
-  if (mode === "tenant" && auth.user.role !== "SUPER_ADMIN" && targetTenant.id !== auth.user.tenantId) {
+  if (auth.user.role !== "SUPER_ADMIN" && targetTenant.id !== auth.user.tenantId) {
     return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   }
 
@@ -115,64 +117,55 @@ export async function POST(request: NextRequest) {
     });
     if (!targetMembership && targetUser.role !== "SUPER_ADMIN") return NextResponse.json({ ok: false, error: "membership_not_found" }, { status: 404 });
   } else {
-    const ownMembership = targetTenant.id === auth.user.tenantId
-      ? await prisma.tenantMembership.findFirst({
-          where: { tenantId: targetTenant.id, userId: auth.user.id, active: true, user: { active: true } },
-          include: { user: { include: { profile: true } } }
-        })
-      : null;
-    const representativeMembership = ownMembership
-      || await prisma.tenantMembership.findFirst({
-        where: {
-          tenantId: targetTenant.id,
-          active: true,
-          userId: { not: auth.user.id },
-          role: { in: ["ADMIN", "SUPER_ADMIN"] },
-          user: { active: true }
-        },
-        include: { user: { include: { profile: true } } },
-        orderBy: { createdAt: "asc" }
-      })
-      || await prisma.tenantMembership.findFirst({
-        where: { tenantId: targetTenant.id, active: true, userId: { not: auth.user.id }, user: { active: true } },
-        include: { user: { include: { profile: true } } },
-        orderBy: { createdAt: "asc" }
-      })
-      || await prisma.tenantMembership.findFirst({
-        where: { tenantId: targetTenant.id, active: true, user: { active: true } },
-        include: { user: { include: { profile: true } } },
-        orderBy: { createdAt: "asc" }
-      });
-    if (!representativeMembership) {
-      return NextResponse.json({ ok: false, error: "tenant_has_no_active_user" }, { status: 409 });
+    targetMembership = await prisma.tenantMembership.findFirst({
+      where: { tenantId: targetTenant.id, userId: auth.user.id, active: true, user: { active: true } },
+      include: { user: { include: { profile: true } } }
+    });
+    if (!targetMembership && auth.user.role !== "SUPER_ADMIN") {
+      return NextResponse.json({ ok: false, error: "membership_not_found" }, { status: 404 });
     }
-    targetMembership = representativeMembership;
-    targetUser = representativeMembership.user;
+    targetUser = targetMembership?.user || auth.user;
+  }
+
+  let targetCircle = null;
+  if (mode === "circle") {
+    if (!requestedCircleId) return NextResponse.json({ ok: false, error: "circleId_required" }, { status: 400 });
+    targetCircle = await prisma.circle.findFirst({ where: { id: requestedCircleId, tenantId: targetTenant.id } });
+    if (!targetCircle) return NextResponse.json({ ok: false, error: "circle_not_found" }, { status: 404 });
+    if (!actorIsAdmin && targetMembership?.circleId !== targetCircle.id) {
+      return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+    }
   }
 
   const contextId = createPlainViewContextId();
   const expiresAt = new Date(Date.now() + ttlSeconds(body.ttlSeconds) * 1000);
-  await prisma.externalViewContext.create({
+  await prisma.$transaction([
+    prisma.externalViewContext.deleteMany({ where: { tokenId: apiTokenId } }),
+    prisma.externalViewContext.create({
     data: {
       tokenId: apiTokenId,
       actorId: auth.user.id,
       tenantId: targetTenant.id,
       userId: targetUser.id,
+      circleId: targetCircle?.id || null,
       mode,
       contextHash: hashViewContextId(contextId),
       expiresAt
     }
-  });
+    })
+  ]);
   await logAction({
     actorId: auth.user.id,
     action: "external_admin_view_context_created",
-    entityType: mode === "user" ? "user" : "tenant",
-    entityId: mode === "user" ? targetUser.id : targetTenant.id,
+    entityType: mode === "user" ? "user" : mode === "circle" ? "circle" : "tenant",
+    entityId: mode === "user" ? targetUser.id : mode === "circle" ? targetCircle?.id || targetTenant.id : targetTenant.id,
     title: mode === "user"
       ? `${userDisplayName(auth.user)} hat die mobile Ansicht von ${userDisplayName(targetUser)} geöffnet`
-      : `${userDisplayName(auth.user)} hat die mobile Seite ${targetTenant.name} geöffnet`,
+      : mode === "circle"
+        ? `${userDisplayName(auth.user)} hat den mobilen Zirkel ${targetCircle?.name || ""} geöffnet`
+        : `${userDisplayName(auth.user)} hat die mobile Seite ${targetTenant.name} geöffnet`,
     href: "/settings/view-as",
-    details: { mode, tenantId: targetTenant.id, userId: targetUser.id, expiresAt: expiresAt.toISOString() }
+    details: { mode, tenantId: targetTenant.id, userId: targetUser.id, circleId: targetCircle?.id || null, expiresAt: expiresAt.toISOString() }
   });
 
   return NextResponse.json({
@@ -184,7 +177,8 @@ export async function POST(request: NextRequest) {
       mode,
       expiresAt: expiresAt.toISOString(),
       tenant: serializeTenant(targetTenant),
-      user: serializeUser(targetUser, targetMembership?.role || targetUser.role)
+      user: serializeUser(targetUser, targetMembership?.role || targetUser.role),
+      circle: targetCircle ? { id: targetCircle.id, name: targetCircle.name, current: true } : null
     }
   });
 }

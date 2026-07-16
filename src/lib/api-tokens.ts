@@ -73,6 +73,8 @@ export async function userFromApiToken(request: NextRequest | Request, options: 
   let effectiveTenant = record.tenant || record.user.tenant;
   let effectiveUser = record.user;
   let effectiveMembership = baseMembership;
+  let effectiveCircleId: string | null | undefined;
+  let effectiveCircle: typeof record.user.circle = null;
   if (contextId) {
     const context = await prisma.externalViewContext.findFirst({
       where: {
@@ -83,14 +85,18 @@ export async function userFromApiToken(request: NextRequest | Request, options: 
     });
     if (!context) return null;
     const actorIsAdmin = record.user.role === "ADMIN" || record.user.role === "SUPER_ADMIN";
-    if (!actorIsAdmin) return null;
+    if (!actorIsAdmin && context.mode !== "circle") return null;
     const targetTenant = context.tenantId
       ? await prisma.tenant.findUnique({ where: { id: context.tenantId }, include: { domains: true, features: true } })
       : effectiveTenant;
     if (!targetTenant) return null;
     const targetUser = context.userId
       ? await prisma.user.findFirst({
-          where: { id: context.userId, active: true, memberships: { some: { tenantId: targetTenant.id, active: true } } },
+          where: {
+            id: context.userId,
+            active: true,
+            ...(context.mode === "user" ? { memberships: { some: { tenantId: targetTenant.id, active: true } } } : {})
+          },
           include: { settings: true, profile: true, circle: true, tenant: { include: { domains: true, features: true } } }
         })
       : record.user;
@@ -99,20 +105,29 @@ export async function userFromApiToken(request: NextRequest | Request, options: 
       where: { tenantId_userId: { tenantId: targetTenant.id, userId: targetUser.id } },
       include: { circle: true }
     });
-    if (context.userId && !membership && targetUser.role !== "SUPER_ADMIN") return null;
-    if (context.mode === "tenant" && record.user.role !== "SUPER_ADMIN") return null;
+    if (context.mode === "user" && context.userId && !membership && targetUser.role !== "SUPER_ADMIN") return null;
+    if ((context.mode === "tenant" || context.mode === "circle") && targetUser.id !== record.user.id) return null;
+    if (context.circleId) {
+      const circle = await prisma.circle.findFirst({ where: { id: context.circleId, tenantId: targetTenant.id } });
+      if (!circle) return null;
+      if (record.user.role !== "ADMIN" && record.user.role !== "SUPER_ADMIN" && membership?.circleId !== circle.id) return null;
+      effectiveMembership = membership;
+      effectiveCircleId = circle.id;
+      effectiveCircle = circle;
+    } else {
+      effectiveMembership = membership;
+    }
     await prisma.externalViewContext.update({ where: { id: context.id }, data: { lastUsedAt: new Date() } }).catch(() => null);
     effectiveTenant = targetTenant;
     effectiveUser = targetUser;
-    effectiveMembership = membership;
   }
   return {
     user: {
       ...effectiveUser,
       tenantId: effectiveTenant?.id || record.tenantId || effectiveUser.tenantId,
       tenant: effectiveTenant || effectiveUser.tenant,
-      circleId: effectiveMembership?.circleId || effectiveUser.circleId,
-      circle: effectiveMembership?.circle || effectiveUser.circle,
+      circleId: effectiveCircleId ?? effectiveMembership?.circleId ?? effectiveUser.circleId,
+      circle: effectiveCircle ?? effectiveMembership?.circle ?? effectiveUser.circle,
       role: effectiveUser.role === "SUPER_ADMIN" ? "SUPER_ADMIN" : effectiveMembership?.role || effectiveUser.role
     },
     token: record

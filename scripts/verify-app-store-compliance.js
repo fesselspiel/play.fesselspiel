@@ -139,7 +139,7 @@ check(fileScanBackfill.includes('scanStatus: "CLEAN"') && fileScanBackfill.inclu
 check(packageManifest.scripts?.["test:media-access:live"] === "node scripts/verify-media-access-live.js", "Reproduzierbarer Medienzugriffs-Smoke fehlt in package.json");
 check(mediaAccessLive.includes('"/api/external/profile"') && mediaAccessLive.includes('"/api/external/media?kind=ALL&limit=100"') && mediaAccessLive.includes("temporary_tokens_revoked=2"), "Medienzugriffs-Smoke muss Profil, Galerie und Token-Cleanup pruefen");
 check(packageManifest.scripts?.["test:view-context:live"] === "node scripts/verify-view-context-isolation-live.js", "Reproduzierbarer Seitenisolations-Smoke fehlt in package.json");
-check(viewContextLive.includes('"X-Playplaner-View-Context"') && viewContextLive.includes("Cross-tenant view retained the source actor") && viewContextLive.includes("Cleared context remained usable"), "Seitenisolations-Smoke muss Zielprofil, Mandant und Context-Cleanup pruefen");
+check(viewContextLive.includes('"X-Playplaner-View-Context"') && viewContextLive.includes("Tenant context did not retain the authenticated actor") && viewContextLive.includes("Circle context did not retain actor and selected circle") && viewContextLive.includes("Cleared context remained usable"), "Seitenisolations-Smoke muss Actor, Mandant, Zirkel und Context-Cleanup pruefen");
 
 // There are no paid digital features in the reviewed iOS product. Shopify is
 // a catalogue for physical products. Introducing payment SDKs, subscription

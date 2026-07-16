@@ -24,11 +24,11 @@ async function request(path, token, options = {}) {
 async function main() {
   const targetTenant = await prisma.tenant.findUnique({ where: { slug: "test" }, select: { id: true } });
   if (!targetTenant) throw new Error("Test tenant is missing");
-  const alternativeTarget = await prisma.tenantMembership.findFirst({
-    where: { tenantId: targetTenant.id, active: true, user: { active: true } },
-    select: { userId: true }
+  const targetCircles = await prisma.circle.findMany({
+    where: { tenantId: targetTenant.id },
+    select: { id: true, name: true },
+    orderBy: { createdAt: "asc" }
   });
-  if (!alternativeTarget) throw new Error("Test tenant has no active member");
 
   const actors = await prisma.user.findMany({
     where: { active: true, role: "SUPER_ADMIN" },
@@ -57,9 +57,9 @@ async function main() {
       if (created.status !== 200) throw new Error(`Create context failed: ${created.status}`);
       const contextBody = await created.json();
       const contextId = contextBody.contextId;
-      const representativeId = contextBody?.context?.user?.id;
-      if (!contextId || contextBody?.context?.tenant?.id !== targetTenant.id || !representativeId) {
-        throw new Error("Context response lacks confirmed tenant or representative");
+      const contextUserId = contextBody?.context?.user?.id;
+      if (!contextId || contextBody?.context?.tenant?.id !== targetTenant.id || contextUserId !== actor.id) {
+        throw new Error("Tenant context did not retain the authenticated actor");
       }
 
       const scopedHeaders = { "X-Playplaner-View-Context": contextId };
@@ -74,9 +74,32 @@ async function main() {
       const profileBody = await profile.json();
       if (capabilitiesBody.tenantId !== targetTenant.id) throw new Error("Capabilities leaked the source tenant");
       const scopedProfileId = profileBody?.profile?.id || profileBody?.user?.id || profileBody?.item?.id;
-      if (scopedProfileId !== representativeId) throw new Error("Profile did not match the target representative");
-      if (actor.tenantId !== targetTenant.id && representativeId === actor.id && alternativeTarget.userId !== actor.id) {
-        throw new Error("Cross-tenant view retained the source actor");
+      if (scopedProfileId !== actor.id) throw new Error("Profile did not retain the authenticated actor");
+
+      if (targetCircles[0]) {
+        const selectedCircle = targetCircles[0];
+        const circleContext = await request("/api/external/admin/view-context", token, {
+          method: "POST",
+          body: JSON.stringify({ mode: "circle", tenantId: targetTenant.id, circleId: selectedCircle.id })
+        });
+        if (circleContext.status !== 200) throw new Error(`Create circle context failed: ${circleContext.status}`);
+        const circleBody = await circleContext.json();
+        if (circleBody?.context?.user?.id !== actor.id || circleBody?.context?.circle?.id !== selectedCircle.id) {
+          throw new Error("Circle context did not retain actor and selected circle");
+        }
+        const circleHeaders = { "X-Playplaner-View-Context": circleBody.contextId };
+        const [circleCapabilities, circleProfile, circles] = await Promise.all([
+          request("/api/external/capabilities", token, { headers: circleHeaders }),
+          request("/api/external/profile", token, { headers: circleHeaders }),
+          request("/api/external/chat/circles", token, { headers: circleHeaders })
+        ]);
+        if (circleCapabilities.status !== 200 || circleProfile.status !== 200 || circles.status !== 200) {
+          throw new Error(`Circle APIs failed: capabilities=${circleCapabilities.status} profile=${circleProfile.status} circles=${circles.status}`);
+        }
+        const circleProfileBody = await circleProfile.json();
+        const circleProfileId = circleProfileBody?.profile?.id || circleProfileBody?.user?.id || circleProfileBody?.item?.id;
+        if (circleProfileId !== actor.id) throw new Error("Circle context changed the authenticated actor");
+      }
       }
 
       const cleared = await request("/api/external/admin/view-context", token, {
@@ -87,7 +110,7 @@ async function main() {
       const expiredContext = await request("/api/external/profile", token, { headers: scopedHeaders });
       if (expiredContext.status !== 401) throw new Error(`Cleared context remained usable: ${expiredContext.status}`);
       completed = true;
-      console.log("VIEW_CONTEXT_ISOLATION_LIVE_OK tenant=1 representative=1 profile=1 cleared=1");
+      console.log(`VIEW_CONTEXT_ISOLATION_LIVE_OK tenant=1 actor=1 profile=1 circle=${targetCircles[0] ? 1 : 0} cleared=1`);
       break;
     } finally {
       await prisma.externalViewContext.deleteMany({ where: { tokenId: tokenRecord.id } }).catch(() => null);

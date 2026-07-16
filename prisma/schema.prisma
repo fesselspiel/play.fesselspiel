@@ -543,6 +543,7 @@ model ExternalViewContext {
   actorId     String
   tenantId    String?
   userId      String?
+  circleId    String?
   mode        String
   contextHash String    @unique
   expiresAt   DateTime
@@ -553,6 +554,7 @@ model ExternalViewContext {
   @@index([actorId, createdAt])
   @@index([tenantId])
   @@index([userId])
+  @@index([circleId])
 }
 
 model AuditLog {
