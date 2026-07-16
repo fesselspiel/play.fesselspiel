@@ -1132,3 +1132,12 @@ Details:
 
 - Nach fuenf falschen Versuchen fuer eine Kennung beziehungsweise dreissig Versuchen einer Adresse blockieren Web- und App-Login fuer 15 Sekunden statt zuvor 15 Minuten. Das 15-Minuten-Zaehlfenster bleibt bestehen; weitere falsche Versuche koennen die kurze Sperre erneut ausloesen.
 - `Retry-After` und `retryAfterSeconds` bleiben Teil der HTTP-429-Antwort. Keine Migration und keine Aenderung an bestehenden Benutzerkonten oder Tokens.
+## 2026-07-16: Identitätssichere Seiten- und Zirkelkontexte
+
+- `tenant`-Sichten behalten den authentifizierten Actor und wählen keinen fremden Repräsentativbenutzer mehr.
+- `circle` ergänzt einen globalen, serverseitig validierten Zirkelkontext für die externe API.
+- `ExternalViewContext.circleId` wurde additiv ergänzt; pro API-Token ersetzt ein neuer Kontext den vorherigen.
+- ADMIN-Kontexte des eigenen Tenants bleiben bei Folge-Requests gültig; SUPER_ADMIN kann Seiten wechseln, ohne die Identität zu wechseln.
+- Der Live-Smoke prüft Actor, Profil, Tenant, alle Zirkel des Test-Tenants, Context-Cleanup und Token-Cleanup.
+- Produktiv-Rückfallpunkt: `/opt/kink-social-platform/backups/pre-20260716-tenant-circle-18e6306`, Image-Tag `kink-social-platform-app:pre-20260716-tenant-circle-18e6306`.
+- Git-Rollback ohne Force-Push: `git revert 1a8d365 67b11f5 18e6306`, Revert pushen und regulär neu deployen. Für den Datenbank-Rückbau kann die nullable Spalte `ExternalViewContext.circleId` nach Entfernung aller neuen Kontexte separat entfernt werden; ein Code-Rollback kann sie gefahrlos ungenutzt stehen lassen.
