@@ -100,8 +100,6 @@ async function main() {
         const circleProfileId = circleProfileBody?.profile?.id || circleProfileBody?.user?.id || circleProfileBody?.item?.id;
         if (circleProfileId !== actor.id) throw new Error("Circle context changed the authenticated actor");
       }
-      }
-
       const cleared = await request("/api/external/admin/view-context", token, {
         method: "POST",
         body: JSON.stringify({ mode: "clear" })
