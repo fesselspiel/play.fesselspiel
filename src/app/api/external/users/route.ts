@@ -26,7 +26,7 @@ function userItem(user: any, tenantId?: string | null) {
     active: user.active,
     tenantId: membership?.tenantId || user.tenantId,
     tenantName: membership?.tenant?.name || null,
-    circleId: membership?.circleId ?? user.circleId,
+    circleId: membership ? membership.circleId : user.circleId,
     circleName: membership?.circle?.name || null,
     emailVerifiedAt: user.emailVerifiedAt?.toISOString?.() || null,
     lastLoginAt: user.lastLoginAt?.toISOString?.() || null,
