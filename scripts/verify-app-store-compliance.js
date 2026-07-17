@@ -55,6 +55,9 @@ const nativePushDevicesRoute = read("src/app/api/external/push/devices/route.ts"
 const eventsRoute = read("src/app/api/external/events/route.ts");
 const appNavigation = read("src/lib/app-navigation.ts");
 const shopifyProductsPage = read("src/app/bondage-system/page.tsx");
+const externalUsersRoute = read("src/app/api/external/users/route.ts");
+const externalUserDetailRoute = read("src/app/api/external/users/[id]/route.ts");
+const circleChatCirclesRoute = read("src/app/api/external/chat/circles/route.ts");
 
 check(files.includes("await assertMalwareFree(bytes)"), "Uploads muessen vor dem Speichern gescannt werden");
 check(files.includes('scanStatus: "CLEAN" as const'), "Dateizugriff muss auf CLEAN begrenzt sein");
@@ -123,6 +126,9 @@ check(capabilities.includes('{ method: "DELETE", path: "/api/external/push/devic
 check(eventsRoute.includes('"native_push_device_deleted"'), "Technische Push-Geraete-Loeschungen duerfen den normalen Feed nicht fuellen");
 check(appNavigation.includes('label: "Shopify-Produkte"'), "Die Web-Navigation muss den neutralen Namen Shopify-Produkte verwenden");
 check(shopifyProductsPage.includes("Shopify-Produkte") && !shopifyProductsPage.includes("Bondage-System"), "Die Produktseite darf den alten sichtbaren Namen Bondage-System nicht mehr anzeigen");
+check(externalUsersRoute.includes("circleId") && externalUsersRoute.includes("tenantId: auth.user.tenantId"), "Neue Benutzer muessen einem Zirkel der aktiven Seite zugeordnet werden koennen");
+check(externalUserDetailRoute.includes("tenantMembership.updateMany") && externalUserDetailRoute.includes("circle_not_found"), "Benutzer-Zirkel muessen mandantengebunden bearbeitbar sein");
+check(circleChatCirclesRoute.includes("export async function POST") && circleChatCirclesRoute.includes('action: "circle_created_api"'), "Admins brauchen einen protokollierten API-Vertrag zum Anlegen des ersten Zirkels");
 check(packageManifest.scripts?.["test:review-roles:live"] === "node scripts/verify-app-review-roles-live.js", "Reproduzierbarer Multi-Rollen-Review-Smoke fehlt in package.json");
 check(reviewRolesLive.includes('key: "ALEX"') && reviewRolesLive.includes('key: "SAM"') && reviewRolesLive.includes('key: "ADMIN"'), "Review-Smoke muss zwei normale Benutzer und einen Administrator pruefen");
 check(reviewRolesLive.includes('expectedRestrictedStatus = account.expectedAdmin ? 200 : 403'), "Review-Smoke muss Adminrechte und normale Benutzergrenzen pruefen");
