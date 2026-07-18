@@ -1,4 +1,4 @@
-export const PASSWORD_MIN_LENGTH = 12;
+export const PASSWORD_MIN_LENGTH = 1;
 export const PASSWORD_MAX_LENGTH = 128;
 
 export function passwordPolicyError(password: string) {
@@ -8,5 +8,5 @@ export function passwordPolicyError(password: string) {
 }
 
 export function passwordPolicyText() {
-  return `Mindestens ${PASSWORD_MIN_LENGTH} Zeichen.`;
+  return `Frei wählbar, höchstens ${PASSWORD_MAX_LENGTH} Zeichen.`;
 }

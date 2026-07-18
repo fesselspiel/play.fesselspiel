@@ -637,7 +637,7 @@ export default async function UsersPage(props: { searchParams?: Promise<{ error?
                     <p className="mt-1 text-xs leading-5 text-graphite">Setzt ein neues Passwort für diesen Benutzer. Das Passwort selbst wird nicht protokolliert.</p>
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <Field label="Neues Passwort"><input className={inputClass} name="nextPassword" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></Field>
+                    <Field label="Neues Passwort"><input className={inputClass} name="nextPassword" type="password" autoComplete="new-password" minLength={1} maxLength={128} required /></Field>
                     <p className="text-xs text-graphite">{passwordPolicyText()}</p>
                     <Field label="Neues Passwort wiederholen"><input className={inputClass} name="repeatPassword" type="password" autoComplete="new-password" required /></Field>
                   </div>

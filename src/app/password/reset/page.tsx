@@ -65,9 +65,9 @@ export default async function ResetPasswordPage(props: { searchParams?: Promise<
             <form action={resetPassword} className="space-y-4">
               <input type="hidden" name="token" value={token} />
               <Field label="Konto"><input className={inputClass} value={reset.user.username || reset.user.email} readOnly /></Field>
-              <Field label="Neues Passwort"><input className={inputClass} name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></Field>
+              <Field label="Neues Passwort"><input className={inputClass} name="password" type="password" autoComplete="new-password" minLength={1} maxLength={128} required /></Field>
               <p className="text-xs text-graphite">{passwordPolicyText()}</p>
-              {searchParams?.error?.startsWith("password_") ? <p className="text-sm font-semibold text-redbrand">Das Passwort muss zwischen 12 und 128 Zeichen lang sein.</p> : null}
+              {searchParams?.error?.startsWith("password_") ? <p className="text-sm font-semibold text-redbrand">Das Passwort darf nicht leer und höchstens 128 Zeichen lang sein.</p> : null}
               <SubmitButton pendingLabel="Passwort wird gespeichert...">Passwort speichern</SubmitButton>
             </form>
           )}

@@ -88,7 +88,7 @@ check(!mobileLoginDocs.includes("?token=fsp_"), "Mobile-Dokumentation darf keine
 check(!mobileLoginDocs.includes("URL-Token (`?token"), "Mobile-Dokumentation darf regulaere URL-Token nicht empfehlen");
 check(!mobileLoginDocs.includes("erzeugt `downloadUrlWithToken`"), "Mobile-Dokumentation darf keine tokenhaltigen Download-URLs empfehlen");
 check(!implementationLog.match(/\?token=\.\.\.|\?token=fsp_|files\/\{fileId\}\?token=/), "Implementierungslog enthaelt noch aktive Query-Token-Beispiele");
-check(passwordPolicy.includes("PASSWORD_MIN_LENGTH = 12") && passwordPolicy.includes("PASSWORD_MAX_LENGTH = 128"), "Zentrale Passwortregel muss 12 bis 128 Zeichen verlangen");
+check(passwordPolicy.includes("PASSWORD_MIN_LENGTH = 1") && passwordPolicy.includes("PASSWORD_MAX_LENGTH = 128"), "Zentrale Passwortregel muss nicht-leere Passwoerter bis 128 Zeichen erlauben");
 check(schema.includes("model ContentSpace {") && schema.includes("model ContentEntry {") && schema.includes("model ContentEntryAttachment {"), "Generische Inhaltsbereiche und Eintraege muessen additiv modelliert sein");
 check(contentSpaces.includes("ensureDefaultContentSpace") && contentSpaces.includes("syncLegacyContentEntriesForUser"), "Bestehende Tagebuch-/Wiki- und Ideeninhalte muessen in echte Standardbereiche migriert werden");
 check(contentSpaceRoute.includes("allowedUserIds") && contentSpaceRoute.includes("allowedCircleIds") && contentSpaceDetailRoute.includes("archivedAt: new Date()"), "Inhaltsbereiche brauchen Freigaben und verlustfreies Archivieren");

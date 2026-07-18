@@ -6,7 +6,7 @@ import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { normalizeUsername } from "@/lib/usernames";
-import { passwordPolicyError } from "@/lib/password-policy";
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, passwordPolicyError } from "@/lib/password-policy";
 
 export const runtime = "nodejs";
 
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
   const exists = await prisma.user.findFirst({ where: { OR: [{ username }, { email }] }, select: { id: true } });
   if (exists) return NextResponse.json({ ok: false, error: "user_exists" }, { status: 409 });
   const password = String(body.password || randomBytes(18).toString("base64url"));
-  if (body.password !== undefined && passwordPolicyError(password)) return NextResponse.json({ ok: false, error: "password_policy", minimumLength: 12, maximumLength: 128 }, { status: 400 });
+  if (body.password !== undefined && passwordPolicyError(password)) return NextResponse.json({ ok: false, error: "password_policy", minimumLength: PASSWORD_MIN_LENGTH, maximumLength: PASSWORD_MAX_LENGTH }, { status: 400 });
   const role = String(body.role || "USER").toUpperCase() === "ADMIN" ? Role.ADMIN : Role.USER;
   const circleId = String(body.circleId || "").trim() || null;
   if (circleId) {

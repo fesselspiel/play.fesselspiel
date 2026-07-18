@@ -37,7 +37,7 @@ function errorText(error?: string) {
   if (error === "username_exists") return "Dieser Benutzername ist bereits vergeben.";
   if (error === "email_mismatch") return "Diese Einladung ist an eine andere E-Mail-Adresse gebunden.";
   if (error === "missing") return "Bitte fülle alle Pflichtfelder aus.";
-  if (error === "password_too_short" || error === "password_too_long") return "Das Passwort muss zwischen 12 und 128 Zeichen lang sein.";
+  if (error === "password_too_short" || error === "password_too_long") return "Das Passwort darf nicht leer und höchstens 128 Zeichen lang sein.";
   if (error === "rate_limited") return "Zu viele Versuche. Bitte probiere es später erneut.";
   return "Die Einladung konnte nicht angenommen werden.";
 }
@@ -78,7 +78,7 @@ export default async function InviteAcceptPage(
               <Field label="Name"><input className={inputClass} name="name" required defaultValue={invite.name || ""} /></Field>
               <Field label="E-Mail"><input className={inputClass} name="email" type="email" required readOnly={Boolean(invite.email)} defaultValue={invite.email || ""} /></Field>
               <Field label="Benutzername"><input className={inputClass} name="username" placeholder="optional" /></Field>
-              <Field label="Passwort"><input className={inputClass} name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></Field>
+              <Field label="Passwort"><input className={inputClass} name="password" type="password" autoComplete="new-password" minLength={1} maxLength={128} required /></Field>
               <p className="text-xs text-graphite">{passwordPolicyText()}</p>
               <SubmitButton pendingLabel="Zugang wird erstellt...">Zugang erstellen</SubmitButton>
             </form>

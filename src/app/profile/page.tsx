@@ -321,12 +321,12 @@ export default async function ProfilePage(
                   : searchParams.passwordError === "mismatch"
                     ? "Die neuen Passwörter stimmen nicht überein."
                     : searchParams.passwordError === "policy"
-                      ? "Das Passwort muss zwischen 12 und 128 Zeichen lang sein."
+                      ? "Das Passwort darf nicht leer und höchstens 128 Zeichen lang sein."
                     : "Bitte alle Passwortfelder ausfüllen."}
               </div>
             ) : null}
             <Field label="Aktuelles Passwort"><input className={inputClass} name="currentPassword" type="password" autoComplete="current-password" required /></Field>
-            <Field label="Neues Passwort"><input className={inputClass} name="nextPassword" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></Field>
+            <Field label="Neues Passwort"><input className={inputClass} name="nextPassword" type="password" autoComplete="new-password" minLength={1} maxLength={128} required /></Field>
             <p className="text-xs text-graphite">{passwordPolicyText()}</p>
             <Field label="Neues Passwort wiederholen"><input className={inputClass} name="repeatPassword" type="password" autoComplete="new-password" required /></Field>
             <SubmitButton pendingLabel="Passwort wird gespeichert..."><KeyRound className="h-4 w-4" /> Passwort speichern</SubmitButton>

@@ -67,9 +67,9 @@ export default async function ConfirmEmailPage(props: { searchParams?: Promise<{
             <form action={confirmEmail} className="space-y-4">
               <input type="hidden" name="token" value={token} />
               <Field label="E-Mail"><input className={inputClass} value={confirmation.user.email} readOnly /></Field>
-              <Field label="Passwort setzen"><input className={inputClass} name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></Field>
+              <Field label="Passwort setzen"><input className={inputClass} name="password" type="password" autoComplete="new-password" minLength={1} maxLength={128} required /></Field>
               <p className="text-xs text-graphite">{passwordPolicyText()}</p>
-              {searchParams?.error?.startsWith("password_") ? <p className="text-sm font-semibold text-redbrand">Das Passwort muss zwischen 12 und 128 Zeichen lang sein.</p> : null}
+              {searchParams?.error?.startsWith("password_") ? <p className="text-sm font-semibold text-redbrand">Das Passwort darf nicht leer und höchstens 128 Zeichen lang sein.</p> : null}
               <SubmitButton pendingLabel="Zugang wird bestätigt...">Zugang bestätigen</SubmitButton>
             </form>
           )}
