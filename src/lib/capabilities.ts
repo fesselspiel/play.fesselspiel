@@ -133,7 +133,9 @@ export const capabilities: readonly Capability[] = [
         description: "Liest alle fuer den API-Benutzer zugänglichen Chat-Zirkel inklusive ungelesener Nachrichten.",
         apiEndpoints: [
           { method: "GET", path: "/api/external/chat/circles", description: "Zugängliche Zirkel mit id, name, memberCount, unreadCount und lastMessage." },
-          { method: "POST", path: "/api/external/chat/circles", description: "Admins legen mit `{ name }` einen Zirkel auf der aktiven Seite an." }
+          { method: "POST", path: "/api/external/chat/circles", description: "Admins legen mit `{ name }` einen Zirkel auf der aktiven Seite an." },
+          { method: "PATCH", path: "/api/external/chat/circles/{id}", description: "Admins benennen einen Zirkel der aktiven Seite mit `{ name }` um." },
+          { method: "DELETE", path: "/api/external/chat/circles/{id}", description: "Admins löschen einen Zirkel nur, wenn keine Mitglieder, Nachrichten, Freigaben oder Regeln mehr darauf verweisen." }
         ]
       },
       {

@@ -58,6 +58,7 @@ const shopifyProductsPage = read("src/app/bondage-system/page.tsx");
 const externalUsersRoute = read("src/app/api/external/users/route.ts");
 const externalUserDetailRoute = read("src/app/api/external/users/[id]/route.ts");
 const circleChatCirclesRoute = read("src/app/api/external/chat/circles/route.ts");
+const circleChatCircleDetailRoute = read("src/app/api/external/chat/circles/[id]/route.ts");
 
 check(files.includes("await assertMalwareFree(bytes)"), "Uploads muessen vor dem Speichern gescannt werden");
 check(files.includes('scanStatus: "CLEAN" as const'), "Dateizugriff muss auf CLEAN begrenzt sein");
@@ -129,6 +130,9 @@ check(shopifyProductsPage.includes("Shopify-Produkte") && !shopifyProductsPage.i
 check(externalUsersRoute.includes("circleId") && externalUsersRoute.includes("tenantId: auth.user.tenantId"), "Neue Benutzer muessen einem Zirkel der aktiven Seite zugeordnet werden koennen");
 check(externalUserDetailRoute.includes("tenantMembership.updateMany") && externalUserDetailRoute.includes("circle_not_found"), "Benutzer-Zirkel muessen mandantengebunden bearbeitbar sein");
 check(circleChatCirclesRoute.includes("export async function POST") && circleChatCirclesRoute.includes('action: "circle_created_api"'), "Admins brauchen einen protokollierten API-Vertrag zum Anlegen des ersten Zirkels");
+check(circleChatCircleDetailRoute.includes("export async function PATCH") && circleChatCircleDetailRoute.includes('action: "circle_updated_api"'), "Admins brauchen einen mandantengebundenen Vertrag zum Umbenennen von Zirkeln");
+check(circleChatCircleDetailRoute.includes("export async function DELETE") && circleChatCircleDetailRoute.includes("circle_not_empty") && circleChatCircleDetailRoute.includes('action: "circle_deleted_api"'), "Zirkel duerfen nur leer und protokolliert geloescht werden");
+check(capabilities.includes('{ method: "PATCH", path: "/api/external/chat/circles/{id}"') && capabilities.includes('{ method: "DELETE", path: "/api/external/chat/circles/{id}"'), "Capabilities muessen die native Zirkelverwaltung ausweisen");
 check(packageManifest.scripts?.["test:review-roles:live"] === "node scripts/verify-app-review-roles-live.js", "Reproduzierbarer Multi-Rollen-Review-Smoke fehlt in package.json");
 check(reviewRolesLive.includes('key: "ALEX"') && reviewRolesLive.includes('key: "SAM"') && reviewRolesLive.includes('key: "ADMIN"'), "Review-Smoke muss zwei normale Benutzer und einen Administrator pruefen");
 check(reviewRolesLive.includes('expectedRestrictedStatus = account.expectedAdmin ? 200 : 403'), "Review-Smoke muss Adminrechte und normale Benutzergrenzen pruefen");
