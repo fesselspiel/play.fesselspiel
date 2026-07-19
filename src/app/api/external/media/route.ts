@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData();
   let asset;
   try {
-    asset = await saveUploadedFile(auth.user.id, formData.get("file") as File | null);
+    asset = await saveUploadedFile(auth.user.id, formData.get("file") as File | null, auth.user.tenantId);
   } catch (error) {
     if (error instanceof FileScanUnavailableError) {
       return NextResponse.json(

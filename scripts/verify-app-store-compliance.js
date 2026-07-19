@@ -15,6 +15,7 @@ const apiConsole = read("src/app/settings/api-control/page.tsx");
 const externalApi = read("src/lib/external-api.ts");
 const apiTokens = read("src/lib/api-tokens.ts");
 const imagesApi = read("src/app/api/external/images/route.ts");
+const externalMediaRoute = read("src/app/api/external/media/route.ts");
 const schema = read("prisma/schema.prisma");
 const rateLimit = read("src/lib/security-rate-limit.ts");
 const webLogin = read("src/app/api/auth/login/route.ts");
@@ -64,6 +65,7 @@ check(files.includes("await assertMalwareFree(bytes)"), "Uploads muessen vor dem
 check(files.includes('scanStatus: "CLEAN" as const'), "Dateizugriff muss auf CLEAN begrenzt sein");
 check(!files.includes('scanStatus: { not: "REJECTED"'), "PENDING-Dateien duerfen nicht abrufbar sein");
 check(imagesApi.includes('scanStatus: "CLEAN"'), "Bildfeed muss nur CLEAN-Dateien liefern");
+check(externalMediaRoute.includes('saveUploadedFile(auth.user.id, formData.get("file") as File | null, auth.user.tenantId)'), "Medienupload muss Datei und Mediendatensatz demselben authentifizierten Tenant zuordnen");
 check(scanner.includes('Buffer.from("zINSTREAM\\0"'), "Scanner muss ClamAV INSTREAM verwenden");
 check(scanner.includes("FileScanUnavailableError"), "Scanner-Ausfall muss explizit behandelt werden");
 check(compose.includes("clamav/clamav@sha256:"), "ClamAV-Image muss per Digest fixiert sein");
