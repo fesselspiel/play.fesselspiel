@@ -42,6 +42,22 @@ services:
       - "traefik.http.routers.playfesselspiel.tls.certresolver=letsencrypt"
       - "traefik.http.services.playfesselspiel.loadbalancer.server.port=8097"
 
+  mcp:
+    build: ./mcp-server
+    container_name: kink_social_mcp
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+    ports:
+      - "127.0.0.1:${MCP_PORT:-8129}:8090"
+    environment:
+      MCP_PORT: 8090
+      MCP_SERVER_NAME: ${MCP_SERVER_NAME:-Playplaner MCP}
+      MCP_SERVER_VERSION: ${MCP_SERVER_VERSION:-0.1.0}
+      MCP_PUBLIC_BASE_URL: ${MCP_PUBLIC_BASE_URL:-https://playplaner.com}
+      MCP_PORTAL_BASE_URL: ${MCP_PORTAL_BASE_URL:-http://app:8097}
+
   postgres:
     image: postgres:16-alpine
     container_name: kink_social_postgres
