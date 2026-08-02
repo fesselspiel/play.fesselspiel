@@ -4,7 +4,7 @@ import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenancy";
 
-function tokenHash(token: string) {
+export function hashApiToken(token: string) {
   return createHmac("sha256", env.jwtSecret).update(token).digest("hex");
 }
 
@@ -35,7 +35,7 @@ export async function createApiToken(userId: string, name: string, tenantId?: st
       userId,
       tenantId: tenantId || (await currentTenant()).id,
       name: name.trim() || "API Token",
-      tokenHash: tokenHash(token),
+      tokenHash: hashApiToken(token),
       tokenLastSix: apiTokenLastSix(token)
     }
   });
@@ -58,7 +58,7 @@ export async function userFromApiToken(request: NextRequest | Request, options: 
   const token = tokenFromRequest(request);
   if (!token) return null;
   const record = await prisma.apiToken.findFirst({
-    where: { tokenHash: tokenHash(token), active: true, user: { active: true } },
+    where: { tokenHash: hashApiToken(token), active: true, user: { active: true } },
     include: {
       tenant: { include: { domains: true, features: true } },
       user: { include: { settings: true, profile: true, circle: true, tenant: { include: { domains: true, features: true } } } }

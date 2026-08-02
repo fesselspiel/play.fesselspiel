@@ -1,8 +1,76 @@
 import { connectorById, connectorCatalog, connectorSummary } from "./connectors.js";
+import { externalApiEndpointCatalog } from "./api-endpoints.js";
 import { appendQuery, buildPublicUrl, fillPath, portalJson } from "./portal-client.js";
 import { jsonResult, textResult } from "./format.js";
 
 const API_METHODS = ["GET", "POST", "PATCH", "DELETE"];
+
+function toolNameForEndpoint(method, apiPath) {
+  const suffix = apiPath
+    .replace(/^\/api\//, "")
+    .replace(/\{([a-zA-Z0-9_]+)\}/g, "$1")
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase();
+  return `api_${method.toLowerCase()}_${suffix}`.slice(0, 96);
+}
+
+function pathParamNames(apiPath) {
+  return [...String(apiPath).matchAll(/\{([a-zA-Z0-9_]+)\}/g)].map((match) => match[1]);
+}
+
+function endpointToolSchema(endpoint, method) {
+  const params = pathParamNames(endpoint.path);
+  const properties = {
+    query: {
+      type: "object",
+      additionalProperties: true,
+      description: "Optionale Query-Parameter. Werte werden URL-kodiert."
+    }
+  };
+  const required = [];
+  if (params.length) {
+    properties.pathParams = {
+      type: "object",
+      properties: Object.fromEntries(params.map((param) => [param, { type: "string" }])),
+      required: params,
+      additionalProperties: false,
+      description: `Pfadparameter: ${params.join(", ")}.`
+    };
+    required.push("pathParams");
+  }
+  if (method !== "GET") {
+    properties.body = {
+      type: "object",
+      additionalProperties: true,
+      description: "JSON-Body fuer schreibende API-Aufrufe."
+    };
+  }
+  return { type: "object", properties, required, additionalProperties: false };
+}
+
+function endpointDescription(endpoint, method) {
+  const action = {
+    GET: "liest",
+    POST: "erstellt oder loest eine Aktion aus",
+    PATCH: "aendert",
+    DELETE: "loescht oder deaktiviert"
+  }[method] || "ruft auf";
+  const params = pathParamNames(endpoint.path);
+  return `${endpoint.category}: ${action} ${endpoint.title} ueber ${endpoint.path}.${params.length ? ` Benoetigt Pfadparameter: ${params.join(", ")}.` : ""} Die Playplaner-API prueft Token, Rolle, Seite, Feature und Berechtigungen.`;
+}
+
+const generatedEndpointTools = externalApiEndpointCatalog.flatMap((endpoint) =>
+  endpoint.methods
+    .filter((method) => API_METHODS.includes(method))
+    .map((method) => ({
+      name: toolNameForEndpoint(method, endpoint.path),
+      description: endpointDescription(endpoint, method),
+      inputSchema: endpointToolSchema(endpoint, method),
+      endpoint,
+      method
+    }))
+);
 
 const toolDefinitions = [
   {
@@ -163,11 +231,39 @@ const toolDefinitions = [
 ];
 
 export function listTools() {
-  return toolDefinitions.map(({ handler, inputSchema, ...tool }) => ({ ...tool, inputSchema }));
+  const baseTools = toolDefinitions.map(({ handler, inputSchema, ...tool }) => ({ ...tool, inputSchema }));
+  const endpointTools = generatedEndpointTools.map(({ endpoint, method, ...tool }) => ({
+    ...tool,
+    annotations: {
+      title: `${method} ${endpoint.path}`,
+      readOnlyHint: method === "GET",
+      destructiveHint: method === "DELETE"
+    }
+  }));
+  return [...baseTools, ...endpointTools];
 }
 
 export async function callTool(name, args, context) {
   const tool = toolDefinitions.find((entry) => entry.name === name);
-  if (!tool) throw new Error(`Unbekanntes Tool: ${name}`);
-  return tool.handler(args || {}, context);
+  if (tool) return tool.handler(args || {}, context);
+
+  const endpointTool = generatedEndpointTools.find((entry) => entry.name === name);
+  if (!endpointTool) throw new Error(`Unbekanntes Tool: ${name}`);
+  const path = fillPath(endpointTool.endpoint.path, args?.pathParams);
+  const result = await portalJson(path, {
+    token: context.token,
+    method: endpointTool.method,
+    query: args?.query,
+    body: endpointTool.method === "GET" ? undefined : args?.body
+  });
+  return jsonResult(`${endpointTool.method} ${endpointTool.endpoint.path} ausgefuehrt.`, {
+    endpoint: {
+      category: endpointTool.endpoint.category,
+      title: endpointTool.endpoint.title,
+      method: endpointTool.method,
+      path: endpointTool.endpoint.path
+    },
+    request: { method: endpointTool.method, path: appendQuery(path, args?.query) },
+    result
+  });
 }

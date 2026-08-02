@@ -537,6 +537,39 @@ model ApiToken {
   @@index([userId, active])
 }
 
+model OAuthClient {
+  id                      String    @id @default(cuid())
+  clientId                String    @unique
+  clientName              String    @default("OAuth Client")
+  redirectUris            Json
+  grantTypes              Json?
+  responseTypes           Json?
+  tokenEndpointAuthMethod String    @default("none")
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([createdAt])
+}
+
+model OAuthAuthorizationCode {
+  id                  String    @id @default(cuid())
+  codeHash            String    @unique
+  clientId            String
+  userId              String
+  tenantId            String?
+  redirectUri         String
+  scope               String?
+  codeChallenge       String
+  codeChallengeMethod String    @default("S256")
+  expiresAt           DateTime
+  usedAt              DateTime?
+  createdAt           DateTime  @default(now())
+
+  @@index([clientId, createdAt])
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
 model ExternalViewContext {
   id          String    @id @default(cuid())
   tokenId     String

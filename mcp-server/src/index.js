@@ -1,5 +1,5 @@
 import http from "node:http";
-import { config, protectedResourceUrl } from "./config.js";
+import { config } from "./config.js";
 import { bearerFromRequest, validateToken } from "./portal-client.js";
 import { callTool, listTools } from "./tools.js";
 import { errorResult } from "./format.js";
@@ -13,7 +13,16 @@ function sendJson(response, status, body, headers = {}) {
   response.end(JSON.stringify(body, null, 2));
 }
 
-function sendMcpUnauthorized(response) {
+function publicBaseUrlFromRequest(request) {
+  const rawHost = request.headers["x-forwarded-host"] || request.headers.host || new URL(config.publicBaseUrl).host;
+  const rawProto = request.headers["x-forwarded-proto"] || new URL(config.publicBaseUrl).protocol.replace(/:$/, "") || "https";
+  const host = Array.isArray(rawHost) ? rawHost[0] : rawHost;
+  const proto = Array.isArray(rawProto) ? rawProto[0] : rawProto;
+  return `${proto}://${host}`;
+}
+
+function sendMcpUnauthorized(request, response) {
+  const baseUrl = publicBaseUrlFromRequest(request);
   sendJson(
     response,
     401,
@@ -23,7 +32,7 @@ function sendMcpUnauthorized(response) {
         message: "Bearer Token aus Playplaner fehlt oder ist ungültig."
       }
     },
-    { "www-authenticate": `Bearer resource_metadata="${protectedResourceUrl()}"` }
+    { "www-authenticate": `Bearer resource_metadata="${baseUrl}/.well-known/oauth-protected-resource"` }
   );
 }
 
@@ -53,9 +62,9 @@ function rpcError(id, code, message, data) {
 
 async function handleMcp(request, response) {
   const token = bearerFromRequest(request);
-  if (!token) return sendMcpUnauthorized(response);
+  if (!token) return sendMcpUnauthorized(request, response);
   const me = await validateToken(token).catch(() => null);
-  if (!me?.ok) return sendMcpUnauthorized(response);
+  if (!me?.ok) return sendMcpUnauthorized(request, response);
 
   let rpc;
   try {
@@ -116,12 +125,50 @@ async function handleHealth(response) {
   }
 }
 
-function handleProtectedResource(response) {
+function handleProtectedResource(request, response) {
+  const baseUrl = publicBaseUrlFromRequest(request);
   sendJson(response, 200, {
-    resource: `${config.publicBaseUrl}/mcp`,
-    authorization_servers: [config.publicBaseUrl],
+    resource: `${baseUrl}/mcp`,
+    authorization_servers: [baseUrl],
+    scopes_supported: oauthScopes(),
     bearer_methods_supported: ["header"],
-    resource_documentation: `${config.publicBaseUrl}/settings/api`
+    resource_documentation: `${baseUrl}/settings/api`
+  });
+}
+
+function oauthScopes() {
+  return [
+    "read:portal",
+    "write:portal",
+    "read:catalog",
+    "write:catalog",
+    "read:chat",
+    "write:chat",
+    "read:trackers",
+    "write:trackers",
+    "read:media",
+    "write:media",
+    "read:wiki",
+    "write:wiki",
+    "read:admin",
+    "write:admin"
+  ];
+}
+
+function handleAuthorizationServer(request, response) {
+  const baseUrl = publicBaseUrlFromRequest(request);
+  sendJson(response, 200, {
+    issuer: baseUrl,
+    authorization_endpoint: `${baseUrl}/oauth/authorize`,
+    token_endpoint: `${baseUrl}/oauth/token`,
+    registration_endpoint: `${baseUrl}/oauth/register`,
+    revocation_endpoint: `${baseUrl}/oauth/revoke`,
+    response_types_supported: ["code"],
+    grant_types_supported: ["authorization_code"],
+    code_challenge_methods_supported: ["S256"],
+    token_endpoint_auth_methods_supported: ["none"],
+    client_id_metadata_document_supported: true,
+    scopes_supported: oauthScopes()
   });
 }
 
@@ -129,7 +176,8 @@ const server = http.createServer(async (request, response) => {
   try {
     const url = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`);
     if (request.method === "GET" && url.pathname === "/health") return handleHealth(response);
-    if (request.method === "GET" && url.pathname === "/.well-known/oauth-protected-resource") return handleProtectedResource(response);
+    if (request.method === "GET" && url.pathname === "/.well-known/oauth-protected-resource") return handleProtectedResource(request, response);
+    if (request.method === "GET" && url.pathname === "/.well-known/oauth-authorization-server") return handleAuthorizationServer(request, response);
     if (url.pathname === "/mcp" && request.method === "DELETE") {
       response.writeHead(204);
       return response.end();
