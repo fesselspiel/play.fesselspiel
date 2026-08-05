@@ -6,11 +6,15 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const redirectUris = normalizeRedirectUris(body.redirect_uris);
   if (!redirectUris.length) {
-    return NextResponse.json({ error: "redirect_uris fehlt oder ist ungueltig." }, { status: 400 });
+    return NextResponse.json({ error: "invalid_redirect_uri", error_description: "redirect_uris fehlt oder ist ungueltig." }, { status: 400 });
+  }
+  const tokenEndpointAuthMethod = String(body.token_endpoint_auth_method || "none");
+  if (tokenEndpointAuthMethod !== "none") {
+    return NextResponse.json({ error: "invalid_client_metadata", error_description: "Nur token_endpoint_auth_method=none wird unterstuetzt." }, { status: 400 });
   }
   const clientId = createOAuthClientId();
   const clientName = String(body.client_name || body.client_uri || "OAuth Client").trim().slice(0, 160) || "OAuth Client";
-  await prisma.oAuthClient.create({
+  const client = await prisma.oAuthClient.create({
     data: {
       clientId,
       clientName,
@@ -22,6 +26,7 @@ export async function POST(request: Request) {
   });
   return NextResponse.json({
     client_id: clientId,
+    client_id_issued_at: Math.floor(client.createdAt.getTime() / 1000),
     client_name: clientName,
     redirect_uris: redirectUris,
     grant_types: ["authorization_code"],

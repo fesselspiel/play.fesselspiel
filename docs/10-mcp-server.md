@@ -143,6 +143,14 @@ Der MCP-Server liefert die Metadata. Die OAuth-Flussrouten selbst liegen unter `
 
 Der ausgegebene Access Token ist ein normaler Playplaner-API-Token. Dadurch gelten dieselben Rollen, Seiten, Features und Berechtigungen wie bei den mobilen und externen APIs.
 
+ChatGPT-Kompatibilitaet:
+
+- Dynamic Client Registration ueber `/oauth/register` wird unterstuetzt.
+- Wenn ChatGPT stattdessen direkt mit einer ChatGPT-URL als `client_id` in `/oauth/authorize` einsteigt, wird dieser Client wie beim Immobilienportal automatisch registriert.
+- Erlaubt sind dabei nur HTTPS-Redirects auf `chatgpt.com` oder `chat.openai.com`.
+- `resource` muss zur aktuellen MCP-Domain passen, z. B. `https://playplaner.com/mcp` oder `https://play.fesselspiel.com/mcp`.
+- `/oauth/token` akzeptiert `application/x-www-form-urlencoded` und JSON.
+
 ## Tests
 
 Health:
