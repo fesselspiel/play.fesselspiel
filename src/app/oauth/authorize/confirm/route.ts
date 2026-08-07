@@ -7,7 +7,7 @@ function redirectWithError(redirectUri: string, state: string, error: string) {
   const url = new URL(redirectUri);
   url.searchParams.set("error", error);
   if (state) url.searchParams.set("state", state);
-  return NextResponse.redirect(url);
+  return NextResponse.redirect(url, 303);
 }
 
 export async function POST(request: Request) {
@@ -45,5 +45,5 @@ export async function POST(request: Request) {
   const url = new URL(redirectUri);
   url.searchParams.set("code", code);
   if (state) url.searchParams.set("state", state);
-  return NextResponse.redirect(url);
+  return NextResponse.redirect(url, 303);
 }

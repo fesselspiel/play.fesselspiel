@@ -60,6 +60,38 @@ function rpcError(id, code, message, data) {
   return { jsonrpc: "2.0", id: id ?? null, error: { code, message, ...(data === undefined ? {} : { data }) } };
 }
 
+function isNotification(rpc) {
+  return rpc && typeof rpc === "object" && !Array.isArray(rpc) && rpc.id === undefined && typeof rpc.method === "string";
+}
+
+async function handleRpcMessage(rpc, context) {
+  if (!rpc || typeof rpc !== "object" || Array.isArray(rpc)) {
+    return rpcError(null, -32600, "Ungueltige JSON-RPC-Anfrage.");
+  }
+  const method = rpc.method;
+  const id = rpc.id ?? null;
+  const notification = isNotification(rpc);
+
+  if (method === "notifications/initialized" || method === "initialized") return notification ? null : rpcResult(id, {});
+  if (method === "initialize") {
+    return rpcResult(id, {
+      protocolVersion: "2025-06-18",
+      capabilities: { tools: {} },
+      serverInfo: { name: config.serverName, version: config.serverVersion },
+      instructions: "Dieser MCP-Server kapselt Playplaner ausschliesslich ueber die bestehenden /api/external-Endpunkte. Nutze list_connectors fuer verfuegbare Fachkonnektoren und call_connector oder dedizierte Tools fuer Aktionen."
+    });
+  }
+  if (method === "ping") return rpcResult(id, {});
+  if (method === "tools/list") return rpcResult(id, { tools: listTools() });
+  if (method === "tools/call") {
+    const name = rpc?.params?.name;
+    const args = rpc?.params?.arguments || {};
+    const result = await callTool(name, args, context);
+    return rpcResult(id, result);
+  }
+  return notification ? null : rpcError(id, -32601, `Methode ${method || "(leer)"} ist nicht implementiert.`);
+}
+
 async function handleMcp(request, response) {
   const token = bearerFromRequest(request);
   if (!token) return sendMcpUnauthorized(request, response);
@@ -73,32 +105,34 @@ async function handleMcp(request, response) {
     return sendJson(response, error.status || 400, rpcError(null, -32700, "Ungültiger JSON-RPC-Body."));
   }
 
-  const method = rpc?.method;
-  const id = rpc?.id ?? null;
+  const context = {
+    token,
+    me,
+    publicBaseUrl: publicBaseUrlFromRequest(request)
+  };
   try {
-    if (method === "initialize") {
-      return sendJson(response, 200, rpcResult(id, {
-        protocolVersion: "2025-06-18",
-        capabilities: { tools: {} },
-        serverInfo: { name: config.serverName, version: config.serverVersion },
-        instructions: "Dieser MCP-Server kapselt Playplaner ausschließlich über die bestehenden /api/external-Endpunkte. Nutze list_connectors für verfügbare Fachkonnektoren und call_connector oder dedizierte Tools für Aktionen."
-      }));
+    if (Array.isArray(rpc)) {
+      if (!rpc.length) return sendJson(response, 400, rpcError(null, -32600, "Leere JSON-RPC-Batches sind nicht erlaubt."));
+      const results = [];
+      for (const item of rpc) {
+        const result = await handleRpcMessage(item, context);
+        if (result) results.push(result);
+      }
+      if (!results.length) {
+        response.writeHead(202, { "cache-control": "no-store" });
+        return response.end();
+      }
+      return sendJson(response, 200, results);
     }
-    if (method === "ping") return sendJson(response, 200, rpcResult(id, {}));
-    if (method === "tools/list") return sendJson(response, 200, rpcResult(id, { tools: listTools() }));
-    if (method === "tools/call") {
-      const name = rpc?.params?.name;
-      const args = rpc?.params?.arguments || {};
-      const result = await callTool(name, args, {
-        token,
-        me,
-        publicBaseUrl: config.publicBaseUrl
-      });
-      return sendJson(response, 200, rpcResult(id, result));
+
+    const result = await handleRpcMessage(rpc, context);
+    if (!result) {
+      response.writeHead(202, { "cache-control": "no-store" });
+      return response.end();
     }
-    return sendJson(response, 200, rpcError(id, -32601, `Methode ${method || "(leer)"} ist nicht implementiert.`));
+    return sendJson(response, 200, result);
   } catch (error) {
-    return sendJson(response, 200, rpcResult(id, errorResult(error)));
+    return sendJson(response, 200, rpcResult(rpc?.id ?? null, errorResult(error)));
   }
 }
 

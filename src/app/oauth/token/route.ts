@@ -3,6 +3,8 @@ import { createApiToken } from "@/lib/api-tokens";
 import { hashOAuthCode, isValidOAuthResource, oauthResource, pkceS256, safeEqualText } from "@/lib/oauth";
 import { prisma } from "@/lib/prisma";
 
+const ACCESS_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30;
+
 function tokenError(error: string, status = 400) {
   return NextResponse.json({ error }, { status, headers: { "Cache-Control": "no-store" } });
 }
@@ -39,7 +41,7 @@ export async function POST(request: Request) {
     access_token: token,
     token_type: "Bearer",
     scope: authCode.scope || "",
-    expires_in: 0,
+    expires_in: ACCESS_TOKEN_TTL_SECONDS,
     resource,
     token_id: record.id
   }, { headers: { "Cache-Control": "no-store" } });

@@ -150,6 +150,24 @@ ChatGPT-Kompatibilitaet:
 - Erlaubt sind dabei nur HTTPS-Redirects auf `chatgpt.com` oder `chat.openai.com`.
 - `resource` muss zur aktuellen MCP-Domain passen, z. B. `https://playplaner.com/mcp` oder `https://play.fesselspiel.com/mcp`.
 - `/oauth/token` akzeptiert `application/x-www-form-urlencoded` und JSON.
+- `/oauth/authorize/confirm` leitet mit `303 See Other` zur Client-Redirect-URI zurueck.
+- `/oauth/token` liefert eine positive Token-Laufzeit (`expires_in`) statt `0`, damit OAuth-Clients den Token nicht sofort als abgelaufen betrachten.
+
+## MCP-Transport
+
+Der MCP-Endpunkt ist stateless und verarbeitet JSON-RPC ueber `POST /mcp`.
+
+Unterstuetzt werden:
+
+- einzelne JSON-RPC-Requests
+- JSON-RPC-Batches
+- `initialize`
+- `ping`
+- `tools/list`
+- `tools/call`
+- Notifications wie `notifications/initialized`
+
+Notifications ohne Antwort-ID werden nicht als Fehler behandelt. Wenn ein Request oder Batch nur Notifications enthaelt, antwortet der MCP-Server mit `202 Accepted`. Das entspricht dem Verhalten, das ChatGPT beim echten MCP-Handshake erwartet.
 
 ## Tests
 
@@ -216,3 +234,17 @@ Erwartung: mehr als 200 Tools, darunter `api_get_external_status` und die generi
   - `get_portal_status`
   - `list_connectors`
 - Testsession wurde nach dem Smoke-Test widerrufen.
+
+## Abnahme am 07.08.2026
+
+- Docker-Build fuer App und MCP erfolgreich.
+- Live-Metadata fuer `https://playplaner.com` und `https://play.fesselspiel.com` host-korrekt geprueft.
+- `POST /mcp` ohne Token liefert `401` mit `WWW-Authenticate`.
+- Authentifizierter Smoke-Test mit temporaerem API-Token erfolgreich:
+  - `initialize` -> `200`
+  - `notifications/initialized` -> `202`
+  - JSON-RPC-Batch mit Notification und `tools/list` -> `200`
+  - `tools/list` -> `200`
+- Toolanzahl lokal geprueft: 202.
+- OAuth-Token-Antwort geprueft: `expires_in: 2592000`.
+- Temporaere Test-Tokens wurden nach dem Test deaktiviert.
