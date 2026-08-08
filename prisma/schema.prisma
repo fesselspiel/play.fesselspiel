@@ -1551,6 +1551,7 @@ model TrackerType {
   quotaMonthlyMinutes  Int?
   quotaReminderEnabled Boolean        @default(false)
   quotaReminderIntervalMinutes Int     @default(1440)
+  quotaReminderSchedule Json           @default("{}")
   visibility           String         @default("ALL")
   allowedUserIds       Json           @default("[]")
   fields               Json           @default("[]")

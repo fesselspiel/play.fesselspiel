@@ -153,11 +153,11 @@ Vor Merge sollte jemand mit Produktkontext pruefen, ob die API-Control-Seite nur
 
 ## Konfigurierbare Kontingent-Erinnerungen
 
-Tracker-Typen liefern und akzeptieren zusätzlich `quotaReminderIntervalMinutes`. Erlaubt sind 60 Minuten, 3, 6 und 12 Stunden sowie einmal täglich. Das bestehende Feld `quotaReminderEnabled` schaltet die Erinnerung pro Tracker ein. Web und native Apps bearbeiten beide Werte über den vorhandenen typisierten Tracker-Typ-Vertrag; unbekannte Intervalle werden defensiv auf einmal täglich normalisiert.
+Tracker-Typen liefern und akzeptieren zusätzlich `quotaReminderSchedule`. Der Zeitplan enthält getrennte Regeln für `daily`, `weekly` und `monthly`, jeweils mit `enabled`, `startMinutes` und `repeatMinutes`. Wochenregeln enthalten außerdem `weekday` (0 Sonntag bis 6 Samstag), Monatsregeln `dayOfMonth` (1 bis 28 oder 0 für den letzten Monatstag). Erlaubte Wiederholungsabstände sind 60 Minuten, 3, 6 und 12 Stunden sowie einmal täglich. `quotaReminderEnabled` bleibt der Hauptschalter pro Tracker; die bisherigen Intervallfelder bleiben für Rückwärtskompatibilität erhalten.
 
 Die serverseitige Auslösung berücksichtigt die Periode des jeweils offenen Kontingents. Tagesziele werden erst am Abend desselben Tages relevant, feste Wochenziele erst am letzten Tag der konfigurierten Tracker-Woche und Monatsziele erst am letzten Monatstag. Rollierende Wochenziele können täglich abends erinnern, weil sich ihr Sieben-Tage-Fenster täglich verschiebt. Das konfigurierte Intervall begrenzt weitere Zustellungen innerhalb des relevanten Fensters. Dadurch erzeugt ein bloß seit Wochenbeginn offenes Wochenziel keine täglichen Hinweise.
 
-Der Cron erzeugt nur bei einem tatsächlich offenen Kontingent eine Erinnerung und verwendet den letzten passenden Audit-Eintrag desselben Trackers und Benutzers als Sperrfrist. Dadurch lässt sich die Frequenz ändern, ohne separate Zeitpläne oder Cronjobs anzulegen.
+Der Cron erzeugt nur bei einem tatsächlich offenen Kontingent und einer fälligen, aktivierten Regel eine Erinnerung. Tages-, Wochen- und Monatsziel werden unabhängig voneinander ausgewertet. Der letzte passende Audit-Eintrag desselben Trackers, Benutzers, Zeitraums und Periodenschlüssels dient als Sperrfrist. Dadurch lassen sich Zeitpunkt und Frequenz jeder Kontingentart ändern, ohne separate Cronjobs anzulegen.
 
 ## Nachgezogen nach Review
 

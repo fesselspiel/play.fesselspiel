@@ -3,7 +3,8 @@ import { logAction } from "@/lib/audit";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { runDueScheduledRules } from "@/lib/scheduled-rules";
-import { trackerQuotaReminderReason } from "@/lib/tracker-quota-reminders";
+import { trackerReminderSchedule } from "@/lib/external-tracker-types";
+import { trackerQuotaReminderDecisions } from "@/lib/tracker-quota-reminders";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 
 export const runtime = "nodejs";
@@ -26,10 +27,29 @@ export async function GET(request: Request) {
         { quotaMonthlyMinutes: { not: null } }
       ]
     },
-    select: { id: true, tenantId: true, key: true, quotaReminderIntervalMinutes: true }
+    select: {
+      id: true,
+      tenantId: true,
+      key: true,
+      quotaReminderIntervalMinutes: true,
+      quotaReminderSchedule: true,
+      quotaDailyMinutes: true,
+      quotaWeeklyMinutes: true,
+      quotaWeekStartsOn: true,
+      quotaMonthlyDays: true,
+      quotaMonthlyMinutes: true
+    }
   });
   const tenants = Array.from(new Set(activeTrackers.map((entry) => entry.tenantId).filter(Boolean))) as string[];
-  const reminderIntervals = new Map(activeTrackers.map((entry) => [entry.id, entry.quotaReminderIntervalMinutes]));
+  const schedules = new Map(activeTrackers.map((entry) => [entry.id, trackerReminderSchedule(entry.quotaReminderSchedule, {
+    enabled: true,
+    interval: entry.quotaReminderIntervalMinutes,
+    weekStartsOn: entry.quotaWeekStartsOn,
+    dailyQuota: entry.quotaDailyMinutes,
+    weeklyQuota: entry.quotaWeeklyMinutes,
+    monthlyDaysQuota: entry.quotaMonthlyDays,
+    monthlyMinutesQuota: entry.quotaMonthlyMinutes
+  })]));
   let reminders = 0;
   const now = new Date();
   for (const tenantId of tenants) {
@@ -40,43 +60,44 @@ export async function GET(request: Request) {
     for (const membership of users) {
       const statuses = await trackerQuotaStatusForUser(membership.user);
       for (const status of statuses.filter((entry) => entry.hasQuota && !entry.complete)) {
-        const reminderReason = trackerQuotaReminderReason(status, now);
-        if (!reminderReason) continue;
-        const intervalMinutes = reminderIntervals.get(status.tracker.id) ?? 1440;
-        const entityId = `${status.tracker.id}:${membership.userId}`;
-        const existing = await prisma.auditLog.findFirst({
-          where: {
+        const schedule = schedules.get(status.tracker.id);
+        if (!schedule) continue;
+        for (const decision of trackerQuotaReminderDecisions(status, schedule, now)) {
+          const entityId = `${status.tracker.id}:${membership.userId}:${decision.period}:${decision.periodKey}`;
+          const existing = await prisma.auditLog.findFirst({
+            where: {
+              action: "tracker_quota_reminder",
+              entityType: "trackerQuota",
+              entityId,
+              createdAt: { gte: new Date(now.getTime() - decision.repeatMinutes * 60_000) }
+            },
+            orderBy: { createdAt: "desc" }
+          });
+          if (existing) continue;
+          await logAction({
+            actorId: membership.userId,
             action: "tracker_quota_reminder",
             entityType: "trackerQuota",
             entityId,
-            createdAt: { gte: new Date(now.getTime() - intervalMinutes * 60_000) }
-          },
-          orderBy: { createdAt: "desc" }
-        });
-        if (existing) continue;
-        await logAction({
-          actorId: membership.userId,
-          action: "tracker_quota_reminder",
-          entityType: "trackerQuota",
-          entityId,
-          title: `Tracker-Kontingent offen: ${status.tracker.title}`,
-          details: {
-            trackerKey: status.tracker.key,
-            trackerTitle: status.tracker.title,
-            targetUserId: membership.userId,
-            targetScreen: "quotas",
-            targetId: status.tracker.key,
-            reminderIntervalMinutes: intervalMinutes,
-            reminderReason,
-            summary: quotaSummaryText(status),
-            daily: status.daily,
-            weekly: status.weekly,
-            monthlyMinutes: status.monthlyMinutes,
-            monthlyDays: status.monthlyDays
-          },
-          href: "/settings/trackers"
-        });
-        reminders += 1;
+            title: `Tracker-Kontingent offen: ${status.tracker.title}`,
+            details: {
+              trackerKey: status.tracker.key,
+              trackerTitle: status.tracker.title,
+              targetUserId: membership.userId,
+              targetScreen: "quotas",
+              targetId: status.tracker.key,
+              reminderIntervalMinutes: decision.repeatMinutes,
+              reminderReason: decision.period,
+              summary: quotaSummaryText(status),
+              daily: status.daily,
+              weekly: status.weekly,
+              monthlyMinutes: status.monthlyMinutes,
+              monthlyDays: status.monthlyDays
+            },
+            href: "/settings/trackers"
+          });
+          reminders += 1;
+        }
       }
     }
   }

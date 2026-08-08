@@ -26,9 +26,84 @@ function booleanValue(value: unknown, fallback: boolean) {
 
 export const trackerReminderIntervals = [60, 180, 360, 720, 1440] as const;
 
+export type TrackerReminderRule = {
+  enabled: boolean;
+  startMinutes: number;
+  repeatMinutes: number;
+  weekday?: number;
+  dayOfMonth?: number;
+};
+
+export type TrackerReminderSchedule = {
+  daily: TrackerReminderRule;
+  weekly: TrackerReminderRule;
+  monthly: TrackerReminderRule;
+};
+
 function reminderInterval(value: unknown, fallback: number) {
   const parsed = Number(value);
   return trackerReminderIntervals.includes(parsed as typeof trackerReminderIntervals[number]) ? parsed : fallback;
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function minuteOfDay(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? Math.min(1439, Math.max(0, parsed)) : fallback;
+}
+
+export function trackerReminderSchedule(
+  value: unknown,
+  fallback: {
+    enabled?: boolean | null;
+    interval?: number | null;
+    weekStartsOn?: number | null;
+    dailyQuota?: number | null;
+    weeklyQuota?: number | null;
+    monthlyDaysQuota?: number | null;
+    monthlyMinutesQuota?: number | null;
+  } = {}
+): TrackerReminderSchedule {
+  const schedule = objectValue(value);
+  const interval = reminderInterval(fallback.interval, 1440);
+  const legacyEnabled = fallback.enabled === true;
+  const normalizeRule = (key: "daily" | "weekly" | "monthly", defaults: TrackerReminderRule) => {
+    const rule = objectValue(schedule[key]);
+    return {
+      ...defaults,
+      enabled: booleanValue(rule.enabled, defaults.enabled),
+      startMinutes: minuteOfDay(rule.startMinutes, defaults.startMinutes),
+      repeatMinutes: reminderInterval(rule.repeatMinutes, defaults.repeatMinutes)
+    };
+  };
+  const daily = normalizeRule("daily", {
+    enabled: legacyEnabled && Boolean(fallback.dailyQuota),
+    startMinutes: 1080,
+    repeatMinutes: interval
+  });
+  const weeklyRaw = objectValue(schedule.weekly);
+  const weekly = {
+    ...normalizeRule("weekly", {
+      enabled: legacyEnabled && Boolean(fallback.weeklyQuota),
+      startMinutes: 1080,
+      repeatMinutes: interval,
+      weekday: ((fallback.weekStartsOn ?? 1) + 6) % 7
+    }),
+    weekday: Math.min(6, Math.max(0, Number(weeklyRaw.weekday ?? ((fallback.weekStartsOn ?? 1) + 6) % 7)))
+  };
+  const monthlyRaw = objectValue(schedule.monthly);
+  const monthly = {
+    ...normalizeRule("monthly", {
+      enabled: legacyEnabled && Boolean(fallback.monthlyDaysQuota || fallback.monthlyMinutesQuota),
+      startMinutes: 1080,
+      repeatMinutes: interval,
+      dayOfMonth: 0
+    }),
+    dayOfMonth: Math.min(28, Math.max(0, Number(monthlyRaw.dayOfMonth ?? 0)))
+  };
+  return { daily, weekly, monthly };
 }
 
 export function trackerAllowedUserIds(value: unknown) {
@@ -63,6 +138,18 @@ export function trackerTypeData(body: Record<string, unknown>, current?: Tracker
       body.quotaReminderIntervalMinutes,
       current?.quotaReminderIntervalMinutes ?? 1440
     ),
+    quotaReminderSchedule: trackerReminderSchedule(
+      body.quotaReminderSchedule === undefined ? current?.quotaReminderSchedule : body.quotaReminderSchedule,
+      {
+        enabled: booleanValue(body.quotaReminderEnabled, current?.quotaReminderEnabled ?? false),
+        interval: reminderInterval(body.quotaReminderIntervalMinutes, current?.quotaReminderIntervalMinutes ?? 1440),
+        weekStartsOn: Number(body.quotaWeekStartsOn ?? current?.quotaWeekStartsOn ?? 1),
+        dailyQuota: body.quotaDailyMinutes === undefined ? current?.quotaDailyMinutes : nullableInteger(body.quotaDailyMinutes),
+        weeklyQuota: body.quotaWeeklyMinutes === undefined ? current?.quotaWeeklyMinutes : nullableInteger(body.quotaWeeklyMinutes),
+        monthlyDaysQuota: body.quotaMonthlyDays === undefined ? current?.quotaMonthlyDays : nullableInteger(body.quotaMonthlyDays),
+        monthlyMinutesQuota: body.quotaMonthlyMinutes === undefined ? current?.quotaMonthlyMinutes : nullableInteger(body.quotaMonthlyMinutes)
+      }
+    ),
     visibility: body.visibility === "USERS" ? "USERS" : body.visibility === undefined ? current?.visibility ?? "ALL" : "ALL",
     allowedUserIds: body.allowedUserIds === undefined ? trackerAllowedUserIds(current?.allowedUserIds) : trackerAllowedUserIds(body.allowedUserIds)
   };
@@ -91,6 +178,15 @@ export function serializeTrackerType(
     quotaMonthlyMinutes: tracker.quotaMonthlyMinutes,
     quotaReminderEnabled: tracker.quotaReminderEnabled,
     quotaReminderIntervalMinutes: tracker.quotaReminderIntervalMinutes,
+    quotaReminderSchedule: trackerReminderSchedule(tracker.quotaReminderSchedule, {
+      enabled: tracker.quotaReminderEnabled,
+      interval: tracker.quotaReminderIntervalMinutes,
+      weekStartsOn: tracker.quotaWeekStartsOn,
+      dailyQuota: tracker.quotaDailyMinutes,
+      weeklyQuota: tracker.quotaWeeklyMinutes,
+      monthlyDaysQuota: tracker.quotaMonthlyDays,
+      monthlyMinutesQuota: tracker.quotaMonthlyMinutes
+    }),
     visibility: tracker.visibility,
     allowedUserIds: trackerAllowedUserIds(tracker.allowedUserIds),
     fields: tracker.fields,
