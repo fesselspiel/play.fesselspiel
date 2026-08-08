@@ -42,7 +42,9 @@ export type TrackerReminderSchedule = {
 
 function reminderInterval(value: unknown, fallback: number) {
   const parsed = Number(value);
-  return trackerReminderIntervals.includes(parsed as typeof trackerReminderIntervals[number]) ? parsed : fallback;
+  const isHourlyPreset = trackerReminderIntervals.includes(parsed as typeof trackerReminderIntervals[number]);
+  const isWholeDayInterval = Number.isInteger(parsed) && parsed >= 1440 && parsed <= 28 * 1440 && parsed % 1440 === 0;
+  return isHourlyPreset || isWholeDayInterval ? parsed : fallback;
 }
 
 function objectValue(value: unknown): Record<string, unknown> {

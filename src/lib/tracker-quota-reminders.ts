@@ -6,6 +6,7 @@ type Progress = { required: number; complete: boolean };
 export type ReminderQuotaStatus = {
   daily: Progress;
   weekly: Progress;
+  weekStartsOn: number;
   monthlyMinutes: Progress;
   monthlyDays: Progress;
   periods: {
@@ -45,6 +46,12 @@ function isLastLocalDayOfMonth(date: Date) {
   return today !== tomorrow;
 }
 
+function occursOnDayOffset(dayOffset: number, repeatMinutes: number) {
+  if (dayOffset < 0) return false;
+  if (repeatMinutes < 1440) return dayOffset === 0;
+  return dayOffset % (repeatMinutes / 1440) === 0;
+}
+
 export function trackerQuotaReminderDecisions(
   status: ReminderQuotaStatus,
   schedule: TrackerReminderSchedule,
@@ -52,6 +59,9 @@ export function trackerQuotaReminderDecisions(
 ): TrackerQuotaReminderDecision[] {
   const local = zonedParts(now);
   const decisions: TrackerQuotaReminderDecision[] = [];
+  const weekDayOffset =
+    (local.weekday - status.weekStartsOn + 7) % 7 -
+    ((schedule.weekly.weekday ?? 0) - status.weekStartsOn + 7) % 7;
 
   if (
     schedule.daily.enabled &&
@@ -66,7 +76,7 @@ export function trackerQuotaReminderDecisions(
     schedule.weekly.enabled &&
     status.weekly.required > 0 &&
     !status.weekly.complete &&
-    local.weekday === schedule.weekly.weekday &&
+    occursOnDayOffset(weekDayOffset, schedule.weekly.repeatMinutes) &&
     local.minutes >= schedule.weekly.startMinutes
   ) {
     decisions.push({ period: "weekly", periodKey: status.periods.weekly.key, repeatMinutes: schedule.weekly.repeatMinutes });
@@ -77,7 +87,7 @@ export function trackerQuotaReminderDecisions(
     (status.monthlyDays.required > 0 && !status.monthlyDays.complete);
   const monthlyDayMatches = schedule.monthly.dayOfMonth === 0
     ? isLastLocalDayOfMonth(now)
-    : local.dayOfMonth === schedule.monthly.dayOfMonth;
+    : occursOnDayOffset(local.dayOfMonth - (schedule.monthly.dayOfMonth ?? 1), schedule.monthly.repeatMinutes);
   if (
     schedule.monthly.enabled &&
     monthlyOpen &&
