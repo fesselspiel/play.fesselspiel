@@ -155,6 +155,8 @@ Vor Merge sollte jemand mit Produktkontext pruefen, ob die API-Control-Seite nur
 
 Tracker-Typen liefern und akzeptieren zusätzlich `quotaReminderIntervalMinutes`. Erlaubt sind 60 Minuten, 3, 6 und 12 Stunden sowie einmal täglich. Das bestehende Feld `quotaReminderEnabled` schaltet die Erinnerung pro Tracker ein. Web und native Apps bearbeiten beide Werte über den vorhandenen typisierten Tracker-Typ-Vertrag; unbekannte Intervalle werden defensiv auf einmal täglich normalisiert.
 
+Die serverseitige Auslösung berücksichtigt die Periode des jeweils offenen Kontingents. Tagesziele werden erst am Abend desselben Tages relevant, feste Wochenziele erst am letzten Tag der konfigurierten Tracker-Woche und Monatsziele erst am letzten Monatstag. Rollierende Wochenziele können täglich abends erinnern, weil sich ihr Sieben-Tage-Fenster täglich verschiebt. Das konfigurierte Intervall begrenzt weitere Zustellungen innerhalb des relevanten Fensters. Dadurch erzeugt ein bloß seit Wochenbeginn offenes Wochenziel keine täglichen Hinweise.
+
 Der Cron erzeugt nur bei einem tatsächlich offenen Kontingent eine Erinnerung und verwendet den letzten passenden Audit-Eintrag desselben Trackers und Benutzers als Sperrfrist. Dadurch lässt sich die Frequenz ändern, ohne separate Zeitpläne oder Cronjobs anzulegen.
 
 ## Nachgezogen nach Review

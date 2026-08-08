@@ -3,6 +3,7 @@ import { logAction } from "@/lib/audit";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { runDueScheduledRules } from "@/lib/scheduled-rules";
+import { trackerQuotaReminderReason } from "@/lib/tracker-quota-reminders";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 
 export const runtime = "nodejs";
@@ -39,6 +40,8 @@ export async function GET(request: Request) {
     for (const membership of users) {
       const statuses = await trackerQuotaStatusForUser(membership.user);
       for (const status of statuses.filter((entry) => entry.hasQuota && !entry.complete)) {
+        const reminderReason = trackerQuotaReminderReason(status, now);
+        if (!reminderReason) continue;
         const intervalMinutes = reminderIntervals.get(status.tracker.id) ?? 1440;
         const entityId = `${status.tracker.id}:${membership.userId}`;
         const existing = await prisma.auditLog.findFirst({
@@ -64,6 +67,7 @@ export async function GET(request: Request) {
             targetScreen: "quotas",
             targetId: status.tracker.key,
             reminderIntervalMinutes: intervalMinutes,
+            reminderReason,
             summary: quotaSummaryText(status),
             daily: status.daily,
             weekly: status.weekly,
