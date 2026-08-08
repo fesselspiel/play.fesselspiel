@@ -24,6 +24,17 @@ function booleanValue(value: unknown, fallback: boolean) {
   return value === true || value === "true" || value === "1" || value === 1 || value === "on";
 }
 
+export function trackerAllowedUserIds(value: unknown) {
+  return Array.isArray(value) ? [...new Set(value.map(String).map((entry) => entry.trim()).filter(Boolean))] : [];
+}
+
+export function trackerVisibleToUser(
+  tracker: { visibility?: string | null; allowedUserIds?: unknown },
+  userId: string
+) {
+  return tracker.visibility !== "USERS" || trackerAllowedUserIds(tracker.allowedUserIds).includes(userId);
+}
+
 export function trackerTypeData(body: Record<string, unknown>, current?: TrackerTypeWithCount) {
   const title = String(body.title ?? current?.title ?? "").trim();
   const color = String(body.color ?? current?.color ?? "#E30613").trim() || "#E30613";
@@ -40,7 +51,9 @@ export function trackerTypeData(body: Record<string, unknown>, current?: Tracker
     quotaWeekStartsOn: Math.min(6, Math.max(0, Number(body.quotaWeekStartsOn ?? current?.quotaWeekStartsOn ?? 1) || 1)),
     quotaMonthlyDays: body.quotaMonthlyDays === undefined ? current?.quotaMonthlyDays ?? null : nullableInteger(body.quotaMonthlyDays),
     quotaMonthlyMinutes: body.quotaMonthlyMinutes === undefined ? current?.quotaMonthlyMinutes ?? null : nullableInteger(body.quotaMonthlyMinutes),
-    quotaReminderEnabled: booleanValue(body.quotaReminderEnabled, current?.quotaReminderEnabled ?? false)
+    quotaReminderEnabled: booleanValue(body.quotaReminderEnabled, current?.quotaReminderEnabled ?? false),
+    visibility: body.visibility === "USERS" ? "USERS" : body.visibility === undefined ? current?.visibility ?? "ALL" : "ALL",
+    allowedUserIds: body.allowedUserIds === undefined ? trackerAllowedUserIds(current?.allowedUserIds) : trackerAllowedUserIds(body.allowedUserIds)
   };
 }
 
@@ -66,6 +79,8 @@ export function serializeTrackerType(
     quotaMonthlyDays: tracker.quotaMonthlyDays,
     quotaMonthlyMinutes: tracker.quotaMonthlyMinutes,
     quotaReminderEnabled: tracker.quotaReminderEnabled,
+    visibility: tracker.visibility,
+    allowedUserIds: trackerAllowedUserIds(tracker.allowedUserIds),
     fields: tracker.fields,
     entryCount: tracker._count.entries,
     permissions: {

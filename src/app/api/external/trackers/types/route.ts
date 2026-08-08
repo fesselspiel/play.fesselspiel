@@ -5,6 +5,7 @@ import {
   canManageTrackerTypes,
   normalizeTrackerKey,
   serializeTrackerType,
+  trackerVisibleToUser,
   trackerTypeData
 } from "@/lib/external-tracker-types";
 import { prisma } from "@/lib/prisma";
@@ -36,7 +37,8 @@ export async function GET(request: NextRequest) {
       })
     : [];
   const featureMap = new Map(features.map((feature) => [feature.key, feature.enabled]));
-  const items = trackers.map((tracker) => serializeTrackerType(tracker, {
+  const visibleTrackers = canManage ? trackers : trackers.filter((tracker) => trackerVisibleToUser(tracker, auth.user.id));
+  const items = visibleTrackers.map((tracker) => serializeTrackerType(tracker, {
     canEdit: canManage && tracker.tenantId === tenantId,
     featureEnabled: featureMap.get(`tracker.${tracker.key}`) ?? tracker.enabled
   }));
@@ -56,6 +58,12 @@ export async function POST(request: NextRequest) {
   const data = trackerTypeData(body);
   const key = normalizeTrackerKey(body.key ?? data.title);
   if (!data.title || !key) return NextResponse.json({ ok: false, error: "title_and_key_required" }, { status: 400 });
+  if (data.visibility === "USERS") {
+    const validUsers = await prisma.user.count({ where: { id: { in: data.allowedUserIds }, memberships: { some: { tenantId: auth.user.tenantId, active: true } } } });
+    if (!data.allowedUserIds.length || validUsers !== data.allowedUserIds.length) {
+      return NextResponse.json({ ok: false, error: "invalid_tracker_audience" }, { status: 400 });
+    }
+  }
   const existing = await prisma.trackerType.findUnique({ where: { tenantId_key: { tenantId: auth.user.tenantId, key } } });
   if (existing) return NextResponse.json({ ok: false, error: "tracker_key_exists" }, { status: 409 });
 

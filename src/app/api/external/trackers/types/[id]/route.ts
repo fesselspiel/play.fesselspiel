@@ -27,6 +27,12 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const data = trackerTypeData(body, current);
   if (!data.title) return NextResponse.json({ ok: false, error: "title_required" }, { status: 400 });
+  if (data.visibility === "USERS") {
+    const validUsers = await prisma.user.count({ where: { id: { in: data.allowedUserIds }, memberships: { some: { tenantId: auth.user.tenantId, active: true } } } });
+    if (!data.allowedUserIds.length || validUsers !== data.allowedUserIds.length) {
+      return NextResponse.json({ ok: false, error: "invalid_tracker_audience" }, { status: 400 });
+    }
+  }
 
   const [tracker] = await prisma.$transaction([
     prisma.trackerType.update({

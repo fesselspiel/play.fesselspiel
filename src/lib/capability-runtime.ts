@@ -1,6 +1,7 @@
 import { publicCapabilitySummary } from "@/lib/capabilities";
 import { featureEnabled } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
+import { trackerVisibleToUser } from "@/lib/external-tracker-types";
 
 type FeatureFlag = { key: string; enabled: boolean };
 
@@ -63,7 +64,8 @@ function dynamicTrackerCapability(tracker: { key: string; title: string; descrip
 
 export async function publicCapabilitySummaryForTenant(
   tenantId: string | null | undefined,
-  features: FeatureFlag[] | undefined
+  features: FeatureFlag[] | undefined,
+  userId?: string
 ) {
   const base = publicCapabilitySummary(features, featureEnabled);
   if (!featureEnabled(features, "trackers")) return base;
@@ -75,13 +77,17 @@ export async function publicCapabilitySummaryForTenant(
       ...(tenantId ? { OR: [{ tenantId }, { tenantId: null }] } : { tenantId: null })
     },
     orderBy: { title: "asc" },
-    select: { key: true, title: true, description: true }
+    select: { key: true, title: true, description: true, visibility: true, allowedUserIds: true }
   });
 
-  const dynamic = trackers
+  const visibleTrackers = userId ? trackers.filter((tracker) => trackerVisibleToUser(tracker, userId)) : trackers;
+  const visibleKeys = new Set(visibleTrackers.map((tracker) => `tracker.${tracker.key}`));
+  const visibleBase = userId ? base.filter((capability) => !capability.featureKey.startsWith("tracker.") || visibleKeys.has(capability.featureKey)) : base;
+
+  const dynamic = visibleTrackers
     .filter((tracker) => !known.has(`tracker.${tracker.key}`))
     .filter((tracker) => featureEnabled(features, `tracker.${tracker.key}`))
     .map(dynamicTrackerCapability);
 
-  return [...base, ...dynamic];
+  return [...visibleBase, ...dynamic];
 }

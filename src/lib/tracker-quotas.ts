@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { trackerVisibleToUser } from "@/lib/external-tracker-types";
 
 type QuotaUser = { id: string; tenantId?: string | null };
 type QuotaTracker = {
@@ -118,7 +119,7 @@ export async function trackerQuotaStatusForUser(user: QuotaUser, now = new Date(
   const dayEnd = nextDay(now);
   const monthEnd = nextMonth(now);
 
-  return Promise.all(trackers.map(async (tracker) => {
+  return Promise.all(trackers.filter((tracker) => trackerVisibleToUser(tracker, user.id)).map(async (tracker) => {
     const weekStart = tracker.quotaWeeklyTail ? rollingWeekStart(now) : startOfWeek(now, tracker.quotaWeekStartsOn ?? 1);
     const [dailyMinutes, weeklyMinutes, monthlyMinutes, monthlyDays] = await Promise.all([
       completedMinutesForTracker(tracker, user, dayStart, dayEnd),

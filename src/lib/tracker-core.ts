@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { minutesBetween } from "@/lib/dates";
+import { trackerVisibleToUser } from "@/lib/external-tracker-types";
 
 function pad(value: number) {
   return String(value).padStart(2, "0");
@@ -21,7 +22,7 @@ export async function uniqueTrackerSlug(trackerTypeId: string, key: string, star
   }
 }
 
-export async function findTrackerTypeForUser(key: string, user: { tenantId?: string | null }) {
+export async function findTrackerTypeForUser(key: string, user: { id: string; tenantId?: string | null }) {
   if (user.tenantId) {
     const tenantTracker = await prisma.trackerType.findFirst({
       where: {
@@ -30,15 +31,16 @@ export async function findTrackerTypeForUser(key: string, user: { tenantId?: str
         tenantId: user.tenantId
       }
     });
-    if (tenantTracker) return tenantTracker;
+    if (tenantTracker && trackerVisibleToUser(tenantTracker, user.id)) return tenantTracker;
   }
-  return prisma.trackerType.findFirst({
+  const globalTracker = await prisma.trackerType.findFirst({
     where: {
       key,
       enabled: true,
       tenantId: null
     }
   });
+  return globalTracker && trackerVisibleToUser(globalTracker, user.id) ? globalTracker : null;
 }
 
 export async function runningTrackerEntriesForUser(

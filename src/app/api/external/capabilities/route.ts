@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const blocked = apiFeatureGate(auth.user, "externalApi");
   if (blocked) return blocked;
 
-  const capabilities = await publicCapabilitySummaryForTenant(auth.user.tenantId, auth.user.tenant?.features);
+  const capabilities = await publicCapabilitySummaryForTenant(auth.user.tenantId, auth.user.tenant?.features, auth.user.id);
 
   return NextResponse.json({
     ok: true,

@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     href: "/settings/api"
   });
 
-  const capabilities = await publicCapabilitySummaryForTenant(tenant.id, tenant.features);
+  const capabilities = await publicCapabilitySummaryForTenant(tenant.id, tenant.features, user.id);
   const compliance = await complianceStatusForUser(user.id, tenant.id);
 
   return NextResponse.json({
