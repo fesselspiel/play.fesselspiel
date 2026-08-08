@@ -494,6 +494,9 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
         quotaMonthlyDays: typeof entry.quotaMonthlyDays === "number" ? entry.quotaMonthlyDays : null,
         quotaMonthlyMinutes: typeof entry.quotaMonthlyMinutes === "number" ? entry.quotaMonthlyMinutes : null,
         quotaReminderEnabled: entry.quotaReminderEnabled === true,
+        quotaReminderIntervalMinutes: [60, 180, 360, 720, 1440].includes(Number(entry.quotaReminderIntervalMinutes))
+          ? Number(entry.quotaReminderIntervalMinutes)
+          : 1440,
         fields: (entry.fields && typeof entry.fields === "object" ? entry.fields : []) as any
       }
     });

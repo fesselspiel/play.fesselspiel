@@ -24,6 +24,13 @@ function booleanValue(value: unknown, fallback: boolean) {
   return value === true || value === "true" || value === "1" || value === 1 || value === "on";
 }
 
+export const trackerReminderIntervals = [60, 180, 360, 720, 1440] as const;
+
+function reminderInterval(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return trackerReminderIntervals.includes(parsed as typeof trackerReminderIntervals[number]) ? parsed : fallback;
+}
+
 export function trackerAllowedUserIds(value: unknown) {
   return Array.isArray(value) ? [...new Set(value.map(String).map((entry) => entry.trim()).filter(Boolean))] : [];
 }
@@ -52,6 +59,10 @@ export function trackerTypeData(body: Record<string, unknown>, current?: Tracker
     quotaMonthlyDays: body.quotaMonthlyDays === undefined ? current?.quotaMonthlyDays ?? null : nullableInteger(body.quotaMonthlyDays),
     quotaMonthlyMinutes: body.quotaMonthlyMinutes === undefined ? current?.quotaMonthlyMinutes ?? null : nullableInteger(body.quotaMonthlyMinutes),
     quotaReminderEnabled: booleanValue(body.quotaReminderEnabled, current?.quotaReminderEnabled ?? false),
+    quotaReminderIntervalMinutes: reminderInterval(
+      body.quotaReminderIntervalMinutes,
+      current?.quotaReminderIntervalMinutes ?? 1440
+    ),
     visibility: body.visibility === "USERS" ? "USERS" : body.visibility === undefined ? current?.visibility ?? "ALL" : "ALL",
     allowedUserIds: body.allowedUserIds === undefined ? trackerAllowedUserIds(current?.allowedUserIds) : trackerAllowedUserIds(body.allowedUserIds)
   };
@@ -79,6 +90,7 @@ export function serializeTrackerType(
     quotaMonthlyDays: tracker.quotaMonthlyDays,
     quotaMonthlyMinutes: tracker.quotaMonthlyMinutes,
     quotaReminderEnabled: tracker.quotaReminderEnabled,
+    quotaReminderIntervalMinutes: tracker.quotaReminderIntervalMinutes,
     visibility: tracker.visibility,
     allowedUserIds: trackerAllowedUserIds(tracker.allowedUserIds),
     fields: tracker.fields,

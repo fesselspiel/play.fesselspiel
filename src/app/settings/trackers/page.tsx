@@ -93,6 +93,7 @@ async function createTracker(formData: FormData) {
       quotaMonthlyDays: Number(formData.get("quotaMonthlyDays") || 0) || null,
       quotaMonthlyMinutes: Number(formData.get("quotaMonthlyMinutes") || 0) || null,
       quotaReminderEnabled: formData.get("quotaReminderEnabled") === "on",
+      quotaReminderIntervalMinutes: Number(formData.get("quotaReminderIntervalMinutes") || 1440),
       fields: parseTrackerFields(formData.get("fields"))
     }
   });
@@ -137,6 +138,7 @@ async function saveTracker(formData: FormData) {
       quotaMonthlyDays: Number(formData.get("quotaMonthlyDays") || 0) || null,
       quotaMonthlyMinutes: Number(formData.get("quotaMonthlyMinutes") || 0) || null,
       quotaReminderEnabled: formData.get("quotaReminderEnabled") === "on",
+      quotaReminderIntervalMinutes: Number(formData.get("quotaReminderIntervalMinutes") || 1440),
       fields: parseTrackerFields(formData.get("fields"))
     }
   });
@@ -215,7 +217,8 @@ export default async function TrackerSettingsPage(props: { searchParams: Promise
                     <Field label="Monatlich Minuten"><input className={inputClass} name="quotaMonthlyMinutes" type="number" min={0} step={1} placeholder="0" /></Field>
                   </div>
                   <label className="mt-3 flex items-center gap-2 rounded-md border border-line bg-surface p-3 text-sm"><input name="quotaWeeklyTail" type="checkbox" className="h-4 w-4 accent-redbrand" /> Wöchentlich als rollierende letzte 7 Tage berechnen</label>
-                  <label className="mt-3 flex items-center gap-2 rounded-md border border-line bg-surface p-3 text-sm"><input name="quotaReminderEnabled" type="checkbox" className="h-4 w-4 accent-redbrand" /> Chronik-Erinnerung aktivieren</label>
+                  <label className="mt-3 flex items-center gap-2 rounded-md border border-line bg-surface p-3 text-sm"><input name="quotaReminderEnabled" type="checkbox" className="h-4 w-4 accent-redbrand" /> Kontingent-Erinnerung aktivieren</label>
+                  <label className="mt-3 block text-sm">Erinnerungshäufigkeit<select name="quotaReminderIntervalMinutes" defaultValue="1440" className="mt-1 w-full rounded-md border border-line bg-paper p-2"><option value="60">Stündlich</option><option value="180">Alle 3 Stunden</option><option value="360">Alle 6 Stunden</option><option value="720">Alle 12 Stunden</option><option value="1440">Einmal täglich</option></select></label>
                 </div>
                 <div className="rounded-lg border border-line bg-paper p-4">
                   <h3 className="mb-2 text-sm font-semibold text-ink">Zusatzfelder</h3>
@@ -278,7 +281,8 @@ export default async function TrackerSettingsPage(props: { searchParams: Promise
                           <Field label="Monatlich Minuten"><input className={inputClass} name="quotaMonthlyMinutes" type="number" min={0} step={1} defaultValue={tracker.quotaMonthlyMinutes || ""} /></Field>
                         </div>
                         <label className="mt-3 flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="quotaWeeklyTail" type="checkbox" defaultChecked={tracker.quotaWeeklyTail} className="h-4 w-4 accent-redbrand" /> Wöchentlich als rollierende letzte 7 Tage berechnen</label>
-                        <label className="mt-3 flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="quotaReminderEnabled" type="checkbox" defaultChecked={tracker.quotaReminderEnabled} className="h-4 w-4 accent-redbrand" /> Chronik-Erinnerung aktivieren</label>
+                        <label className="mt-3 flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="quotaReminderEnabled" type="checkbox" defaultChecked={tracker.quotaReminderEnabled} className="h-4 w-4 accent-redbrand" /> Kontingent-Erinnerung aktivieren</label>
+                        <label className="mt-3 block text-sm">Erinnerungshäufigkeit<select name="quotaReminderIntervalMinutes" defaultValue={tracker.quotaReminderIntervalMinutes} className="mt-1 w-full rounded-md border border-line bg-paper p-2"><option value="60">Stündlich</option><option value="180">Alle 3 Stunden</option><option value="360">Alle 6 Stunden</option><option value="720">Alle 12 Stunden</option><option value="1440">Einmal täglich</option></select></label>
                       </div>
                       <div className="rounded-lg border border-line bg-surface p-4">
                         <h3 className="mb-2 text-sm font-semibold text-ink">Zusatzfelder</h3>

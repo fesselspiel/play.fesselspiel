@@ -8,7 +8,7 @@ Die iOS-App kann sich nach dem Mobile-Login mit ihrem APNs-Gerätetoken registri
 
 - `logAction` bleibt der zentrale Auslöser für Benachrichtigungen.
 - Neue Event-Actions: `event_created`, `event_updated`, `event_deleted`, `event_checkin_created`.
-- `NativePushDevice` speichert registrierte Geräte pro Nutzer, Tenant, Plattform und Umgebung.
+- `NativePushDevice` speichert registrierte Geräte pro Nutzer, Tenant, Plattform, Umgebung und nativer App.
 - `NativePushDelivery` protokolliert jeden Versandversuch.
 - `/api/external/push/devices` registriert oder deaktiviert Geräte über den bestehenden Bearer-Token der mobilen App.
 - `dispatchNativePushNotifications` sendet an iOS über APNs und an Android über FCM HTTP v1.
@@ -45,6 +45,15 @@ Wenn die Push-Einstellung deaktiviert oder für eine Plattform unvollständig is
 - Debug-Builds registrieren `sandbox`, Release/TestFlight registriert `production`.
 - Beim Abmelden deaktiviert die App den gespeicherten Gerätetoken serverseitig.
 - Beim Antippen einer Pushnachricht kann die App `target.screen`, `target.id` und `target.href` auswerten und direkt in die passende Ansicht springen.
+- Native Apps registrieren ihre erlaubte Bundle-ID als `appIdentifier`. `fspiel.playplaner` bleibt der kompatible Standard; `fspiel.playtracker` kennzeichnet PlayTracker. APNs verwendet pro Gerät genau dieses Topic.
+
+## Tracker-Kontingent-Erinnerungen
+
+Ein Tracker kann `quotaReminderEnabled` und `quotaReminderIntervalMinutes` enthalten. Zulässige Intervalle sind `60`, `180`, `360`, `720` und `1440` Minuten; ohne expliziten Wert gilt einmal täglich. Der bestehende Tracker-Cron prüft im 15-Minuten-Raster und erinnert nur, wenn mindestens ein konfiguriertes Tages-, Wochen- oder Monatskontingent des Trackers für den jeweiligen Benutzer noch offen ist. Ein vollständiges oder nicht vorhandenes Kontingent erzeugt keine Erinnerung.
+
+Die Erinnerung wird direkt an die betroffene Person versandt und benötigt keine zusätzliche allgemeine Push-Regel. PlayTracker-Geräte erhalten ausschließlich Tracker-Ereignisse und `native_push_test`; andere Ereignisse bleiben beim Playplaner-Topic. Die neutrale Payload verwendet `action=tracker_quota_reminder`, `target.screen=quotas` und den Tracker-Key als `target.id`. Das verhindert appfremde Navigation und hält Sperrbildschirmtexte diskret.
+
+Rückbau nach einem Release-Commit: Commit mit `git revert <commit>` ohne Force-Push zurücknehmen und regulär neu deployen. Die beiden additiven Datenbankspalten können für einen reinen Code-Rückbau bestehen bleiben; ein physischer Schema-Rückbau darf erst erfolgen, wenn keine neu registrierten App-Topics beziehungsweise Intervallwerte mehr benötigt werden.
 
 ## Android-Verhalten
 
@@ -70,4 +79,4 @@ Content-Type: application/json
 
 ## Bewusste Grenzen
 
-- Zeitgesteuerte Erinnerungen vor Eventstart sind noch nicht enthalten.
+- Zeitgesteuerte Erinnerungen vor Eventstart sind weiterhin nicht enthalten; Tracker-Kontingent-Erinnerungen sind ein eigener Flow.

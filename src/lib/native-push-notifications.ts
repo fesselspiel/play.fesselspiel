@@ -71,6 +71,15 @@ function apnsHost(environment: string) {
   return environment === "sandbox" ? "https://api.sandbox.push.apple.com" : "https://api.push.apple.com";
 }
 
+function apnsBundleIdForDevice(device: NativePushDevice, configuredBundleId: string) {
+  return device.appIdentifier === "fspiel.playtracker" ? "fspiel.playtracker" : configuredBundleId;
+}
+
+function deviceAcceptsAction(device: NativePushDevice, action: string) {
+  if (device.appIdentifier !== "fspiel.playtracker") return true;
+  return action.startsWith("tracker_") || action === "native_push_test";
+}
+
 function apnsJwt(config: ApnsConfig) {
   const header = base64url(JSON.stringify({ alg: "ES256", kid: config.keyId }));
   const claims = base64url(JSON.stringify({ iss: config.teamId, iat: Math.floor(Date.now() / 1000) }));
@@ -237,6 +246,7 @@ function payloadForAudit(audit: AuditForPush) {
 }
 
 function discretePushText(action: string) {
+  if (action === "tracker_quota_reminder") return { title: "Kontingent", body: "Ein Tracker-Ziel ist noch offen." };
   if (isChatPushAction(action)) return { title: "Playplaner", body: "Du hast eine neue Nachricht." };
   if (action === "password_reset_requested") return { title: "Playplaner", body: "Du hast eine neue Kontobenachrichtigung." };
   if (action === "item_shared" || action === "item_share_opened") return { title: "Playplaner", body: "Ein geteilter Eintrag wurde aktualisiert." };
@@ -247,6 +257,7 @@ function discretePushText(action: string) {
 }
 
 function neutralPushTitle(action: string) {
+  if (action === "tracker_quota_reminder") return "Kontingent-Erinnerung";
   if (isChatPushAction(action)) return "Neue Nachricht";
   if (action === "password_reset_requested") return "Passwort zuruecksetzen";
   if (action === "item_shared") return "Eintrag geteilt";
@@ -549,7 +560,7 @@ async function sendToDevice(
       environment: device.environment,
       deviceToken: device.deviceToken,
       authorization,
-      bundleId: config.bundleId,
+      bundleId: apnsBundleIdForDevice(device, config.bundleId),
       payload: delivery.payload
     });
     const rawError = response.ok ? null : response.body?.slice(0, 1000) || null;
@@ -627,8 +638,9 @@ async function sendToNativeDevices(
   delivery: { auditId?: string | null; action: string; payload: unknown },
   config: PushConfig
 ) {
-  const iosDevices = devices.filter((device) => device.platform === "ios");
-  const androidDevices = devices.filter((device) => device.platform === "android");
+  const acceptedDevices = devices.filter((device) => deviceAcceptsAction(device, delivery.action));
+  const iosDevices = acceptedDevices.filter((device) => device.platform === "ios");
+  const androidDevices = acceptedDevices.filter((device) => device.platform === "android");
   const results: boolean[] = [];
 
   if (iosDevices.length) {
@@ -680,6 +692,33 @@ async function sendToNativeDevices(
     failed: results.filter((value) => !value).length,
     devices: devices.length
   };
+}
+
+async function dispatchTrackerQuotaReminder(audit: AuditForPush, tenantId: string) {
+  const details = auditDetails(audit);
+  const targetUserId = stringDetail(details, ["targetUserId"]) || audit.actorId;
+  if (!targetUserId) return;
+  const config = await pushConfigForTenant(tenantId);
+  if (!config) return;
+  const devices = await prisma.nativePushDevice.findMany({
+    where: { tenantId, userId: targetUserId, disabledAt: null },
+    include: { user: { select: { settings: { select: { notificationPreviewMode: true } } } } }
+  });
+  if (!devices.length) return;
+  const title = "Kontingent-Erinnerung";
+  const body = audit.title;
+  const groups = new Map<string, typeof devices>();
+  for (const device of devices) {
+    const mode = device.user.settings?.notificationPreviewMode || "DISCREET";
+    groups.set(mode, [...(groups.get(mode) || []), device]);
+  }
+  for (const [mode, targetDevices] of groups) {
+    await sendToNativeDevices(targetDevices, {
+      auditId: audit.id,
+      action: audit.action,
+      payload: payloadForAuditMessage(audit, title, body, "playplaner_chime.caf", mode)
+    }, config);
+  }
 }
 
 function actorName(actor?: { profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null } | null) {
@@ -812,6 +851,10 @@ async function writeRuleAudit(input: {
 export async function dispatchNativePushNotifications(audit: AuditLog) {
   const tenantId = await tenantIdForAudit(audit);
   if (!tenantId) return;
+  if (audit.action === "tracker_quota_reminder") {
+    await dispatchTrackerQuotaReminder(audit, tenantId);
+    return;
+  }
   const rules = await findRulesForAudit(audit, tenantId);
   if (!rules.length) return;
   const config = await pushConfigForTenant(tenantId);

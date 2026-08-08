@@ -7,10 +7,6 @@ import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quota
 
 export const runtime = "nodejs";
 
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 export async function GET(request: Request) {
   const authorization = request.headers.get("authorization") || "";
   const token = authorization.replace(/^Bearer\s+/i, "");
@@ -29,11 +25,12 @@ export async function GET(request: Request) {
         { quotaMonthlyMinutes: { not: null } }
       ]
     },
-    select: { tenantId: true, key: true }
+    select: { id: true, tenantId: true, key: true, quotaReminderIntervalMinutes: true }
   });
   const tenants = Array.from(new Set(activeTrackers.map((entry) => entry.tenantId).filter(Boolean))) as string[];
+  const reminderIntervals = new Map(activeTrackers.map((entry) => [entry.id, entry.quotaReminderIntervalMinutes]));
   let reminders = 0;
-  const dateKey = todayKey();
+  const now = new Date();
   for (const tenantId of tenants) {
     const users = await prisma.tenantMembership.findMany({
       where: { tenantId, active: true, user: { active: true } },
@@ -42,9 +39,16 @@ export async function GET(request: Request) {
     for (const membership of users) {
       const statuses = await trackerQuotaStatusForUser(membership.user);
       for (const status of statuses.filter((entry) => entry.hasQuota && !entry.complete)) {
-        const entityId = `${status.tracker.id}:${membership.userId}:${dateKey}`;
+        const intervalMinutes = reminderIntervals.get(status.tracker.id) ?? 1440;
+        const entityId = `${status.tracker.id}:${membership.userId}`;
         const existing = await prisma.auditLog.findFirst({
-          where: { action: "tracker_quota_reminder", entityType: "trackerQuota", entityId }
+          where: {
+            action: "tracker_quota_reminder",
+            entityType: "trackerQuota",
+            entityId,
+            createdAt: { gte: new Date(now.getTime() - intervalMinutes * 60_000) }
+          },
+          orderBy: { createdAt: "desc" }
         });
         if (existing) continue;
         await logAction({
@@ -56,13 +60,17 @@ export async function GET(request: Request) {
           details: {
             trackerKey: status.tracker.key,
             trackerTitle: status.tracker.title,
+            targetUserId: membership.userId,
+            targetScreen: "quotas",
+            targetId: status.tracker.key,
+            reminderIntervalMinutes: intervalMinutes,
             summary: quotaSummaryText(status),
             daily: status.daily,
             weekly: status.weekly,
             monthlyMinutes: status.monthlyMinutes,
             monthlyDays: status.monthlyDays
           },
-          href: "/sessions"
+          href: "/settings/trackers"
         });
         reminders += 1;
       }

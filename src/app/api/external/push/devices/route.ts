@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 
 const platforms = new Set(["ios", "android"]);
 const environments = new Set(["sandbox", "production"]);
+const appIdentifiers = new Set(["fspiel.playplaner", "fspiel.playtracker"]);
 
 function cleanIosDeviceToken(value: string) {
   return value.replace(/[^a-fA-F0-9]/g, "").toLowerCase();
@@ -21,6 +22,7 @@ function serializeDevice(device: Awaited<ReturnType<typeof prisma.nativePushDevi
   return {
     id: device.id,
     platform: device.platform,
+    appIdentifier: device.appIdentifier,
     environment: device.environment,
     deviceName: device.deviceName,
     appVersion: device.appVersion,
@@ -60,8 +62,10 @@ export async function POST(request: NextRequest) {
   const values = await requestValues(request);
   const platform = String(values.get("platform") || "ios").toLowerCase();
   const environment = String(values.get("environment") || "production").toLowerCase();
+  const appIdentifier = String(values.get("appIdentifier") || "fspiel.playplaner").trim().toLowerCase();
   if (!platforms.has(platform)) return NextResponse.json({ ok: false, error: "unsupported_platform" }, { status: 400 });
   if (!environments.has(environment)) return NextResponse.json({ ok: false, error: "unsupported_environment" }, { status: 400 });
+  if (!appIdentifiers.has(appIdentifier)) return NextResponse.json({ ok: false, error: "unsupported_app_identifier" }, { status: 400 });
   const deviceToken = cleanDeviceToken(platform, String(values.get("deviceToken") || ""));
   if (deviceToken.length < (platform === "ios" ? 32 : 16)) return NextResponse.json({ ok: false, error: "invalid_device_token" }, { status: 400 });
   const device = await prisma.nativePushDevice.upsert({
@@ -70,6 +74,7 @@ export async function POST(request: NextRequest) {
       tenantId: auth.user.tenantId || null,
       userId: auth.user.id,
       environment,
+      appIdentifier,
       deviceName: String(values.get("deviceName") || "").trim() || null,
       appVersion: String(values.get("appVersion") || "").trim() || null,
       lastSeenAt: new Date(),
@@ -81,11 +86,12 @@ export async function POST(request: NextRequest) {
       platform,
       deviceToken,
       environment,
+      appIdentifier,
       deviceName: String(values.get("deviceName") || "").trim() || null,
       appVersion: String(values.get("appVersion") || "").trim() || null
     }
   });
-  return NextResponse.json({ ok: true, device: { id: device.id, platform: device.platform, environment: device.environment } });
+  return NextResponse.json({ ok: true, device: { id: device.id, platform: device.platform, appIdentifier: device.appIdentifier, environment: device.environment } });
 }
 
 export async function DELETE(request: NextRequest) {

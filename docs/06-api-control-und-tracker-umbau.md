@@ -151,6 +151,12 @@ Der Umbau ist funktional zusammenhaengend, aber gross. Fuer einen leichteren Rev
 
 Vor Merge sollte jemand mit Produktkontext pruefen, ob die API-Control-Seite nur fuer Admins sichtbar sein soll und ob die Roh-Request-Konsole in Produktion gewuenscht ist.
 
+## Konfigurierbare Kontingent-Erinnerungen
+
+Tracker-Typen liefern und akzeptieren zusätzlich `quotaReminderIntervalMinutes`. Erlaubt sind 60 Minuten, 3, 6 und 12 Stunden sowie einmal täglich. Das bestehende Feld `quotaReminderEnabled` schaltet die Erinnerung pro Tracker ein. Web und native Apps bearbeiten beide Werte über den vorhandenen typisierten Tracker-Typ-Vertrag; unbekannte Intervalle werden defensiv auf einmal täglich normalisiert.
+
+Der Cron erzeugt nur bei einem tatsächlich offenen Kontingent eine Erinnerung und verwendet den letzten passenden Audit-Eintrag desselben Trackers und Benutzers als Sperrfrist. Dadurch lässt sich die Frequenz ändern, ohne separate Zeitpläne oder Cronjobs anzulegen.
+
 ## Nachgezogen nach Review
 
 - Die API-Control-Server-Actions pruefen jetzt selbst auf Admin/Super-Admin, nicht nur die Seite.

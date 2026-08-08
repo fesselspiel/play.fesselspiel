@@ -922,6 +922,7 @@ model NativePushDevice {
   userId      String
   platform    String
   deviceToken String
+  appIdentifier String             @default("fspiel.playplaner")
   environment String               @default("production")
   deviceName  String?
   appVersion  String?
@@ -935,6 +936,7 @@ model NativePushDevice {
 
   @@unique([platform, deviceToken])
   @@index([tenantId, userId, disabledAt])
+  @@index([tenantId, appIdentifier, disabledAt])
   @@index([userId, lastSeenAt])
 }
 
@@ -1548,6 +1550,7 @@ model TrackerType {
   quotaMonthlyDays     Int?
   quotaMonthlyMinutes  Int?
   quotaReminderEnabled Boolean        @default(false)
+  quotaReminderIntervalMinutes Int     @default(1440)
   visibility           String         @default("ALL")
   allowedUserIds       Json           @default("[]")
   fields               Json           @default("[]")
