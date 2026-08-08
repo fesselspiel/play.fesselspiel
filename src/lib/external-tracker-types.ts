@@ -32,6 +32,9 @@ export type TrackerReminderRule = {
   repeatMinutes: number;
   weekday?: number;
   dayOfMonth?: number;
+  weekdays?: number[];
+  monthlyOrdinal?: number;
+  monthlyWeekday?: number;
 };
 
 export type TrackerReminderSchedule = {
@@ -86,6 +89,9 @@ export function trackerReminderSchedule(
     repeatMinutes: interval
   });
   const weeklyRaw = objectValue(schedule.weekly);
+  const weekdays = Array.isArray(weeklyRaw.weekdays)
+    ? [...new Set(weeklyRaw.weekdays.map(Number).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))].sort()
+    : [];
   const weekly = {
     ...normalizeRule("weekly", {
       enabled: legacyEnabled && Boolean(fallback.weeklyQuota),
@@ -93,7 +99,8 @@ export function trackerReminderSchedule(
       repeatMinutes: interval,
       weekday: ((fallback.weekStartsOn ?? 1) + 6) % 7
     }),
-    weekday: Math.min(6, Math.max(0, Number(weeklyRaw.weekday ?? ((fallback.weekStartsOn ?? 1) + 6) % 7)))
+    weekday: Math.min(6, Math.max(0, Number(weeklyRaw.weekday ?? ((fallback.weekStartsOn ?? 1) + 6) % 7))),
+    weekdays
   };
   const monthlyRaw = objectValue(schedule.monthly);
   const monthly = {
@@ -103,7 +110,9 @@ export function trackerReminderSchedule(
       repeatMinutes: interval,
       dayOfMonth: 0
     }),
-    dayOfMonth: Math.min(28, Math.max(0, Number(monthlyRaw.dayOfMonth ?? 0)))
+    dayOfMonth: Math.min(28, Math.max(0, Number(monthlyRaw.dayOfMonth ?? 0))),
+    monthlyOrdinal: Math.min(5, Math.max(0, Number(monthlyRaw.monthlyOrdinal ?? 0))),
+    monthlyWeekday: Math.min(6, Math.max(0, Number(monthlyRaw.monthlyWeekday ?? 0)))
   };
   return { daily, weekly, monthly };
 }

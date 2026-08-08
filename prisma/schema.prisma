@@ -612,6 +612,24 @@ model AuditLog {
   @@index([entityType, entityId])
 }
 
+model TrackerReminderJob {
+  id            String   @id @default(cuid())
+  tenantId      String
+  userId        String
+  trackerTypeId String
+  trackerKey    String
+  source        String
+  dueAt         DateTime
+  status        String   @default("PENDING")
+  createdAt     DateTime @default(now())
+  processedAt   DateTime?
+  message       String?
+
+  @@index([status, dueAt])
+  @@index([userId, trackerTypeId, status])
+  @@index([tenantId, createdAt])
+}
+
 model LegalDocument {
   id                   String                @id @default(cuid())
   tenantId             String

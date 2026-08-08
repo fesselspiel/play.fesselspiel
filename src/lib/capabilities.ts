@@ -535,6 +535,8 @@ export const capabilities: readonly Capability[] = [
           { method: "GET", path: "/api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD", description: "Echte Tracker-Einträge im Zeitraum für Kalender und native Apps abfragen." },
           { method: "POST", path: "/api/external/trackers/history", description: "Tracker-Eintrag nativ anlegen. JSON: trackerKey, notes?, allDay?, date?, startTime, durationMinutes?, endTime?." },
           { method: "GET", path: "/api/external/trackers/stream", description: "SSE-Live-Stream für Tracker-Snapshot und Änderungen. Bearer Auth plus optional X-Playplaner-View-Context." },
+          { method: "GET", path: "/api/external/trackers/{trackerKey}/remind?source=fritzbox&delayMinutes=30&token=...", description: "Externe Kontingent-Erinnerung sofort oder zeitversetzt auslösen. Erinnert den Token-Benutzer nur bei offenem Ziel; GET und Query-Token sind für einfache Smart-Home-Webhooks erlaubt." },
+          { method: "POST", path: "/api/external/trackers/{trackerKey}/remind", description: "Externe Kontingent-Erinnerung mit Bearer-Token auslösen. Optionale Felder: source und delayMinutes (0 bis 10080)." },
           { method: "GET", path: "/api/external/trackers/history/{id}/images", description: "Fotos eines Tracker-Eintrags abrufen." },
           { method: "POST", path: "/api/external/trackers/history/{id}/images", description: "Foto an einen Tracker-Eintrag anhängen. Multipart: file, title?, note?." },
           { method: "PATCH", path: "/api/external/trackers/history/{id}/images/{imageId}", description: "Tracker-Foto bearbeiten oder per Multipart `file` ersetzen." },

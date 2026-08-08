@@ -6,6 +6,7 @@ import { runDueScheduledRules } from "@/lib/scheduled-rules";
 import { trackerReminderSchedule } from "@/lib/external-tracker-types";
 import { trackerQuotaReminderDecisions } from "@/lib/tracker-quota-reminders";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
+import { runDueTrackerWebhookReminders } from "@/lib/tracker-webhook-reminders";
 
 export const runtime = "nodejs";
 
@@ -102,5 +103,6 @@ export async function GET(request: Request) {
     }
   }
   const scheduledRules = await runDueScheduledRules(new Date());
-  return NextResponse.json({ ok: true, reminders, scheduledRules });
+  const webhookReminders = await runDueTrackerWebhookReminders(new Date());
+  return NextResponse.json({ ok: true, reminders, scheduledRules, webhookReminders });
 }

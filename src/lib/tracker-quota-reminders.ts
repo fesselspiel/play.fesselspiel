@@ -46,6 +46,15 @@ function isLastLocalDayOfMonth(date: Date) {
   return today !== tomorrow;
 }
 
+function isOrdinalWeekday(date: Date, dayOfMonth: number, ordinal: number) {
+  if (ordinal >= 1 && ordinal <= 4) return Math.floor((dayOfMonth - 1) / 7) + 1 === ordinal;
+  if (ordinal !== 5) return false;
+  const nextWeek = new Date(date.getTime() + 7 * 24 * 60 * 60_000);
+  const currentMonth = new Intl.DateTimeFormat("en-US", { month: "numeric", timeZone: appTimeZone }).format(date);
+  const nextMonth = new Intl.DateTimeFormat("en-US", { month: "numeric", timeZone: appTimeZone }).format(nextWeek);
+  return currentMonth !== nextMonth;
+}
+
 function occursOnDayOffset(dayOffset: number, repeatMinutes: number) {
   if (dayOffset < 0) return false;
   if (repeatMinutes < 1440) return dayOffset === 0;
@@ -76,7 +85,9 @@ export function trackerQuotaReminderDecisions(
     schedule.weekly.enabled &&
     status.weekly.required > 0 &&
     !status.weekly.complete &&
-    occursOnDayOffset(weekDayOffset, schedule.weekly.repeatMinutes) &&
+    ((schedule.weekly.weekdays?.length ?? 0) > 0
+      ? schedule.weekly.weekdays!.includes(local.weekday)
+      : occursOnDayOffset(weekDayOffset, schedule.weekly.repeatMinutes)) &&
     local.minutes >= schedule.weekly.startMinutes
   ) {
     decisions.push({ period: "weekly", periodKey: status.periods.weekly.key, repeatMinutes: schedule.weekly.repeatMinutes });
@@ -85,9 +96,11 @@ export function trackerQuotaReminderDecisions(
   const monthlyOpen =
     (status.monthlyMinutes.required > 0 && !status.monthlyMinutes.complete) ||
     (status.monthlyDays.required > 0 && !status.monthlyDays.complete);
-  const monthlyDayMatches = schedule.monthly.dayOfMonth === 0
-    ? isLastLocalDayOfMonth(now)
-    : occursOnDayOffset(local.dayOfMonth - (schedule.monthly.dayOfMonth ?? 1), schedule.monthly.repeatMinutes);
+  const monthlyDayMatches = (schedule.monthly.monthlyOrdinal ?? 0) > 0
+    ? local.weekday === schedule.monthly.monthlyWeekday && isOrdinalWeekday(now, local.dayOfMonth, schedule.monthly.monthlyOrdinal ?? 0)
+    : schedule.monthly.dayOfMonth === 0
+      ? isLastLocalDayOfMonth(now)
+      : occursOnDayOffset(local.dayOfMonth - (schedule.monthly.dayOfMonth ?? 1), schedule.monthly.repeatMinutes);
   if (
     schedule.monthly.enabled &&
     monthlyOpen &&
