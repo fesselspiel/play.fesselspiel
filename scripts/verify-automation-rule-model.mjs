@@ -27,6 +27,8 @@ function simulate(rule, scrubMinute, randomSeed = 3) {
     waiting: scrubMinute < dueMinute,
     due: scrubMinute >= dueMinute,
     complete: scrubMinute > dueMinute,
+    sessionState: action.type === "session_finish" && scrubMinute >= dueMinute ? "FINISHED" : action.type === "session_finish" && dueMinute > 0 && scrubMinute >= conditionMinutes ? "PENDING_END" : "RUNNING",
+    pendingEnd: action.type === "session_finish" && dueMinute > 0,
     sideEffects: false,
     actionType: action.type
   };
@@ -63,6 +65,13 @@ test("Session und Tracker werden gekoppelt", () => {
 test("Pending End wird nicht durch normalen Stop ersetzt", () => {
   const session = { state: "PENDING_END", pendingEndAt: "2026-08-10T20:30:00.000Z" };
   assert.equal(session.state !== "PENDING_END", false);
+});
+
+test("Simulation zeigt Pending End bei verzögertem Session-Ende", () => {
+  const rule = buildRule({ timingType: "fixed_delay", delayMinutes: 15, actionType: "session_finish" });
+  assert.equal(simulate(rule, 1).pendingEnd, true);
+  assert.equal(simulate(rule, 1).sessionState, "PENDING_END");
+  assert.equal(simulate(rule, 15).sessionState, "FINISHED");
 });
 
 test("Override darf Pending End ersetzen", () => {

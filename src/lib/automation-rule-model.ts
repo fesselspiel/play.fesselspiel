@@ -117,7 +117,10 @@ export const automationLabels = {
     ONLINE: "Verbunden",
     OFFLINE: "Nicht erreichbar",
     ERROR: "Fehler",
-    BOOTING: "Startet"
+    BOOTING: "Startet",
+    ON: "Eingeschaltet",
+    OFF: "Ausgeschaltet",
+    SWITCHING: "Schaltet gerade"
   },
   integrations: {
     IOBROKER: "ioBroker",
@@ -548,6 +551,20 @@ export function simulateAutomationRuleTimeline(input: {
     minute: dueMinute,
     title: actions.length > 1 ? `Aktion ${index + 1}: ${actionLabels[action.type as AutomationActionKey] || "Aktion"}` : actionLabels[action.type as AutomationActionKey] || "Aktion"
   }));
+  const ruleTitle = triggerOptions.find((option) => option.key === input.triggerType)?.label || "Regel";
+  const hasSessionFinish = actions.some((action) => action.type === "session_finish");
+  const pendingEnd = hasSessionFinish && dueMinute > 0
+    ? [{
+        requestedMinute: conditionMinutes,
+        dueMinute,
+        state: scrubMinute < conditionMinutes ? "noch nicht angefordert" : scrubMinute < dueMinute ? "Ende vorgemerkt" : "ausgeführt",
+        text: scrubMinute < conditionMinutes
+          ? `Das verzögerte Ende wird erst nach erfüllter Bedingung bei Minute ${conditionMinutes} vorgemerkt.`
+          : scrubMinute < dueMinute
+            ? `Das Ende ist vorgemerkt und wird bei Minute ${dueMinute} ausgeführt.`
+            : `Das vorgemerkte Ende ist seit Minute ${dueMinute} fällig.`
+      }]
+    : [];
   const waitingActions = scrubMinute < dueMinute ? actionItems : [];
   const dueActions = scrubMinute >= dueMinute ? actionItems : [];
   const failureMinute = dueMinute + 1;
@@ -562,13 +579,14 @@ export function simulateAutomationRuleTimeline(input: {
   return {
     durationMinutes: Math.max(1, dueMinute + 5),
     scrubMinute,
-    sessionState: scrubMinute >= dueMinute && actions.some((action) => action.type === "session_finish") ? "FINISHED" : "RUNNING",
+    sessionState: hasSessionFinish && scrubMinute >= dueMinute ? "FINISHED" : hasSessionFinish && pendingEnd.length && scrubMinute >= conditionMinutes ? "PENDING_END" : "RUNNING",
     events: events.filter((event) => event.minute <= scrubMinute),
     conditions,
-    triggeredRules: scrubMinute >= 0 ? [triggerOptions.find((option) => option.key === input.triggerType)?.label || "Regel"] : [],
+    triggeredRules: scrubMinute >= 0 ? [ruleTitle] : [],
     waitingActions,
     dueActions,
-    completedActions: scrubMinute > dueMinute ? dueActions : [],
+    completedActions: scrubMinute > dueMinute ? actionItems : [],
+    pendingEnd,
     recoveryActions,
     randomValues: timing.type === "random_delay" ? [{ label: "Gewählte Zufallswartezeit", value: `${delay} Minuten` }] : [],
     timeline: [

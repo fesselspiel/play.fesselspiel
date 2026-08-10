@@ -387,8 +387,11 @@ export function AutomationRuleEditor({
           <SimBox title="Session-Zustand" items={[labelAutomationValue("states", simulation.sessionState)]} />
           <SimBox title="Ereignisse" items={simulation.events.map((item) => `${item.minute} min · ${item.title}`)} />
           <SimBox title="Bedingungen" items={simulation.conditions.map((item) => `${item.title}: ${item.passed ? "erfüllt" : "noch offen"} · ${item.result}`)} />
+          <SimBox title="Ausgelöste Regeln" items={simulation.triggeredRules} />
           <SimBox title="Wartende Aktionen" items={simulation.waitingActions.map((item) => `${item.minute} min · ${item.title}`)} />
           <SimBox title="Fällige Aktionen" items={simulation.dueActions.map((item) => `${item.minute} min · ${item.title}`)} />
+          <SimBox title="Simulierte Aktionen" items={simulation.completedActions.map((item) => `${item.minute} min · ${item.title}`)} />
+          <SimBox title="Vorgemerktes Ende" items={simulation.pendingEnd.map((item) => `${item.state}: ${item.text}`)} />
           <SimBox title="Recovery bei Fehler" items={simulation.recoveryActions.map((item) => `${item.minute} min · ${item.title}`)} />
           <SimBox title="Zufallswerte" items={simulation.randomValues.map((item) => `${item.label}: ${item.value}`)} />
         </div>
