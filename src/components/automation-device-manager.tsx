@@ -136,7 +136,7 @@ function CapabilityFields({
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 font-semibold text-ink">{preset.icon}{preset.label}</div>
-          <p className="mt-1 text-xs">Diese Fähigkeit stellt passende Aktionen, Ereignisse und Bedingungen im Rule-Editor bereit.</p>
+          <p className="mt-1 text-xs">Diese Fähigkeit stellt passende Aktionen, Ereignisse und Bedingungen im Regel-Editor bereit.</p>
         </div>
         {onRemove ? (
           <button type="button" onClick={onRemove} disabled={!canRemove} className="inline-flex min-h-9 items-center rounded-md border border-line bg-paper px-3 py-1 text-xs font-semibold text-graphite disabled:opacity-40">

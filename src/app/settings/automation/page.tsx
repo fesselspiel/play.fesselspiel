@@ -527,12 +527,12 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
     <AppShell>
       <PageHeader title="Automation" />
       <PageGuide title="Regeln, Geräte und ioBroker">
-        Hier verwaltest du die serverseitige Automatisierung. Das Portal bleibt die Quelle für Timing, Regeln, Tracker-Kopplung und Protokoll; ioBroker und MQTT sind nur die Brücke zu Geräten.
+        Hier verwaltest du die serverseitige Automatisierung. Das Portal bleibt die Quelle für Zeitlogik, Regeln, Tracker-Kopplung und Protokoll; ioBroker und MQTT sind nur die Gerätebrücke.
       </PageGuide>
       {error ? <div className="mb-4 rounded-lg border border-redbrand/30 bg-redbrand/10 p-3 text-sm font-semibold text-ink">{error}</div> : null}
       <div className="space-y-4">
         <details open className="rounded-lg border border-line bg-surface p-4">
-          <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><RadioTower className="h-4 w-4" /> Bridge</summary>
+          <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><RadioTower className="h-4 w-4" /> Gerätebrücke</summary>
           <form action={saveBridge} className="mt-4 grid gap-3 md:grid-cols-2">
             <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="enabled" type="checkbox" defaultChecked={bridge?.enabled} /> Aktiv</label>
             <Field label="Verbindungszustand">
@@ -546,7 +546,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
             <Field label="MQTT-Themenbereich"><input name="mqttBaseTopic" className={inputClass} defaultValue={bridge?.mqttBaseTopic || "playplaner/v1"} /></Field>
             <Field label="MQTT-Client"><input name="mqttClientId" className={inputClass} defaultValue={bridge?.mqttClientId || ""} /></Field>
             <Field label="MQTT Benutzer"><input name="mqttUsername" className={inputClass} defaultValue={bridge?.mqttUsername || ""} /></Field>
-            <div className="flex items-end"><SubmitButton pendingLabel="Speichert...">Bridge speichern</SubmitButton></div>
+            <div className="flex items-end"><SubmitButton pendingLabel="Speichert...">Gerätebrücke speichern</SubmitButton></div>
           </form>
           <form action={rotateMqtt} className="mt-4 rounded-lg border border-line bg-paper p-4">
             <div className="text-sm font-semibold text-ink">MQTT-Zugang erzeugen oder rotieren</div>
@@ -565,9 +565,9 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
             ) : null}
           </form>
           <div className="mt-4 rounded-lg border border-line bg-paper p-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-ink"><BookOpen className="h-4 w-4" /> Adapter-Contract</div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-ink"><BookOpen className="h-4 w-4" /> Adapter-Schnittstelle</div>
             <p className="mt-2 text-sm text-graphite">
-              Der spätere ioBroker-Adapter nutzt normale API-Tokens und ruft nur Portal-Endpunkte auf. Die Bridge-Logik bleibt dadurch mandantenfähig und vollständig protokolliert.
+              Der spätere ioBroker-Adapter nutzt normale API-Tokens und ruft nur Portal-Endpunkte auf. Die Gerätebrücke bleibt dadurch mandantenfähig und vollständig protokolliert.
             </p>
             <div className="mt-3 grid gap-2 text-xs text-graphite md:grid-cols-2">
               <code className="rounded border border-line bg-surface p-2">POST /api/external/automation/adapter/heartbeat</code>
@@ -578,7 +578,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
               <code className="rounded border border-line bg-surface p-2">POST /api/external/automation/image-requests/{"{requestId}"}/upload</code>
             </div>
             <a className="mt-3 inline-flex text-sm font-semibold text-redbrand hover:underline" href="/docs/iobroker-adapter-contract.md">
-              Contract-Dokument öffnen
+              Schnittstellen-Dokument öffnen
             </a>
           </div>
         </details>
@@ -638,7 +638,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                       <details className="mt-2 rounded border border-line bg-surface p-3">
                         <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Fähigkeit hinzufügen</summary>
                         <p className="mt-2 text-sm text-graphite">
-                          Ergänzt dieses Gerät um eine weitere fachliche Fähigkeit. Die passenden Aktionen, Ereignisse und Bedingungen erscheinen danach automatisch im Rule-Editor.
+                          Ergänzt dieses Gerät um eine weitere fachliche Fähigkeit. Die passenden Aktionen, Ereignisse und Bedingungen erscheinen danach automatisch im Regel-Editor.
                         </p>
                         <form action={addCapabilityToDevice} className="mt-3 space-y-3">
                           <input type="hidden" name="deviceId" value={device.id} />

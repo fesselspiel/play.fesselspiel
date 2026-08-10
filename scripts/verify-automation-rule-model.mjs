@@ -227,3 +227,20 @@ test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben"
   assert.match(route, /simulationOverrides/);
   assert.match(route, /allowedStateOverrides/);
 });
+
+test("Normale Automation-Oberflächen verwenden deutsche Fachsprache", () => {
+  const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
+  const devices = readFileSync("src/components/automation-device-manager.tsx", "utf8");
+  const settings = readFileSync("src/app/settings/automation/page.tsx", "utf8");
+  const overview = readFileSync("src/app/automation/page.tsx", "utf8");
+  const sessionDetail = readFileSync("src/app/automation/sessions/[id]/page.tsx", "utf8");
+  const visibleText = `${editor}\n${devices}\n${settings}\n${overview}\n${sessionDetail}`;
+  assert.doesNotMatch(visibleText, />Trigger</);
+  assert.doesNotMatch(visibleText, /Rule-Editor/);
+  assert.doesNotMatch(visibleText, /Commands aus/);
+  assert.doesNotMatch(visibleText, /Bridge speichern|>Bridge</);
+  assert.doesNotMatch(visibleText, /Recovery bei Fehler/);
+  assert.match(visibleText, /Auslöser/);
+  assert.match(visibleText, /Gerätebrücke/);
+  assert.match(visibleText, /Wiederherstellung bei Fehler/);
+});

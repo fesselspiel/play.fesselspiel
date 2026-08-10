@@ -126,7 +126,7 @@ export default async function AutomationPage() {
         action={<Link href="/settings/automation" className="focus-ring inline-flex min-h-11 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-redbrand/90">Regeln und Geräte</Link>}
       />
       <PageGuide title="Session-Automation">
-        Automation verbindet Tracker-Sessions mit Regeln, Zeitfenstern, Geräten, Kamera-Anfragen und dem ioBroker-Bridge-Protokoll. Timing und Status liegen im Portal, externe Systeme führen nur Commands aus.
+        Automation verbindet Tracker-Sessions mit Regeln, Zeitfenstern, Geräten, Kamera-Anfragen und der ioBroker-Gerätebrücke. Zeitlogik und Status liegen im Portal, externe Systeme führen nur die geplanten Gerätebefehle aus.
       </PageGuide>
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">

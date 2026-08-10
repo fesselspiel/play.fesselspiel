@@ -278,7 +278,7 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
 
           <Panel>
             <h2 className="text-lg font-semibold text-ink">Geplante Aktionen</h2>
-            <p className="mt-1 text-sm text-graphite">Hier stehen Aktionen, die durch Regeln oder manuelle Bedienung geplant wurden. Geräteaktionen werden erst an die Bridge übergeben und danach quittiert.</p>
+            <p className="mt-1 text-sm text-graphite">Hier stehen Aktionen, die durch Regeln oder manuelle Bedienung geplant wurden. Geräteaktionen werden erst an die Gerätebrücke übergeben und danach quittiert.</p>
             <div className="mt-4 space-y-2">
               {session.actions.length ? session.actions.map((action) => (
                 <details key={action.id} className="rounded-md border border-line bg-paper p-3">

@@ -276,7 +276,7 @@ export function AutomationRuleEditor({
 
       <div className="grid gap-3 lg:grid-cols-4">
         <section className="rounded-lg border border-line bg-paper p-4">
-          <div className="flex items-center gap-2 font-semibold text-ink"><RadioTower className="h-4 w-4" /> Trigger</div>
+          <div className="flex items-center gap-2 font-semibold text-ink"><RadioTower className="h-4 w-4" /> Auslöser</div>
           <select className={`${inputClass} mt-3`} value={value.triggerType} onChange={(event) => update({ triggerType: event.target.value as AutomationTriggerKey })}>
             {triggerOptions.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
           </select>
@@ -515,7 +515,7 @@ export function AutomationRuleEditor({
                 {conditionStateOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
               </select>
             </label>
-            <p className="mt-2 text-xs leading-5">Dieser Zustand ist nur ein Simulationswert. Die gespeicherte Fähigkeit und die echte Bridge bleiben unverändert.</p>
+            <p className="mt-2 text-xs leading-5">Dieser Zustand ist nur ein Simulationswert. Die gespeicherte Fähigkeit und die echte Gerätebrücke bleiben unverändert.</p>
           </div>
         ) : null}
         <input className="mt-4 w-full accent-redbrand" type="range" min={0} max={simulation.durationMinutes} value={scrubMinute} onChange={(event) => setScrubMinute(Number(event.target.value))} />
@@ -542,7 +542,7 @@ export function AutomationRuleEditor({
           <SimBox title="Simulierte Aktionen" items={simulation.completedActions.map((item) => `${item.minute} min · ${item.title}`)} />
           <SimBox title="Blockierte Aktionen" items={simulation.blockedActions.map((item) => `${item.minute} min · ${item.title}`)} />
           <SimBox title="Vorgemerktes Ende" items={simulation.pendingEnd.map((item) => `${item.state}: ${item.text}`)} />
-          <SimBox title="Recovery bei Fehler" items={simulation.recoveryActions.map((item) => `${item.minute} min · ${item.title}`)} />
+          <SimBox title="Wiederherstellung bei Fehler" items={simulation.recoveryActions.map((item) => `${item.minute} min · ${item.title}`)} />
           <SimBox title="Zufallswerte" items={simulation.randomValues.map((item) => `${item.label}: ${item.value}`)} />
           <SimBox title="Variablen" items={simulation.humanVariables} />
         </div>
