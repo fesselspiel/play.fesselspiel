@@ -19,6 +19,17 @@ export type AutomationTimingKey = "immediate" | "fixed_delay" | "random_delay";
 export type AutomationActionKey = "camera_request_image" | "switch_on" | "switch_off" | "switch_toggle" | "voice_speak" | "session_finish";
 export type CapabilityKind = "Camera" | "Switch" | "Voice";
 
+export type RuleActionFormValue = {
+  capabilityId: string;
+  capabilityKind: CapabilityKind | "";
+  actionType: AutomationActionKey;
+  voiceText: string;
+  cameraMaxRetries: number;
+  cameraTimeoutSeconds: number;
+  cameraBootDelaySeconds: number;
+  recoveryCapabilityId: string;
+};
+
 export type AutomationCapabilityReference = {
   id: string;
   kind: CapabilityKind;
@@ -188,10 +199,25 @@ export type RuleFormValue = {
   cameraTimeoutSeconds: number;
   cameraBootDelaySeconds: number;
   recoveryCapabilityId: string;
+  actions: RuleActionFormValue[];
   mode: "ONCE" | "REPEAT";
 };
 
+export function defaultRuleActionValue(): RuleActionFormValue {
+  return {
+    capabilityId: "",
+    capabilityKind: "",
+    actionType: "session_finish",
+    voiceText: "",
+    cameraMaxRetries: 2,
+    cameraTimeoutSeconds: 20,
+    cameraBootDelaySeconds: 20,
+    recoveryCapabilityId: ""
+  };
+}
+
 export function defaultRuleFormValue(): RuleFormValue {
+  const action = defaultRuleActionValue();
   return {
     triggerType: "session_started",
     conditionType: "none",
@@ -204,14 +230,15 @@ export function defaultRuleFormValue(): RuleFormValue {
     delayMinutes: 5,
     minMinutes: 5,
     maxMinutes: 10,
-    capabilityId: "",
-    capabilityKind: "",
-    actionType: "session_finish",
-    voiceText: "",
-    cameraMaxRetries: 2,
-    cameraTimeoutSeconds: 20,
-    cameraBootDelaySeconds: 20,
-    recoveryCapabilityId: "",
+    capabilityId: action.capabilityId,
+    capabilityKind: action.capabilityKind,
+    actionType: action.actionType,
+    voiceText: action.voiceText,
+    cameraMaxRetries: action.cameraMaxRetries,
+    cameraTimeoutSeconds: action.cameraTimeoutSeconds,
+    cameraBootDelaySeconds: action.cameraBootDelaySeconds,
+    recoveryCapabilityId: action.recoveryCapabilityId,
+    actions: [action],
     mode: "ONCE"
   };
 }
@@ -247,15 +274,29 @@ export function ruleFormFromStored(rule?: {
   value.delayMinutes = numberValue(timing.minutes ?? timing.delayMinutes, value.delayMinutes);
   value.minMinutes = numberValue(timing.minMinutes, value.minMinutes);
   value.maxMinutes = Math.max(value.minMinutes, numberValue(timing.maxMinutes, value.maxMinutes));
-  const action = Array.isArray(rule.actionJson) ? asObject(rule.actionJson[0]) : {};
-  if (action.type && actionLabels[action.type as AutomationActionKey]) value.actionType = action.type as AutomationActionKey;
-  value.capabilityId = typeof action.capabilityId === "string" ? action.capabilityId : "";
-  value.capabilityKind = typeof action.capabilityKind === "string" ? action.capabilityKind as CapabilityKind : "";
-  value.voiceText = typeof action.text === "string" ? action.text : "";
-  value.cameraMaxRetries = numberValue(action.maxRetries, value.cameraMaxRetries);
-  value.cameraTimeoutSeconds = numberValue(action.timeoutSeconds, value.cameraTimeoutSeconds);
-  value.cameraBootDelaySeconds = numberValue(action.bootDelaySeconds, value.cameraBootDelaySeconds);
-  value.recoveryCapabilityId = typeof action.recoveryCapabilityId === "string" ? action.recoveryCapabilityId : "";
+  const actions = Array.isArray(rule.actionJson) ? rule.actionJson.map((item) => {
+    const action = asObject(item);
+    const next = defaultRuleActionValue();
+    if (action.type && actionLabels[action.type as AutomationActionKey]) next.actionType = action.type as AutomationActionKey;
+    next.capabilityId = typeof action.capabilityId === "string" ? action.capabilityId : "";
+    next.capabilityKind = typeof action.capabilityKind === "string" ? action.capabilityKind as CapabilityKind : "";
+    next.voiceText = typeof action.text === "string" ? action.text : "";
+    next.cameraMaxRetries = numberValue(action.maxRetries, next.cameraMaxRetries);
+    next.cameraTimeoutSeconds = numberValue(action.timeoutSeconds, next.cameraTimeoutSeconds);
+    next.cameraBootDelaySeconds = numberValue(action.bootDelaySeconds, next.cameraBootDelaySeconds);
+    next.recoveryCapabilityId = typeof action.recoveryCapabilityId === "string" ? action.recoveryCapabilityId : "";
+    return next;
+  }).filter((action) => actionLabels[action.actionType]) : [];
+  value.actions = actions.length ? actions : [defaultRuleActionValue()];
+  const first = value.actions[0];
+  value.actionType = first.actionType;
+  value.capabilityId = first.capabilityId;
+  value.capabilityKind = first.capabilityKind;
+  value.voiceText = first.voiceText;
+  value.cameraMaxRetries = first.cameraMaxRetries;
+  value.cameraTimeoutSeconds = first.cameraTimeoutSeconds;
+  value.cameraBootDelaySeconds = first.cameraBootDelaySeconds;
+  value.recoveryCapabilityId = first.recoveryCapabilityId;
   value.mode = rule.mode === "REPEAT" ? "REPEAT" : "ONCE";
   return value;
 }
@@ -274,16 +315,26 @@ export function buildStoredRule(value: RuleFormValue) {
     : value.timingType === "random_delay"
       ? { type: "random_delay", minMinutes: value.minMinutes, maxMinutes: Math.max(value.minMinutes, value.maxMinutes) }
       : { type: "immediate" };
-  const actions = [{
-    type: value.actionType,
-    capabilityId: value.capabilityId || null,
-    capabilityKind: value.capabilityKind || null,
-    text: value.actionType === "voice_speak" ? value.voiceText : null,
-    maxRetries: value.actionType === "camera_request_image" ? value.cameraMaxRetries : null,
-    timeoutSeconds: value.actionType === "camera_request_image" ? value.cameraTimeoutSeconds : null,
-    bootDelaySeconds: value.actionType === "camera_request_image" ? value.cameraBootDelaySeconds : null,
-    recoveryCapabilityId: value.actionType === "camera_request_image" ? value.recoveryCapabilityId || null : null
+  const formActions = value.actions?.length ? value.actions : [{
+    capabilityId: value.capabilityId,
+    capabilityKind: value.capabilityKind,
+    actionType: value.actionType,
+    voiceText: value.voiceText,
+    cameraMaxRetries: value.cameraMaxRetries,
+    cameraTimeoutSeconds: value.cameraTimeoutSeconds,
+    cameraBootDelaySeconds: value.cameraBootDelaySeconds,
+    recoveryCapabilityId: value.recoveryCapabilityId
   }];
+  const actions = formActions.map((action) => ({
+    type: action.actionType,
+    capabilityId: action.capabilityId || null,
+    capabilityKind: action.capabilityKind || null,
+    text: action.actionType === "voice_speak" ? action.voiceText : null,
+    maxRetries: action.actionType === "camera_request_image" ? action.cameraMaxRetries : null,
+    timeoutSeconds: action.actionType === "camera_request_image" ? action.cameraTimeoutSeconds : null,
+    bootDelaySeconds: action.actionType === "camera_request_image" ? action.cameraBootDelaySeconds : null,
+    recoveryCapabilityId: action.actionType === "camera_request_image" ? action.recoveryCapabilityId || null : null
+  }));
   return {
     triggerType: value.triggerType,
     triggerJson: {},
@@ -354,35 +405,39 @@ export function validateAutomationRulePayload(input: {
   }
 
   const actions = Array.isArray(input.actionJson) ? input.actionJson : [];
-  if (actions.length !== 1) errors.push("Bitte wähle genau eine Aktion.");
-  const action = actions.length ? asObject(actions[0]) : {};
-  const actionType = action.type as AutomationActionKey;
-  if (!actionLabels[actionType]) errors.push("Bitte wähle eine gültige Aktion.");
-  const capabilityId = typeof action.capabilityId === "string" ? action.capabilityId : "";
-  const capability = capabilityId ? capabilities.find((item) => item.id === capabilityId) : null;
-  if (actionType === "session_finish" && capabilityId) errors.push("Session beenden ist eine Portal-Aktion und braucht kein Gerät.");
-  if (actionType !== "session_finish") {
-    if (!capabilityId) errors.push("Diese Aktion braucht eine Gerätefähigkeit.");
-    if (capabilityId && !capability) errors.push("Die gewählte Gerätefähigkeit ist auf dieser Seite nicht verfügbar.");
-    if (capability && !actionOptionsByCapability[capability.kind]) {
-      errors.push("Die gewählte Gerätefähigkeit hat einen unbekannten Typ.");
+  if (!actions.length) errors.push("Bitte wähle mindestens eine Aktion.");
+  if (actions.length > 8) errors.push("Bitte verwende höchstens acht Aktionen in einer Regel.");
+  actions.forEach((rawAction, index) => {
+    const action = asObject(rawAction);
+    const prefix = actions.length > 1 ? `Aktion ${index + 1}: ` : "";
+    const actionType = action.type as AutomationActionKey;
+    if (!actionLabels[actionType]) errors.push(`${prefix}Bitte wähle eine gültige Aktion.`);
+    const capabilityId = typeof action.capabilityId === "string" ? action.capabilityId : "";
+    const capability = capabilityId ? capabilities.find((item) => item.id === capabilityId) : null;
+    if (actionType === "session_finish" && capabilityId) errors.push(`${prefix}Session beenden ist eine Portal-Aktion und braucht kein Gerät.`);
+    if (actionType !== "session_finish") {
+      if (!capabilityId) errors.push(`${prefix}Diese Aktion braucht eine Gerätefähigkeit.`);
+      if (capabilityId && !capability) errors.push(`${prefix}Die gewählte Gerätefähigkeit ist auf dieser Seite nicht verfügbar.`);
+      if (capability && !actionOptionsByCapability[capability.kind]) {
+        errors.push(`${prefix}Die gewählte Gerätefähigkeit hat einen unbekannten Typ.`);
+      }
+      if (capability && actionOptionsByCapability[capability.kind] && !actionOptionsByCapability[capability.kind].includes(actionType)) {
+        errors.push(`${prefix}Die gewählte Aktion passt nicht zur Gerätefähigkeit.`);
+      }
     }
-    if (capability && actionOptionsByCapability[capability.kind] && !actionOptionsByCapability[capability.kind].includes(actionType)) {
-      errors.push("Die gewählte Aktion passt nicht zur Gerätefähigkeit.");
+    if (actionType === "voice_speak" && typeof action.text === "string" && !action.text.trim()) {
+      errors.push(`${prefix}Für Sprachausgabe braucht die Aktion einen Text.`);
     }
-  }
-  if (actionType === "voice_speak" && typeof action.text === "string" && !action.text.trim()) {
-    errors.push("Für Sprachausgabe braucht die Aktion einen Text.");
-  }
-  if (actionType === "camera_request_image") {
-    if (numberValue(action.maxRetries, 0) < 0) errors.push("Die Anzahl der Wiederholungen darf nicht negativ sein.");
-    if (numberValue(action.timeoutSeconds, 0) < 1) errors.push("Der Kamera-Timeout muss mindestens eine Sekunde betragen.");
-    if (numberValue(action.bootDelaySeconds, 0) < 0) errors.push("Die Boot-Wartezeit darf nicht negativ sein.");
-    const recoveryCapabilityId = typeof action.recoveryCapabilityId === "string" ? action.recoveryCapabilityId : "";
-    const recoveryCapability = recoveryCapabilityId ? capabilities.find((item) => item.id === recoveryCapabilityId) : null;
-    if (recoveryCapabilityId && !recoveryCapability) errors.push("Die gewählte Neustart-Fähigkeit ist auf dieser Seite nicht verfügbar.");
-    if (recoveryCapability && recoveryCapability.kind !== "Switch") errors.push("Für den Kamera-Neustart muss eine Schaltfähigkeit gewählt werden.");
-  }
+    if (actionType === "camera_request_image") {
+      if (numberValue(action.maxRetries, 0) < 0) errors.push(`${prefix}Die Anzahl der Wiederholungen darf nicht negativ sein.`);
+      if (numberValue(action.timeoutSeconds, 0) < 1) errors.push(`${prefix}Der Kamera-Timeout muss mindestens eine Sekunde betragen.`);
+      if (numberValue(action.bootDelaySeconds, 0) < 0) errors.push(`${prefix}Die Boot-Wartezeit darf nicht negativ sein.`);
+      const recoveryCapabilityId = typeof action.recoveryCapabilityId === "string" ? action.recoveryCapabilityId : "";
+      const recoveryCapability = recoveryCapabilityId ? capabilities.find((item) => item.id === recoveryCapabilityId) : null;
+      if (recoveryCapabilityId && !recoveryCapability) errors.push(`${prefix}Die gewählte Neustart-Fähigkeit ist auf dieser Seite nicht verfügbar.`);
+      if (recoveryCapability && recoveryCapability.kind !== "Switch") errors.push(`${prefix}Für den Kamera-Neustart muss eine Schaltfähigkeit gewählt werden.`);
+    }
+  });
 
   return {
     ok: errors.length === 0,
@@ -399,16 +454,16 @@ export function automationRuleSummary(input: {
   const trigger = triggerOptions.find((option) => option.key === input.triggerType)?.label || "Ein Ereignis tritt ein";
   const condition = Array.isArray(input.conditionJson) ? asObject(input.conditionJson[0]) : {};
   const timing = asObject(input.timingJson);
-  const action = Array.isArray(input.actionJson) ? asObject(input.actionJson[0]) : {};
+  const actions = Array.isArray(input.actionJson) ? input.actionJson.map((item) => asObject(item)) : [];
   const conditionText = condition.type && condition.type !== "none" ? describeCondition(condition, context).toLowerCase() : "";
   const timingText = timing.type === "random_delay"
     ? `warte zufällig weitere ${numberValue(timing.minMinutes, 0)} bis ${numberValue(timing.maxMinutes, 0)} Minuten`
     : timing.type === "fixed_delay"
       ? `warte ${numberValue(timing.minutes ?? timing.delayMinutes, 0)} Minuten`
       : "führe die Aktion sofort aus";
-  const actionText = actionLabels[action.type as AutomationActionKey]?.toLowerCase() || "führe die gewählte Aktion aus";
-  const recoveryText = action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0
-    ? ` Bei Fehlern wird bis zu ${numberValue(action.maxRetries, 0)} Mal wiederholt${action.recoveryCapabilityId ? " und vorher ein Neustart ausgelöst" : ""}.`
+  const actionText = describeActions(actions);
+  const recoveryText = actions.some((action) => action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0)
+    ? " Bei Kamera-Fehlern wird die konfigurierte Recovery-Kette ausgeführt."
     : "";
   if (conditionText) return `Wenn ${trigger.toLowerCase()} und ${conditionText}, ${timingText} und ${actionText}.${recoveryText}`;
   return `Wenn ${trigger.toLowerCase()}, ${timingText} und ${actionText}.${recoveryText}`;
@@ -417,7 +472,7 @@ export function automationRuleSummary(input: {
 export function automationRuleFlow(input: { triggerType: string; conditionJson?: unknown; timingJson?: unknown; actionJson?: unknown }, context: { capabilities?: AutomationCapabilityReference[]; devices?: AutomationDeviceReference[]; trackers?: AutomationTrackerReference[] } = {}) {
   const condition = Array.isArray(input.conditionJson) ? asObject(input.conditionJson[0]) : {};
   const timing = asObject(input.timingJson);
-  const action = Array.isArray(input.actionJson) ? asObject(input.actionJson[0]) : {};
+  const actions = Array.isArray(input.actionJson) ? input.actionJson.map((item) => asObject(item)) : [];
   const steps = [
     triggerOptions.find((option) => option.key === input.triggerType)?.label || "Ereignis tritt ein"
   ];
@@ -426,14 +481,16 @@ export function automationRuleFlow(input: { triggerType: string; conditionJson?:
   }
   if (timing.type === "fixed_delay") steps.push(`${numberValue(timing.minutes ?? timing.delayMinutes, 0)} Minuten warten`);
   if (timing.type === "random_delay") steps.push(`Zufallsfenster ${numberValue(timing.minMinutes, 0)}-${numberValue(timing.maxMinutes, 0)} Minuten`);
-  steps.push(actionLabels[action.type as AutomationActionKey] || "Aktion ausführen");
-  if (action.type === "camera_request_image") {
-    steps.push(numberValue(action.timeoutSeconds, 20) ? `Timeout ${numberValue(action.timeoutSeconds, 20)} Sekunden` : "Kamera-Antwort prüfen");
-    if (numberValue(action.maxRetries, 0) > 0) {
-      if (action.recoveryCapabilityId) steps.push("Bei Fehler: Kamera-Strom neu schalten");
-      steps.push(`Bei Fehler: bis zu ${numberValue(action.maxRetries, 0)} Wiederholung(en)`);
+  actions.forEach((action, index) => {
+    steps.push(actions.length > 1 ? `Aktion ${index + 1}: ${actionLabels[action.type as AutomationActionKey] || "Aktion ausführen"}` : actionLabels[action.type as AutomationActionKey] || "Aktion ausführen");
+    if (action.type === "camera_request_image") {
+      steps.push(numberValue(action.timeoutSeconds, 20) ? `Timeout ${numberValue(action.timeoutSeconds, 20)} Sekunden` : "Kamera-Antwort prüfen");
+      if (numberValue(action.maxRetries, 0) > 0) {
+        if (action.recoveryCapabilityId) steps.push("Bei Fehler: Kamera-Strom neu schalten");
+        steps.push(`Bei Fehler: bis zu ${numberValue(action.maxRetries, 0)} Wiederholung(en)`);
+      }
     }
-  }
+  });
   return steps;
 }
 
@@ -447,7 +504,8 @@ export function simulateAutomationRuleTimeline(input: {
 }, context: { capabilities?: AutomationCapabilityReference[]; devices?: AutomationDeviceReference[]; trackers?: AutomationTrackerReference[] } = {}) {
   const condition = Array.isArray(input.conditionJson) ? asObject(input.conditionJson[0]) : {};
   const timing = asObject(input.timingJson);
-  const action = Array.isArray(input.actionJson) ? asObject(input.actionJson[0]) : {};
+  const actions = Array.isArray(input.actionJson) ? input.actionJson.map((item) => asObject(item)).filter((item) => item.type) : [];
+  const primaryAction = actions[0] || {};
   const conditionMinutes = condition.type && condition.type !== "none" ? numberValue(condition.minutes, 0) : 0;
   const delay = timing.type === "random_delay"
     ? numberValue(timing.minMinutes, 0) + ((input.randomSeed ?? 3) % (Math.max(0, numberValue(timing.maxMinutes, 0) - numberValue(timing.minMinutes, 0)) + 1))
@@ -465,19 +523,25 @@ export function simulateAutomationRuleTimeline(input: {
         result: scrubMinute >= conditionMinutes ? "Bedingung erfüllt" : condition.type === "controller_absent" ? `Warte noch ${Math.max(0, conditionMinutes - scrubMinute)} Minuten auf mögliche Controller-Aktion` : "Bedingung noch nicht erfüllt"
       }]
     : [];
-  const waitingActions = scrubMinute < dueMinute ? [{ minute: dueMinute, title: actionLabels[action.type as AutomationActionKey] || "Aktion" }] : [];
-  const dueActions = scrubMinute >= dueMinute ? [{ minute: dueMinute, title: actionLabels[action.type as AutomationActionKey] || "Aktion" }] : [];
+  const actionItems = actions.map((action, index) => ({
+    minute: dueMinute,
+    title: actions.length > 1 ? `Aktion ${index + 1}: ${actionLabels[action.type as AutomationActionKey] || "Aktion"}` : actionLabels[action.type as AutomationActionKey] || "Aktion"
+  }));
+  const waitingActions = scrubMinute < dueMinute ? actionItems : [];
+  const dueActions = scrubMinute >= dueMinute ? actionItems : [];
   const failureMinute = dueMinute + 1;
-  const recoveryActions = action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0 && scrubMinute >= failureMinute
-    ? [
-        ...(action.recoveryCapabilityId ? [{ minute: failureMinute, title: "Kamera-Strom neu schalten" }] : []),
-        { minute: failureMinute + Math.ceil(numberValue(action.bootDelaySeconds, 20) / 60), title: "Bild erneut anfordern" }
-      ]
+  const recoveryActions = scrubMinute >= failureMinute
+    ? actions.flatMap((action, index) => action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0
+      ? [
+          ...(action.recoveryCapabilityId ? [{ minute: failureMinute, title: actions.length > 1 ? `Aktion ${index + 1}: Kamera-Strom neu schalten` : "Kamera-Strom neu schalten" }] : []),
+          { minute: failureMinute + Math.ceil(numberValue(action.bootDelaySeconds, 20) / 60), title: actions.length > 1 ? `Aktion ${index + 1}: Bild erneut anfordern` : "Bild erneut anfordern" }
+        ]
+      : [])
     : [];
   return {
     durationMinutes: Math.max(1, dueMinute + 5),
     scrubMinute,
-    sessionState: scrubMinute >= dueMinute && action.type === "session_finish" ? "FINISHED" : "RUNNING",
+    sessionState: scrubMinute >= dueMinute && actions.some((action) => action.type === "session_finish") ? "FINISHED" : "RUNNING",
     events: events.filter((event) => event.minute <= scrubMinute),
     conditions,
     triggeredRules: scrubMinute >= 0 ? [triggerOptions.find((option) => option.key === input.triggerType)?.label || "Regel"] : [],
@@ -490,8 +554,8 @@ export function simulateAutomationRuleTimeline(input: {
       { minute: 0, title: "Auslöser eingetreten", status: scrubMinute >= 0 ? "erledigt" : "wartet" },
       ...(condition.type && condition.type !== "none" ? [{ minute: conditionMinutes, title: describeCondition(condition, context), status: scrubMinute >= conditionMinutes ? "erfüllt" : "wartet" }] : []),
       ...(delay ? [{ minute: dueMinute, title: timing.type === "random_delay" ? `Zufällige Wartezeit endet nach ${delay} Minuten` : `Wartezeit endet nach ${delay} Minuten`, status: scrubMinute >= dueMinute ? "erledigt" : "wartet" }] : []),
-      { minute: dueMinute, title: actionLabels[action.type as AutomationActionKey] || "Aktion", status: scrubMinute >= dueMinute ? "fällig" : "wartet" },
-      ...(action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0 ? [{ minute: failureMinute, title: "Falls kein Bild ankommt: Recovery starten", status: scrubMinute >= failureMinute ? "bereit" : "wartet" }] : [])
+      ...actionItems.map((item) => ({ ...item, status: scrubMinute >= dueMinute ? "fällig" : "wartet" })),
+      ...(actions.some((action) => action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0) ? [{ minute: failureMinute, title: "Falls ein Bild nicht ankommt: Recovery starten", status: scrubMinute >= failureMinute ? "bereit" : "wartet" }] : [])
     ],
     explanation: explainSimulationState({
       scrubMinute,
@@ -499,32 +563,45 @@ export function simulateAutomationRuleTimeline(input: {
       conditionMinutes,
       delay,
       dueMinute,
-      actionType: action.type as string | undefined
+      actionType: primaryAction.type as string | undefined,
+      actionCount: actions.length
     }),
     variables: {
       conditionMinutes,
       delayMinutes: delay,
       dueMinute,
-      timeoutSeconds: action.type === "camera_request_image" ? numberValue(action.timeoutSeconds, 20) : null,
-      maxRetries: action.type === "camera_request_image" ? numberValue(action.maxRetries, 0) : null,
-      bootDelaySeconds: action.type === "camera_request_image" ? numberValue(action.bootDelaySeconds, 20) : null,
+      actions: actions.map((action) => ({
+        type: action.type,
+        timeoutSeconds: action.type === "camera_request_image" ? numberValue(action.timeoutSeconds, 20) : null,
+        maxRetries: action.type === "camera_request_image" ? numberValue(action.maxRetries, 0) : null,
+        bootDelaySeconds: action.type === "camera_request_image" ? numberValue(action.bootDelaySeconds, 20) : null
+      })),
       sideEffects: false
     }
   };
 }
 
-function explainSimulationState(input: { scrubMinute: number; conditionType?: string; conditionMinutes: number; delay: number; dueMinute: number; actionType?: string }) {
+function explainSimulationState(input: { scrubMinute: number; conditionType?: string; conditionMinutes: number; delay: number; dueMinute: number; actionType?: string; actionCount?: number }) {
   if (input.conditionType && input.conditionType !== "none" && input.scrubMinute < input.conditionMinutes) {
     return `Die Regel wartet noch auf die Bedingung. Bis Minute ${input.conditionMinutes} darf kein widersprechendes Ereignis eintreten.`;
   }
   if (input.scrubMinute < input.dueMinute) {
     return input.delay
-      ? `Die Bedingung ist erfüllt. Die Aktion wartet noch bis Minute ${input.dueMinute}.`
-      : "Die Regel ist ausgelöst, die Aktion ist noch nicht fällig.";
+      ? `Die Bedingung ist erfüllt. ${input.actionCount && input.actionCount > 1 ? "Die Aktionen warten" : "Die Aktion wartet"} noch bis Minute ${input.dueMinute}.`
+      : `Die Regel ist ausgelöst, ${input.actionCount && input.actionCount > 1 ? "die Aktionen sind" : "die Aktion ist"} noch nicht fällig.`;
   }
+  if (input.actionCount && input.actionCount > 1) return `Alle ${input.actionCount} Aktionen sind fällig. Die Simulation erzeugt weiterhin keine echten Side Effects.`;
   if (input.actionType === "camera_request_image") return "Die Bildanforderung ist fällig. In der echten Ausführung würde jetzt ein geschützter Bildrequest erzeugt und an die Bridge übergeben.";
   if (input.actionType === "session_finish") return "Die Session-Ende-Aktion ist fällig. In der echten Ausführung würde der Zustand entsprechend gesetzt.";
   return "Die Aktion ist fällig. Die Simulation erzeugt weiterhin keine echten Side Effects.";
+}
+
+function describeActions(actions: Record<string, unknown>[]) {
+  if (!actions.length) return "führe die gewählte Aktion aus";
+  const labels = actions.map((action) => actionLabels[action.type as AutomationActionKey]?.toLowerCase() || "führe eine Aktion aus");
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return `${labels[0]} und danach ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")} und danach ${labels[labels.length - 1]}`;
 }
 
 function nameById<T extends { id: string }>(items: T[] | undefined, id: unknown, fallback: string, label: (item: T) => string) {

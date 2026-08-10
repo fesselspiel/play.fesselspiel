@@ -75,6 +75,17 @@ test("Feste Verzögerung berechnet fällige Minute", () => {
   assert.equal(simulate(rule, 15).due, true);
 });
 
+test("Mehrere Aktionen bleiben in einer Regel erhalten", () => {
+  const rule = buildRule({ timingType: "fixed_delay", delayMinutes: 3 });
+  rule.actionJson = [
+    { type: "camera_request_image", capabilityId: "cam-1", capabilityKind: "Camera" },
+    { type: "voice_speak", capabilityId: "voice-1", capabilityKind: "Voice", text: "Bitte Status prüfen." }
+  ];
+  assert.equal(rule.actionJson.length, 2);
+  assert.deepEqual(rule.actionJson.map((action) => action.type), ["camera_request_image", "voice_speak"]);
+  assert.equal(simulate(rule, 3).due, true);
+});
+
 test("Zufallsfenster wird einmal bestimmt und bleibt stabil", () => {
   const rule = buildRule({ timingType: "random_delay", minMinutes: 5, maxMinutes: 10 });
   assert.equal(simulate(rule, 0, 3).dueMinute, simulate(rule, 9, 3).dueMinute);

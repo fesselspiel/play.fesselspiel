@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, CheckCircle2, Clock, Cpu, GitBranch, RadioTower, Shuffle, XCircle } from "lucide-react";
+import { ArrowDown, CheckCircle2, Clock, Cpu, GitBranch, Plus, RadioTower, Shuffle, Trash2, XCircle } from "lucide-react";
 import {
   actionLabels,
   actionOptionsByCapability,
@@ -10,6 +10,7 @@ import {
   buildStoredRule,
   conditionLabels,
   conditionOptions,
+  defaultRuleActionValue,
   defaultRuleFormValue,
   labelAutomationValue,
   simulateAutomationRuleTimeline,
@@ -20,6 +21,7 @@ import {
   type AutomationTimingKey,
   type AutomationTriggerKey,
   type CapabilityKind,
+  type RuleActionFormValue,
   type RuleFormValue
 } from "@/lib/automation-rule-model";
 import { inputClass } from "@/components/ui";
@@ -70,13 +72,7 @@ export function AutomationRuleEditor({
   const [value, setValue] = useState<RuleFormValue>(() => parseInitial(initial));
   const [scrubMinute, setScrubMinute] = useState(0);
   const availableConditions = conditionOptions[value.triggerType] || ["none"];
-  const selectedCapability = capabilities.find((capability) => capability.id === value.capabilityId);
-  const capabilityKind = selectedCapability?.kind || value.capabilityKind || "";
   const recoveryCapabilities = capabilities.filter((capability) => capability.kind === "Switch");
-  const availableActions = useMemo<AutomationActionKey[]>(
-    () => capabilityKind ? actionOptionsByCapability[capabilityKind] : ["session_finish"],
-    [capabilityKind]
-  );
   const stored = useMemo(() => buildStoredRule(value), [value]);
   const context = useMemo(() => ({ capabilities, devices, trackers }), [capabilities, devices, trackers]);
   const summary = automationRuleSummary(stored, context);
@@ -84,10 +80,8 @@ export function AutomationRuleEditor({
   const simulation = simulateAutomationRuleTimeline({ ...stored, scrubMinute }, context);
 
   useEffect(() => {
-    if (!availableActions.includes(value.actionType)) {
-      setValue((current) => ({ ...current, actionType: availableActions[0] }));
-    }
-  }, [availableActions, value.actionType]);
+    setValue((current) => normalizeActions(current));
+  }, [capabilities]);
 
   function update(next: Partial<RuleFormValue>) {
     setValue((current) => {
@@ -118,7 +112,65 @@ export function AutomationRuleEditor({
         merged.delayMinutes = 0;
       }
       if (merged.maxMinutes < merged.minMinutes) merged.maxMinutes = merged.minMinutes;
-      return merged;
+      return normalizeActions(merged);
+    });
+  }
+
+  function actionsForCapability(action: RuleActionFormValue): AutomationActionKey[] {
+    const capability = capabilities.find((item) => item.id === action.capabilityId);
+    if (!capability) return ["session_finish"];
+    return actionOptionsByCapability[capability.kind] || ["session_finish"];
+  }
+
+  function normalizeAction(action: RuleActionFormValue): RuleActionFormValue {
+    const capability = capabilities.find((item) => item.id === action.capabilityId);
+    const next = { ...action };
+    if (capability) {
+      next.capabilityKind = capability.kind;
+      const actions = actionOptionsByCapability[capability.kind] || ["session_finish"];
+      if (!actions.includes(next.actionType)) next.actionType = actions[0];
+    } else {
+      next.capabilityId = "";
+      next.capabilityKind = "";
+      if (next.actionType !== "session_finish") next.actionType = "session_finish";
+    }
+    return next;
+  }
+
+  function normalizeActions(current: RuleFormValue): RuleFormValue {
+    const actions = (current.actions?.length ? current.actions : [defaultRuleActionValue()]).map((action) => normalizeAction(action));
+    const first = actions[0] || defaultRuleActionValue();
+    return {
+      ...current,
+      actions,
+      capabilityId: first.capabilityId,
+      capabilityKind: first.capabilityKind,
+      actionType: first.actionType,
+      voiceText: first.voiceText,
+      cameraMaxRetries: first.cameraMaxRetries,
+      cameraTimeoutSeconds: first.cameraTimeoutSeconds,
+      cameraBootDelaySeconds: first.cameraBootDelaySeconds,
+      recoveryCapabilityId: first.recoveryCapabilityId
+    };
+  }
+
+  function updateAction(index: number, patch: Partial<RuleActionFormValue>) {
+    setValue((current) => {
+      const actions = (current.actions?.length ? current.actions : [defaultRuleActionValue()]).map((action, actionIndex) => (
+        actionIndex === index ? normalizeAction({ ...action, ...patch }) : normalizeAction(action)
+      ));
+      return normalizeActions({ ...current, actions });
+    });
+  }
+
+  function addAction() {
+    setValue((current) => normalizeActions({ ...current, actions: [...(current.actions?.length ? current.actions : [defaultRuleActionValue()]), defaultRuleActionValue()] }));
+  }
+
+  function removeAction(index: number) {
+    setValue((current) => {
+      const actions = (current.actions?.length ? current.actions : [defaultRuleActionValue()]).filter((_, actionIndex) => actionIndex !== index);
+      return normalizeActions({ ...current, actions: actions.length ? actions : [defaultRuleActionValue()] });
     });
   }
 
@@ -221,49 +273,78 @@ export function AutomationRuleEditor({
           ) : null}
         </section>
 
-        <section className="rounded-lg border border-line bg-paper p-4">
+        <section className="rounded-lg border border-line bg-paper p-4 lg:col-span-4">
           <div className="flex items-center gap-2 font-semibold text-ink"><Cpu className="h-4 w-4" /> Aktion</div>
-          <select className={`${inputClass} mt-3`} value={value.capabilityId} onChange={(event) => update({ capabilityId: event.target.value })}>
-            <option value="">Portal-Aktion ohne Gerät</option>
-            {capabilities.map((capability) => (
-              <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
-            ))}
-          </select>
-          <select className={`${inputClass} mt-2`} value={value.actionType} onChange={(event) => update({ actionType: event.target.value as AutomationActionKey })}>
-            {availableActions.map((key) => <option key={key} value={key}>{actionLabels[key]}</option>)}
-          </select>
-          {value.actionType === "voice_speak" ? (
-            <textarea className={`${inputClass} mt-2`} value={value.voiceText} onChange={(event) => update({ voiceText: event.target.value })} rows={2} placeholder="Text, den ioBroker sprechen soll" />
-          ) : null}
-          {value.actionType === "camera_request_image" ? (
-            <div className="mt-3 space-y-2 text-sm text-graphite">
-              <div className="grid grid-cols-2 gap-2">
-                <label>Timeout
-                  <div className="mt-1 flex items-center gap-2">
-                    <input className={inputClass} type="number" min={1} value={value.cameraTimeoutSeconds} onChange={(event) => update({ cameraTimeoutSeconds: Number(event.target.value) })} />
-                    <span>Sek.</span>
+          <div className="mt-3 space-y-3">
+            {value.actions.map((action, index) => {
+              const availableActions = actionsForCapability(action);
+              return (
+                <div key={index} className="rounded-md border border-line bg-surface p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-ink">Aktion {index + 1}</div>
+                      <div className="text-xs text-graphite">Wird zur fälligen Zeit dieser Regel ausgeführt.</div>
+                    </div>
+                    {value.actions.length > 1 ? (
+                      <button type="button" onClick={() => removeAction(index)} className="inline-flex items-center gap-1 rounded-md border border-line bg-paper px-2 py-1 text-xs font-semibold text-graphite hover:border-redbrand hover:text-redbrand">
+                        <Trash2 className="h-3 w-3" /> Entfernen
+                      </button>
+                    ) : null}
                   </div>
-                </label>
-                <label>Wiederholungen
-                  <input className={`${inputClass} mt-1`} type="number" min={0} max={10} value={value.cameraMaxRetries} onChange={(event) => update({ cameraMaxRetries: Number(event.target.value) })} />
-                </label>
-              </div>
-              <label>Boot-Wartezeit
-                <div className="mt-1 flex items-center gap-2">
-                  <input className={inputClass} type="number" min={0} value={value.cameraBootDelaySeconds} onChange={(event) => update({ cameraBootDelaySeconds: Number(event.target.value) })} />
-                  <span>Sek.</span>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    <label className="text-sm text-graphite">Ziel
+                      <select className={`${inputClass} mt-1`} value={action.capabilityId} onChange={(event) => updateAction(index, { capabilityId: event.target.value })}>
+                        <option value="">Portal-Aktion ohne Gerät</option>
+                        {capabilities.map((capability) => (
+                          <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-sm text-graphite">Aktion
+                      <select className={`${inputClass} mt-1`} value={action.actionType} onChange={(event) => updateAction(index, { actionType: event.target.value as AutomationActionKey })}>
+                        {availableActions.map((key) => <option key={key} value={key}>{actionLabels[key]}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  {action.actionType === "voice_speak" ? (
+                    <textarea className={`${inputClass} mt-2`} value={action.voiceText} onChange={(event) => updateAction(index, { voiceText: event.target.value })} rows={2} placeholder="Text, den ioBroker sprechen soll" />
+                  ) : null}
+                  {action.actionType === "camera_request_image" ? (
+                    <div className="mt-3 space-y-2 text-sm text-graphite">
+                      <div className="grid grid-cols-2 gap-2">
+                        <label>Timeout
+                          <div className="mt-1 flex items-center gap-2">
+                            <input className={inputClass} type="number" min={1} value={action.cameraTimeoutSeconds} onChange={(event) => updateAction(index, { cameraTimeoutSeconds: Number(event.target.value) })} />
+                            <span>Sek.</span>
+                          </div>
+                        </label>
+                        <label>Wiederholungen
+                          <input className={`${inputClass} mt-1`} type="number" min={0} max={10} value={action.cameraMaxRetries} onChange={(event) => updateAction(index, { cameraMaxRetries: Number(event.target.value) })} />
+                        </label>
+                      </div>
+                      <label>Boot-Wartezeit
+                        <div className="mt-1 flex items-center gap-2">
+                          <input className={inputClass} type="number" min={0} value={action.cameraBootDelaySeconds} onChange={(event) => updateAction(index, { cameraBootDelaySeconds: Number(event.target.value) })} />
+                          <span>Sek.</span>
+                        </div>
+                      </label>
+                      <label>Neustart-Schalter
+                        <select className={`${inputClass} mt-1`} value={action.recoveryCapabilityId} onChange={(event) => updateAction(index, { recoveryCapabilityId: event.target.value })}>
+                          <option value="">Kein automatischer Neustart</option>
+                          {recoveryCapabilities.map((capability) => (
+                            <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  ) : null}
                 </div>
-              </label>
-              <label>Neustart-Schalter
-                <select className={`${inputClass} mt-1`} value={value.recoveryCapabilityId} onChange={(event) => update({ recoveryCapabilityId: event.target.value })}>
-                  <option value="">Kein automatischer Neustart</option>
-                  {recoveryCapabilities.map((capability) => (
-                    <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          ) : null}
+              );
+            })}
+            <button type="button" onClick={addAction} className="inline-flex items-center gap-2 rounded-md border border-line bg-paper px-3 py-2 text-sm font-semibold text-ink hover:border-redbrand hover:text-redbrand">
+              <Plus className="h-4 w-4" /> Weitere Aktion hinzufügen
+            </button>
+          </div>
         </section>
       </div>
 
