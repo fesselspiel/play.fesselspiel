@@ -183,3 +183,12 @@ test("Bestehende Automation-Geräte können geführte Fähigkeiten erhalten", ()
   assert.match(page, /addCapabilityToDevice/);
   assert.match(page, /Fähigkeit hinzufügen/);
 });
+
+test("Normale Automation-Oberflächen vermeiden englische Technikbegriffe", () => {
+  const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  const settingsPage = readFileSync("src/app/settings/automation/page.tsx", "utf8");
+  assert.doesNotMatch(model, /Side Effects/);
+  assert.doesNotMatch(model, /Recovery-Kette|Recovery starten|Kamera-Recovery/);
+  assert.match(model, /capabilityKinds/);
+  assert.match(settingsPage, /labelAutomationValue\("capabilityKinds"/);
+});

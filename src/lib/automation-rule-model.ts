@@ -107,8 +107,8 @@ export const automationLabels = {
     capability_event: "Gerätefähigkeit hat ein Ereignis gemeldet",
     device_state_changed: "Gerätezustand hat sich geändert",
     quota_open: "Tracker-Kontingent ist offen",
-    camera_recovery_scheduled: "Kamera-Recovery wurde geplant",
-    camera_recovery_exhausted: "Kamera-Recovery ist beendet",
+    camera_recovery_scheduled: "Kamera-Wiederherstellung wurde geplant",
+    camera_recovery_exhausted: "Kamera-Wiederherstellung ist beendet",
     bridge_heartbeat: "Bridge hat sich gemeldet",
     bridge_command_created: "Bridge-Befehl wurde erstellt",
     bridge_command_finished: "Bridge-Befehl wurde abgeschlossen"
@@ -141,6 +141,11 @@ export const automationLabels = {
     SCHEDULED_RULE: "Regel",
     IOBROKER: "ioBroker",
     SYSTEM: "System"
+  },
+  capabilityKinds: {
+    Camera: "Kamera",
+    Switch: "Schalter",
+    Voice: "Sprachausgabe"
   }
 } as const;
 
@@ -529,7 +534,7 @@ export function automationRuleSummary(input: {
       : "führe die Aktion sofort aus";
   const actionText = describeActions(actions);
   const recoveryText = actions.some((action) => action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0)
-    ? " Bei Kamera-Fehlern wird die konfigurierte Recovery-Kette ausgeführt."
+    ? " Bei Kamera-Fehlern wird die konfigurierte Wiederherstellung ausgeführt."
     : "";
   if (conditionText) return `Wenn ${trigger.toLowerCase()} und ${conditionText}, ${timingText} und ${actionText}.${recoveryText}`;
   return `Wenn ${trigger.toLowerCase()}, ${timingText} und ${actionText}.${recoveryText}`;
@@ -662,7 +667,7 @@ export function simulateAutomationRuleTimeline(input: {
       ...(timing.type === "fixed_delay" ? [`Feste Wartezeit: ${delay} Minuten`] : []),
       ...(timing.type === "random_delay" ? [`Zufallsfenster: ${numberValue(timing.minMinutes, 0)} bis ${numberValue(timing.maxMinutes, 0)} Minuten`, `Gezogener Wert: ${delay} Minuten`] : []),
       `Fälligkeit: ${dueMinute === null ? "keine Fälligkeit, weil die Bedingung blockiert" : controllerActionBlocksNow ? `durch simulierte Controller-Aktion blockiert, sonst Minute ${dueMinute}` : `Minute ${dueMinute}`}`,
-      `Side Effects: keine echten Aktionen in der Simulation`
+      `Echte Ausführung: keine Aktionen in der Simulation`
     ],
     timeline: [
       { minute: 0, title: "Auslöser eingetreten", status: scrubMinute >= 0 ? "erledigt" : "wartet" },
@@ -670,7 +675,7 @@ export function simulateAutomationRuleTimeline(input: {
       ...(condition.type && condition.type !== "none" ? [{ minute: conditionMinutes, title: describeCondition(condition, context), status: conditionEvaluation.passed && scrubMinute >= conditionMinutes && !controllerActionBlocksNow ? "erfüllt" : scrubMinute >= conditionMinutes || controllerActionBlocksNow ? "blockiert" : "wartet" }] : []),
       ...(delay && dueMinute !== null ? [{ minute: dueMinute, title: timing.type === "random_delay" ? `Zufällige Wartezeit endet nach ${delay} Minuten` : `Wartezeit endet nach ${delay} Minuten`, status: scrubMinute >= dueMinute ? "erledigt" : "wartet" }] : []),
       ...actionItems.map((item) => ({ ...item, status: blockedActions.length ? "blockiert" : actionsAreDue ? "fällig" : "wartet" })),
-      ...(actions.some((action) => action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0) ? [{ minute: failureMinute, title: "Falls ein Bild nicht ankommt: Recovery starten", status: scrubMinute >= failureMinute ? "bereit" : "wartet" }] : [])
+      ...(actions.some((action) => action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0) ? [{ minute: failureMinute, title: "Falls ein Bild nicht ankommt: Wiederherstellung starten", status: scrubMinute >= failureMinute ? "bereit" : "wartet" }] : [])
     ],
     explanation: explainSimulationState({
       scrubMinute,
@@ -714,10 +719,10 @@ function explainSimulationState(input: { scrubMinute: number; conditionType?: st
       ? `Die Bedingung ist erfüllt. ${input.actionCount && input.actionCount > 1 ? "Die Aktionen warten" : "Die Aktion wartet"} noch bis Minute ${input.dueMinute}.`
       : `Die Regel ist ausgelöst, ${input.actionCount && input.actionCount > 1 ? "die Aktionen sind" : "die Aktion ist"} noch nicht fällig.`;
   }
-  if (input.actionCount && input.actionCount > 1) return `Alle ${input.actionCount} Aktionen sind fällig. Die Simulation erzeugt weiterhin keine echten Side Effects.`;
+  if (input.actionCount && input.actionCount > 1) return `Alle ${input.actionCount} Aktionen sind fällig. Die Simulation führt weiterhin nichts echt aus.`;
   if (input.actionType === "camera_request_image") return "Die Bildanforderung ist fällig. In der echten Ausführung würde jetzt ein geschützter Bildrequest erzeugt und an die Bridge übergeben.";
   if (input.actionType === "session_finish") return "Die Session-Ende-Aktion ist fällig. In der echten Ausführung würde der Zustand entsprechend gesetzt.";
-  return "Die Aktion ist fällig. Die Simulation erzeugt weiterhin keine echten Side Effects.";
+  return "Die Aktion ist fällig. Die Simulation führt weiterhin nichts echt aus.";
 }
 
 function evaluateSimulationCondition(condition: Record<string, unknown>, context: { capabilities?: AutomationCapabilityReference[]; devices?: AutomationDeviceReference[]; trackers?: AutomationTrackerReference[] } = {}) {

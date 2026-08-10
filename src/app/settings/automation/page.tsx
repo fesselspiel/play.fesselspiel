@@ -834,7 +834,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                             <div className="rounded-md border border-line bg-surface p-3">
                               <div className="text-xs uppercase text-graphite">Gerät</div>
                               {event.device ? <div className="mt-1 font-semibold text-ink">{event.device.name}</div> : null}
-                              {event.capability ? <div>{event.capability.title} · {event.capability.kind} · {labelAutomationValue("health", event.capability.state)}</div> : null}
+                              {event.capability ? <div>{event.capability.title} · {labelAutomationValue("capabilityKinds", event.capability.kind)} · {labelAutomationValue("health", event.capability.state)}</div> : null}
                             </div>
                           ) : null}
                         </div>

@@ -1200,3 +1200,4 @@ Details:
 - Automation-Actions schreiben in neuen Event-Titeln nun deutsche Aktionsnamen wie `Bild anfordern` oder `Session beenden`; rohe Action-Keys bleiben nur in technischen Details und Payloads.
 - Die externe Automation-Simulationsroute unterstützt denselben Simulationsparameter für Controller-Gegenereignisse wie der Web-Editor, damit App/Agent/API dieselbe Abwesenheitslogik nachvollziehen können.
 - Bestehende Automation-Geräte können nun ebenfalls über die geführte Oberfläche zusätzliche Fähigkeiten erhalten. Admins wählen fachlich Kamera, Schalter oder Sprachausgabe und pflegen die passenden Felder; Actions, Events, Conditions und technische Keys werden automatisch erzeugt und protokolliert.
+- Sichtbare Automation-Texte wurden weiter fachlich geglättet: Fähigkeitsarten werden als Kamera, Schalter oder Sprachausgabe angezeigt und englische Begriffe wie Recovery oder Side Effects tauchen in der normalen Regel-/Simulationsansicht nicht mehr auf.
