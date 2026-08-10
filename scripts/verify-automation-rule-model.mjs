@@ -97,6 +97,15 @@ test("Event-Abwesenheit ist modellierbar", () => {
   assert.equal(rule.conditionJson[0].type, "controller_absent");
 });
 
+test("Fachliche Kamera- und Capability-Auslöser sind modellierbar", () => {
+  const triggers = ["image_uploaded", "camera_online", "camera_offline", "capability_event", "session_finished"];
+  for (const triggerType of triggers) {
+    const rule = buildRule({ triggerType });
+    assert.equal(rule.triggerType, triggerType);
+    assert.equal(simulate(rule, 0).due, true);
+  }
+});
+
 test("Rule-Versionierung erhöht Version bei Änderung", () => {
   assert.equal(2 + 1, 3);
 });

@@ -876,11 +876,16 @@ function triggerMatches(ruleTrigger: string, eventType: string) {
   if (ruleTrigger === eventType) return true;
   if (ruleTrigger === "session_started" && eventType === "session_started") return true;
   if (ruleTrigger === "session_pending_end" && eventType === "session_pending_end") return true;
+  if (ruleTrigger === "session_finished" && eventType === "session_finished") return true;
   if (ruleTrigger === "action_succeeded" && eventType === "action_succeeded") return true;
   if (ruleTrigger === "action_failed" && eventType === "action_failed") return true;
+  if (ruleTrigger === "image_uploaded" && eventType === "image_uploaded") return true;
+  if (ruleTrigger === "camera_online" && eventType === "camera_online") return true;
+  if (ruleTrigger === "camera_offline" && eventType === "camera_offline") return true;
+  if (ruleTrigger === "capability_event" && eventType === "capability_event") return true;
   if (ruleTrigger === "device_state_changed" && eventType === "device_state_changed") return true;
   if (ruleTrigger === "quota_open" && eventType === "quota_open") return true;
-  if (ruleTrigger === "event_absent" && ["session_started", "session_pending_end", "action_succeeded", "action_failed"].includes(eventType)) return true;
+  if (ruleTrigger === "event_absent" && ["session_started", "session_pending_end", "session_finished", "action_succeeded", "action_failed", "image_uploaded", "camera_online", "camera_offline", "capability_event", "device_state_changed", "quota_open"].includes(eventType)) return true;
   return false;
 }
 

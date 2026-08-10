@@ -1,8 +1,13 @@
 export type AutomationTriggerKey =
   | "session_started"
   | "session_pending_end"
+  | "session_finished"
   | "action_succeeded"
   | "action_failed"
+  | "image_uploaded"
+  | "camera_online"
+  | "camera_offline"
+  | "capability_event"
   | "event_absent"
   | "device_state_changed"
   | "quota_open";
@@ -78,6 +83,7 @@ export const automationLabels = {
     session_started: "Session wurde gestartet",
     session_pending_end: "Session-Ende wurde vorgemerkt",
     session_finished: "Session wurde beendet",
+    session_end_kept: "Bestehendes Endfenster blieb unverändert",
     rule_created: "Regel wurde angelegt",
     rule_updated: "Regel wurde geändert",
     rule_deleted: "Regel wurde gelöscht",
@@ -95,6 +101,11 @@ export const automationLabels = {
     action_cancelled: "Aktion wurde nicht ausgeführt",
     image_requested: "Bild wurde angefordert",
     image_uploaded: "Bild wurde empfangen",
+    camera_online: "Kamera ist wieder verbunden",
+    camera_offline: "Kamera ist nicht erreichbar",
+    capability_event: "Gerätefähigkeit hat ein Ereignis gemeldet",
+    device_state_changed: "Gerätezustand hat sich geändert",
+    quota_open: "Tracker-Kontingent ist offen",
     camera_recovery_scheduled: "Kamera-Recovery wurde geplant",
     camera_recovery_exhausted: "Kamera-Recovery ist beendet",
     bridge_heartbeat: "Bridge hat sich gemeldet",
@@ -132,8 +143,13 @@ export const automationLabels = {
 export const triggerOptions: Array<{ key: AutomationTriggerKey; label: string; description: string }> = [
   { key: "session_started", label: "Session wurde gestartet", description: "Reagiert, sobald eine Automation-Session beginnt." },
   { key: "session_pending_end", label: "Session-Ende wurde vorgemerkt", description: "Reagiert, wenn ein verzögertes Ende geplant wurde." },
+  { key: "session_finished", label: "Session wurde beendet", description: "Reagiert, sobald eine Automation-Session tatsächlich abgeschlossen wurde." },
   { key: "action_succeeded", label: "Aktion war erfolgreich", description: "Reagiert auf eine erfolgreich ausgeführte Aktion." },
   { key: "action_failed", label: "Aktion ist fehlgeschlagen", description: "Reagiert auf Fehler, z. B. Kamera nicht erreichbar." },
+  { key: "image_uploaded", label: "Bild wurde empfangen", description: "Reagiert, sobald ein angefordertes Kamerabild im Portal angekommen ist." },
+  { key: "camera_online", label: "Kamera ist wieder verbunden", description: "Reagiert auf eine Kamera, die wieder erreichbar ist." },
+  { key: "camera_offline", label: "Kamera ist nicht erreichbar", description: "Reagiert auf eine Kamera, die nicht erreichbar ist." },
+  { key: "capability_event", label: "Gerätefähigkeit meldet Ereignis", description: "Reagiert auf ein Ereignis einer konkreten Kamera, eines Schalters oder einer Sprachausgabe." },
   { key: "event_absent", label: "Ereignis bleibt aus", description: "Reagiert, wenn innerhalb einer Zeitspanne nichts passiert." },
   { key: "device_state_changed", label: "Gerätezustand ändert sich", description: "Reagiert auf lokale ioBroker-/MQTT-Zustände." },
   { key: "quota_open", label: "Tracker-Kontingent ist offen", description: "Reagiert, wenn noch Zeit zu erfüllen ist." }
@@ -142,8 +158,13 @@ export const triggerOptions: Array<{ key: AutomationTriggerKey; label: string; d
 export const conditionOptions: Record<AutomationTriggerKey, AutomationConditionKey[]> = {
   session_started: ["none", "controller_absent", "device_online", "device_offline"],
   session_pending_end: ["none", "device_online", "device_offline"],
+  session_finished: ["none", "quota_remaining"],
   action_succeeded: ["none", "capability_state"],
   action_failed: ["none", "device_offline", "capability_state"],
+  image_uploaded: ["none", "capability_state"],
+  camera_online: ["none", "device_online", "capability_state"],
+  camera_offline: ["none", "device_offline", "capability_state"],
+  capability_event: ["capability_state", "device_online", "device_offline"],
   event_absent: ["controller_absent", "device_online", "device_offline"],
   device_state_changed: ["capability_state", "device_online", "device_offline"],
   quota_open: ["quota_remaining"]
