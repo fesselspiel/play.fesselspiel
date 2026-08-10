@@ -600,7 +600,7 @@ export const capabilities: readonly Capability[] = [
           { method: "GET", path: "/api/external/automation/rules/{id}", description: "Regel, Versionen, Actions und Events lesen." },
           { method: "PATCH", path: "/api/external/automation/rules/{id}", description: "Regel ändern und neue Version erzeugen." },
           { method: "DELETE", path: "/api/external/automation/rules/{id}", description: "Regel löschen." },
-          { method: "POST", path: "/api/external/automation/rules/simulate", description: "Regel als scrubbaren Zeitstrahl simulieren, ohne echte Actions auszuführen." }
+          { method: "POST", path: "/api/external/automation/rules/simulate", description: "Regel als scrubbaren Zeitstrahl simulieren, ohne echte Actions auszuführen. Optional `simulationOverrides.deviceHealth` und `simulationOverrides.capabilityState` für Testzustände." }
         ],
         auditActions: ["automation_rule_created", "automation_rule_updated", "automation_rule_deleted"]
       },

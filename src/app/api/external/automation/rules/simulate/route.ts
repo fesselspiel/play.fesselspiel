@@ -6,6 +6,20 @@ import { simulateAutomationRule } from "@/lib/session-automation";
 
 export const runtime = "nodejs";
 
+function asRecord(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function allowedStateOverrides(raw: unknown, allowedIds: string[]): Record<string, string> {
+  const data = asRecord(raw);
+  const allowed = new Set(allowedIds);
+  return Object.fromEntries(
+    Object.entries(data)
+      .filter(([id, value]) => allowed.has(id) && typeof value === "string")
+      .map(([id, value]) => [id, value as string])
+  ) as Record<string, string>;
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
@@ -37,7 +51,11 @@ export async function POST(request: NextRequest) {
       state: capability.state
     })),
     devices,
-    trackers: trackerTypes
+    trackers: trackerTypes,
+    simulationOverrides: {
+      deviceHealth: allowedStateOverrides(asRecord(body.simulationOverrides).deviceHealth, devices.map((device) => device.id)),
+      capabilityState: allowedStateOverrides(asRecord(body.simulationOverrides).capabilityState, capabilities.map((capability) => capability.id))
+    }
   };
   const triggerType = typeof body.triggerType === "string" ? body.triggerType : "session_started";
   const validation = validateAutomationRulePayload({

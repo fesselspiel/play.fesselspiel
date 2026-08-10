@@ -217,10 +217,13 @@ test("Automation-Session-Seiten verwenden fachliche Aktionssprache", () => {
 test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben", () => {
   const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
   const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  const route = readFileSync("src/app/api/external/automation/rules/simulate/route.ts", "utf8");
   assert.match(editor, /Gerätezustand für diese Simulation/);
   assert.match(editor, /Zustand der Fähigkeit für diese Simulation/);
   assert.match(model, /AutomationSimulationOverrides/);
   assert.match(model, /Simulierter Gerätezustand/);
   assert.match(model, /Simulierter Fähigkeitszustand/);
   assert.match(model, /simulationOverrides/);
+  assert.match(route, /simulationOverrides/);
+  assert.match(route, /allowedStateOverrides/);
 });
