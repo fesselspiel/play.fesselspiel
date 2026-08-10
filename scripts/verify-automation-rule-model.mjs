@@ -321,6 +321,25 @@ test("Schalter-Bedingung ein oder aus seit X Minuten wird zentral unterstützt",
   assert.match(route, /capabilityStateAgeMinutes/);
 });
 
+test("Schalter-Ereignisse sind fachliche Auslöser und werden materialisiert", () => {
+  const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
+  const eventsRoute = readFileSync("src/app/api/external/automation/events/route.ts", "utf8");
+  const rule = buildRule({ triggerType: "switched_on" });
+  assert.equal(rule.triggerType, "switched_on");
+  assert.match(model, /switched_on:\s*"Schalter wurde eingeschaltet"/);
+  assert.match(model, /switched_off:\s*"Schalter wurde ausgeschaltet"/);
+  assert.match(model, /switch_error:\s*"Schalter meldet einen Fehler"/);
+  assert.match(model, /if \(\["switched_on",\s*"switched_off",\s*"switch_error"\]\.includes\(triggerType\)\) return "Switch"/);
+  assert.match(service, /function switchEventForState/);
+  assert.match(service, /type:\s*"switched_on"/);
+  assert.match(service, /type:\s*"switched_off"/);
+  assert.match(service, /type:\s*"switch_error"/);
+  assert.match(service, /ruleTrigger === "switched_on"/);
+  assert.match(eventsRoute, /type === "switched_on" \? "ON"/);
+  assert.match(eventsRoute, /type === "switched_off" \? "OFF"/);
+});
+
 test("Normale Automation-Oberflächen verwenden deutsche Fachsprache", () => {
   const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
   const devices = readFileSync("src/components/automation-device-manager.tsx", "utf8");

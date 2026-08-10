@@ -63,10 +63,11 @@ export async function POST(request: NextRequest) {
     });
   }
   if (capabilityId) {
+    const impliedCapabilityState = type === "switched_on" ? "ON" : type === "switched_off" ? "OFF" : type === "switch_error" ? "ERROR" : undefined;
     await prisma.automationCapability.updateMany({
       where: { id: capabilityId, tenantId: auth.user.tenantId },
       data: {
-        state: typeof body.capabilityState === "string" ? body.capabilityState : undefined,
+        state: typeof body.capabilityState === "string" ? body.capabilityState : impliedCapabilityState,
         stateJson: body.capabilityStateJson && typeof body.capabilityStateJson === "object" ? body.capabilityStateJson as never : undefined
       }
     });

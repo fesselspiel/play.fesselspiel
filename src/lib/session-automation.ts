@@ -73,6 +73,16 @@ function humanActionTitle(type: string) {
   return labels[type] || "Aktion ausführen";
 }
 
+function isSwitchAction(type: string) {
+  return ["switch_on", "switch_off", "switch_toggle"].includes(type);
+}
+
+function switchEventForState(state?: string | null) {
+  if (state === "ON") return { type: "switched_on", title: "Schalter wurde eingeschaltet" };
+  if (state === "OFF") return { type: "switched_off", title: "Schalter wurde ausgeschaltet" };
+  return null;
+}
+
 function isAdminRole(role?: string | null) {
   return role === "ADMIN" || role === "SUPER_ADMIN";
 }
@@ -951,6 +961,9 @@ export async function finishAutomationBridgeCommand(input: {
   }
   const now = new Date();
   const status = input.success ? "SUCCEEDED" : "FAILED";
+  const resolvedCapabilityState = input.capabilityState
+    || (input.success && action.type === "switch_on" ? "ON" : null)
+    || (input.success && action.type === "switch_off" ? "OFF" : null);
   const updated = await prisma.automationAction.update({
     where: { id: action.id },
     data: {
@@ -966,11 +979,11 @@ export async function finishAutomationBridgeCommand(input: {
       data: { statusJson: jsonObject(input.deviceState), health: input.success ? "ONLINE" : action.device?.health || "UNKNOWN", lastSeenAt: now }
     });
   }
-  if (action.capabilityId && (input.capabilityState || input.capabilityStateJson)) {
+  if (action.capabilityId && (resolvedCapabilityState || input.capabilityStateJson)) {
     await prisma.automationCapability.update({
       where: { id: action.capabilityId },
       data: {
-        state: input.capabilityState || action.capability?.state || "UNKNOWN",
+        state: resolvedCapabilityState || action.capability?.state || "UNKNOWN",
         stateJson: jsonObject(input.capabilityStateJson),
         updatedAt: now
       }
@@ -991,9 +1004,31 @@ export async function finishAutomationBridgeCommand(input: {
     source: "IOBROKER",
     role: "SYSTEM",
     details: input.success ? { actionTitle: humanActionTitle(action.type), actionType: action.type, ...jsonObject(input.result) } : { actionTitle: humanActionTitle(action.type), actionType: action.type, error: input.error || "bridge_action_failed" },
-    raw: { result: input.result || null, deviceState: input.deviceState || null, capabilityState: input.capabilityState || null },
+    raw: { result: input.result || null, deviceState: input.deviceState || null, capabilityState: resolvedCapabilityState || null },
     correlationId: action.correlationId
   });
+  if (action.capabilityId && isSwitchAction(action.type)) {
+    const switchEvent = input.success ? switchEventForState(resolvedCapabilityState) : { type: "switch_error", title: "Schalter meldet einen Fehler" };
+    if (switchEvent) {
+      await recordAutomationEvent({
+        tenantId: input.tenantId,
+        sessionId: action.sessionId,
+        actionId: action.id,
+        actorId: action.actorId,
+        deviceId: action.deviceId,
+        capabilityId: action.capabilityId,
+        type: switchEvent.type,
+        title: switchEvent.title,
+        source: "IOBROKER",
+        role: "SYSTEM",
+        details: input.success
+          ? { actionTitle: humanActionTitle(action.type), actionType: action.type, capabilityState: resolvedCapabilityState }
+          : { actionTitle: humanActionTitle(action.type), actionType: action.type, error: input.error || "bridge_action_failed" },
+        raw: { result: input.result || null, deviceState: input.deviceState || null, capabilityState: resolvedCapabilityState || null },
+        correlationId: action.correlationId
+      });
+    }
+  }
   return updated;
 }
 
@@ -1131,10 +1166,13 @@ function triggerMatches(ruleTrigger: string, eventType: string) {
   if (ruleTrigger === "image_uploaded" && eventType === "image_uploaded") return true;
   if (ruleTrigger === "camera_online" && eventType === "camera_online") return true;
   if (ruleTrigger === "camera_offline" && eventType === "camera_offline") return true;
+  if (ruleTrigger === "switched_on" && eventType === "switched_on") return true;
+  if (ruleTrigger === "switched_off" && eventType === "switched_off") return true;
+  if (ruleTrigger === "switch_error" && eventType === "switch_error") return true;
   if (ruleTrigger === "capability_event" && eventType === "capability_event") return true;
   if (ruleTrigger === "device_state_changed" && eventType === "device_state_changed") return true;
   if (ruleTrigger === "quota_open" && eventType === "quota_open") return true;
-  if (ruleTrigger === "event_absent" && ["session_started", "session_pending_end", "session_finished", "action_succeeded", "action_failed", "image_uploaded", "camera_online", "camera_offline", "capability_event", "device_state_changed", "quota_open"].includes(eventType)) return true;
+  if (ruleTrigger === "event_absent" && ["session_started", "session_pending_end", "session_finished", "action_succeeded", "action_failed", "image_uploaded", "camera_online", "camera_offline", "switched_on", "switched_off", "switch_error", "capability_event", "device_state_changed", "quota_open"].includes(eventType)) return true;
   return false;
 }
 

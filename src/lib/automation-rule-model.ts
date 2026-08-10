@@ -7,6 +7,9 @@ export type AutomationTriggerKey =
   | "image_uploaded"
   | "camera_online"
   | "camera_offline"
+  | "switched_on"
+  | "switched_off"
+  | "switch_error"
   | "capability_event"
   | "event_absent"
   | "device_state_changed"
@@ -121,6 +124,9 @@ export const automationLabels = {
     image_uploaded: "Bild wurde empfangen",
     camera_online: "Kamera ist wieder verbunden",
     camera_offline: "Kamera ist nicht erreichbar",
+    switched_on: "Schalter wurde eingeschaltet",
+    switched_off: "Schalter wurde ausgeschaltet",
+    switch_error: "Schalter meldet einen Fehler",
     capability_event: "Gerätefähigkeit hat ein Ereignis gemeldet",
     device_state_changed: "Gerätezustand hat sich geändert",
     quota_open: "Tracker-Kontingent ist offen",
@@ -175,6 +181,9 @@ export const triggerOptions: Array<{ key: AutomationTriggerKey; label: string; d
   { key: "image_uploaded", label: "Bild wurde empfangen", description: "Reagiert, sobald ein angefordertes Kamerabild im Portal angekommen ist." },
   { key: "camera_online", label: "Kamera ist wieder verbunden", description: "Reagiert auf eine Kamera, die wieder erreichbar ist." },
   { key: "camera_offline", label: "Kamera ist nicht erreichbar", description: "Reagiert auf eine Kamera, die nicht erreichbar ist." },
+  { key: "switched_on", label: "Schalter wurde eingeschaltet", description: "Reagiert auf einen Schalter, der eingeschaltet wurde." },
+  { key: "switched_off", label: "Schalter wurde ausgeschaltet", description: "Reagiert auf einen Schalter, der ausgeschaltet wurde." },
+  { key: "switch_error", label: "Schalter meldet Fehler", description: "Reagiert auf einen Schaltfehler einer konkreten Schaltfähigkeit." },
   { key: "capability_event", label: "Gerätefähigkeit meldet Ereignis", description: "Reagiert auf ein Ereignis einer konkreten Kamera, eines Schalters oder einer Sprachausgabe." },
   { key: "event_absent", label: "Ereignis bleibt aus", description: "Reagiert, wenn innerhalb einer Zeitspanne nichts passiert." },
   { key: "device_state_changed", label: "Gerätezustand ändert sich", description: "Reagiert auf lokale ioBroker-/MQTT-Zustände." },
@@ -190,6 +199,9 @@ export const conditionOptions: Record<AutomationTriggerKey, AutomationConditionK
   image_uploaded: ["none", "capability_state", "last_image_younger_than", "switch_state_for"],
   camera_online: ["none", "device_online", "capability_state", "last_image_younger_than", "switch_state_for"],
   camera_offline: ["none", "device_offline", "capability_state", "last_image_younger_than", "switch_state_for"],
+  switched_on: ["none", "capability_state", "switch_state_for"],
+  switched_off: ["none", "capability_state", "switch_state_for"],
+  switch_error: ["none", "device_offline", "capability_state", "switch_state_for"],
   capability_event: ["capability_state", "device_online", "device_offline", "last_image_younger_than", "switch_state_for"],
   event_absent: ["controller_absent", "device_online", "device_offline", "switch_state_for"],
   device_state_changed: ["capability_state", "device_online", "device_offline", "last_image_younger_than", "switch_state_for"],
@@ -234,11 +246,12 @@ export function triggerNeedsDevice(triggerType: AutomationTriggerKey) {
 }
 
 export function triggerNeedsCapability(triggerType: AutomationTriggerKey) {
-  return ["image_uploaded", "camera_online", "camera_offline", "capability_event"].includes(triggerType);
+  return ["image_uploaded", "camera_online", "camera_offline", "switched_on", "switched_off", "switch_error", "capability_event"].includes(triggerType);
 }
 
 export function triggerCapabilityFilter(triggerType: AutomationTriggerKey): CapabilityKind | null {
   if (["image_uploaded", "camera_online", "camera_offline"].includes(triggerType)) return "Camera";
+  if (["switched_on", "switched_off", "switch_error"].includes(triggerType)) return "Switch";
   return null;
 }
 
@@ -457,7 +470,7 @@ export function validateAutomationRulePayload(input: {
     const requiredKind = triggerCapabilityFilter(trigger);
     if (!capabilityId) errors.push("Bitte wähle die Fähigkeit, auf deren Ereignis die Regel reagieren soll.");
     if (capabilityId && !capability) errors.push("Die gewählte Auslöser-Fähigkeit ist auf dieser Seite nicht verfügbar.");
-    if (capability && requiredKind && capability.kind !== requiredKind) errors.push("Für diesen Auslöser muss eine Kamera-Fähigkeit gewählt werden.");
+    if (capability && requiredKind && capability.kind !== requiredKind) errors.push(`Für diesen Auslöser muss eine ${automationLabels.capabilityKinds[requiredKind]}-Fähigkeit gewählt werden.`);
   }
 
   const conditions = Array.isArray(input.conditionJson) ? input.conditionJson : [];
