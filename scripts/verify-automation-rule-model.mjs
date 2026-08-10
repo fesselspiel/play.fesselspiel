@@ -1,20 +1,32 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-function buildRule({ triggerType = "session_started", conditionType = "none", conditionMinutes = 20, timingType = "immediate", delayMinutes = 0, minMinutes = 5, maxMinutes = 10, actionType = "session_finish", capabilityId = null, capabilityKind = null } = {}) {
+function buildRule({ triggerType = "session_started", conditionType = "none", conditionMinutes = 20, conditionDeviceId = null, conditionCapabilityId = null, conditionExpectedState = null, timingType = "immediate", delayMinutes = 0, minMinutes = 5, maxMinutes = 10, actionType = "session_finish", capabilityId = null, capabilityKind = null } = {}) {
   return {
     triggerType,
-    conditionJson: conditionType === "none" ? [] : [{ type: conditionType, minutes: conditionMinutes }],
+    conditionJson: conditionType === "none" ? [] : [{ type: conditionType, minutes: conditionMinutes, deviceId: conditionDeviceId, capabilityId: conditionCapabilityId, state: conditionExpectedState }],
     timingJson: timingType === "fixed_delay" ? { type: "fixed_delay", minutes: delayMinutes } : timingType === "random_delay" ? { type: "random_delay", minMinutes, maxMinutes } : { type: "immediate" },
     actionJson: [{ type: actionType, capabilityId, capabilityKind }]
   };
 }
 
-function simulate(rule, scrubMinute, randomSeed = 3) {
+function simulate(rule, scrubMinute, randomSeed = 3, context = {}) {
   const condition = rule.conditionJson[0] || {};
   const timing = rule.timingJson || {};
   const action = rule.actionJson[0] || {};
-  const conditionMinutes = condition.type && condition.type !== "none" ? Number(condition.minutes || 0) : 0;
+  const conditionMinutes = condition.type === "controller_absent" ? Number(condition.minutes || 0) : 0;
+  const conditionPassed = (() => {
+    if (!condition.type || condition.type === "none" || condition.type === "controller_absent") return scrubMinute >= conditionMinutes;
+    if (condition.type === "device_online" || condition.type === "device_offline") {
+      const device = context.devices?.find((item) => item.id === condition.deviceId);
+      return Boolean(device && device.health === (condition.type === "device_online" ? "ONLINE" : "OFFLINE"));
+    }
+    if (condition.type === "capability_state") {
+      const capability = context.capabilities?.find((item) => item.id === condition.capabilityId);
+      return Boolean(capability && capability.state === condition.state);
+    }
+    return false;
+  })();
   const delay = timing.type === "random_delay"
     ? Number(timing.minMinutes || 0) + (randomSeed % (Math.max(0, Number(timing.maxMinutes || 0) - Number(timing.minMinutes || 0)) + 1))
     : timing.type === "fixed_delay"
@@ -23,9 +35,10 @@ function simulate(rule, scrubMinute, randomSeed = 3) {
   const dueMinute = conditionMinutes + delay;
   return {
     dueMinute,
-    conditionPassed: scrubMinute >= conditionMinutes,
-    waiting: scrubMinute < dueMinute,
-    due: scrubMinute >= dueMinute,
+    conditionPassed,
+    waiting: conditionPassed && scrubMinute < dueMinute,
+    due: conditionPassed && scrubMinute >= dueMinute,
+    blocked: !conditionPassed && scrubMinute >= conditionMinutes,
     complete: scrubMinute > dueMinute,
     sessionState: action.type === "session_finish" && scrubMinute >= dueMinute ? "FINISHED" : action.type === "session_finish" && dueMinute > 0 && scrubMinute >= conditionMinutes ? "PENDING_END" : "RUNNING",
     pendingEnd: action.type === "session_finish" && dueMinute > 0,
@@ -72,6 +85,14 @@ test("Simulation zeigt Pending End bei verzögertem Session-Ende", () => {
   assert.equal(simulate(rule, 1).pendingEnd, true);
   assert.equal(simulate(rule, 1).sessionState, "PENDING_END");
   assert.equal(simulate(rule, 15).sessionState, "FINISHED");
+});
+
+test("Simulation blockiert Aktionen bei nicht erfüllter Gerätebedingung", () => {
+  const rule = buildRule({ conditionType: "device_online", conditionDeviceId: "camera-bedroom", actionType: "camera_request_image", capabilityId: "camera-bedroom-capability", capabilityKind: "Camera" });
+  const context = { devices: [{ id: "camera-bedroom", health: "OFFLINE" }] };
+  assert.equal(simulate(rule, 0, 3, context).conditionPassed, false);
+  assert.equal(simulate(rule, 0, 3, context).blocked, true);
+  assert.equal(simulate(rule, 30, 3, context).due, false);
 });
 
 test("Override darf Pending End ersetzen", () => {
