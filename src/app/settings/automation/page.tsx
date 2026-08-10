@@ -5,7 +5,7 @@ import { AutomationDeviceManager } from "@/components/automation-device-manager"
 import { AutomationRuleEditor } from "@/components/automation-rule-editor";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
-import { automationRuleFlow, automationRuleSummary, labelAutomationValue, ruleFormFromStored, validateAutomationRulePayload } from "@/lib/automation-rule-model";
+import { actionLabels, automationRuleFlow, automationRuleSummary, labelAutomationValue, ruleFormFromStored, validateAutomationRulePayload, type AutomationActionKey } from "@/lib/automation-rule-model";
 import { currentUser } from "@/lib/auth";
 import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
@@ -31,6 +31,46 @@ function parseList(value: FormDataEntryValue | null) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function jsonRecord(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function displayUserName(user: { name?: string | null; username?: string | null; email?: string | null; profile?: { displayName?: string | null } | null } | null) {
+  if (!user) return "";
+  return user.profile?.displayName || user.name || user.username || user.email || "Unbekannter Benutzer";
+}
+
+function formatAutomationEventTime(date: Date) {
+  return date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function formatAutomationEventDate(date: Date) {
+  return date.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function automationEventTitle(event: { type: string; title: string }) {
+  const label = labelAutomationValue("eventTypes", event.type);
+  return label === event.type ? event.title : label;
+}
+
+function automationActionTitle(type: string) {
+  return actionLabels[type as AutomationActionKey] || type;
+}
+
+function humanDetailValue(value: unknown) {
+  if (value instanceof Date) return formatAutomationEventDate(value);
+  if (typeof value === "string") {
+    if (/^\d{4}-\d{2}-\d{2}T/.test(value)) {
+      const date = new Date(value);
+      if (!Number.isNaN(date.getTime())) return formatAutomationEventDate(date);
+    }
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (value === null || value === undefined) return "";
+  return JSON.stringify(value);
 }
 
 async function saveBridge(formData: FormData) {
@@ -260,7 +300,18 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
     prisma.automationRule.findMany({ where: { tenantId: user.tenantId }, include: { versions: { orderBy: { version: "desc" }, take: 3 } }, orderBy: { updatedAt: "desc" } }),
     prisma.automationEvent.findMany({
       where: { tenantId: user.tenantId },
-      include: { actor: { include: { profile: true } }, rule: true, device: true, capability: true, parentEvent: true },
+      include: {
+        actor: { include: { profile: true } },
+        session: { select: { id: true, slug: true, title: true, state: true } },
+        rule: true,
+        ruleVersion: { select: { id: true, version: true, descriptionText: true } },
+        action: { select: { id: true, type: true, status: true, dueAt: true, startedAt: true, finishedAt: true, error: true } },
+        context: { select: { id: true, parentContextId: true, variablesJson: true, conditionsJson: true, policyJson: true, timingJson: true } },
+        device: true,
+        capability: true,
+        parentEvent: { select: { id: true, type: true, title: true, createdAt: true } },
+        childEvents: { select: { id: true, type: true, title: true, createdAt: true }, orderBy: { createdAt: "asc" }, take: 5 }
+      },
       orderBy: { createdAt: "desc" },
       take: 60
     })
@@ -470,26 +521,113 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
             <Panel>
               <h2 className="text-base font-semibold text-ink">Letzte Automation-Ereignisse</h2>
               <div className="mt-3 max-h-96 space-y-2 overflow-auto">
-                {events.map((event) => (
-                  <details key={event.id} className="rounded-md border border-line bg-paper p-3">
-                    <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
-                      {labelAutomationValue("eventTypes", event.type) === event.type ? event.title : labelAutomationValue("eventTypes", event.type)}
-                    </summary>
-                    <div className="mt-2 space-y-1 text-sm text-graphite">
-                      <p>Quelle: {labelAutomationValue("sources", event.source)} · Rolle: {labelAutomationValue("roles", event.role)}</p>
-                      {event.actor ? <p>Ausgelöst von: {event.actor.profile?.displayName || event.actor.name || event.actor.username || event.actor.email}</p> : null}
-                      {event.rule ? <p>Regel: {event.rule.name}</p> : null}
-                      {event.device ? <p>Gerät: {event.device.name}</p> : null}
-                      {event.capability ? <p>Fähigkeit: {event.capability.title}</p> : null}
-                      {event.parentEvent ? <p>Auslöser: {labelAutomationValue("eventTypes", event.parentEvent.type) === event.parentEvent.type ? event.parentEvent.title : labelAutomationValue("eventTypes", event.parentEvent.type)}</p> : null}
-                      <p>Zeit: {event.createdAt.toLocaleString("de-DE")}</p>
-                    </div>
-                    <details className="mt-2 rounded bg-surface p-2">
-                      <summary className="cursor-pointer list-none text-xs font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische Details</summary>
-                      <pre className="mt-2 overflow-auto text-xs text-graphite">{JSON.stringify({ type: event.type, correlationId: event.correlationId, details: event.detailsJson, raw: event.rawJson }, null, 2)}</pre>
+                {events.map((event) => {
+                  const details = jsonRecord(event.detailsJson);
+                  const policy = jsonRecord(event.context?.policyJson);
+                  const timing = jsonRecord(event.context?.timingJson);
+                  return (
+                    <details key={event.id} className="rounded-md border border-line bg-paper p-3">
+                      <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
+                        {formatAutomationEventTime(event.createdAt)} · {automationEventTitle(event)}
+                      </summary>
+                      <div className="mt-3 space-y-2 text-sm text-graphite">
+                        <div className="rounded-md border border-line bg-surface p-3">
+                          <div className="font-semibold text-ink">{event.title}</div>
+                          <div className="mt-1">Quelle: {labelAutomationValue("sources", event.source)} · Rolle: {labelAutomationValue("roles", event.role)}</div>
+                          {event.actor ? <div>Ausgelöst von: {displayUserName(event.actor)}</div> : null}
+                          <div>Zeitpunkt: {formatAutomationEventDate(event.createdAt)}</div>
+                        </div>
+                        <div className="grid gap-2 md:grid-cols-2">
+                          {event.session ? (
+                            <div className="rounded-md border border-line bg-surface p-3">
+                              <div className="text-xs uppercase text-graphite">Session</div>
+                              <div className="mt-1 font-semibold text-ink">{event.session.title}</div>
+                              <div>Status: {labelAutomationValue("states", event.session.state)}</div>
+                            </div>
+                          ) : null}
+                          {event.rule ? (
+                            <div className="rounded-md border border-line bg-surface p-3">
+                              <div className="text-xs uppercase text-graphite">Regel</div>
+                              <div className="mt-1 font-semibold text-ink">{event.rule.name}</div>
+                              {event.ruleVersion ? <div>Version {event.ruleVersion.version}</div> : null}
+                              {event.ruleVersion?.descriptionText ? <div className="mt-1">{event.ruleVersion.descriptionText}</div> : null}
+                            </div>
+                          ) : null}
+                          {event.action ? (
+                            <div className="rounded-md border border-line bg-surface p-3">
+                              <div className="text-xs uppercase text-graphite">Aktion</div>
+                              <div className="mt-1 font-semibold text-ink">{automationActionTitle(event.action.type)}</div>
+                              <div>Status: {labelAutomationValue("actionStatuses", event.action.status)}</div>
+                              {event.action.dueAt ? <div>Fällig: {formatAutomationEventDate(event.action.dueAt)}</div> : null}
+                              {event.action.error ? <div>Fehler: {event.action.error}</div> : null}
+                            </div>
+                          ) : null}
+                          {event.device || event.capability ? (
+                            <div className="rounded-md border border-line bg-surface p-3">
+                              <div className="text-xs uppercase text-graphite">Gerät</div>
+                              {event.device ? <div className="mt-1 font-semibold text-ink">{event.device.name}</div> : null}
+                              {event.capability ? <div>{event.capability.title} · {event.capability.kind} · {labelAutomationValue("health", event.capability.state)}</div> : null}
+                            </div>
+                          ) : null}
+                        </div>
+                        {Object.keys(details).length ? (
+                          <div className="rounded-md border border-line bg-surface p-3">
+                            <div className="text-xs uppercase text-graphite">Details</div>
+                            <div className="mt-2 grid gap-1">
+                              {Object.entries(details).slice(0, 6).map(([key, value]) => (
+                                <div key={key} className="grid gap-1 sm:grid-cols-[180px_1fr]">
+                                  <span className="font-medium text-ink">{key}</span>
+                                  <span>{humanDetailValue(value)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                        {event.parentEvent || event.childEvents.length ? (
+                          <div className="rounded-md border border-line bg-surface p-3">
+                            <div className="text-xs uppercase text-graphite">Ursache und Folge</div>
+                            {event.parentEvent ? <div className="mt-1">Ausgelöst durch: {formatAutomationEventTime(event.parentEvent.createdAt)} · {automationEventTitle(event.parentEvent)}</div> : null}
+                            {event.childEvents.map((child) => <div key={child.id}>Folge: {formatAutomationEventTime(child.createdAt)} · {automationEventTitle(child)}</div>)}
+                          </div>
+                        ) : null}
+                        {event.context ? (
+                          <div className="rounded-md border border-line bg-surface p-3">
+                            <div className="text-xs uppercase text-graphite">Entscheidung</div>
+                            {policy.decision ? <div>Policy: {humanDetailValue(policy.decision)}{policy.reason ? ` · ${humanDetailValue(policy.reason)}` : ""}</div> : null}
+                            {timing.dueAt ? <div>Geplante Ausführung: {humanDetailValue(timing.dueAt)}</div> : null}
+                          </div>
+                        ) : null}
+                      </div>
+                      <details className="mt-2 rounded bg-surface p-2">
+                        <summary className="cursor-pointer list-none text-xs font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische Details</summary>
+                        <pre className="mt-2 overflow-auto text-xs text-graphite">{JSON.stringify({
+                          eventId: event.id,
+                          type: event.type,
+                          source: event.source,
+                          role: event.role,
+                          correlationId: event.correlationId,
+                          sessionId: event.sessionId,
+                          ruleId: event.ruleId,
+                          ruleVersionId: event.ruleVersionId,
+                          actionId: event.actionId,
+                          contextId: event.contextId,
+                          parentEventId: event.parentEventId,
+                          deviceId: event.deviceId,
+                          capabilityId: event.capabilityId,
+                          details: event.detailsJson,
+                          raw: event.rawJson,
+                          executionContext: event.context ? {
+                            variables: event.context.variablesJson,
+                            conditions: event.context.conditionsJson,
+                            policy: event.context.policyJson,
+                            timing: event.context.timingJson,
+                            parentContextId: event.context.parentContextId
+                          } : null
+                        }, null, 2)}</pre>
+                      </details>
                     </details>
-                  </details>
-                ))}
+                  );
+                })}
               </div>
             </Panel>
           </div>

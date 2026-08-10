@@ -1181,3 +1181,5 @@ Details:
 - Die Engine wertet die in der Bedingung gespeicherten Ziele aus. Tracker-Kontingente nutzen die vorhandene zentrale Quotenlogik statt eines eigenen Automation-Quotensystems.
 - Die externe Simulations-API validiert Regeln jetzt ebenfalls serverseitig und nutzt dieselben Geraete-, Faehigkeits- und Tracker-Kontextdaten wie der Web-Editor.
 - Die scrubbable Simulation liefert eine sichtbare Timeline mit Status je Schritt und eine erklaerende Momentaufnahme, warum eine Aktion wartet, faellig ist oder nur simuliert wird.
+- Das Automation-Protokoll zeigt Ereignisse jetzt fachlich gruppiert mit Quelle, Rolle, ausloesendem Benutzer, Session, Regelversion, Aktion, Geraet/Faehigkeit, Ursache-Folge-Kette und Policy-/Timing-Entscheidung.
+- Interne IDs, Correlation-ID, Raw JSON und Execution Context bleiben vollstaendig unter `Technische Details` verfuegbar.
