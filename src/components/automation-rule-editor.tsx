@@ -119,6 +119,8 @@ export function AutomationRuleEditor({
   }, context);
   const triggerCapabilityKind = triggerCapabilityFilter(value.triggerType);
   const triggerCapabilities = triggerCapabilityKind ? capabilities.filter((capability) => capability.kind === triggerCapabilityKind) : capabilities;
+  const conditionCapabilityKind = triggerCapabilityKind;
+  const conditionCapabilities = conditionCapabilityKind ? capabilities.filter((capability) => capability.kind === conditionCapabilityKind) : capabilities;
   const conditionCapability = capabilities.find((capability) => capability.id === value.conditionCapabilityId);
   const conditionStateOptions = stateOptionsForCapability(conditionCapability?.kind);
 
@@ -135,7 +137,8 @@ export function AutomationRuleEditor({
         merged.conditionDeviceId = devices[0]?.id || "";
       }
       if (merged.conditionType === "capability_state" && !merged.conditionCapabilityId) {
-        const first = capabilities[0];
+        const requiredKind = triggerCapabilityFilter(merged.triggerType);
+        const first = requiredKind ? capabilities.find((capability) => capability.kind === requiredKind) : capabilities[0];
         merged.conditionCapabilityId = first?.id || "";
         merged.conditionExpectedState = first?.state || "ONLINE";
       }
@@ -219,9 +222,11 @@ export function AutomationRuleEditor({
       next.conditionDeviceId = "";
     }
     if (next.conditionType === "capability_state") {
-      const currentCapability = capabilities.find((capability) => capability.id === next.conditionCapabilityId);
+      const conditionCapKind = triggerCapabilityFilter(next.triggerType);
+      const allowedConditionCapabilities = conditionCapKind ? capabilities.filter((capability) => capability.kind === conditionCapKind) : capabilities;
+      const currentCapability = allowedConditionCapabilities.find((capability) => capability.id === next.conditionCapabilityId);
       if (!currentCapability) {
-        const first = capabilities[0];
+        const first = allowedConditionCapabilities[0];
         next.conditionCapabilityId = first?.id || "";
         next.conditionExpectedState = first?.state || "ONLINE";
       } else {
@@ -323,9 +328,9 @@ export function AutomationRuleEditor({
             <div className="mt-3 grid gap-2 text-sm text-graphite">
               <label>Fähigkeit
                 <select className={`${inputClass} mt-1`} value={value.conditionCapabilityId} onChange={(event) => update({ conditionCapabilityId: event.target.value })}>
-                  {capabilities.length ? capabilities.map((capability) => (
+                  {conditionCapabilities.length ? conditionCapabilities.map((capability) => (
                     <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
-                  )) : <option value="">Keine Fähigkeit eingerichtet</option>}
+                  )) : <option value="">{conditionCapabilityKind === "Camera" ? "Keine Kamera eingerichtet" : "Keine Fähigkeit eingerichtet"}</option>}
                 </select>
               </label>
               <label>Erwarteter Zustand

@@ -465,8 +465,11 @@ export function validateAutomationRulePayload(input: {
   if (conditionType === "capability_state") {
     const capabilityId = typeof condition.capabilityId === "string" ? condition.capabilityId : "";
     const expectedState = typeof condition.state === "string" ? condition.state.trim() : "";
+    const requiredKind = triggerCapabilityFilter(trigger);
+    const capability = capabilityId ? capabilities.find((item) => item.id === capabilityId) : null;
     if (!capabilityId) errors.push("Bitte wähle die Fähigkeit für diese Bedingung.");
-    if (capabilityId && !capabilities.some((capability) => capability.id === capabilityId)) errors.push("Die gewählte Fähigkeit ist auf dieser Seite nicht verfügbar.");
+    if (capabilityId && !capability) errors.push("Die gewählte Fähigkeit ist auf dieser Seite nicht verfügbar.");
+    if (capability && requiredKind && capability.kind !== requiredKind) errors.push("Die gewählte Fähigkeitsbedingung passt nicht zum Auslöser.");
     if (!expectedState) errors.push("Bitte wähle den erwarteten Zustand.");
   }
   if (conditionType === "quota_remaining") {

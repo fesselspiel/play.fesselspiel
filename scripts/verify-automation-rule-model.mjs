@@ -258,6 +258,14 @@ test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben"
   assert.match(route, /allowedStateOverrides/);
 });
 
+test("Kamera-spezifische Auslöser begrenzen Fähigkeitsbedingungen auf Kameras", () => {
+  const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
+  const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  assert.match(editor, /conditionCapabilityKind/);
+  assert.match(editor, /conditionCapabilities/);
+  assert.match(model, /Die gewählte Fähigkeitsbedingung passt nicht zum Auslöser/);
+});
+
 test("Normale Automation-Oberflächen verwenden deutsche Fachsprache", () => {
   const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
   const devices = readFileSync("src/components/automation-device-manager.tsx", "utf8");

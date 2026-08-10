@@ -545,9 +545,8 @@ Details:
 - Externe API-Endpunkte verwenden nur noch `/api/external/trackers/{trackerKey}/start` und `/api/external/trackers/{trackerKey}/stop`.
 - Telegram-Kommandos erweitert:
   - `/sessions [tracker]` zeigt die Auswertung eines passenden Trackers für das aktuelle Jahr.
-  - `/kg_start Notiz` startet den Tracker Tracker und schließt einen offenen Tracker-Eintrag automatisch.
-  - `/kg_stop Notiz` beendet den laufenden Tracker Tracker.
-- Der Telegram-Agent kann den Tracker Tracker ebenfalls per freier Sprache starten und stoppen.
+  - Tracker werden über ihre konfigurierten Schlüssel gestartet und gestoppt; alte Spezialbefehle wurden durch generische Tracker-Aktionen ersetzt.
+- Der Telegram-Agent kann konfigurierte Tracker per freier Sprache starten und stoppen.
 - Datenexport/-import enthält jetzt auch Tracker-Einträge.
 
 ## Profiltext und Profilbild
