@@ -309,7 +309,7 @@ Details:
 - Benutzerverwaltung zeigt nur noch Mitglieder der aktiven Seite.
 - Admins können vorhandene globale Benutzer über „Bestehenden Benutzer übernehmen“ in die aktive Seite aufnehmen.
 - Kreise sind pro Seite eindeutig und werden über Mitgliedschaften statt globale `User.circleId` ausgewertet.
-- Alte Inhaltsmodelle wurden um `tenantId` erweitert: Spielzeuge, Szenen, Aktivitäten/Aufträge, Segufix-Sessions, KG-Sessions, Alben, Bilder, Events, Dateien und API-Tokens.
+- Alte Inhaltsmodelle wurden um `tenantId` erweitert: Spielzeuge, Szenen, Aktivitäten/Aufträge, Tracker-Sessions, Alben, Bilder, Events, Dateien und API-Tokens.
 - Listen- und Detailseiten für Spielzeuge, Szenen und Aktivitäten laden Slugs nur noch im Kontext der aktiven Seite.
 - Dashboard-Spielampel, E-Mail-/Telegram-Zielauswahlen und API-Token-Ausführung wurden auf Seitenkontext umgestellt.
 - Telegram-Webhook, Telegram-Agent und Telegram-Erfassungsdialoge speichern neue Inhalte mit der ermittelten Seite.
@@ -518,22 +518,22 @@ Details:
 - Laufende Sessions ohne Endzeit werden auf Dashboard und Sessions-Seite sichtbar hervorgehoben.
 - Externer API-Start einer Session beendet eine bereits offene Session automatisch und startet danach eine neue.
 
-## KG Time Tracker und Demo-Seed
+## Zeittracker und Demo-Seed
 
 - Der Seed legt Demo-Spielzeuge, Demo-Szene und den Demo-Spielplan `Entspannungsabend` nur noch an, wenn `SEED_DEMO_DATA=true` gesetzt ist.
 - Dadurch taucht der Demo-Spielplan nach Löschen und Neustart nicht mehr automatisch wieder auf.
 - Der auf dem VPS vorhandene Demo-Spielplan `entspannungsabend` wurde einmalig gelöscht.
-- KG und Segufix laufen über die generische Tracker-Struktur `TrackerType`/`TrackerEntry`.
+- Tracker laufen über die generische Tracker-Struktur `TrackerType`/`TrackerEntry`.
 - Unter `Sessions` erscheinen alle aktiven Tracker als Tabs.
-- Der KG Time Tracker erfasst Startzeit, Endzeit, Dauer und Beschreibung minutengenau.
+- Der Zeittracker erfasst Startzeit, Endzeit, Dauer und Beschreibung minutengenau.
 - Die Tracker-Jahresübersicht nutzt die konfigurierte Tracker-Farbe.
 - Externe API-Endpunkte verwenden nur noch `/api/external/trackers/{trackerKey}/start` und `/api/external/trackers/{trackerKey}/stop`.
 - Telegram-Kommandos erweitert:
-  - `/kg` zeigt KG-Auswertung für das aktuelle Jahr.
-  - `/kg_start Notiz` startet den KG Tracker und schließt einen offenen KG-Eintrag automatisch.
-  - `/kg_stop Notiz` beendet den laufenden KG Tracker.
-- Der Telegram-Agent kann den KG Tracker ebenfalls per freier Sprache starten und stoppen.
-- Datenexport/-import enthält jetzt auch KG-Einträge.
+  - `/sessions [tracker]` zeigt die Auswertung eines passenden Trackers für das aktuelle Jahr.
+  - `/kg_start Notiz` startet den Tracker Tracker und schließt einen offenen Tracker-Eintrag automatisch.
+  - `/kg_stop Notiz` beendet den laufenden Tracker Tracker.
+- Der Telegram-Agent kann den Tracker Tracker ebenfalls per freier Sprache starten und stoppen.
+- Datenexport/-import enthält jetzt auch Tracker-Einträge.
 
 ## Profiltext und Profilbild
 
@@ -546,7 +546,7 @@ Details:
 
 ## Session-Reiter und mobiler Kalender
 
-- Die Umschaltung zwischen Segufix und KG Time Tracker ist jetzt als Registerkarten/Tabs gestaltet statt als lose Buttons.
+- Die Umschaltung zwischen Tracker und Zeittracker ist jetzt als Registerkarten/Tabs gestaltet statt als lose Buttons.
 - Die Jahreskalender verwenden auf Mobile kleinere Tagesfelder, ausgeblendete Tageszahlen und Monatsinitialen.
 - Dadurch bleibt die Jahresübersicht auch auf schmalen Displays sichtbar, ohne die Seite horizontal zu sprengen.
 
@@ -621,13 +621,13 @@ Details:
 ## Umlaute, Tracker-Texte und Telegram-Regeln
 
 - Sichtbare deutsche Texte in App und Dokumentation wurden von Umschreibungen wie `ae`, `oe`, `ue` auf echte Umlaute umgestellt. Slugs und technische ASCII-Erzeugung bleiben unverändert.
-- Im Segufix Time Tracker wurden die drei Textfelder `Stimmung vorher Text`, `Stimmung nachher Text` und `Notizen` zu einem Feld `Sessionkommentar` zusammengeführt.
+- Im Tracker wurden die drei Textfelder `Stimmung vorher Text`, `Stimmung nachher Text` und `Notizen` zu einem Feld `Sessionkommentar` zusammengeführt.
 - Alte Inhalte aus den beiden Stimmungstext-Feldern werden in Detail- und Bearbeitungsansicht in den gemeinsamen Kommentar übernommen.
-- Der KG Time Tracker nutzt statt `Notizen` das Feld `Sessionbeschreibung`.
-- KG-Historieneinträge und markierte KG-Kalendertage verlinken auf die neue Detailroute `/sessions/kg/[id]`.
-- KG-Einträge können über `/sessions/kg/[id]/edit` bearbeitet und gelöscht werden.
-- Laufende KG-Einträge können aus Übersicht und Detailseite beendet werden.
-- Segufix-Historienkarten verlinken zusätzlich über den Textbereich direkt auf die jeweilige Detailseite.
+- Der Zeittracker nutzt statt `Notizen` das Feld `Sessionbeschreibung`.
+- Tracker-Historieneinträge und markierte Tracker-Kalendertage verlinken auf die neue Detailroute `/trackers/[trackerKey]/[slug]`.
+- Tracker-Einträge können über `/trackers/[trackerKey]/[slug]/edit` bearbeitet und gelöscht werden.
+- Laufende Tracker-Einträge können aus Übersicht und Detailseite beendet werden.
+- Tracker-Historienkarten verlinken zusätzlich über den Textbereich direkt auf die jeweilige Detailseite.
 - Die Sortierung der Szenen ist nicht mehr prominent per Drag-and-drop sichtbar, sondern für Admins unten als eingeklappter Bereich mit Hoch-/Runter-Schaltern erreichbar.
 - Unter Einstellungen wurde ein Dark-Mode-Toggle eingefügt, auch im mobilen Hamburger-Menü zwischen Protokoll und Abmelden.
 - Telegram-Aktionsregeln senden jetzt auch dann, wenn eine Regel auf einen Kreis zielt, der aktive Telegram-Thread aber einem Mitglied dieses Kreises zugeordnet ist. Umgekehrt kann eine Benutzer-Regel auch den zugehörigen Kreis-Thread erreichen.
@@ -643,9 +643,9 @@ Details:
 
 - Der Bestätigen-Knopf für angefragte Spielpläne erscheint nur noch bei anderen Mitgliedern im Zirkel, nicht beim Ersteller der Anfrage.
 - Die Server Action zum Bestätigen blockiert ebenfalls Selbstbestätigungen.
-- Laufende eigene Segufix-Sessions zeigen auf Dashboard, Session-Übersicht und Session-Detailseite einen Button `Session beenden`.
+- Laufende eigene Tracker-Sessions zeigen auf Dashboard, Session-Übersicht und Session-Detailseite einen Button `Session beenden`.
 - `Session beenden` setzt die Endzeit auf den aktuellen Zeitpunkt, berechnet die Dauer neu und protokolliert `session_stopped`.
-- Laufende Sessions zeigen als Titel die erste Zeile des Sessionkommentars oder `Segufix-Session`.
+- Laufende Sessions zeigen als Titel die erste Zeile des Sessionkommentars oder `Tracker-Session`.
 - Die Zielauswahl bei Telegram-Aktionsbenachrichtigungen zeigt nur noch die passende Auswahl für `Ein Benutzer` oder `Ganzer Kreis`; widersprüchliche Benutzer-/Kreis-Kombinationen sind im Formular nicht mehr auswählbar.
 - Jede Telegram-Aktionsregel hat einen Button `Test senden`, der genau diese Regel mit Testdaten über dieselbe Versandlogik wie echte Protokollereignisse ausführt.
 
@@ -662,11 +662,11 @@ Details:
 - Jeder protokollierte Audit-Eintrag zeigt einen Link `Benachrichtigung`.
 - Der Link führt zu `/settings/telegram?action=<action>#notifications`.
 
-## KG-Bearbeitung, Telegram-Alben und Spielplanung
+## Tracker-Bearbeitung, Telegram-Alben und Spielplanung
 
-- KG-Tracker-Einträge haben eine Bearbeitungsroute `/sessions/kg/[id]/edit`.
-- KG-Einträge können dort aktualisiert oder gelöscht werden.
-- Laufende KG-Einträge können aus Übersicht und Detailseite beendet werden.
+- Tracker-Einträge haben eine Bearbeitungsroute `/trackers/[trackerKey]/[slug]/edit`.
+- Tracker-Einträge können dort aktualisiert oder gelöscht werden.
+- Laufende Tracker-Einträge können aus Übersicht und Detailseite beendet werden.
 - Telegram-Befehl `/album_new` startet einen Dialog zum Album-Anlegen; `/album_new Name` legt direkt ein privates Album an.
 - Telegram-Befehl `/toy_new` startet einen Dialog zum Spielzeug-Anlegen; `/toy_new Name` übernimmt den Namen direkt und fragt Beschreibung sowie Bild im Chat ab.
 - In der Benutzerverwaltung ist die Systemzeit als einklappbarer Bereich umgesetzt.
@@ -808,17 +808,17 @@ Details:
 - Navigation und Mobile-Menü lesen die aktiven Features der Seite und blenden deaktivierte Hauptmodule aus, ohne Daten zu löschen.
 - Direkte URLs zu deaktivierten Features landen auf einer freundlich formulierten, pro Seite konfigurierbaren Sperrseite. Server-Actions und externe API-Endpunkte prüfen die Features zusätzlich, damit bekannte Direktlinks nicht weiter Daten ändern.
 - Abhängigkeiten werden berücksichtigt: Self-Bondage hängt an Szenen, Tracker-Untertypen hängen am Tracker-Core. Wenn Spielsachen deaktiviert sind, werden Verknüpfungen aus Szenen/Spielplanung ausgeblendet statt weiter auf gesperrte Detailseiten zu zeigen.
-- Unterfeatures respektieren zusätzlich ihren eigenen Schalter: `selfBondage` ist nur sichtbar, wenn Self-Bondage und Szenen aktiv sind; `tracker.segufix`, `tracker.kg` und dynamische `tracker.*` sind nur sichtbar, wenn sowohl der Tracker-Core als auch der jeweilige Untertracker aktiv sind.
-- Die Feature-Prüfung nutzt bei gewechselten Seitenansichten die effektive Seite aus der Session. Dadurch bleiben z. B. KG/Segufix in der Seite `rope` ausgeblendet, obwohl sie auf der Hauptseite aktiv sind.
+- Unterfeatures respektieren zusätzlich ihren eigenen Schalter: `selfBondage` ist nur sichtbar, wenn Self-Bondage und Szenen aktiv sind; `tracker.<key>`, `tracker.<key>` und dynamische `tracker.*` sind nur sichtbar, wenn sowohl der Tracker-Core als auch der jeweilige Untertracker aktiv sind.
+- Die Feature-Prüfung nutzt bei gewechselten Seitenansichten die effektive Seite aus der Session. Dadurch bleiben z. B. Tracker/Tracker in der Seite `rope` ausgeblendet, obwohl sie auf der Hauptseite aktiv sind.
 - Der normale Menüpunkt `Sessions` wird nur angezeigt, wenn mindestens ein konkreter `tracker.*` auf der aktuellen Seite aktiv ist. Ein aktiver Tracker-Core ohne aktive Untertracker bleibt damit für Admin-Konfiguration verfügbar, führt aber nicht mehr auf eine funktionslose Sessions-Seite.
 - In der Seitenverwaltung bleibt die Liste `Vorhandene Seiten` offen, einzelne Seiten starten aber zugeklappt. Auf-/Zuklappen wird dort mit einem drehenden Pfeilsymbol statt Text angezeigt.
-- Segufix und KG wurden zusätzlich in einen generischen Tracker-Core gespiegelt: `TrackerType` definiert Tracker-Arten, `TrackerEntry` speichert gemeinsame Start-/End-/Dauer-/Notizdaten und JSON-Feldwerte.
-- Der Seed migriert bestehende Segufix- und KG-Einträge idempotent in `TrackerEntry`, behält die alten Tabellen aber für Kompatibilität weiter bei.
+- Die früher getrennten Tracker wurden in einen generischen Tracker-Core gespiegelt: `TrackerType` definiert Tracker-Arten, `TrackerEntry` speichert gemeinsame Start-/End-/Dauer-/Notizdaten und JSON-Feldwerte.
+- Der Seed migriert bestehende Tracker- und Tracker-Einträge idempotent in `TrackerEntry`, behält die alten Tabellen aber für Kompatibilität weiter bei.
 - Neue generische API-Endpunkte `/api/external/trackers/[trackerKey]/start` und `/api/external/trackers/[trackerKey]/stop` erlauben externe Tracker-Starts/-Stops für beliebige aktivierte Tracker-Typen.
 - Eine generische Detailseite `/trackers/[trackerKey]/[slug]` zeigt migrierte und neue Tracker-Einträge an.
 - Admins können unter `Einstellungen > Tracker` Tracker-Typen pro Seite anlegen, bearbeiten, farblich markieren und für die Seite sichtbar oder unsichtbar schalten.
-- Die Startseite blendet Spielplanung, Ideensammlung, Self-Bondage und letzte Segufix-Sessions abhängig von den aktiven Features aus, statt nur die Zielseiten zu sperren.
-- Die Sessions-Seite zeigt KG und Segufix nur noch, wenn die jeweiligen Untertracker aktiv sind. Sind beide Legacy-Tracker ausgeschaltet, werden stattdessen aktivierte generische Tracker angezeigt.
+- Die Startseite blendet Spielplanung, Ideensammlung, Self-Bondage und letzte Tracker-Sessions abhängig von den aktiven Features aus, statt nur die Zielseiten zu sperren.
+- Die Sessions-Seite zeigt Tracker nur noch, wenn die jeweiligen Untertracker aktiv sind. Sind beide Legacy-Tracker ausgeschaltet, werden stattdessen aktivierte generische Tracker angezeigt.
 
 ## Shopify Bondage-System
 
@@ -858,7 +858,7 @@ Details:
 - Offene Aufträge erscheinen prominent auf der Startseite direkt nach der Spielampel.
 - Aufträge nutzen die bestehenden Statuswerte mit auftragsbezogenem Wording: `beauftragt`, `angenommen`, `umgesetzt`, `verworfen`.
 - Der Auftraggeber kann den eigenen Auftrag nicht als `angenommen` markieren; das ist für andere Benutzer im Kreis gedacht.
-- Beim Status `umgesetzt` wird automatisch ein Segufix-Session-Eintrag als Session-Historie angelegt. Die Notizen enthalten Kategorie, Auftragstitel, Auftrag-ID und Link zum Auftrag.
+- Beim Status `umgesetzt` wird automatisch ein Tracker-Session-Eintrag als Session-Historie angelegt. Die Notizen enthalten Kategorie, Auftragstitel, Auftrag-ID und Link zum Auftrag.
 - Das Feature `orders` ist mandantenfähig und hängt an `activities`, `selfBondage` und `positions`.
 - Telegram kennt `/orders`, `/order_accept_N` und `/order_done_N`. Die Befehle listen sichtbare Kreis-Aufträge und erlauben Annahme oder Umsetzung per Klickbefehl.
 - Neue Audit-Aktionen `self_bondage_order_created`, `self_bondage_order_accepted`, `self_bondage_order_completed` und `self_bondage_order_discarded` stehen für Telegram-/E-Mail-Regeln zur Verfügung.
@@ -908,7 +908,7 @@ Details:
 
 ## Tracker-Kontingente, Chronik und externe Pushes
 
-- Segufix und KG werden für neue Start-/Stop-/API-/Telegram-Aktionen als normale `TrackerEntry`-Datensätze unter den Tracker-Typen `segufix` und `kg` gespeichert.
+- Neue Start-/Stop-/API-/Telegram-Aktionen speichern immer normale `TrackerEntry`-Datensätze unter den in der Datenbank konfigurierten Tracker-Typen.
 - Die Tracker-Zentrale `/sessions` rendert alle sichtbaren Tracker generisch mit Jahresübersicht, laufenden Einträgen, Historie und Erfassungsformular.
 - Tracker-Typen haben Kontingente: täglich und wöchentlich in Minuten, monatlich in Tagen und Minuten.
 - Die Startseite zeigt offene Tracker-Kontingente als `Tracker-Todos` mit Fortschritt, Restwert und Link zur Tracker-Zentrale.

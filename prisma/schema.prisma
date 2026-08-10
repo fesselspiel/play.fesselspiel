@@ -46,22 +46,6 @@ enum MediaKind {
   VIDEO
 }
 
-enum MoodBefore {
-  NEEDS_WORK
-  OKAY
-  NEUTRAL
-  PLEASANT
-  VERY_PLEASANT
-}
-
-enum MoodAfter {
-  WORSE
-  UNCHANGED
-  SLIGHTLY_BETTER
-  MUCH_BETTER
-  RELAXED
-}
-
 enum TelegramChatStatus {
   PENDING
   ACTIVE
@@ -178,8 +162,6 @@ model Tenant {
   positions                   Position[]
   catalogCategories           CatalogCategory[]
   activities                  ActivityPlan[]
-  sessions                    SegufixSession[]
-  kgSessions                  KgSession[]
   albums                      Album[]
   media                       Media[]
   events                      Event[]
@@ -200,6 +182,16 @@ model Tenant {
   chatNotificationRules       ChatNotificationRule[]
   scheduledRules              ScheduledRule[]
   scheduledRuleRuns           ScheduledRuleRun[]
+  automationSessions          AutomationSession[]
+  automationRules             AutomationRule[]
+  automationRuleVersions      AutomationRuleVersion[]
+  automationActions           AutomationAction[]
+  automationEvents            AutomationEvent[]
+  automationExecutionContexts AutomationExecutionContext[]
+  automationDevices           AutomationDevice[]
+  automationCapabilities      AutomationCapability[]
+  automationImageRequests     AutomationImageRequest[]
+  automationBridge            AutomationBridge?
   shareDeliveries             ShareDelivery[]
   playReadyLikes              PlayReadyLike[]
   activityLikes               ActivityLike[]
@@ -273,11 +265,8 @@ model User {
   toys                          Toy[]
   positions                     Position[]
   activities                    ActivityPlan[]
-  sessions                      SegufixSession[]
-  kgSessions                    KgSession[]
   media                         Media[]
   mediaComments                 MediaComment[]
-  sessionComments               SessionComment[]
   albums                        Album[]
   events                        Event[]
   files                         FileAsset[]
@@ -286,6 +275,12 @@ model User {
   telegramChatTargets           TelegramChat[]               @relation("TelegramChatTargetUser")
   apiTokens                     ApiToken[]
   scheduledRules                ScheduledRule[]
+  automationSessions            AutomationSession[]
+  automationRules               AutomationRule[]
+  automationActions             AutomationAction[]           @relation("AutomationActionActor")
+  automationEvents              AutomationEvent[]            @relation("AutomationEventActor")
+  automationExecutionContexts   AutomationExecutionContext[] @relation("AutomationContextActor")
+  automationImageRequests       AutomationImageRequest[]     @relation("AutomationImageRequestRequester")
   sentInvites                   UserInvite[]                 @relation("InviteCreator")
   acceptedInvites               UserInvite[]                 @relation("InviteAcceptedUser")
   telegramMappings              TelegramUserMapping[]        @relation("TelegramMappedAppUser")
@@ -423,6 +418,7 @@ model FileAsset {
   owner                   User                     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   activityImages          ActivityImage[]
   trackerEntryImages      TrackerEntryImage[]
+  automationImageRequests AutomationImageRequest[]
   circleChatMessages      CircleChatMessage[]
   wikiImages              WikiPageImage[]
   contentEntryAttachments ContentEntryAttachment[]
@@ -628,6 +624,316 @@ model TrackerReminderJob {
   @@index([status, dueAt])
   @@index([userId, trackerTypeId, status])
   @@index([tenantId, createdAt])
+}
+
+model AutomationSession {
+  id                    String                       @id @default(cuid())
+  tenantId              String
+  ownerId               String
+  trackerTypeId         String?
+  trackerEntryId        String?
+  slug                  String?
+  title                 String
+  state                 String                       @default("IDLE")
+  source                String                       @default("WEB")
+  role                  String                       @default("OWNER")
+  correlationId         String
+  startedAt             DateTime?
+  pendingEndAt          DateTime?
+  finishedAt            DateTime?
+  cancelledAt           DateTime?
+  notes                 String?
+  stateJson             Json                         @default("{}")
+  metadataJson          Json                         @default("{}")
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  tenant                Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner                 User                         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  trackerType           TrackerType?                 @relation(fields: [trackerTypeId], references: [id], onDelete: SetNull)
+  trackerEntry          TrackerEntry?                @relation(fields: [trackerEntryId], references: [id], onDelete: SetNull)
+  actions               AutomationAction[]
+  events                AutomationEvent[]
+  executionContexts     AutomationExecutionContext[]
+  imageRequests         AutomationImageRequest[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, state])
+  @@index([ownerId, state])
+  @@index([trackerEntryId])
+  @@index([correlationId])
+}
+
+model AutomationRule {
+  id          String                  @id @default(cuid())
+  tenantId    String
+  ownerId     String
+  name        String
+  description String?
+  active      Boolean                 @default(true)
+  mode        String                  @default("ONCE")
+  triggerType String
+  triggerJson Json                    @default("{}")
+  conditionJson Json                  @default("[]")
+  timingJson  Json                    @default("{}")
+  actionJson  Json                    @default("[]")
+  descriptionText String              @default("")
+  currentVersion Int                  @default(1)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  tenant      Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner       User                    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  versions    AutomationRuleVersion[]
+  actions     AutomationAction[]
+  events      AutomationEvent[]
+  contexts    AutomationExecutionContext[]
+
+  @@index([tenantId, active, triggerType])
+  @@index([ownerId, active])
+}
+
+model AutomationRuleVersion {
+  id              String       @id @default(cuid())
+  tenantId        String
+  ruleId          String
+  version         Int
+  name            String
+  mode            String
+  triggerType     String
+  triggerJson     Json         @default("{}")
+  conditionJson   Json         @default("[]")
+  timingJson      Json         @default("{}")
+  actionJson      Json         @default("[]")
+  descriptionText String       @default("")
+  createdAt       DateTime     @default(now())
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rule            AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  actions         AutomationAction[]
+  events          AutomationEvent[]
+  contexts        AutomationExecutionContext[]
+
+  @@unique([ruleId, version])
+  @@index([tenantId, createdAt])
+  @@index([triggerType])
+}
+
+model AutomationDevice {
+  id            String                 @id @default(cuid())
+  tenantId      String
+  logicalId     String
+  name          String
+  integration   String                 @default("IOBROKER")
+  health        String                 @default("UNKNOWN")
+  statusJson    Json                   @default("{}")
+  metadataJson  Json                   @default("{}")
+  lastSeenAt    DateTime?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  capabilities  AutomationCapability[]
+  actions       AutomationAction[]
+  events        AutomationEvent[]
+  imageRequests AutomationImageRequest[]
+
+  @@unique([tenantId, logicalId])
+  @@index([tenantId, health])
+}
+
+model AutomationCapability {
+  id               String             @id @default(cuid())
+  tenantId         String
+  deviceId         String
+  key              String
+  kind             String
+  title            String
+  state            String             @default("UNKNOWN")
+  stateJson        Json               @default("{}")
+  actionsJson      Json               @default("[]")
+  eventsJson       Json               @default("[]")
+  conditionsJson   Json               @default("[]")
+  parametersJson   Json               @default("{}")
+  uiJson           Json               @default("{}")
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device           AutomationDevice   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  actions          AutomationAction[]
+  events           AutomationEvent[]
+  imageRequests    AutomationImageRequest[]
+
+  @@unique([deviceId, key])
+  @@index([tenantId, kind, state])
+}
+
+model AutomationAction {
+  id             String                      @id @default(cuid())
+  tenantId       String
+  sessionId      String?
+  ruleId         String?
+  ruleVersionId  String?
+  actorId        String?
+  contextId      String?
+  parentActionId String?
+  deviceId       String?
+  capabilityId   String?
+  type           String
+  source         String                      @default("SYSTEM")
+  role           String                      @default("SYSTEM")
+  target         String?
+  status         String                      @default("CREATED")
+  timingJson     Json                        @default("{}")
+  payloadJson    Json                        @default("{}")
+  resultJson     Json?
+  error          String?
+  idempotencyKey String?
+  correlationId  String
+  dueAt          DateTime?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+  tenant         Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session        AutomationSession?          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  rule           AutomationRule?             @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  ruleVersion    AutomationRuleVersion?      @relation(fields: [ruleVersionId], references: [id], onDelete: SetNull)
+  actor          User?                       @relation("AutomationActionActor", fields: [actorId], references: [id], onDelete: SetNull)
+  context        AutomationExecutionContext? @relation("AutomationActionContext", fields: [contextId], references: [id], onDelete: SetNull)
+  parentAction   AutomationAction?           @relation("AutomationActionParent", fields: [parentActionId], references: [id], onDelete: SetNull)
+  childActions   AutomationAction[]          @relation("AutomationActionParent")
+  device         AutomationDevice?           @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  capability     AutomationCapability?       @relation(fields: [capabilityId], references: [id], onDelete: SetNull)
+  events         AutomationEvent[]
+  imageRequests  AutomationImageRequest[]
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, status, dueAt])
+  @@index([sessionId, createdAt])
+  @@index([correlationId])
+  @@index([deviceId, capabilityId, status])
+}
+
+model AutomationEvent {
+  id             String                      @id @default(cuid())
+  tenantId       String
+  sessionId      String?
+  ruleId         String?
+  ruleVersionId  String?
+  actionId       String?
+  actorId        String?
+  contextId      String?
+  parentEventId  String?
+  deviceId       String?
+  capabilityId   String?
+  type           String
+  title          String
+  source         String                      @default("SYSTEM")
+  role           String                      @default("SYSTEM")
+  detailsJson    Json                        @default("{}")
+  rawJson        Json                        @default("{}")
+  correlationId  String
+  createdAt      DateTime                    @default(now())
+  tenant         Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session        AutomationSession?          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  rule           AutomationRule?             @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  ruleVersion    AutomationRuleVersion?      @relation(fields: [ruleVersionId], references: [id], onDelete: SetNull)
+  action         AutomationAction?           @relation(fields: [actionId], references: [id], onDelete: SetNull)
+  actor          User?                       @relation("AutomationEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  context        AutomationExecutionContext? @relation("AutomationEventContext", fields: [contextId], references: [id], onDelete: SetNull)
+  parentEvent    AutomationEvent?            @relation("AutomationEventParent", fields: [parentEventId], references: [id], onDelete: SetNull)
+  childEvents    AutomationEvent[]           @relation("AutomationEventParent")
+  device         AutomationDevice?           @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  capability     AutomationCapability?       @relation(fields: [capabilityId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, type, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([correlationId])
+  @@index([parentEventId])
+}
+
+model AutomationExecutionContext {
+  id                 String                 @id @default(cuid())
+  tenantId           String
+  sessionId          String?
+  actorId            String?
+  ruleId             String?
+  ruleVersionId      String?
+  parentContextId    String?
+  source             String                 @default("SYSTEM")
+  role               String                 @default("SYSTEM")
+  variablesJson      Json                   @default("{}")
+  conditionsJson     Json                   @default("[]")
+  policyJson         Json                   @default("{}")
+  timingJson         Json                   @default("{}")
+  correlationId      String
+  createdAt          DateTime               @default(now())
+  tenant             Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session            AutomationSession?     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  actor              User?                  @relation("AutomationContextActor", fields: [actorId], references: [id], onDelete: SetNull)
+  rule               AutomationRule?        @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  ruleVersion        AutomationRuleVersion? @relation(fields: [ruleVersionId], references: [id], onDelete: SetNull)
+  actions            AutomationAction[]     @relation("AutomationActionContext")
+  events             AutomationEvent[]      @relation("AutomationEventContext")
+  parentContext      AutomationExecutionContext? @relation("AutomationContextParent", fields: [parentContextId], references: [id], onDelete: SetNull)
+  childContexts      AutomationExecutionContext[] @relation("AutomationContextParent")
+
+  @@index([tenantId, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([correlationId])
+  @@index([parentContextId])
+}
+
+model AutomationImageRequest {
+  id             String                 @id @default(cuid())
+  tenantId       String
+  sessionId      String
+  actionId       String?
+  requesterId    String?
+  deviceId       String?
+  capabilityId   String?
+  fileId         String?
+  requestId      String                 @unique
+  status         String                 @default("REQUESTED")
+  reason         String?
+  retryCount     Int                    @default(0)
+  maxRetries     Int                    @default(2)
+  timeoutSeconds Int                    @default(20)
+  bootDelaySeconds Int                  @default(20)
+  error          String?
+  metadataJson   Json                   @default("{}")
+  requestedAt    DateTime               @default(now())
+  uploadedAt     DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  tenant         Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session        AutomationSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  action         AutomationAction?      @relation(fields: [actionId], references: [id], onDelete: SetNull)
+  requester      User?                  @relation("AutomationImageRequestRequester", fields: [requesterId], references: [id], onDelete: SetNull)
+  device         AutomationDevice?      @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  capability     AutomationCapability?  @relation(fields: [capabilityId], references: [id], onDelete: SetNull)
+  file           FileAsset?             @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status, requestedAt])
+  @@index([sessionId, requestedAt])
+  @@index([deviceId, status])
+}
+
+model AutomationBridge {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique
+  enabled         Boolean  @default(false)
+  mqttBaseTopic   String   @default("playplaner/v1")
+  mqttClientId    String?
+  mqttUsername    String?
+  mqttPasswordEnc String?
+  mqttAclJson     Json     @default("{}")
+  heartbeatAt     DateTime?
+  health          String   @default("UNKNOWN")
+  metadataJson    Json     @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([enabled, health])
 }
 
 model LegalDocument {
@@ -1524,32 +1830,6 @@ model ActivityImage {
   @@index([fileId])
 }
 
-model SegufixSession {
-  id              String           @id @default(cuid())
-  tenantId        String?
-  ownerId         String
-  slug            String?
-  startTime       DateTime
-  endTime         DateTime?
-  durationMinutes Int?
-  notes           String?
-  moodBefore      MoodBefore?
-  moodBeforeText  String?
-  moodAfter       MoodAfter?
-  moodAfterText   String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  tenant          Tenant?          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner           User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  media           Media[]
-  comments        SessionComment[]
-
-  @@unique([tenantId, slug])
-  @@index([tenantId, startTime])
-  @@index([ownerId, startTime])
-  @@index([slug])
-}
-
 model TrackerType {
   id                   String         @id @default(cuid())
   tenantId             String?
@@ -1577,6 +1857,7 @@ model TrackerType {
   updatedAt            DateTime       @updatedAt
   tenant               Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   entries              TrackerEntry[]
+  automationSessions   AutomationSession[]
 
   @@unique([tenantId, key])
   @@index([tenantId, enabled])
@@ -1605,6 +1886,7 @@ model TrackerEntry {
   bondageSystemItems BondageSystemItem[] @relation("TrackerEntryBondageSystemItems")
   positions          Position[]          @relation("TrackerEntryPositions")
   images             TrackerEntryImage[]
+  automationSessions AutomationSession[]
 
   @@unique([trackerTypeId, legacyType, legacyId])
   @@unique([tenantId, trackerTypeId, slug])
@@ -1630,23 +1912,6 @@ model TrackerEntryImage {
   @@index([fileId])
 }
 
-model KgSession {
-  id              String    @id @default(cuid())
-  tenantId        String?
-  ownerId         String
-  startTime       DateTime
-  endTime         DateTime?
-  durationMinutes Int?
-  notes           String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  tenant          Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner           User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-
-  @@index([tenantId, startTime])
-  @@index([ownerId, startTime])
-}
-
 model Album {
   id           String     @id @default(cuid())
   tenantId     String?
@@ -1670,7 +1935,6 @@ model Media {
   tenantId              String?
   ownerId               String
   albumId               String?
-  sessionId             String?
   activityId            String?
   showInCalendar        Boolean               @default(false)
   calendarDate          DateTime?
@@ -1684,11 +1948,9 @@ model Media {
   tenant                Tenant?               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   owner                 User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   album                 Album?                @relation(fields: [albumId], references: [id], onDelete: SetNull)
-  session               SegufixSession?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   activity              ActivityPlan?         @relation(fields: [activityId], references: [id], onDelete: Cascade)
   comments              MediaComment[]
 
-  @@index([sessionId])
   @@index([activityId])
   @@index([tenantId, showInCalendar, calendarDate])
   @@index([tenantId, ownerId, createdAt])
@@ -1704,19 +1966,6 @@ model MediaComment {
   owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([mediaId, createdAt])
-  @@index([ownerId, createdAt])
-}
-
-model SessionComment {
-  id        String         @id @default(cuid())
-  sessionId String
-  ownerId   String
-  body      String
-  createdAt DateTime       @default(now())
-  session   SegufixSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  owner     User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-
-  @@index([sessionId, createdAt])
   @@index([ownerId, createdAt])
 }
 

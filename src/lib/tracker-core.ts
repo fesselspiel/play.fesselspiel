@@ -43,6 +43,38 @@ export async function findTrackerTypeForUser(key: string, user: { id: string; te
   return globalTracker && trackerVisibleToUser(globalTracker, user.id) ? globalTracker : null;
 }
 
+export async function trackerTypesForUser(user: { id: string; tenantId?: string | null }) {
+  const trackers = await prisma.trackerType.findMany({
+    where: {
+      enabled: true,
+      ...(user.tenantId ? { OR: [{ tenantId: user.tenantId }, { tenantId: null }] } : { tenantId: null })
+    },
+    orderBy: { title: "asc" }
+  });
+  return trackers.filter((tracker) => trackerVisibleToUser(tracker, user.id));
+}
+
+export async function findTrackerTypeByIdForUser(id: string, user: { id: string; tenantId?: string | null }) {
+  const tracker = await prisma.trackerType.findFirst({
+    where: {
+      id,
+      enabled: true,
+      ...(user.tenantId ? { OR: [{ tenantId: user.tenantId }, { tenantId: null }] } : { tenantId: null })
+    }
+  });
+  return tracker && trackerVisibleToUser(tracker, user.id) ? tracker : null;
+}
+
+export async function findTrackerTypeByTextForUser(query: string, user: { id: string; tenantId?: string | null }) {
+  const normalized = query.trim().toLowerCase();
+  const trackers = await trackerTypesForUser(user);
+  if (!normalized) return trackers[0] || null;
+  return trackers.find((tracker) => tracker.key.toLowerCase() === normalized)
+    || trackers.find((tracker) => tracker.title.toLowerCase() === normalized)
+    || trackers.find((tracker) => tracker.key.toLowerCase().includes(normalized) || tracker.title.toLowerCase().includes(normalized))
+    || null;
+}
+
 export async function runningTrackerEntriesForUser(
   user: { id: string; tenantId?: string | null },
   options?: { trackerTypeId?: string }
@@ -101,6 +133,18 @@ export async function startTrackerEntry(input: {
 }) {
   const trackerType = await findTrackerTypeForUser(input.key, input.user);
   if (!trackerType) return null;
+  return startTrackerEntryForType({ ...input, trackerType });
+}
+
+export async function startTrackerEntryForType(input: {
+  trackerType: { id: string; key: string; title: string; tenantId?: string | null; autoCloseOpenSession: boolean };
+  user: { id: string; tenantId?: string | null };
+  startTime?: Date;
+  allDay?: boolean;
+  notes?: string;
+  fieldValues?: Record<string, unknown>;
+}) {
+  const trackerType = input.trackerType;
   const startTime = input.startTime || new Date();
   const allDay = input.allDay === true;
   if (!allDay && trackerType.autoCloseOpenSession) {
@@ -141,6 +185,15 @@ export async function stopTrackerEntry(input: {
 }) {
   const trackerType = await findTrackerTypeForUser(input.key, input.user);
   if (!trackerType) return null;
+  return stopTrackerEntryForType({ trackerType, user: input.user, notes: input.notes });
+}
+
+export async function stopTrackerEntryForType(input: {
+  trackerType: { id: string };
+  user: { id: string; tenantId?: string | null };
+  notes?: string;
+}) {
+  const trackerType = input.trackerType;
   const entry = await prisma.trackerEntry.findFirst({
     where: { trackerTypeId: trackerType.id, ownerId: input.user.id, endTime: null, allDay: false },
     orderBy: { startTime: "desc" }

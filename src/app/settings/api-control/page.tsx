@@ -269,10 +269,10 @@ function endpointSampleForPath(
 ) {
   const lowerPath = endpoint.path.toLowerCase();
   if (lowerPath.includes("/api/external/trackers/") && lowerPath.includes("/start")) {
-    return { ok: true, trackerKey: "segufix", note: "Beispielstart", allDay: false };
+    return { ok: true, trackerKey: "zeittracker", note: "Beispielstart", allDay: false };
   }
   if (lowerPath.includes("/api/external/trackers/") && lowerPath.includes("/stop")) {
-    return { ok: true, trackerKey: "segufix", note: "Beispielstop" };
+    return { ok: true, trackerKey: "zeittracker", note: "Beispielstop" };
   }
   if (lowerPath.includes("/api/external/invites")) {
     return {

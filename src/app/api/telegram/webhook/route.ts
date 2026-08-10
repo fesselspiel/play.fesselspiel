@@ -16,7 +16,7 @@ import type { TelegramChatMemberUpdate, TelegramMessage, TelegramUpdate, Telegra
 import { uniqueSlug } from "@/lib/slug";
 import { rememberKnownTelegramUser } from "@/lib/telegram-known-users";
 import { ensureUserSettings } from "@/lib/tenant-telegram";
-import { startTrackerEntry, stopTrackerEntry } from "@/lib/tracker-core";
+import { findTrackerTypeByTextForUser, startTrackerEntryForType, stopTrackerEntryForType } from "@/lib/tracker-core";
 import { trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 
 type TelegramMessageFrom = TelegramMessage["from"];
@@ -77,6 +77,10 @@ async function trackerQuotaMessage(userId: string, trackerKey?: string | null) {
     .filter((entry) => !trackerKey || entry.tracker.key === trackerKey);
   if (!quotas.length) return "<b>Tracker-Kontingente</b>\nKeine Kontingente konfiguriert.";
   return [`<b>Tracker-Kontingente</b>`, ...quotas.map((entry) => trackerQuotaHtml(entry))].join("\n\n");
+}
+
+async function resolveTelegramTracker(userId: string, tenantId: string | undefined, query: string) {
+  return findTrackerTypeByTextForUser(query, { id: userId, tenantId });
 }
 
 function userDisplayName(user: { profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null }) {
@@ -152,14 +156,14 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   if (parsed.command === "/id") return ["<b>Telegram-Verbindung</b>", htmlLine("Chat-ID", chatId), htmlLine("Thread-ID", threadId || "-"), htmlLine("Status", "aktiv")].join("\n");
 
   if (parsed.command === "/status") {
-    const [toys, positions, activities, sessions, kgSessions] = await Promise.all([
+    const [toys, positions, activities, trackerEntries, openTrackers] = await Promise.all([
       prisma.toy.count({ where: { ...tenantScope, ownerId: userId } }),
       prisma.position.count({ where: { ...tenantScope, ownerId: userId } }),
       prisma.activityPlan.count({ where: { ...tenantScope, ownerId: userId, category: { not: "IDEA_COLLECTION" }, status: { in: ["REQUESTED", "PLANNED"] } } }),
-      prisma.trackerEntry.count({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" } } }),
-      prisma.trackerEntry.count({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "kg" } } })
+      prisma.trackerEntry.count({ where: { ...tenantScope, ownerId: userId } }),
+      prisma.trackerEntry.count({ where: { ...tenantScope, ownerId: userId, endTime: null, allDay: false } })
     ]);
-    return ["<b>Portalstatus</b>", htmlLine("Spielzeuge", toys), htmlLine("Szenen", positions), htmlLine("Geplante Aktivitäten", activities), htmlLine("Segufix-Sessions", sessions), htmlLine("KG-Einträge", kgSessions)].join("\n");
+    return ["<b>Portalstatus</b>", htmlLine("Spielzeuge", toys), htmlLine("Szenen", positions), htmlLine("Geplante Aktivitäten", activities), htmlLine("Tracker-Einträge", trackerEntries), htmlLine("Laufende Tracker", openTrackers)].join("\n");
   }
 
   if (parsed.command === "/invites") {
@@ -192,9 +196,8 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   }
 
   if (parsed.command === "/kontingent" || parsed.command === "/quotas" || parsed.command === "/quota") {
-    const arg = parsed.args.toLowerCase();
-    const trackerKey = arg.includes("kg") ? "kg" : arg.includes("segufix") ? "segufix" : null;
-    return trackerQuotaMessage(userId, trackerKey);
+    const tracker = parsed.args ? await resolveTelegramTracker(userId, tenantId, parsed.args) : null;
+    return trackerQuotaMessage(userId, tracker?.key || null);
   }
 
   if (parsed.command === "/favoriten" || parsed.command === "/favorites") {
@@ -376,25 +379,16 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   if (parsed.command === "/sessions") {
     const now = new Date();
     const yearStart = new Date(now.getFullYear(), 0, 1);
+    const tracker = await resolveTelegramTracker(userId, tenantId, parsed.args);
     const [sessions, quotaMessage] = await Promise.all([
-      prisma.trackerEntry.findMany({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, startTime: { gte: yearStart } } }),
-      trackerQuotaMessage(userId, "segufix")
+      prisma.trackerEntry.findMany({ where: { ...tenantScope, ownerId: userId, ...(tracker ? { trackerTypeId: tracker.id } : {}), startTime: { gte: yearStart } }, include: { trackerType: true } }),
+      trackerQuotaMessage(userId, tracker?.key || null)
     ]);
     const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
     const open = sessions.filter((session) => !session.endTime && !session.allDay).length;
-    return [`<b>Segufix ${now.getFullYear()}</b>`, htmlLine("Anzahl", sessions.length), htmlLine("Gesamtdauer", formatMinutes(total)), htmlLine("Offen", open), quotaMessage, telegramLink(`${env.appUrl}/sessions?tracker=segufix`, "Tracker öffnen")].join("\n\n");
-  }
-
-  if (parsed.command === "/kg") {
-    const now = new Date();
-    const yearStart = new Date(now.getFullYear(), 0, 1);
-    const [sessions, quotaMessage] = await Promise.all([
-      prisma.trackerEntry.findMany({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "kg" }, startTime: { gte: yearStart } } }),
-      trackerQuotaMessage(userId, "kg")
-    ]);
-    const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
-    const open = sessions.filter((session) => !session.endTime && !session.allDay).length;
-    return [`<b>KG Time Tracker ${now.getFullYear()}</b>`, htmlLine("Einträge", sessions.length), htmlLine("Gesamtzeit", formatMinutes(total)), htmlLine("Offen", open), quotaMessage, telegramLink(`${env.appUrl}/sessions?tracker=kg`, "Tracker öffnen")].join("\n\n");
+    const title = tracker ? tracker.title : "Tracker";
+    const href = tracker ? `${env.appUrl}/sessions?tracker=${tracker.key}` : `${env.appUrl}/sessions`;
+    return [`<b>${telegramHtml(title)} ${now.getFullYear()}</b>`, htmlLine("Einträge", sessions.length), htmlLine("Gesamtzeit", formatMinutes(total)), htmlLine("Offen", open), quotaMessage, telegramLink(href, "Tracker öffnen")].join("\n\n");
   }
 
   if (parsed.command === "/album_new" || parsed.command === "/album") {
@@ -402,69 +396,40 @@ async function handleCommand(userId: string, text: string, chatId: string, threa
   }
 
   if (parsed.command === "/session_start") {
-    const open = await prisma.trackerEntry.findFirst({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, endTime: null, allDay: false }, orderBy: { startTime: "desc" } });
-    if (open) return `Es läuft bereits eine Session seit ${formatDateTime(open.startTime)}. Beende sie mit /session_stop.`;
-    const session = await startTrackerEntry({
-      key: "segufix",
+    const tracker = await resolveTelegramTracker(userId, tenantId, parsed.args);
+    if (!tracker) return "Kein aktiver Tracker gefunden. Schreibe den Trackernamen hinter /session_start oder lege zuerst einen Tracker an.";
+    const open = await prisma.trackerEntry.findFirst({ where: { ...tenantScope, ownerId: userId, trackerTypeId: tracker.id, endTime: null, allDay: false }, orderBy: { startTime: "desc" } });
+    if (open) return `${tracker.title} läuft bereits seit ${formatDateTime(open.startTime)}. Beende ihn mit /session_stop ${tracker.title}.`;
+    const session = await startTrackerEntryForType({
+      trackerType: tracker,
       user: { id: userId, tenantId },
-      notes: parsed.args || "Per Telegram gestartet"
+      notes: "Per Telegram gestartet"
     });
-    if (!session) return "Segufix-Tracker ist nicht aktiv.";
     await logAction({
       actorId: userId,
-      action: "tracker_segufix_started_telegram",
+      action: `tracker_${tracker.key}_started_telegram`,
       entityType: "trackerEntry",
       entityId: session.id,
-      title: "Segufix per Telegram gestartet",
-      href: `/trackers/segufix/${session.slug || session.id}`
+      title: `${tracker.title} per Telegram gestartet`,
+      href: `/trackers/${tracker.key}/${session.slug || session.id}`
     });
-    return [`Session gestartet: ${formatDateTime(session.startTime)}`, telegramLink(`${env.appUrl}/trackers/segufix/${session.slug || session.id}`, "Session öffnen")].join("\n");
+    return [`<b>${telegramHtml(tracker.title)} gestartet</b>`, htmlLine("Start", formatDateTime(session.startTime)), telegramLink(`${env.appUrl}/trackers/${tracker.key}/${session.slug || session.id}`, "Eintrag öffnen")].join("\n");
   }
 
   if (parsed.command === "/session_stop") {
-    const updated = await stopTrackerEntry({ key: "segufix", user: { id: userId, tenantId }, notes: parsed.args });
-    if (!updated) return "Keine laufende Session gefunden.";
+    const tracker = await resolveTelegramTracker(userId, tenantId, parsed.args);
+    if (!tracker) return "Kein aktiver Tracker gefunden. Schreibe den Trackernamen hinter /session_stop.";
+    const updated = await stopTrackerEntryForType({ trackerType: tracker, user: { id: userId, tenantId } });
+    if (!updated) return `Keine laufende Session für ${tracker.title} gefunden.`;
     await logAction({
       actorId: userId,
-      action: "tracker_segufix_stopped_telegram",
+      action: `tracker_${tracker.key}_stopped_telegram`,
       entityType: "trackerEntry",
       entityId: updated.id,
-      title: "Segufix per Telegram beendet",
-      href: `/trackers/segufix/${updated.slug || updated.id}`
+      title: `${tracker.title} per Telegram beendet`,
+      href: `/trackers/${tracker.key}/${updated.slug || updated.id}`
     });
-    return `Session beendet: ${formatMinutes(updated.durationMinutes)}`;
-  }
-
-  if (parsed.command === "/kg_start") {
-    const session = await startTrackerEntry({
-      key: "kg",
-      user: { id: userId, tenantId },
-      notes: parsed.args || "Per Telegram gestartet"
-    });
-    if (!session) return "KG-Tracker ist nicht aktiv.";
-    await logAction({
-      actorId: userId,
-      action: "tracker_kg_started_telegram",
-      entityType: "trackerEntry",
-      entityId: session.id,
-      title: "KG per Telegram gestartet",
-      href: `/trackers/kg/${session.slug || session.id}`
-    });
-    return [`<b>KG-Tracker gestartet</b>`, htmlLine("Start", formatDateTime(session.startTime)), telegramLink(`${env.appUrl}/trackers/kg/${session.slug || session.id}`, "KG Tracker öffnen")].join("\n");
-  }
-
-  if (parsed.command === "/kg_stop") {
-    const updated = await stopTrackerEntry({ key: "kg", user: { id: userId, tenantId }, notes: parsed.args });
-    if (!updated) return "Kein laufender KG-Tracker gefunden.";
-    await logAction({
-      actorId: userId,
-      action: "tracker_kg_stopped_telegram",
-      entityType: "trackerEntry",
-      entityId: updated.id,
-      title: "KG per Telegram beendet",
-      href: `/trackers/kg/${updated.slug || updated.id}`
-    });
-    return [`<b>KG-Tracker beendet</b>`, htmlLine("Dauer", formatMinutes(updated.durationMinutes)), telegramLink(`${env.appUrl}/trackers/kg/${updated.slug || updated.id}`, "KG Tracker öffnen")].join("\n");
+    return [`<b>${telegramHtml(tracker.title)} beendet</b>`, htmlLine("Dauer", formatMinutes(updated.durationMinutes)), telegramLink(`${env.appUrl}/trackers/${tracker.key}/${updated.slug || updated.id}`, "Eintrag öffnen")].join("\n");
   }
 
   return `Unbekannter Befehl: ${parsed.command}\n\n${HELP_TEXT}`;

@@ -37,7 +37,7 @@ Ursprünglich gewünschte Module:
 - Direktnachrichten und Bilder/Videos in Nachrichten. Diese Anforderung wurde später in der aktiven Oberfläche durch Protokoll, Telegram-Agent und Bilderverwaltung ersetzt.
 - Events mit Check-in.
 - Bilderverwaltung mit Bildern, Videos, Alben und Sichtbarkeiten.
-- Segufix-Timetracker mit Start, Ende, Dauer, Notizen.
+- Tracker mit Start, Ende, Dauer, Notizen.
 - Stimmung vorher und nachher mit fünfstufigen Labels und Freitext.
 - Jahresübersicht als Session-Kalender mit 12 Zeilen und 31 Spalten.
 - Auswertungen zu Dauer und Stimmung.
@@ -696,9 +696,9 @@ Umsetzung:
 Anforderung:
 
 - Sichtbare Umschreibungen wie `ae`, `oe`, `ue` sollen echte Umlaute werden.
-- Segufix soll nur noch ein gemeinsames Textfeld für Begleitnotizen haben.
-- KG soll statt `Notizen` einen hochwertigeren Begriff verwenden.
-- KG-Historie und Segufix-Historienkarten sollen direkt auf Detailseiten verlinken.
+- Tracker soll nur noch ein gemeinsames Textfeld für Begleitnotizen haben.
+- Tracker soll statt `Notizen` einen hochwertigeren Begriff verwenden.
+- Tracker-Historie und Tracker-Historienkarten sollen direkt auf Detailseiten verlinken.
 - Szenen-Sortierung soll auf dem iPad funktionieren und nicht prominent sichtbar sein.
 - In Einstellungen soll ein schneller Dark-Mode-Toggle erreichbar sein.
 - Telegram-Aktionsregeln sollen zuverlässig auslösen.
@@ -707,8 +707,8 @@ Anforderung:
 Umsetzung:
 
 - Sichtbare deutsche Texte wurden auf echte Umlaute umgestellt; technische Slugs bleiben ASCII.
-- Segufix nutzt `Sessionkommentar`, KG nutzt `Sessionbeschreibung`.
-- Neue KG-Detailseite `/sessions/kg/[id]`.
+- Tracker nutzt `Sessionkommentar`, Tracker nutzt `Sessionbeschreibung`.
+- Neue Tracker-Detailseite `/trackers/[trackerKey]/[slug]`.
 - Historien- und Kalenderlinks führen zu den Detailseiten.
 - Szenen-Sortierung ist für Admins als eingeklappter Bereich mit Hoch-/Runter-Schaltern umgesetzt.
 - Dark-Mode-Toggle wurde in Desktop- und Mobile-Einstellungen ergänzt.
@@ -727,7 +727,7 @@ Anforderung:
 Umsetzung:
 
 - Bestätigen-Button und Server Action schließen den Ersteller der Anfrage aus.
-- Neue Server Action `stopSegufixSession` beendet eigene laufende Segufix-Sessions.
+- Neue Server Action `stopTrackerEntry` beendet eigene laufende Tracker-Sessions.
 - Dashboard und Session-Seiten zeigen `Session beenden`, wenn die laufende Session dem aktuellen Benutzer gehört.
 - Telegram-Regeln nutzen eine dynamische Zielauswahl: entweder Benutzer oder Kreis.
 - `Test senden` ruft gezielt die ausgewählte Regel mit Testdaten auf.

@@ -173,7 +173,7 @@ export const publicFeatures: PublicFeature[] = [
     navTitle: "Tracker",
     title: "Tracker, Kontingente und Jahresübersichten",
     eyebrow: "Dokumentation",
-    summary: "Trackt beliebige Zeitarten wie Segufix oder KG mit Jahreskalender, Details und To-dos.",
+    summary: "Trackt beliebige Zeitarten mit Jahreskalender, Details und To-dos.",
     description: [
       "Tracker sind generisch aufgebaut. Admins konfigurieren Tracker-Typen, Farben, Felder und Kontingente; Benutzer starten, stoppen und dokumentieren Einträge.",
       "Kontingente zeigen, was täglich, wöchentlich oder monatlich noch offen ist. Externe Systeme können diese Werte per API abfragen."
@@ -189,7 +189,7 @@ export const publicFeatures: PublicFeature[] = [
     cta: "Tracker öffnen",
     mockup: {
       title: "Tracker",
-      subtitle: "Segufix",
+      subtitle: "Zeittracker",
       primary: "Heute 01:45 h",
       rows: [
         { label: "Woche", value: "3 h offen", tone: "red" },

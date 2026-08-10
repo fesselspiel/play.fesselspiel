@@ -6,9 +6,9 @@ Implementiere diese Erweiterung vollständig in
 `fesselspiel/play.fesselspiel`. Analysiere vor Änderungen die vorhandene
 Architektur. Erweitere bestehende Systeme, statt parallele Tracker-,
 Session-, Datei-, Rule-, Rechte- oder Notification-Systeme zu bauen.
-Prüfe insbesondere `prisma/schema.prisma`, `SegufixSession`,
-`TrackerType`, `TrackerEntry`, `ScheduledRule`, `ScheduledRuleRun`,
-`AuditLog`, `FileAsset`, externe APIs, Telegram,
+Prüfe insbesondere `prisma/schema.prisma`, `TrackerType`,
+`TrackerEntry`, vorhandene Legacy-Sessiondaten, `ScheduledRule`,
+`ScheduledRuleRun`, `AuditLog`, `FileAsset`, externe APIs, Telegram,
 Tenant-/Kreis-/Rollenlogik und die Dokumentation unter `docs/`.
 
 ## Architektur
@@ -30,11 +30,13 @@ Telegram, Alexa/ioBroker oder einer Regel kommen. Start ist idempotent.
 Läuft bereits eine Session, wird ein weiterer Start ignoriert und
 erzeugt weder Session noch Tracker doppelt.
 
-Beim Start genau einen Tracker `segufix-self` starten und eindeutig mit
-der Session verknüpfen. Beim tatsächlichen Session-Ende diesen Tracker
-stoppen. Kein separates Quoten-System bauen. Vorhandene Tracker-Quoten
-verwenden, zum Beispiel 120 Minuten pro Woche. Bildanforderungen
-verbrauchen keine Quote.
+Beim Start genau den für diese Automationsart konfigurierten Tracker
+starten und eindeutig mit der Session verknüpfen. Die Auswahl erfolgt
+über `TrackerType`/IDs und Datenbankkonfiguration, nicht über
+hardcodierte Trackernamen im Code. Beim tatsächlichen Session-Ende
+diesen Tracker stoppen. Kein separates Quoten-System bauen. Vorhandene
+Tracker-Quoten verwenden, zum Beispiel 120 Minuten pro Woche.
+Bildanforderungen verbrauchen keine Quote.
 
 ## Stop und Pending End
 

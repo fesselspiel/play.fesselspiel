@@ -4,6 +4,7 @@ import {
   BellRing,
   BookOpenText,
   ClipboardCheck,
+  Cpu,
   DatabaseBackup,
   FileText,
   ListChecks,
@@ -74,6 +75,7 @@ export const mainNavigationSections: readonly AppNavSection[] = [
     items: [
       { label: "Aufträge", href: "/orders", icon: ClipboardCheck, feature: "orders" },
       { label: "Packlisten", href: "/packing", icon: ListChecks, feature: "packingLists" },
+      { label: "Automation", href: "/automation", icon: Cpu, feature: "automation" },
       { label: "Sessions", href: "/sessions", icon: Timer, feature: "trackers" }
     ]
   },
@@ -101,6 +103,7 @@ export const settingsNavigationItems = {
     { label: "Punkte", href: "/settings/points", icon: Trophy, feature: null },
     { label: "Shopify", href: "/settings/shopify", icon: PackageSearch, feature: null },
     { label: "Tracker", href: "/settings/trackers", icon: Timer, feature: null },
+    { label: "Automation", href: "/settings/automation", icon: Cpu, feature: "automation" },
     { label: "Telegram", href: "/settings/telegram", icon: Settings, feature: null },
     { label: "E-Mail", href: "/settings/email", icon: Mail, feature: null },
     { label: "Push", href: "/settings/push", icon: BellRing, feature: null },

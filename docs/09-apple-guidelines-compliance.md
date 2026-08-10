@@ -627,7 +627,7 @@ Folgende Punkte koennen nicht allein durch Code als rechtlich oder organisatoris
 ## Zyklus 37: Native Schutzaktionen fuer fremde Kommentare
 
 - iOS zeigt bei ausdruecklich fremden Session- und Medienkommentaren ein gemeinsames natives Schutzmenue mit Melden, Blockieren und lokalem Ausblenden. Eigene oder nicht eindeutig zuordenbare Kommentare erhalten keine geratenen Fremdaktionen; berechtigte eigene Loeschaktionen bleiben erhalten.
-- Die vorhandene Backend-Zielaufloesung fuer `sessionComment` und `mediaComment` wird unveraendert verwendet. Es gab in diesem Zyklus keine Backend-, Datenbank- oder Produktivdatenaenderung.
+- Die vorhandene Backend-Zielaufloesung fuer `mediaComment` und `mediaComment` wird unveraendert verwendet. Es gab in diesem Zyklus keine Backend-, Datenbank- oder Produktivdatenaenderung.
 - Der Audit hat Restluecken fuer `FeedComment`/`EventComment`, `ContentEntry`, Packlisten/Pack-Events und generische Kalendereintraege identifiziert. Vor appseitiger Anzeige werden additiv Owner/`own`, serverseitige Report-Zielaufloesung und Blockierungsfilter benoetigt. Die Anforderungen wurden ueber die interne Mailbox an den Backend-Agenten gesendet; iOS simuliert bis dahin keinen Erfolg.
 - Fastlane-Store-Verifier und Debug-Simulator-Builds auf iPhone 17e sowie iPad mini (A17 Pro) bestanden. Der neue lokale Screenshot-Hook zeigt das Schutzmenue auf beiden Geraeteklassen. Ein automatisierter Menueklick konnte bei gesperrtem macOS nicht ausgefuehrt werden und bleibt als lokaler Nachtest offen.
 - Rueckbau: ausschliesslich die iOS-Menu-/Hidden-State-Aenderungen, den DEBUG-Hook und die zugehoerigen fail-closed Verifierchecks revertieren. Keine Store-, Review- oder TestFlight-Aenderung. Zyklus `3/5` nach Build 107.

@@ -7,7 +7,7 @@ export type TrackerField = {
   options?: Array<string | { value?: unknown; label?: unknown }>;
 };
 
-export function trackerFields(fields: unknown, trackerKey?: string): TrackerField[] {
+export function trackerFields(fields: unknown): TrackerField[] {
   const parsed = Array.isArray(fields)
     ? fields
         .filter((field) => field && typeof field === "object" && "key" in field)
@@ -22,11 +22,6 @@ export function trackerFields(fields: unknown, trackerKey?: string): TrackerFiel
         })
         .filter((field) => field.key)
     : [];
-  const existingKeys = new Set(parsed.map((field) => field.key));
-  if (trackerKey === "segufix") {
-    if (!existingKeys.has("moodBefore")) parsed.push({ key: "moodBefore", label: "Stimmung vorher", type: "select", options: Object.entries(moodBefore).map(([value, label]) => ({ value, label })) });
-    if (!existingKeys.has("moodAfter")) parsed.push({ key: "moodAfter", label: "Stimmung nachher", type: "select", options: Object.entries(moodAfter).map(([value, label]) => ({ value, label })) });
-  }
   return parsed;
 }
 

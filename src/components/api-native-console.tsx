@@ -1368,7 +1368,7 @@ export function ApiNativeConsole({ apiTokens }: ApiNativeConsoleProps) {
                                 className={inputClass}
                                 value={state.trackerStartKey}
                                 onChange={(event) => setField("trackerStartKey", event.currentTarget.value)}
-                                placeholder="segufix"
+                                placeholder="zeittracker"
                               />
                             </Field>
                             <Field label="Notiz">
@@ -1417,7 +1417,7 @@ export function ApiNativeConsole({ apiTokens }: ApiNativeConsoleProps) {
                               className={inputClass}
                               value={state.trackerStopKey}
                               onChange={(event) => setField("trackerStopKey", event.currentTarget.value)}
-                              placeholder="segufix"
+                              placeholder="zeittracker"
                             />
                           </Field>
                           <Field label="Notiz">
@@ -1584,7 +1584,7 @@ export function ApiNativeConsole({ apiTokens }: ApiNativeConsoleProps) {
                             className={inputClass}
                             value={state.trackerQuotaTracker}
                             onChange={(event) => setField("trackerQuotaTracker", event.currentTarget.value)}
-                            placeholder="z. B. segufix"
+                            placeholder="z. B. zeittracker"
                           />
                         </Field>
                       ) : null}

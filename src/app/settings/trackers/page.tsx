@@ -225,7 +225,7 @@ export default async function TrackerSettingsPage(props: { searchParams: Promise
                   <Field label="Ein Feld pro Zeile: key | Label | Typ | Optionen">
                     <textarea className={inputClass} name="fields" rows={4} placeholder={"moodBefore | Stimmung vorher | select\nmoodAfter | Stimmung nachher | select\ncomment | Freitext | textarea"} />
                   </Field>
-                  <p className="mt-2 text-xs leading-5 text-graphite">Typen: text, textarea, number, select. Bei select kannst du Optionen kommasepariert angeben. Die Segufix-Stimmungsfelder bekommen automatisch die bekannten Emoji-Optionen, wenn die Keys moodBefore und moodAfter heißen.</p>
+                  <p className="mt-2 text-xs leading-5 text-graphite">Typen: text, textarea, number, select. Bei select kannst du Optionen kommasepariert angeben. Die Stimmungsfelder bekommen automatisch die bekannten Emoji-Optionen, wenn die Keys moodBefore und moodAfter heißen.</p>
                 </div>
                 <input type="hidden" name="allowOpenSession" value="on" />
                 <SubmitButton pendingLabel="Tracker wird angelegt..."><Plus className="h-4 w-4" /> Tracker anlegen</SubmitButton>
@@ -302,7 +302,7 @@ export default async function TrackerSettingsPage(props: { searchParams: Promise
           </Panel>
         </div>
         <PageGuide title="Konfigurierbare Tracker">
-          Tracker-Typen bilden die gemeinsame Basis für Segufix, KG und weitere Themen. „Auf Seite sichtbar“ schaltet den jeweiligen Tracker für diese Seite frei; „Tracker aktiv“ deaktiviert den Typ selbst, ohne vorhandene Einträge zu löschen.
+          Tracker-Typen bilden die gemeinsame Basis für alle Zeit- und Session-Themen. „Auf Seite sichtbar“ schaltet den jeweiligen Tracker für diese Seite frei; „Tracker aktiv“ deaktiviert den Typ selbst, ohne vorhandene Einträge zu löschen.
         </PageGuide>
       </div>
     </AppShell>

@@ -122,8 +122,8 @@ const prisma = new PrismaClient();
       toys: await prisma.toy.count({ where: { tenantId: tenant.id } }),
       positions: await prisma.position.count({ where: { tenantId: tenant.id } }),
       activities: await prisma.activityPlan.count({ where: { tenantId: tenant.id } }),
-      sessions: await prisma.segufixSession.count({ where: { tenantId: tenant.id } }),
-      kg: await prisma.kgSession.count({ where: { tenantId: tenant.id } }),
+      trackers: await prisma.trackerEntry.count({ where: { tenantId: tenant.id } }),
+      trackerTypes: await prisma.trackerType.count({ where: { OR: [{ tenantId: tenant.id }, { tenantId: null }] } }),
       media: await prisma.media.count({ where: { tenantId: tenant.id } }),
       albums: await prisma.album.count({ where: { tenantId: tenant.id } })
     };

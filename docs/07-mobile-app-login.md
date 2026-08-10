@@ -1154,7 +1154,7 @@ Fuer native Apps kann derselbe Endpunkt auch `multipart/form-data` verarbeiten. 
 
 ```http
 GET /api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD
-GET /api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD&trackerKey=segufix
+GET /api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD&trackerKey=zeittracker
 POST /api/external/trackers/history
 Authorization: Bearer fsp_...
 ```
@@ -1167,7 +1167,7 @@ Tracker-Eintraege liefern zusaetzlich `images[]`. Jedes Bild enthaelt `id`, `fil
 
 ```json
 {
-  "trackerKey": "segufix",
+  "trackerKey": "zeittracker",
   "title": "Optionaler Titel",
   "notes": "Begleitnotiz",
   "allDay": false,
@@ -1192,7 +1192,7 @@ Auch `GET /api/external/status` liefert fuer `openTrackers[]` und `recentTracker
 
 ```http
 GET /api/external/trackers/quotas
-GET /api/external/trackers/quotas?trackerKey=segufix
+GET /api/external/trackers/quotas?trackerKey=zeittracker
 Authorization: Bearer fsp_...
 ```
 
@@ -1205,7 +1205,7 @@ Antwortauszug:
   "ok": true,
   "quotas": [
     {
-      "tracker": { "id": "tracker_id", "key": "segufix", "title": "Segufix", "colorHex": "#E30613" },
+      "tracker": { "id": "tracker_id", "key": "zeittracker", "title": "Zeittracker", "colorHex": "#E30613" },
       "daily": { "required": 60, "done": 30, "remaining": 30, "percent": 50, "complete": false },
       "weekly": { "required": 180, "done": 45, "remaining": 135, "percent": 25, "complete": false },
       "monthlyMinutes": { "required": 600, "done": 120, "remaining": 480, "percent": 20, "complete": false },

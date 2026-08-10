@@ -1,10 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
 const legacyAuditActionPrefixes = [
-  "kg_",
-  "session_",
-  "tracker_kg_",
-  "tracker_segufix_"
+  "session_"
 ];
 
 export const knownAuditActions = [

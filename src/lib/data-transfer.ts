@@ -7,7 +7,6 @@ import { getOrCreateCatalogCategory } from "@/lib/catalog-categories";
 import { absolutePathForAsset, fileAssetUrl, fileIdFromUrl, saveFileBuffer } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
-import { uniqueSessionSlug } from "@/lib/session-slug";
 import { uniqueTrackerSlug } from "@/lib/tracker-core";
 import { uniqueWikiSlug } from "@/lib/wiki";
 
@@ -22,12 +21,9 @@ type TransferData = {
   positions: ExportRecord[];
   activities: ExportRecord[];
   activityImages: ExportRecord[];
-  sessions: ExportRecord[];
-  kgSessions: ExportRecord[];
   trackerTypes: ExportRecord[];
   trackerEntries: ExportRecord[];
   trackerEntryImages: ExportRecord[];
-  sessionComments: ExportRecord[];
   albums: ExportRecord[];
   media: ExportRecord[];
   mediaComments: ExportRecord[];
@@ -96,12 +92,9 @@ export async function buildDataExport(user: AccessUser) {
     positions,
     activities,
     activityImages,
-    sessions,
-    kgSessions,
     trackerTypes,
     trackerEntries,
     trackerEntryImages,
-    sessionComments,
     albums,
     media,
     mediaComments,
@@ -119,12 +112,9 @@ export async function buildDataExport(user: AccessUser) {
     prisma.position.findMany({ where: ownerScope, include: { category: true, tools: { select: { id: true } } }, orderBy: { createdAt: "asc" } }),
     prisma.activityPlan.findMany({ where: ownerScope, include: { tools: { select: { id: true } }, positions: { select: { id: true } } }, orderBy: { createdAt: "asc" } }),
     prisma.activityImage.findMany({ where: { activity: { ownerId: { in: ownerIds } } }, orderBy: { createdAt: "asc" } }),
-    prisma.segufixSession.findMany({ where: ownerScope, orderBy: { startTime: "asc" } }),
-    prisma.kgSession.findMany({ where: ownerScope, orderBy: { startTime: "asc" } }),
     prisma.trackerType.findMany({ where: user.tenantId ? { tenantId: user.tenantId } : { tenantId: null }, orderBy: { createdAt: "asc" } }),
     prisma.trackerEntry.findMany({ where: ownerScope, include: { toys: { select: { id: true } }, positions: { select: { id: true } } }, orderBy: { startTime: "asc" } }),
     prisma.trackerEntryImage.findMany({ where: { trackerEntry: { ownerId: { in: ownerIds } } }, orderBy: { createdAt: "asc" } }),
-    prisma.sessionComment.findMany({ where: { ownerId: { in: ownerIds } }, orderBy: { createdAt: "asc" } }),
     prisma.album.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
     prisma.media.findMany({ where: ownerScope, orderBy: { createdAt: "asc" } }),
     prisma.mediaComment.findMany({ where: { ownerId: { in: ownerIds } }, orderBy: { createdAt: "asc" } }),
@@ -178,8 +168,6 @@ export async function buildDataExport(user: AccessUser) {
       title: entry.title,
       createdAt: entry.createdAt
     })),
-    sessions: sessions.map(withoutOwner),
-    kgSessions: kgSessions.map(withoutOwner),
     trackerTypes: trackerTypes.map(({ tenantId: _tenantId, ...entry }) => entry),
     trackerEntries: trackerEntries.map((entry) => ({
       ...withoutOwner(entry),
@@ -197,7 +185,6 @@ export async function buildDataExport(user: AccessUser) {
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt
     })),
-    sessionComments: sessionComments.map(({ ownerId: _ownerId, ...entry }) => entry),
     albums: albums.map(withoutOwner),
     media: media.map(withoutOwner),
     mediaComments: mediaComments.map(({ ownerId: _ownerId, ...entry }) => entry),
@@ -396,7 +383,6 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     activityMap.set(String(entry.id || ""), created.id);
   }
 
-  const sessionMap = new Map<string, string>();
   const activityImageMap = new Map<string, string>();
   for (const entry of records(data.activityImages)) {
     const activityId = activityMap.get(String(entry.activityId || ""));
@@ -433,42 +419,6 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
         }
       });
     }
-  }
-
-  for (const entry of records(data.sessions)) {
-    const startTime = toDate(entry.startTime);
-    if (!startTime) continue;
-    const created = await prisma.segufixSession.create({
-      data: {
-        ownerId: user.id,
-        tenantId: user.tenantId || undefined,
-        slug: await uniqueSessionSlug(startTime, undefined, user.tenantId),
-        startTime,
-        endTime: toDate(entry.endTime),
-        durationMinutes: typeof entry.durationMinutes === "number" ? entry.durationMinutes : null,
-        notes: typeof entry.notes === "string" ? entry.notes : null,
-        moodBefore: entry.moodBefore ? String(entry.moodBefore) as "NEEDS_WORK" | "OKAY" | "NEUTRAL" | "PLEASANT" | "VERY_PLEASANT" : null,
-        moodBeforeText: typeof entry.moodBeforeText === "string" ? entry.moodBeforeText : null,
-        moodAfter: entry.moodAfter ? String(entry.moodAfter) as "WORSE" | "UNCHANGED" | "SLIGHTLY_BETTER" | "MUCH_BETTER" | "RELAXED" : null,
-        moodAfterText: typeof entry.moodAfterText === "string" ? entry.moodAfterText : null
-      }
-    });
-    sessionMap.set(String(entry.id || ""), created.id);
-  }
-
-  for (const entry of records(data.kgSessions)) {
-    const startTime = toDate(entry.startTime);
-    if (!startTime) continue;
-    await prisma.kgSession.create({
-      data: {
-        ownerId: user.id,
-        tenantId: user.tenantId || undefined,
-        startTime,
-        endTime: toDate(entry.endTime),
-        durationMinutes: typeof entry.durationMinutes === "number" ? entry.durationMinutes : null,
-        notes: typeof entry.notes === "string" ? entry.notes : null
-      }
-    });
   }
 
   const trackerTypeMap = new Map<string, string>();
@@ -550,13 +500,6 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
     trackerEntryImageCount += 1;
   }
 
-  for (const entry of records(data.sessionComments)) {
-    const sessionId = sessionMap.get(String(entry.sessionId || ""));
-    const body = String(entry.body || "").trim();
-    if (!sessionId || !body) continue;
-    await prisma.sessionComment.create({ data: { sessionId, ownerId: user.id, body } });
-  }
-
   const albumMap = new Map<string, string>();
   for (const entry of records(data.albums)) {
     const created = await prisma.album.create({
@@ -597,7 +540,6 @@ export async function importDataArchive(user: AccessUser, bytes: Buffer) {
         ownerId: user.id,
         tenantId: user.tenantId || undefined,
         albumId: importedAlbumId,
-        sessionId: sessionMap.get(String(entry.sessionId || "")) || null,
         title: String(entry.title || "Importiertes Bild"),
         kind: String(entry.kind || "IMAGE") as "IMAGE" | "VIDEO",
         url,

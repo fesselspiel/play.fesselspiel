@@ -3,6 +3,7 @@ import { logAction } from "@/lib/audit";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { runDueScheduledRules } from "@/lib/scheduled-rules";
+import { runDueAutomationActions } from "@/lib/session-automation";
 import { trackerReminderSchedule } from "@/lib/external-tracker-types";
 import { trackerQuotaReminderDecisions } from "@/lib/tracker-quota-reminders";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
@@ -104,5 +105,6 @@ export async function GET(request: Request) {
   }
   const scheduledRules = await runDueScheduledRules(new Date());
   const webhookReminders = await runDueTrackerWebhookReminders(new Date());
-  return NextResponse.json({ ok: true, reminders, scheduledRules, webhookReminders });
+  const automationActions = await runDueAutomationActions(new Date());
+  return NextResponse.json({ ok: true, reminders, scheduledRules, webhookReminders, automationActions });
 }

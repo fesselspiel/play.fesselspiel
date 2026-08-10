@@ -110,13 +110,6 @@ export async function resolveReportTarget(input: {
     });
     return item ? { entityType: "mediaComment", entityId: item.id, reportedUserId: item.ownerId } : null;
   }
-  if (type === "sessioncomment") {
-    const item = await prisma.sessionComment.findFirst({
-      where: { id: input.entityId, session: await ownerScope(input.user) },
-      select: { id: true, ownerId: true }
-    });
-    return item ? { entityType: "sessionComment", entityId: item.id, reportedUserId: item.ownerId } : null;
-  }
   if (["feedcomment", "eventcomment"].includes(type)) {
     const ownerIds = await accessibleOwnerIds(input.user);
     const item = await prisma.feedComment.findFirst({

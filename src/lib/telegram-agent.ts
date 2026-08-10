@@ -10,7 +10,7 @@ import { effectivePlayReadyState, nextPlayReadyState, normalizePlayReadyState, p
 import { uniqueSlug, uniqueSlugForUpdate } from "@/lib/slug";
 import { telegramHtml, telegramLink } from "@/lib/telegram";
 import { queueImageReplacement } from "@/lib/telegram-item-dialogue";
-import { startTrackerEntry, stopTrackerEntry } from "@/lib/tracker-core";
+import { findTrackerTypeByTextForUser, startTrackerEntryForType, stopTrackerEntryForType } from "@/lib/tracker-core";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 
 type PortalAgentInput = {
@@ -253,8 +253,8 @@ async function getPortalStatus(userId: string): Promise<ToolCallResult> {
     prisma.toy.count({ where: { ...tenantScope, ownerId: userId } }),
     prisma.position.count({ where: { ...tenantScope, ownerId: userId } }),
     prisma.activityPlan.count({ where: { ...tenantScope, ownerId: userId, category: { notIn: ["IDEA_COLLECTION", "SELF_BONDAGE_ORDER"] }, status: { in: ["REQUESTED", "PLANNED"] } } }),
-    prisma.trackerEntry.findMany({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, startTime: { gte: yearStart } } }),
-    prisma.trackerEntry.findFirst({ where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, endTime: null, allDay: false }, orderBy: { startTime: "desc" } })
+    prisma.trackerEntry.findMany({ where: { ...tenantScope, ownerId: userId, startTime: { gte: yearStart } } }),
+    prisma.trackerEntry.findFirst({ where: { ...tenantScope, ownerId: userId, endTime: null, allDay: false }, include: { trackerType: true }, orderBy: { startTime: "desc" } })
   ]);
   const total = sessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0);
   return {
@@ -266,7 +266,7 @@ async function getPortalStatus(userId: string): Promise<ToolCallResult> {
       plannedActivities,
       sessionsThisYear: sessions.length,
       totalSessionDuration: formatMinutes(total),
-      openSession: openSession ? formatDateTime(openSession.startTime) : null
+      openSession: openSession ? `${openSession.trackerType.title}: ${formatDateTime(openSession.startTime)}` : null
     }
   };
 }
@@ -391,12 +391,15 @@ async function searchPortal(userId: string, args: Record<string, unknown>): Prom
     }));
   }
   if (area === "all" || area === "sessions") {
+    const tracker = await findTrackerTypeByTextForUser(query, { id: userId, tenantId });
     const sessions = await prisma.trackerEntry.findMany({
-      where: { ...tenantScope, ownerId: userId, trackerType: { key: "segufix" }, ...(query ? { notes: contains(query) } : {}) },
+      where: { ...tenantScope, ownerId: userId, ...(tracker ? { trackerTypeId: tracker.id } : query ? { OR: [{ notes: contains(query) }, { title: contains(query) }, { trackerType: { title: contains(query) } }] } : {}) },
+      include: { trackerType: true },
       orderBy: { startTime: "desc" },
       take: 8
     });
     result.sessions = sessions.map((session) => ({
+      tracker: session.trackerType.title,
       start: formatDateTime(session.startTime),
       end: formatDateTime(session.endTime),
       duration: formatMinutes(session.durationMinutes),
@@ -586,47 +589,32 @@ async function setPlayReady(userId: string, args: Record<string, unknown>): Prom
 
 async function startSession(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   const tenantId = await tenantIdForUser(userId);
-  const open = await prisma.trackerEntry.findFirst({ where: { ...(tenantId ? { tenantId } : {}), ownerId: userId, trackerType: { key: "segufix" }, endTime: null, allDay: false }, orderBy: { startTime: "desc" } });
-  if (open) return { ok: false, message: `Es läuft bereits eine Session seit ${formatDateTime(open.startTime)}.` };
+  const tracker = await findTrackerTypeByTextForUser(clean(args.trackerKeyOrTitle) || clean(args.tracker) || clean(args.title), { id: userId, tenantId });
+  if (!tracker) return { ok: false, message: "Kein aktiver Tracker gefunden. Lege zuerst einen Tracker an oder aktiviere ihn." };
+  const open = await prisma.trackerEntry.findFirst({ where: { ...(tenantId ? { tenantId } : {}), ownerId: userId, trackerTypeId: tracker.id, endTime: null, allDay: false }, orderBy: { startTime: "desc" } });
+  if (open) return { ok: false, message: `${tracker.title} läuft bereits seit ${formatDateTime(open.startTime)}.` };
   const moodBefore = clean(args.moodBefore) || undefined;
-  const session = await startTrackerEntry({
-    key: "segufix",
+  const session = await startTrackerEntryForType({
+    trackerType: tracker,
     user: { id: userId, tenantId },
     notes: clean(args.note) || "Per Telegram-Agent gestartet",
     fieldValues: { moodBefore }
   });
-  if (!session) return { ok: false, message: "Segufix-Tracker ist nicht aktiv." };
-  return { ok: true, message: `Session gestartet: ${formatDateTime(session.startTime)}`, data: { url: link(`/trackers/segufix/${session.slug || session.id}`) } };
+  return { ok: true, message: `${tracker.title} gestartet: ${formatDateTime(session.startTime)}`, data: { url: link(`/trackers/${tracker.key}/${session.slug || session.id}`) } };
 }
 
 async function stopSession(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
   const tenantId = await tenantIdForUser(userId);
+  const tracker = await findTrackerTypeByTextForUser(clean(args.trackerKeyOrTitle) || clean(args.tracker) || clean(args.title), { id: userId, tenantId });
+  if (!tracker) return { ok: false, message: "Kein aktiver Tracker gefunden." };
   const moodAfter = clean(args.moodAfter) || undefined;
-  const updated = await stopTrackerEntry({
-    key: "segufix",
+  const updated = await stopTrackerEntryForType({
+    trackerType: tracker,
     user: { id: userId, tenantId },
     notes: [clean(args.note), moodAfter ? `Stimmung nachher: ${moodAfter}` : ""].filter(Boolean).join("\n")
   });
-  if (!updated) return { ok: false, message: "Keine laufende Session gefunden." };
-  return { ok: true, message: `Session beendet: ${formatMinutes(updated.durationMinutes)}` };
-}
-
-async function startKgTracker(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
-  const tenantId = await tenantIdForUser(userId);
-  const session = await startTrackerEntry({
-    key: "kg",
-    user: { id: userId, tenantId },
-    notes: clean(args.note) || "Per Telegram-Agent gestartet"
-  });
-  if (!session) return { ok: false, message: "KG-Tracker ist nicht aktiv." };
-  return { ok: true, message: `KG-Tracker gestartet: ${formatDateTime(session.startTime)}`, data: { url: link(`/trackers/kg/${session.slug || session.id}`) } };
-}
-
-async function stopKgTracker(userId: string, args: Record<string, unknown>): Promise<ToolCallResult> {
-  const tenantId = await tenantIdForUser(userId);
-  const updated = await stopTrackerEntry({ key: "kg", user: { id: userId, tenantId }, notes: clean(args.note) });
-  if (!updated) return { ok: false, message: "Kein laufender KG-Tracker gefunden." };
-  return { ok: true, message: `KG-Tracker beendet: ${formatMinutes(updated.durationMinutes)}`, data: { url: link(`/trackers/kg/${updated.slug || updated.id}`) } };
+  if (!updated) return { ok: false, message: `Keine laufende Session für ${tracker.title} gefunden.` };
+  return { ok: true, message: `${tracker.title} beendet: ${formatMinutes(updated.durationMinutes)}`, data: { url: link(`/trackers/${tracker.key}/${updated.slug || updated.id}`) } };
 }
 
 async function runTool(userId: string, name: string, args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -642,8 +630,6 @@ async function runTool(userId: string, name: string, args: Record<string, unknow
   if (name === "set_play_ready") return setPlayReady(userId, args);
   if (name === "start_session") return startSession(userId, args);
   if (name === "stop_session") return stopSession(userId, args);
-  if (name === "start_kg_tracker") return startKgTracker(userId, args);
-  if (name === "stop_kg_tracker") return stopKgTracker(userId, args);
   return { ok: false, message: `Unbekanntes Tool: ${name}` };
 }
 

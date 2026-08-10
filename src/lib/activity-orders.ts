@@ -39,10 +39,11 @@ export async function createSessionHistoryForCompletedOrder(activity: {
 }, userId: string) {
   const trackerType = await prisma.trackerType.findFirst({
     where: {
-      key: "segufix",
       enabled: true,
+      allowOpenSession: true,
       ...(activity.tenantId ? { OR: [{ tenantId: activity.tenantId }, { tenantId: null }] } : {})
-    }
+    },
+    orderBy: { title: "asc" }
   });
   if (!trackerType) return null;
   const existing = await prisma.trackerEntry.findFirst({
@@ -77,9 +78,10 @@ export async function createSessionHistoryForCompletedOrder(activity: {
       fieldValues: {
         moodBefore: "NEUTRAL",
         moodAfter: "RELAXED",
-        source: "self_bondage_order"
+        source: "order"
       }
-    }
+    },
+    include: { trackerType: true }
   });
 }
 
@@ -120,7 +122,7 @@ export async function updateSelfBondageOrderStatus(formData: FormData) {
     details: {
       status: activityStatusDisplay(status, true),
       orderUrl: `/activities/${updated.slug}`,
-      sessionUrl: session?.slug ? `/sessions/${session.slug}` : null,
+      sessionUrl: session?.slug ? `/trackers/${session.trackerType.key}/${session.slug}` : null,
       excludeActorFromTargets: true
     }
   });

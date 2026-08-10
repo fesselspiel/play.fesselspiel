@@ -192,8 +192,7 @@ async function main() {
     "packingLists",
     "selfBondage",
     "trackers",
-    "tracker.segufix",
-    "tracker.kg",
+    "automation",
     "telegram",
     "externalApi",
     "scheduledRules",
@@ -303,12 +302,6 @@ async function main() {
   for (const entry of await prisma.activityPlan.findMany({ where: { tenantId: null }, select: { id: true, ownerId: true } })) {
     await prisma.activityPlan.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.ownerId) } });
   }
-  for (const entry of await prisma.segufixSession.findMany({ where: { tenantId: null }, select: { id: true, ownerId: true } })) {
-    await prisma.segufixSession.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.ownerId) } });
-  }
-  for (const entry of await prisma.kgSession.findMany({ where: { tenantId: null }, select: { id: true, ownerId: true } })) {
-    await prisma.kgSession.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.ownerId) } });
-  }
   for (const entry of await prisma.album.findMany({ where: { tenantId: null }, select: { id: true, ownerId: true } })) {
     await prisma.album.update({ where: { id: entry.id }, data: { tenantId: await ownerTenant(entry.ownerId) } });
   }
@@ -333,89 +326,26 @@ async function main() {
     data: { playReadyState: "green" }
   });
 
-  const segufixType = await prisma.trackerType.upsert({
-    where: { tenantId_key: { tenantId: tenant.id, key: "segufix" } },
+  await prisma.trackerType.upsert({
+    where: { tenantId_key: { tenantId: tenant.id, key: "zeittracker" } },
     update: {
-      title: "Segufix Time Tracker",
+      title: "Zeittracker",
       color: "#E30613",
       enabled: true
     },
     create: {
       tenantId: tenant.id,
-      key: "segufix",
-      title: "Segufix Time Tracker",
+      key: "zeittracker",
+      title: "Zeittracker",
       description: "Sessions mit Stimmung, Dauer und Begleitnotiz dokumentieren.",
       color: "#E30613",
-      icon: "shield",
+      icon: "timer",
       fields: [
         { key: "moodBefore", label: "Stimmung vorher", type: "select", scale: true },
         { key: "moodAfter", label: "Stimmung nachher", type: "select", scale: true }
       ]
     }
   });
-  const kgType = await prisma.trackerType.upsert({
-    where: { tenantId_key: { tenantId: tenant.id, key: "kg" } },
-    update: {
-      title: "KG Time Tracker",
-      color: "#0284C7",
-      enabled: true
-    },
-    create: {
-      tenantId: tenant.id,
-      key: "kg",
-      title: "KG Time Tracker",
-      description: "Tragezeiten minutengenau erfassen.",
-      color: "#0284C7",
-      icon: "timer",
-      fields: []
-    }
-  });
-
-  for (const session of await prisma.segufixSession.findMany()) {
-    const owner = await prisma.user.findUnique({ where: { id: session.ownerId }, select: { tenantId: true } });
-    await prisma.trackerEntry.upsert({
-      where: { trackerTypeId_legacyType_legacyId: { trackerTypeId: segufixType.id, legacyType: "segufix", legacyId: session.id } },
-      update: {},
-      create: {
-        tenantId: owner?.tenantId || tenant.id,
-        ownerId: session.ownerId,
-        trackerTypeId: segufixType.id,
-        legacyType: "segufix",
-        legacyId: session.id,
-        slug: session.slug || slugify(`session-${session.startTime.toISOString()}`),
-        title: "Segufix Session",
-        startTime: session.startTime,
-        endTime: session.endTime,
-        durationMinutes: session.durationMinutes,
-        notes: session.notes,
-        fieldValues: {
-          moodBefore: session.moodBefore,
-          moodAfter: session.moodAfter
-        }
-      }
-    });
-  }
-  for (const session of await prisma.kgSession.findMany()) {
-    const owner = await prisma.user.findUnique({ where: { id: session.ownerId }, select: { tenantId: true } });
-    await prisma.trackerEntry.upsert({
-      where: { trackerTypeId_legacyType_legacyId: { trackerTypeId: kgType.id, legacyType: "kg", legacyId: session.id } },
-      update: {},
-      create: {
-        tenantId: owner?.tenantId || tenant.id,
-        ownerId: session.ownerId,
-        trackerTypeId: kgType.id,
-        legacyType: "kg",
-        legacyId: session.id,
-        slug: slugify(`kg-${session.startTime.toISOString()}`),
-        title: "KG Tracker",
-        startTime: session.startTime,
-        endTime: session.endTime,
-        durationMinutes: session.durationMinutes,
-        notes: session.notes,
-        fieldValues: {}
-      }
-    });
-  }
 
   for (const circle of await prisma.circle.findMany({ where: { tenantId: { not: null } }, select: { id: true, tenantId: true } })) {
     const existingChatPushRule = await prisma.nativePushNotificationRule.findFirst({
@@ -448,7 +378,7 @@ async function main() {
 
   const toyData = [
     ["Leder Manschetten", "Weiche Manschetten für ruhige Sessions.", "/toy-cuffs.svg"],
-    ["Segufix System", "Dokumentierte Ausrüstung für geplante Entspannungs-Sessions.", "/toy-system.svg"]
+    ["Modulares System", "Dokumentierte Ausrüstung für geplante Entspannungs-Sessions.", "/toy-system.svg"]
   ];
   const demoToyCategory = await prisma.catalogCategory.upsert({
     where: { tenantId_kind_name: { tenantId: tenant.id, kind: "toy", name: "Allgemein" } },
@@ -467,7 +397,7 @@ async function main() {
   }
 
   const cuffs = await prisma.toy.findFirst({ where: { tenantId: tenant.id, slug: "leder-manschetten" } });
-  const system = await prisma.toy.findFirst({ where: { tenantId: tenant.id, slug: "segufix-system" } });
+  const system = await prisma.toy.findFirst({ where: { tenantId: tenant.id, slug: "modulares-system" } });
 
   let demoPosition = await prisma.position.findFirst({ where: { tenantId: tenant.id, slug: "rueckenlage" } });
   if (!demoPosition) {

@@ -521,7 +521,7 @@ export const capabilities: readonly Capability[] = [
           parameters: {
             type: "object",
             properties: {
-              trackerKeyOrTitle: { type: "string", description: "Optionaler Tracker, z.B. Segufix, KG oder technischer Schlüssel." },
+              trackerKeyOrTitle: { type: "string", description: "Optionaler Tracker nach Titel oder technischem Schlüssel." },
               period: { type: "string", enum: ["all", "daily", "weekly", "monthly"], description: "Gefragter Zeitraum. all, wenn unklar." }
             },
             required: ["trackerKeyOrTitle", "period"],
@@ -566,6 +566,70 @@ export const capabilities: readonly Capability[] = [
           { method: "POST", path: "/api/external/trackers/{trackerKey}/stop", description: "Beliebigen laufenden Tracker per POST beenden; `note` optional im Body." }
         ],
         auditActions: ["tracker_stopped"]
+      }
+    ]
+  },
+  {
+    key: "automation",
+    label: "Automation",
+    featureKey: "automation",
+    aliases: ["automation", "regel engine", "iobroker", "mqtt", "kamera", "geräte"],
+    intents: ["automation starten", "session automatisieren", "kamera anfordern", "regel simulieren", "iobroker status"],
+    route: "/automation",
+    actions: [
+      {
+        key: "sessions",
+        label: "Automation-Sessions",
+        type: "write",
+        description: "Startet, liest und beendet serverseitige Automation-Sessions mit Tracker-Kopplung.",
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/automation/sessions", description: "Aktuelle laufende oder wartende Automation-Session lesen. Optional `trackerTypeId`." },
+          { method: "POST", path: "/api/external/automation/sessions", description: "Automation-Session starten. JSON: trackerTypeId oder tracker/trackerKeyOrTitle, title?, notes?, metadata?." },
+          { method: "POST", path: "/api/external/automation/sessions/{id}/end", description: "Session sofort oder verzögert beenden. JSON: timing `{type: immediate|fixed_delay|random_delay,...}`, reason?, override?." }
+        ],
+        auditActions: ["automation_session_started", "automation_session_pending_end", "automation_session_finished", "automation_session_start_ignored", "automation_session_end_kept"]
+      },
+      {
+        key: "rules",
+        label: "Automation-Regeln",
+        type: "admin",
+        description: "Verwaltet versionierte Regeln und simuliert sie ohne Side Effects.",
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/automation/rules", description: "Automation-Regeln mit Versionen lesen." },
+          { method: "POST", path: "/api/external/automation/rules", description: "Regel anlegen. JSON: name, triggerType, trigger?, conditions?, timing?, actions?, mode?." },
+          { method: "GET", path: "/api/external/automation/rules/{id}", description: "Regel, Versionen, Actions und Events lesen." },
+          { method: "PATCH", path: "/api/external/automation/rules/{id}", description: "Regel ändern und neue Version erzeugen." },
+          { method: "DELETE", path: "/api/external/automation/rules/{id}", description: "Regel löschen." },
+          { method: "POST", path: "/api/external/automation/rules/simulate", description: "Regel als scrubbaren Zeitstrahl simulieren, ohne echte Actions auszuführen." }
+        ],
+        auditActions: ["automation_rule_created", "automation_rule_updated", "automation_rule_deleted"]
+      },
+      {
+        key: "devices",
+        label: "Geräte und Bridge",
+        type: "admin",
+        description: "Synchronisiert Geräte, Capabilities und ioBroker-Bridge-Health.",
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/automation/devices", description: "Geräte mit Capabilities lesen." },
+          { method: "POST", path: "/api/external/automation/devices", description: "Gerät und Capabilities aus ioBroker synchronisieren." },
+          { method: "GET", path: "/api/external/automation/bridge", description: "Bridge-Health und MQTT-Konfiguration lesen." },
+          { method: "PATCH", path: "/api/external/automation/bridge", description: "Bridge-Health, Heartbeat und MQTT-Metadaten aktualisieren." },
+          { method: "POST", path: "/api/external/automation/actions/run-due", description: "Fällige persistierte Automation-Actions ausführen. Für Cron/Worker." }
+        ],
+        auditActions: ["automation_device_synced", "automation_bridge_updated", "automation_action_created", "automation_action_succeeded", "automation_action_failed"]
+      },
+      {
+        key: "images",
+        label: "Automation-Bilder",
+        type: "write",
+        description: "Bildanforderungen erzeugen und Kamera-Uploads geschützt an Sessions hängen.",
+        apiEndpoints: [
+          { method: "GET", path: "/api/external/automation/image-requests?sessionId=...", description: "Bildanforderungen lesen." },
+          { method: "POST", path: "/api/external/automation/image-requests", description: "Bildanforderung erzeugen. JSON: sessionId, deviceId?, capabilityId?, reason?." },
+          { method: "POST", path: "/api/external/automation/image-requests/{requestId}/upload", description: "Kamerabild per Multipart `file` zu einer Request-ID hochladen." },
+          { method: "GET", path: "/api/external/automation/events?sessionId=...&type=...", description: "Automation-Ereignisse für Debugging, Push und App-Timeline lesen." }
+        ],
+        auditActions: ["automation_image_requested", "automation_image_uploaded"]
       }
     ]
   },
@@ -892,6 +956,7 @@ export const featureCatalog = [
   { key: "packingLists", label: capabilityLabelByFeature.get("packingLists") || "Packlisten" },
   { key: "selfBondage", label: "Aufträge" },
   { key: "trackers", label: capabilityLabelByFeature.get("trackers") || "Tracker" },
+  { key: "automation", label: capabilityLabelByFeature.get("automation") || "Automation" },
   { key: "telegram", label: capabilityLabelByFeature.get("telegram") || "Telegram" },
   { key: "externalApi", label: capabilityLabelByFeature.get("externalApi") || "Externe API" },
   { key: "scheduledRules", label: capabilityLabelByFeature.get("scheduledRules") || "Zeitregeln" },
@@ -925,7 +990,7 @@ export const apiEndpointSpecs = capabilities.flatMap((capability) =>
   capability.actions.flatMap((action) => action.apiEndpoints?.map((endpoint) => ({ ...endpoint, capability: capability.label, action: action.label })) || [])
 );
 
-export const apiVariableNames = ["token", "id", "trackerKey", "entityType", "entityId", "fileId", "imageId", "albumId", "kind", "categoryId", "positionId", "toyId", "packingEventId", "eventId", "itemId", "status", "action", "limit", "cursor", "q", "includeRelations", "selfBondage", "note", "title", "scheduledAt", "plannedAt", "startTime", "date", "allDay", "state", "hours", "minutes", "expiresMinutes", "name", "email"];
+export const apiVariableNames = ["token", "id", "trackerKey", "trackerTypeId", "requestId", "deviceId", "capabilityId", "entityType", "entityId", "fileId", "imageId", "albumId", "kind", "categoryId", "positionId", "toyId", "packingEventId", "eventId", "itemId", "status", "action", "limit", "cursor", "q", "includeRelations", "selfBondage", "note", "title", "scheduledAt", "plannedAt", "startTime", "date", "allDay", "state", "hours", "minutes", "expiresMinutes", "name", "email"];
 
 export const telegramCommandSpecs = capabilities.flatMap((capability) =>
   capability.actions.flatMap((action) =>

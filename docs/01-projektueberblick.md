@@ -66,16 +66,16 @@ Aktuelle Design-Eigenschaften:
 - Bilderseite als Galerie mit Spotlight, Metadaten, Album-Gruppierung und Upload-Bereich
 - Bilder löschen inklusive Entfernen der Datei vom Server
 
-### Session-Tracking
+### Tracker und Session-Automation
 
-- Segufix-Sessions erfassen
-- Startzeit, Endzeit, Dauerberechnung
-- Stimmung vorher/nachher plus Sessionkommentar
+- beliebige Tracker-Typen als Datenbankkonfiguration erfassen
+- Startzeit, Endzeit, Ganztagseinträge und Dauerberechnung
+- zusätzliche Felder pro Tracker-Typ, z. B. Stimmungen oder Kommentare
 - Jahreskalender mit 12 Monaten und Tagesfeldern
-- Historie und Auswertungswerte
-- Sessions bearbeiten
-- Sessions löschen
-- KG-Time-Tracker als zweiter Tracker mit eigener Historie und Detailseiten
+- Historie, Kontingente und Auswertungswerte
+- Tracker-Einträge bearbeiten und löschen
+- Automation-Sessions auf Tracker-Typen koppeln
+- Regeln, Geräte, Capabilities und ioBroker/MQTT-Brücken für externe Aktionen
 
 ### Spielzeugkatalog
 
@@ -143,4 +143,5 @@ Intern hat jeder Datensatz eine ID. Slugs sind bearbeitbar und werden eindeutig 
 Events und Sessions nutzen für Bearbeitung ihre interne ID:
 
 - `/events/[id]/edit`
-- `/sessions/[id]/edit`
+- `/trackers/[trackerKey]/[slug]`
+- `/trackers/[trackerKey]/[slug]/edit`

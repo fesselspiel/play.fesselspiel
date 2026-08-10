@@ -32,6 +32,8 @@
 - `src/lib/telegram.ts`: Telegram API, Webhook, Updates, Datei-Download.
 - `src/lib/telegram-agent.ts`: OpenAI-Agent und Aktionslogik.
 - `src/lib/telegram-item-dialogue.ts`: Dialogstatus und Felder für Item-Anlage.
+- `src/lib/tracker-core.ts`: generische Tracker-Start-/Stop-/Query-Logik über `TrackerType` und `TrackerEntry`.
+- `src/lib/session-automation.ts`: Automation-Sessions, Regeln, Aktionen, Geräte, Capabilities, Simulation und Bildanforderungen.
 
 Telegram-Formatierung:
 
@@ -96,8 +98,13 @@ Telegram-Formatierung:
 
 - `src/app/sessions/page.tsx`
 - `src/app/sessions/[id]/edit/page.tsx`
-- `src/app/sessions/kg/[id]/page.tsx`
-- `src/app/sessions/kg/[id]/edit/page.tsx`
+- `src/app/trackers/[trackerKey]/[slug]/page.tsx`
+- `src/app/trackers/[trackerKey]/[slug]/edit/page.tsx`
+
+### Automation
+
+- `src/app/automation/page.tsx`
+- `src/app/settings/automation/page.tsx`
 
 ### Bilder und Protokoll
 
@@ -140,6 +147,17 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `src/app/api/external/trackers/[trackerKey]/stop/route.ts`
 - `src/app/api/external/trackers/history/route.ts`
 - `src/app/api/external/trackers/quotas/route.ts`
+- `src/app/api/external/automation/sessions/route.ts`
+- `src/app/api/external/automation/sessions/[id]/end/route.ts`
+- `src/app/api/external/automation/actions/run-due/route.ts`
+- `src/app/api/external/automation/rules/route.ts`
+- `src/app/api/external/automation/rules/[id]/route.ts`
+- `src/app/api/external/automation/rules/simulate/route.ts`
+- `src/app/api/external/automation/devices/route.ts`
+- `src/app/api/external/automation/bridge/route.ts`
+- `src/app/api/external/automation/events/route.ts`
+- `src/app/api/external/automation/image-requests/route.ts`
+- `src/app/api/external/automation/image-requests/[requestId]/upload/route.ts`
 - `src/app/api/external/media/route.ts`
 - `src/app/api/external/images/route.ts`
 - `src/app/api/external/files/[id]/route.ts`
@@ -157,8 +175,18 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `Position`: Szene mit Slug, Bild, Beschreibung, `sortOrder` und `selfBondageCapable`.
 - `ActivityPlan`: Aktivität mit Status, Termin, Spielzeugen und Szenen. Statuswerte: `REQUESTED`, `PLANNED`, `DONE`, `DISCARDED`.
 - `ActivityImage`: geschützter Bildanhang für Ideen aus der Ideensammlung; gehört direkt zu `ActivityPlan` und `FileAsset`, nicht zu Alben.
-- `SegufixSession`: Session-Tracking.
-- `KgSession`: KG-Tragezeit-Tracking mit Start, Ende, Dauer und Notiz.
+- `TrackerType`: konfigurierbarer Tracker-Typ pro Seite oder global.
+- `TrackerEntry`: generischer Tracker-Eintrag mit Start, Ende, Dauer, Ganztag-Status, JSON-Feldwerten und Verknüpfungen.
+- `TrackerEntryImage`: geschützter Bildanhang für Tracker-Einträge.
+- `AutomationSession`: laufende oder beendete Automation-Session mit optional gekoppeltem Tracker-Eintrag.
+- `AutomationRule`: versionierte Automationsregel mit Trigger-, Bedingungen- und Aktionsdefinition.
+- `AutomationDevice`: externes Gerät oder ioBroker-/MQTT-Ziel.
+- `AutomationCapability`: konkrete Fähigkeit eines Geräts, z. B. Schalter, Licht, Kamera oder Ansage.
+- `AutomationAction`: geplante, laufende oder abgeschlossene Automationsaktion.
+- `AutomationEvent`: fachliches Automation-Ereignis mit Korrelations-ID.
+- `AutomationExecutionContext`: Ausführungskontext einer Regel oder Session.
+- `AutomationImageRequest`: geschützter Kamera-/Bildupload-Request.
+- `AutomationBridge`: Konfiguration der externen MQTT-/ioBroker-Brücke.
 - `Album`: Bilderalbum mit Standardsichtbarkeit.
 - `Media`: Bild oder Video; neue Bilder werden immer einem Album zugeordnet, standardmäßig dem persönlichen Hauptalbum des Benutzers. `Media.visibility` ist optional: `null` bedeutet, dass die Sichtbarkeit des Albums gilt; ein gesetzter Wert überschreibt das Album nur für dieses Bild.
 - `MediaComment`: Kommentar oder Notiz zu einem Bild.
@@ -213,7 +241,7 @@ UI-Hinweis:
 - `src/components/logout-button.tsx`: Client-Logout mit `fetch` und anschließender Navigation zu `/login`.
 - `src/app/api/settings/dark-mode/route.ts`: speichert Dark Mode direkt am aktuellen Benutzer.
 - `src/components/telegram/notification-target-fields.tsx`: Client-Zielauswahl für Telegram-Regeln ohne widersprüchliche Benutzer-/Kreis-Felder.
-- `src/lib/session-actions.ts`: Server Actions für laufende Sessions, aktuell `stopSegufixSession`.
+- `src/lib/tracker-core.ts`: zentrale Serverlogik für laufende Tracker.
 
 ## Sichtbarkeit
 
@@ -235,11 +263,11 @@ UI-Hinweis:
 
 ## Tracker-Detailrouten
 
-- Segufix-Sessions nutzen lesbare Slug-URLs unter `/sessions/[slug]`.
-- KG-Sessions haben eine Detailroute unter `/sessions/kg/[id]`.
+- Tracker-Einträge nutzen generische, lesbare Detailrouten unter `/trackers/[trackerKey]/[slug]`.
 - Historien- und Kalenderansichten verlinken direkt auf diese Detailseiten.
-- Segufix-Sessiontexte werden als gemeinsamer `Sessionkommentar` über `SegufixSession.notes` geführt; alte `moodBeforeText`- und `moodAfterText`-Werte werden nur noch in diesen Kommentar eingebettet.
-- Laufende eigene Segufix-Sessions können per Server Action beendet werden; dabei wird `endTime` auf jetzt gesetzt und `durationMinutes` neu berechnet.
+- Tracker-Felder werden pro `TrackerType.fields` konfiguriert und als `TrackerEntry.fieldValues` gespeichert.
+- Laufende eigene Tracker-Einträge können generisch beendet werden; dabei wird `endTime` auf jetzt gesetzt und `durationMinutes` neu berechnet.
+- Frühere tracker-spezifische Tabellen wurden in die generische Struktur migriert und aus dem Laufzeitmodell entfernt.
 
 ## Bearbeiten/Löschen
 

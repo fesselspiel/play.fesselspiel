@@ -31,7 +31,7 @@ async function createTrackerEntry(formData: FormData) {
   const dateRaw = String(formData.get("date") || "");
   const startTime = allDay ? parseDateInput(dateRaw) || parseDateTimeLocal(startRaw) || new Date() : parseDateTimeLocal(startRaw) || parseDateInput(dateRaw) || new Date();
   const endTime = allDay ? null : endRaw ? parseDateTimeLocal(endRaw) : null;
-  const fieldValues = fieldValuesFromForm(formData, trackerFields(trackerType.fields, trackerType.key));
+  const fieldValues = fieldValuesFromForm(formData, trackerFields(trackerType.fields));
   const scope = await ownerScope(user);
   const linkFeatures = {
     toys: await hasFeature("toys"),
@@ -190,7 +190,7 @@ export default async function SessionsPage(
   const open = runningEntryByTracker.get(activeTracker.key) || activeTracker.entries.find((entry) => !entry.endTime && !entry.allDay);
   const quota = quotaByKey.get(activeTracker.key);
   const statusLabel = open ? "läuft" : quota?.hasQuota ? quota.complete ? "erfüllt" : "offen" : "kein Ziel";
-  const activeTrackerFields = trackerFields(activeTracker.fields, activeTracker.key);
+  const activeTrackerFields = trackerFields(activeTracker.fields);
   const selectedDate = parseDateInput(searchParams.date);
   const selectedDateValue = selectedDate ? formatDateInput(selectedDate) : "";
   const selectedDateTimeValue = selectedDate ? `${selectedDateValue}T00:00` : "";
@@ -212,7 +212,7 @@ export default async function SessionsPage(
     <AppShell>
       <PageHeader title="Tracker" />
       <PageGuide title="Einheitliche Tracker-Zentrale">
-        Segufix, KG und weitere Tracker sind hier dieselbe Datenstruktur. Jeder Tracker kann Einträge, laufende Zeiten, Kontingente und eine eigene Farbe haben.
+        Alle Tracker nutzen dieselbe Datenstruktur. Jeder Tracker kann Einträge, laufende Zeiten, Kontingente, Zusatzfelder und eine eigene Farbe haben.
       </PageGuide>
       <div className="space-y-4">
         <div className="flex gap-2 overflow-x-auto rounded-lg border border-line bg-paper p-2">

@@ -80,7 +80,7 @@ async function updateEntry(formData: FormData) {
   const startTime = allDay ? parseDateInput(dateRaw) || parseDateTimeLocal(startRaw) || entry.startTime : parseDateTimeLocal(startRaw) || parseDateInput(dateRaw) || entry.startTime;
   const endTime = allDay ? null : endRaw ? parseDateTimeLocal(endRaw) : null;
   const currentValues = entry.fieldValues && typeof entry.fieldValues === "object" ? entry.fieldValues as Record<string, unknown> : {};
-  const fieldValues = fieldValuesFromForm(formData, trackerFields(entry.trackerType.fields, entry.trackerType.key), currentValues);
+  const fieldValues = fieldValuesFromForm(formData, trackerFields(entry.trackerType.fields), currentValues);
   const linkFeatures = {
     toys: await hasFeature("toys"),
     positions: await hasFeature("positions"),
@@ -214,15 +214,7 @@ async function deleteEntry(formData: FormData) {
   const entry = await prisma.trackerEntry.findFirst({ where: { id, ...(await ownerScope(user)) }, include: { trackerType: true, images: true } });
   if (!entry) notFound();
   await requireFeature(`tracker.${entry.trackerType.key}`);
-  await prisma.$transaction([
-    prisma.trackerEntry.delete({ where: { id: entry.id } }),
-    ...(entry.legacyType === "segufix" && entry.legacyId
-      ? [prisma.segufixSession.deleteMany({ where: { id: entry.legacyId, ownerId: entry.ownerId } })]
-      : []),
-    ...(entry.legacyType === "kg" && entry.legacyId
-      ? [prisma.kgSession.deleteMany({ where: { id: entry.legacyId, ownerId: entry.ownerId } })]
-      : [])
-  ]);
+  await prisma.trackerEntry.delete({ where: { id: entry.id } });
   for (const image of entry.images) {
     await deleteOwnedFile(entry.ownerId, image.fileId).catch(() => false);
   }
@@ -260,7 +252,7 @@ export default async function TrackerEntryPage(props: { params: Promise<{ tracke
   });
   if (!entry) notFound();
   const fieldValues = entry.fieldValues && typeof entry.fieldValues === "object" ? entry.fieldValues as Record<string, unknown> : {};
-  const editableFields = trackerFields(entry.trackerType.fields, entry.trackerType.key);
+  const editableFields = trackerFields(entry.trackerType.fields);
   const linkFeatures = {
     toys: await hasFeature("toys"),
     positions: await hasFeature("positions"),
