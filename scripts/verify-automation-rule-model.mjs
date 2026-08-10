@@ -340,6 +340,25 @@ test("Schalter-Ereignisse sind fachliche Auslöser und werden materialisiert", (
   assert.match(eventsRoute, /type === "switched_off" \? "OFF"/);
 });
 
+test("Sprachausgabe-Ereignisse sind fachliche Auslöser und werden materialisiert", () => {
+  const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
+  const eventsRoute = readFileSync("src/app/api/external/automation/events/route.ts", "utf8");
+  const rule = buildRule({ triggerType: "speech_finished", actionType: "voice_speak", capabilityId: "voice-1", capabilityKind: "Voice" });
+  assert.equal(rule.triggerType, "speech_finished");
+  assert.match(model, /speech_started:\s*"Sprachausgabe wurde gestartet"/);
+  assert.match(model, /speech_finished:\s*"Sprachausgabe wurde beendet"/);
+  assert.match(model, /voice_error:\s*"Sprachausgabe meldet einen Fehler"/);
+  assert.match(model, /if \(\["speech_started",\s*"speech_finished",\s*"voice_error"\]\.includes\(triggerType\)\) return "Voice"/);
+  assert.match(service, /function isVoiceAction/);
+  assert.match(service, /type:\s*"speech_started"/);
+  assert.match(service, /type:\s*"speech_finished"/);
+  assert.match(service, /type:\s*"voice_error"/);
+  assert.match(service, /ruleTrigger === "speech_started"/);
+  assert.match(eventsRoute, /type === "speech_started" \|\| type === "speech_finished" \? "ONLINE"/);
+  assert.match(eventsRoute, /type === "voice_error" \? "ERROR"/);
+});
+
 test("Normale Automation-Oberflächen verwenden deutsche Fachsprache", () => {
   const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
   const devices = readFileSync("src/components/automation-device-manager.tsx", "utf8");

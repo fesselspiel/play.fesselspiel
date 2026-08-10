@@ -83,6 +83,16 @@ function switchEventForState(state?: string | null) {
   return null;
 }
 
+function isVoiceAction(type: string) {
+  return type === "voice_speak";
+}
+
+function voiceEventForResult(success: boolean) {
+  return success
+    ? { type: "speech_finished", title: "Sprachausgabe wurde beendet", state: "ONLINE" }
+    : { type: "voice_error", title: "Sprachausgabe meldet einen Fehler", state: "ERROR" };
+}
+
 function isAdminRole(role?: string | null) {
   return role === "ADMIN" || role === "SUPER_ADMIN";
 }
@@ -937,6 +947,22 @@ export async function claimAutomationBridgeCommands(input: {
       details: { actionTitle: humanActionTitle(action.type), actionType: action.type, deviceId: action.deviceId, capabilityId: action.capabilityId },
       correlationId: action.correlationId
     });
+    if (action.capabilityId && isVoiceAction(action.type)) {
+      await recordAutomationEvent({
+        tenantId: input.tenantId,
+        sessionId: action.sessionId,
+        actionId: action.id,
+        actorId: action.actorId,
+        deviceId: action.deviceId,
+        capabilityId: action.capabilityId,
+        type: "speech_started",
+        title: "Sprachausgabe wurde gestartet",
+        source: "IOBROKER",
+        role: "SYSTEM",
+        details: { actionTitle: humanActionTitle(action.type), actionType: action.type },
+        correlationId: action.correlationId
+      });
+    }
   }
   return claimed;
 }
@@ -963,7 +989,8 @@ export async function finishAutomationBridgeCommand(input: {
   const status = input.success ? "SUCCEEDED" : "FAILED";
   const resolvedCapabilityState = input.capabilityState
     || (input.success && action.type === "switch_on" ? "ON" : null)
-    || (input.success && action.type === "switch_off" ? "OFF" : null);
+    || (input.success && action.type === "switch_off" ? "OFF" : null)
+    || (isVoiceAction(action.type) ? voiceEventForResult(input.success).state : null);
   const updated = await prisma.automationAction.update({
     where: { id: action.id },
     data: {
@@ -1028,6 +1055,26 @@ export async function finishAutomationBridgeCommand(input: {
         correlationId: action.correlationId
       });
     }
+  }
+  if (action.capabilityId && isVoiceAction(action.type)) {
+    const voiceEvent = voiceEventForResult(input.success);
+    await recordAutomationEvent({
+      tenantId: input.tenantId,
+      sessionId: action.sessionId,
+      actionId: action.id,
+      actorId: action.actorId,
+      deviceId: action.deviceId,
+      capabilityId: action.capabilityId,
+      type: voiceEvent.type,
+      title: voiceEvent.title,
+      source: "IOBROKER",
+      role: "SYSTEM",
+      details: input.success
+        ? { actionTitle: humanActionTitle(action.type), actionType: action.type, capabilityState: resolvedCapabilityState }
+        : { actionTitle: humanActionTitle(action.type), actionType: action.type, error: input.error || "bridge_action_failed" },
+      raw: { result: input.result || null, deviceState: input.deviceState || null, capabilityState: resolvedCapabilityState || null },
+      correlationId: action.correlationId
+    });
   }
   return updated;
 }
@@ -1169,10 +1216,13 @@ function triggerMatches(ruleTrigger: string, eventType: string) {
   if (ruleTrigger === "switched_on" && eventType === "switched_on") return true;
   if (ruleTrigger === "switched_off" && eventType === "switched_off") return true;
   if (ruleTrigger === "switch_error" && eventType === "switch_error") return true;
+  if (ruleTrigger === "speech_started" && eventType === "speech_started") return true;
+  if (ruleTrigger === "speech_finished" && eventType === "speech_finished") return true;
+  if (ruleTrigger === "voice_error" && eventType === "voice_error") return true;
   if (ruleTrigger === "capability_event" && eventType === "capability_event") return true;
   if (ruleTrigger === "device_state_changed" && eventType === "device_state_changed") return true;
   if (ruleTrigger === "quota_open" && eventType === "quota_open") return true;
-  if (ruleTrigger === "event_absent" && ["session_started", "session_pending_end", "session_finished", "action_succeeded", "action_failed", "image_uploaded", "camera_online", "camera_offline", "switched_on", "switched_off", "switch_error", "capability_event", "device_state_changed", "quota_open"].includes(eventType)) return true;
+  if (ruleTrigger === "event_absent" && ["session_started", "session_pending_end", "session_finished", "action_succeeded", "action_failed", "image_uploaded", "camera_online", "camera_offline", "switched_on", "switched_off", "switch_error", "speech_started", "speech_finished", "voice_error", "capability_event", "device_state_changed", "quota_open"].includes(eventType)) return true;
   return false;
 }
 

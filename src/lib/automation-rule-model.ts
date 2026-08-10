@@ -10,6 +10,9 @@ export type AutomationTriggerKey =
   | "switched_on"
   | "switched_off"
   | "switch_error"
+  | "speech_started"
+  | "speech_finished"
+  | "voice_error"
   | "capability_event"
   | "event_absent"
   | "device_state_changed"
@@ -127,6 +130,9 @@ export const automationLabels = {
     switched_on: "Schalter wurde eingeschaltet",
     switched_off: "Schalter wurde ausgeschaltet",
     switch_error: "Schalter meldet einen Fehler",
+    speech_started: "Sprachausgabe wurde gestartet",
+    speech_finished: "Sprachausgabe wurde beendet",
+    voice_error: "Sprachausgabe meldet einen Fehler",
     capability_event: "Gerätefähigkeit hat ein Ereignis gemeldet",
     device_state_changed: "Gerätezustand hat sich geändert",
     quota_open: "Tracker-Kontingent ist offen",
@@ -184,6 +190,9 @@ export const triggerOptions: Array<{ key: AutomationTriggerKey; label: string; d
   { key: "switched_on", label: "Schalter wurde eingeschaltet", description: "Reagiert auf einen Schalter, der eingeschaltet wurde." },
   { key: "switched_off", label: "Schalter wurde ausgeschaltet", description: "Reagiert auf einen Schalter, der ausgeschaltet wurde." },
   { key: "switch_error", label: "Schalter meldet Fehler", description: "Reagiert auf einen Schaltfehler einer konkreten Schaltfähigkeit." },
+  { key: "speech_started", label: "Sprachausgabe wurde gestartet", description: "Reagiert, sobald eine Ansage gestartet wurde." },
+  { key: "speech_finished", label: "Sprachausgabe wurde beendet", description: "Reagiert, sobald eine Ansage erfolgreich beendet wurde." },
+  { key: "voice_error", label: "Sprachausgabe meldet Fehler", description: "Reagiert auf einen Fehler der Sprachausgabe." },
   { key: "capability_event", label: "Gerätefähigkeit meldet Ereignis", description: "Reagiert auf ein Ereignis einer konkreten Kamera, eines Schalters oder einer Sprachausgabe." },
   { key: "event_absent", label: "Ereignis bleibt aus", description: "Reagiert, wenn innerhalb einer Zeitspanne nichts passiert." },
   { key: "device_state_changed", label: "Gerätezustand ändert sich", description: "Reagiert auf lokale ioBroker-/MQTT-Zustände." },
@@ -202,6 +211,9 @@ export const conditionOptions: Record<AutomationTriggerKey, AutomationConditionK
   switched_on: ["none", "capability_state", "switch_state_for"],
   switched_off: ["none", "capability_state", "switch_state_for"],
   switch_error: ["none", "device_offline", "capability_state", "switch_state_for"],
+  speech_started: ["none", "capability_state"],
+  speech_finished: ["none", "capability_state"],
+  voice_error: ["none", "device_offline", "capability_state"],
   capability_event: ["capability_state", "device_online", "device_offline", "last_image_younger_than", "switch_state_for"],
   event_absent: ["controller_absent", "device_online", "device_offline", "switch_state_for"],
   device_state_changed: ["capability_state", "device_online", "device_offline", "last_image_younger_than", "switch_state_for"],
@@ -246,12 +258,13 @@ export function triggerNeedsDevice(triggerType: AutomationTriggerKey) {
 }
 
 export function triggerNeedsCapability(triggerType: AutomationTriggerKey) {
-  return ["image_uploaded", "camera_online", "camera_offline", "switched_on", "switched_off", "switch_error", "capability_event"].includes(triggerType);
+  return ["image_uploaded", "camera_online", "camera_offline", "switched_on", "switched_off", "switch_error", "speech_started", "speech_finished", "voice_error", "capability_event"].includes(triggerType);
 }
 
 export function triggerCapabilityFilter(triggerType: AutomationTriggerKey): CapabilityKind | null {
   if (["image_uploaded", "camera_online", "camera_offline"].includes(triggerType)) return "Camera";
   if (["switched_on", "switched_off", "switch_error"].includes(triggerType)) return "Switch";
+  if (["speech_started", "speech_finished", "voice_error"].includes(triggerType)) return "Voice";
   return null;
 }
 

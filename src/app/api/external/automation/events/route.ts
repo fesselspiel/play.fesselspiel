@@ -63,7 +63,12 @@ export async function POST(request: NextRequest) {
     });
   }
   if (capabilityId) {
-    const impliedCapabilityState = type === "switched_on" ? "ON" : type === "switched_off" ? "OFF" : type === "switch_error" ? "ERROR" : undefined;
+    const impliedCapabilityState = type === "switched_on" ? "ON"
+      : type === "switched_off" ? "OFF"
+        : type === "switch_error" ? "ERROR"
+          : type === "speech_started" || type === "speech_finished" ? "ONLINE"
+            : type === "voice_error" ? "ERROR"
+              : undefined;
     await prisma.automationCapability.updateMany({
       where: { id: capabilityId, tenantId: auth.user.tenantId },
       data: {
