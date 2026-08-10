@@ -55,6 +55,7 @@ export function AutomationRuleEditor({
   const availableConditions = conditionOptions[value.triggerType] || ["none"];
   const selectedCapability = capabilities.find((capability) => capability.id === value.capabilityId);
   const capabilityKind = selectedCapability?.kind || value.capabilityKind || "";
+  const recoveryCapabilities = capabilities.filter((capability) => capability.kind === "Switch");
   const availableActions = useMemo<AutomationActionKey[]>(
     () => capabilityKind ? actionOptionsByCapability[capabilityKind] : ["session_finish"],
     [capabilityKind]
@@ -170,6 +171,35 @@ export function AutomationRuleEditor({
           {value.actionType === "voice_speak" ? (
             <textarea className={`${inputClass} mt-2`} value={value.voiceText} onChange={(event) => update({ voiceText: event.target.value })} rows={2} placeholder="Text, den ioBroker sprechen soll" />
           ) : null}
+          {value.actionType === "camera_request_image" ? (
+            <div className="mt-3 space-y-2 text-sm text-graphite">
+              <div className="grid grid-cols-2 gap-2">
+                <label>Timeout
+                  <div className="mt-1 flex items-center gap-2">
+                    <input className={inputClass} type="number" min={1} value={value.cameraTimeoutSeconds} onChange={(event) => update({ cameraTimeoutSeconds: Number(event.target.value) })} />
+                    <span>Sek.</span>
+                  </div>
+                </label>
+                <label>Wiederholungen
+                  <input className={`${inputClass} mt-1`} type="number" min={0} max={10} value={value.cameraMaxRetries} onChange={(event) => update({ cameraMaxRetries: Number(event.target.value) })} />
+                </label>
+              </div>
+              <label>Boot-Wartezeit
+                <div className="mt-1 flex items-center gap-2">
+                  <input className={inputClass} type="number" min={0} value={value.cameraBootDelaySeconds} onChange={(event) => update({ cameraBootDelaySeconds: Number(event.target.value) })} />
+                  <span>Sek.</span>
+                </div>
+              </label>
+              <label>Neustart-Schalter
+                <select className={`${inputClass} mt-1`} value={value.recoveryCapabilityId} onChange={(event) => update({ recoveryCapabilityId: event.target.value })}>
+                  <option value="">Kein automatischer Neustart</option>
+                  {recoveryCapabilities.map((capability) => (
+                    <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : null}
         </section>
       </div>
 
@@ -202,6 +232,7 @@ export function AutomationRuleEditor({
           <SimBox title="Bedingungen" items={simulation.conditions.map((item) => `${item.title}: ${item.passed ? "erfüllt" : "noch offen"}`)} />
           <SimBox title="Wartende Aktionen" items={simulation.waitingActions.map((item) => `${item.minute} min · ${item.title}`)} />
           <SimBox title="Fällige Aktionen" items={simulation.dueActions.map((item) => `${item.minute} min · ${item.title}`)} />
+          <SimBox title="Recovery bei Fehler" items={simulation.recoveryActions.map((item) => `${item.minute} min · ${item.title}`)} />
           <SimBox title="Zufallswerte" items={simulation.randomValues.map((item) => `${item.label}: ${item.value}`)} />
         </div>
         <details className="mt-3 rounded-md border border-line bg-surface p-3">

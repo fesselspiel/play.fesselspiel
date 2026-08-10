@@ -67,6 +67,8 @@ export const automationLabels = {
     action_cancelled: "Aktion wurde nicht ausgeführt",
     image_requested: "Bild wurde angefordert",
     image_uploaded: "Bild wurde empfangen",
+    camera_recovery_scheduled: "Kamera-Recovery wurde geplant",
+    camera_recovery_exhausted: "Kamera-Recovery ist beendet",
     bridge_heartbeat: "Bridge hat sich gemeldet",
     bridge_command_created: "Bridge-Befehl wurde erstellt",
     bridge_command_finished: "Bridge-Befehl wurde abgeschlossen"
@@ -161,6 +163,10 @@ export type RuleFormValue = {
   capabilityKind: CapabilityKind | "";
   actionType: AutomationActionKey;
   voiceText: string;
+  cameraMaxRetries: number;
+  cameraTimeoutSeconds: number;
+  cameraBootDelaySeconds: number;
+  recoveryCapabilityId: string;
   mode: "ONCE" | "REPEAT";
 };
 
@@ -177,6 +183,10 @@ export function defaultRuleFormValue(): RuleFormValue {
     capabilityKind: "",
     actionType: "session_finish",
     voiceText: "",
+    cameraMaxRetries: 2,
+    cameraTimeoutSeconds: 20,
+    cameraBootDelaySeconds: 20,
+    recoveryCapabilityId: "",
     mode: "ONCE"
   };
 }
@@ -213,6 +223,10 @@ export function ruleFormFromStored(rule?: {
   value.capabilityId = typeof action.capabilityId === "string" ? action.capabilityId : "";
   value.capabilityKind = typeof action.capabilityKind === "string" ? action.capabilityKind as CapabilityKind : "";
   value.voiceText = typeof action.text === "string" ? action.text : "";
+  value.cameraMaxRetries = numberValue(action.maxRetries, value.cameraMaxRetries);
+  value.cameraTimeoutSeconds = numberValue(action.timeoutSeconds, value.cameraTimeoutSeconds);
+  value.cameraBootDelaySeconds = numberValue(action.bootDelaySeconds, value.cameraBootDelaySeconds);
+  value.recoveryCapabilityId = typeof action.recoveryCapabilityId === "string" ? action.recoveryCapabilityId : "";
   value.mode = rule.mode === "REPEAT" ? "REPEAT" : "ONCE";
   return value;
 }
@@ -231,7 +245,11 @@ export function buildStoredRule(value: RuleFormValue) {
     type: value.actionType,
     capabilityId: value.capabilityId || null,
     capabilityKind: value.capabilityKind || null,
-    text: value.actionType === "voice_speak" ? value.voiceText : null
+    text: value.actionType === "voice_speak" ? value.voiceText : null,
+    maxRetries: value.actionType === "camera_request_image" ? value.cameraMaxRetries : null,
+    timeoutSeconds: value.actionType === "camera_request_image" ? value.cameraTimeoutSeconds : null,
+    bootDelaySeconds: value.actionType === "camera_request_image" ? value.cameraBootDelaySeconds : null,
+    recoveryCapabilityId: value.actionType === "camera_request_image" ? value.recoveryCapabilityId || null : null
   }];
   return {
     triggerType: value.triggerType,
@@ -306,6 +324,15 @@ export function validateAutomationRulePayload(input: {
   if (actionType === "voice_speak" && typeof action.text === "string" && !action.text.trim()) {
     errors.push("Für Sprachausgabe braucht die Aktion einen Text.");
   }
+  if (actionType === "camera_request_image") {
+    if (numberValue(action.maxRetries, 0) < 0) errors.push("Die Anzahl der Wiederholungen darf nicht negativ sein.");
+    if (numberValue(action.timeoutSeconds, 0) < 1) errors.push("Der Kamera-Timeout muss mindestens eine Sekunde betragen.");
+    if (numberValue(action.bootDelaySeconds, 0) < 0) errors.push("Die Boot-Wartezeit darf nicht negativ sein.");
+    const recoveryCapabilityId = typeof action.recoveryCapabilityId === "string" ? action.recoveryCapabilityId : "";
+    const recoveryCapability = recoveryCapabilityId ? capabilities.find((item) => item.id === recoveryCapabilityId) : null;
+    if (recoveryCapabilityId && !recoveryCapability) errors.push("Die gewählte Neustart-Fähigkeit ist auf dieser Seite nicht verfügbar.");
+    if (recoveryCapability && recoveryCapability.kind !== "Switch") errors.push("Für den Kamera-Neustart muss eine Schaltfähigkeit gewählt werden.");
+  }
 
   return {
     ok: errors.length === 0,
@@ -334,8 +361,11 @@ export function automationRuleSummary(input: {
       ? `warte ${numberValue(timing.minutes ?? timing.delayMinutes, 0)} Minuten`
       : "führe die Aktion sofort aus";
   const actionText = actionLabels[action.type as AutomationActionKey]?.toLowerCase() || "führe die gewählte Aktion aus";
-  if (conditionText) return `Wenn ${trigger.toLowerCase()} und ${conditionText}, ${timingText} und ${actionText}.`;
-  return `Wenn ${trigger.toLowerCase()}, ${timingText} und ${actionText}.`;
+  const recoveryText = action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0
+    ? ` Bei Fehlern wird bis zu ${numberValue(action.maxRetries, 0)} Mal wiederholt${action.recoveryCapabilityId ? " und vorher ein Neustart ausgelöst" : ""}.`
+    : "";
+  if (conditionText) return `Wenn ${trigger.toLowerCase()} und ${conditionText}, ${timingText} und ${actionText}.${recoveryText}`;
+  return `Wenn ${trigger.toLowerCase()}, ${timingText} und ${actionText}.${recoveryText}`;
 }
 
 export function automationRuleFlow(input: { triggerType: string; conditionJson?: unknown; timingJson?: unknown; actionJson?: unknown }) {
@@ -352,7 +382,13 @@ export function automationRuleFlow(input: { triggerType: string; conditionJson?:
   if (timing.type === "fixed_delay") steps.push(`${numberValue(timing.minutes ?? timing.delayMinutes, 0)} Minuten warten`);
   if (timing.type === "random_delay") steps.push(`Zufallsfenster ${numberValue(timing.minMinutes, 0)}-${numberValue(timing.maxMinutes, 0)} Minuten`);
   steps.push(actionLabels[action.type as AutomationActionKey] || "Aktion ausführen");
-  if (action.type === "camera_request_image") steps.push("Bei Fehler: Recovery-Regel kann anschließen");
+  if (action.type === "camera_request_image") {
+    steps.push(numberValue(action.timeoutSeconds, 20) ? `Timeout ${numberValue(action.timeoutSeconds, 20)} Sekunden` : "Kamera-Antwort prüfen");
+    if (numberValue(action.maxRetries, 0) > 0) {
+      if (action.recoveryCapabilityId) steps.push("Bei Fehler: Kamera-Strom neu schalten");
+      steps.push(`Bei Fehler: bis zu ${numberValue(action.maxRetries, 0)} Wiederholung(en)`);
+    }
+  }
   return steps;
 }
 
@@ -381,6 +417,13 @@ export function simulateAutomationRuleTimeline(input: {
     : [];
   const waitingActions = scrubMinute < dueMinute ? [{ minute: dueMinute, title: actionLabels[action.type as AutomationActionKey] || "Aktion" }] : [];
   const dueActions = scrubMinute >= dueMinute ? [{ minute: dueMinute, title: actionLabels[action.type as AutomationActionKey] || "Aktion" }] : [];
+  const failureMinute = dueMinute + 1;
+  const recoveryActions = action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0 && scrubMinute >= failureMinute
+    ? [
+        ...(action.recoveryCapabilityId ? [{ minute: failureMinute, title: "Kamera-Strom neu schalten" }] : []),
+        { minute: failureMinute + Math.ceil(numberValue(action.bootDelaySeconds, 20) / 60), title: "Bild erneut anfordern" }
+      ]
+    : [];
   return {
     durationMinutes: Math.max(1, dueMinute + 5),
     scrubMinute,
@@ -391,11 +434,15 @@ export function simulateAutomationRuleTimeline(input: {
     waitingActions,
     dueActions,
     completedActions: scrubMinute > dueMinute ? dueActions : [],
+    recoveryActions,
     randomValues: timing.type === "random_delay" ? [{ label: "Gewählte Zufallswartezeit", value: `${delay} Minuten` }] : [],
     variables: {
       conditionMinutes,
       delayMinutes: delay,
       dueMinute,
+      timeoutSeconds: action.type === "camera_request_image" ? numberValue(action.timeoutSeconds, 20) : null,
+      maxRetries: action.type === "camera_request_image" ? numberValue(action.maxRetries, 0) : null,
+      bootDelaySeconds: action.type === "camera_request_image" ? numberValue(action.bootDelaySeconds, 20) : null,
       sideEffects: false
     }
   };

@@ -1173,3 +1173,6 @@ Details:
 - Zufallsfenster werden beim Ausloesen einmal materialisiert und in `timingJson` gespeichert. Nach Neustarts arbeitet der vorhandene Cron/Adapter denselben geplanten Zeitpunkt ab.
 - Regel-Payloads werden serverseitig gegen Trigger, passende Bedingungen, Zeitlogik, Action und Capability-Typ validiert. Dadurch akzeptieren Webformular und externe API keine widerspruechlichen versteckten JSON-Werte.
 - Vorhandene Geraete und Faehigkeiten koennen in der Automation-Administration fachlich bearbeitet werden, ohne rohe Capability- oder Action-JSONs zu pflegen.
+- Kamera-Regeln koennen nun fachlich Timeout, Wiederholungen, Boot-Wartezeit und optional einen Switch fuer Recovery konfigurieren.
+- Meldet der Adapter eine fehlgeschlagene Bildanforderung, markiert die Engine den geschuetzten Bildrequest als fehlgeschlagen, plant optional den Recovery-Schalter und danach einen erneuten Bildrequest mit stabiler Korrelation.
+- Die Simulation zeigt den Fehlerpfad inklusive Recovery-Aktionen, ohne echte Actions, Bildrequests oder Geraetebefehle auszufuehren.

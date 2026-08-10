@@ -54,6 +54,11 @@ function humanActionTitle(type: string) {
   return labels[type] || "Aktion ausführen";
 }
 
+function numberFromPayload(payload: Record<string, unknown>, key: string, fallback: number) {
+  const value = Number(payload[key]);
+  return Number.isFinite(value) ? Math.max(0, Math.round(value)) : fallback;
+}
+
 function concreteDelayMinutes(timing: unknown) {
   const data = asRecord(timing);
   const type = clean(data.type || data.mode) || "immediate";
@@ -720,6 +725,9 @@ export async function finishAutomationBridgeCommand(input: {
       }
     });
   }
+  if (!input.success && action.type === "camera_request_image") {
+    await handleCameraActionFailure({ action, now, error: input.error || "bridge_action_failed" });
+  }
   await recordAutomationEvent({
     tenantId: input.tenantId,
     sessionId: action.sessionId,
@@ -736,6 +744,130 @@ export async function finishAutomationBridgeCommand(input: {
     correlationId: action.correlationId
   });
   return updated;
+}
+
+async function handleCameraActionFailure(input: {
+  action: {
+    id: string;
+    tenantId: string;
+    sessionId: string | null;
+    ruleId: string | null;
+    ruleVersionId: string | null;
+    actorId: string | null;
+    contextId: string | null;
+    deviceId: string | null;
+    capabilityId: string | null;
+    payloadJson: Prisma.JsonValue;
+    correlationId: string;
+  };
+  now: Date;
+  error: string;
+}) {
+  const payload = asRecord(input.action.payloadJson);
+  const requestId = clean(payload.requestId);
+  if (requestId) {
+    await prisma.automationImageRequest.updateMany({
+      where: { tenantId: input.action.tenantId, requestId },
+      data: { status: "FAILED", error: input.error, metadataJson: { failedActionId: input.action.id, failedAt: input.now.toISOString() } }
+    });
+  }
+  const retryCount = numberFromPayload(payload, "retryCount", 0);
+  const maxRetries = numberFromPayload(payload, "maxRetries", 0);
+  if (!input.action.sessionId || retryCount >= maxRetries) {
+    await recordAutomationEvent({
+      tenantId: input.action.tenantId,
+      sessionId: input.action.sessionId,
+      ruleId: input.action.ruleId,
+      ruleVersionId: input.action.ruleVersionId,
+      actionId: input.action.id,
+      actorId: input.action.actorId,
+      deviceId: input.action.deviceId,
+      capabilityId: input.action.capabilityId,
+      type: "camera_recovery_exhausted",
+      title: "Kamera-Recovery beendet: keine Wiederholung mehr offen",
+      source: "SYSTEM",
+      role: "SYSTEM",
+      details: { retryCount, maxRetries, error: input.error, requestId },
+      correlationId: input.action.correlationId,
+      skipRuleProcessing: true
+    });
+    return;
+  }
+  const nextRetry = retryCount + 1;
+  const bootDelaySeconds = numberFromPayload(payload, "bootDelaySeconds", 20);
+  const retryDueAt = new Date(input.now.getTime() + bootDelaySeconds * 1000);
+  const recoveryCapabilityId = clean(payload.recoveryCapabilityId);
+  if (recoveryCapabilityId) {
+    const recoveryCapability = await prisma.automationCapability.findFirst({
+      where: { id: recoveryCapabilityId, tenantId: input.action.tenantId, kind: "Switch" },
+      include: { device: true }
+    });
+    if (recoveryCapability) {
+      await createAutomationAction({
+        tenantId: input.action.tenantId,
+        sessionId: input.action.sessionId,
+        actorId: input.action.actorId,
+        type: "switch_toggle",
+        source: "SYSTEM",
+        role: "SYSTEM",
+        deviceId: recoveryCapability.deviceId,
+        capabilityId: recoveryCapability.id,
+        payload: { reason: "camera_recovery", failedActionId: input.action.id, retry: nextRetry },
+        dueAt: input.now,
+        idempotencyKey: `camera-recovery-power:${input.action.id}:${nextRetry}`,
+        correlationId: input.action.correlationId
+      });
+    }
+  }
+  const nextRequestId = correlationId("img");
+  const retryAction = await createAutomationAction({
+    tenantId: input.action.tenantId,
+    sessionId: input.action.sessionId,
+    actorId: input.action.actorId,
+    type: "camera_request_image",
+    source: "SYSTEM",
+    role: "SYSTEM",
+    deviceId: input.action.deviceId,
+    capabilityId: input.action.capabilityId,
+    payload: { ...payload, requestId: nextRequestId, retryCount: nextRetry, previousRequestId: requestId || null, failedActionId: input.action.id },
+    dueAt: retryDueAt,
+    idempotencyKey: `camera-recovery-image:${input.action.id}:${nextRetry}`,
+    correlationId: input.action.correlationId
+  });
+  await prisma.automationImageRequest.create({
+    data: {
+      tenantId: input.action.tenantId,
+      sessionId: input.action.sessionId,
+      actionId: retryAction.id,
+      requesterId: input.action.actorId,
+      deviceId: input.action.deviceId,
+      capabilityId: input.action.capabilityId,
+      requestId: nextRequestId,
+      retryCount: nextRetry,
+      maxRetries,
+      timeoutSeconds: numberFromPayload(payload, "timeoutSeconds", 20),
+      bootDelaySeconds,
+      reason: "Automatische Kamera-Recovery"
+    }
+  });
+  await recordAutomationEvent({
+    tenantId: input.action.tenantId,
+    sessionId: input.action.sessionId,
+    ruleId: input.action.ruleId,
+    ruleVersionId: input.action.ruleVersionId,
+    actionId: retryAction.id,
+    actorId: input.action.actorId,
+    deviceId: input.action.deviceId,
+    capabilityId: input.action.capabilityId,
+    parentEventId: null,
+    type: "camera_recovery_scheduled",
+    title: `Kamera-Recovery geplant: Versuch ${nextRetry} von ${maxRetries}`,
+    source: "SYSTEM",
+    role: "SYSTEM",
+    details: { retryCount: nextRetry, maxRetries, retryDueAt: retryDueAt.toISOString(), bootDelaySeconds, previousRequestId: requestId || null, nextRequestId },
+    correlationId: input.action.correlationId,
+    skipRuleProcessing: true
+  });
 }
 
 function triggerMatches(ruleTrigger: string, eventType: string) {
@@ -922,6 +1054,7 @@ async function processAutomationRulesForEvent(event: {
           payloadJson: {
             ...asRecord(actionSpec),
             requestId,
+            retryCount: 0,
             sourceEventId: event.id,
             sourceEventType: event.type,
             sourceEventAt: event.createdAt.toISOString(),
@@ -944,7 +1077,10 @@ async function processAutomationRulesForEvent(event: {
             deviceId,
             capabilityId,
             requestId,
-            reason: `Regel: ${rule.name}`
+            reason: `Regel: ${rule.name}`,
+            maxRetries: numberFromPayload(actionSpec, "maxRetries", 2),
+            timeoutSeconds: numberFromPayload(actionSpec, "timeoutSeconds", 20),
+            bootDelaySeconds: numberFromPayload(actionSpec, "bootDelaySeconds", 20)
           }
         });
       }
@@ -1143,7 +1279,7 @@ export async function createAutomationImageRequest(input: {
     role: "OWNER",
     deviceId: input.deviceId || null,
     capabilityId: input.capabilityId || null,
-    payload: { requestId, reason: input.reason || null },
+    payload: { requestId, reason: input.reason || null, maxRetries: 2, retryCount: 0, timeoutSeconds: 20, bootDelaySeconds: 20 },
     correlationId: session.correlationId
   });
   const request = await prisma.automationImageRequest.create({
@@ -1155,7 +1291,10 @@ export async function createAutomationImageRequest(input: {
       deviceId: input.deviceId || null,
       capabilityId: input.capabilityId || null,
       requestId,
-      reason: input.reason || null
+      reason: input.reason || null,
+      maxRetries: 2,
+      timeoutSeconds: 20,
+      bootDelaySeconds: 20
     }
   });
   await recordAutomationEvent({
