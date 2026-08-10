@@ -136,18 +136,24 @@ async function saveDevice(formData: FormData) {
     health: String(formData.get("health") || "UNKNOWN"),
     metadata: parseJson(formData.get("metadataJson"), {})
   });
-  const capabilityKey = String(formData.get("capabilityKey") || "").trim();
-  if (capabilityKey) {
+  const capabilityKeys = formData.getAll("capabilityKey").map((item) => String(item || "").trim()).filter(Boolean);
+  const capabilityKinds = formData.getAll("capabilityKind").map((item) => String(item || "").trim());
+  const capabilityTitles = formData.getAll("capabilityTitle").map((item) => String(item || "").trim());
+  const capabilityStates = formData.getAll("capabilityState").map((item) => String(item || "").trim());
+  const actionsLists = formData.getAll("actionsList");
+  const eventsLists = formData.getAll("eventsList");
+  const conditionsLists = formData.getAll("conditionsList");
+  for (const [index, capabilityKey] of capabilityKeys.entries()) {
     await upsertAutomationCapability({
       tenantId: user.tenantId,
       deviceId: device.id,
       key: capabilityKey,
-      kind: String(formData.get("capabilityKind") || "Camera"),
-      title: String(formData.get("capabilityTitle") || capabilityKey),
-      state: String(formData.get("capabilityState") || "UNKNOWN"),
-      actions: parseList(formData.get("actionsList")),
-      events: parseList(formData.get("eventsList")),
-      conditions: parseList(formData.get("conditionsList")),
+      kind: capabilityKinds[index] || "Camera",
+      title: capabilityTitles[index] || capabilityKey,
+      state: capabilityStates[index] || "UNKNOWN",
+      actions: parseList(actionsLists[index] || null),
+      events: parseList(eventsLists[index] || null),
+      conditions: parseList(conditionsLists[index] || null),
       parameters: {},
       ui: {}
     });

@@ -1183,3 +1183,5 @@ Details:
 - Die scrubbable Simulation liefert eine sichtbare Timeline mit Status je Schritt und eine erklaerende Momentaufnahme, warum eine Aktion wartet, faellig ist oder nur simuliert wird.
 - Das Automation-Protokoll zeigt Ereignisse jetzt fachlich gruppiert mit Quelle, Rolle, ausloesendem Benutzer, Session, Regelversion, Aktion, Geraet/Faehigkeit, Ursache-Folge-Kette und Policy-/Timing-Entscheidung.
 - Interne IDs, Correlation-ID, Raw JSON und Execution Context bleiben vollstaendig unter `Technische Details` verfuegbar.
+- Die Geraeteanlage kann nun mehrere Faehigkeiten an einem Geraet anlegen, zum Beispiel Kamera plus Schalter plus Sprachausgabe. Jede Faehigkeit erzeugt fachlich passende Aktionen, Ereignisse und Bedingungen ohne JSON-Eingabe.
+- Capability-Keys werden automatisch eindeutig generiert, damit doppelte oder aehnlich benannte Faehigkeiten eines Geraets sich nicht gegenseitig ueberschreiben.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Camera, Plus, ToggleLeft, Volume2 } from "lucide-react";
+import { Camera, Plus, Trash2, ToggleLeft, Volume2 } from "lucide-react";
 import { inputClass } from "@/components/ui";
 
 type CapabilityKind = "Camera" | "Switch" | "Voice";
@@ -43,25 +43,56 @@ function slug(value: string) {
   return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "geraet";
 }
 
+type CapabilityDraft = {
+  id: string;
+  kind: CapabilityKind;
+  title: string;
+};
+
+function defaultTitle(kind: CapabilityKind) {
+  if (kind === "Camera") return "Bild anfordern";
+  if (kind === "Switch") return "Strom schalten";
+  return "Ansage sprechen";
+}
+
 export function AutomationDeviceManager() {
   const [name, setName] = useState("");
   const [integration, setIntegration] = useState("IOBROKER");
-  const [capabilityKind, setCapabilityKind] = useState<CapabilityKind>("Camera");
-  const [capabilityTitle, setCapabilityTitle] = useState("Bild anfordern");
+  const [capabilities, setCapabilities] = useState<CapabilityDraft[]>([{ id: "cap-1", kind: "Camera", title: "Bild anfordern" }]);
   const logicalId = useMemo(() => `${integration.toLowerCase()}-${slug(name)}`, [integration, name]);
-  const capabilityKey = useMemo(() => `${capabilityKind.toLowerCase()}-${slug(capabilityTitle)}`, [capabilityKind, capabilityTitle]);
-  const preset = capabilityPresets[capabilityKind];
+
+  function updateCapability(id: string, next: Partial<CapabilityDraft>) {
+    setCapabilities((current) => current.map((item) => item.id === id ? { ...item, ...next } : item));
+  }
+
+  function addCapability(kind: CapabilityKind) {
+    setCapabilities((current) => [...current, { id: `cap-${Date.now()}-${current.length}`, kind, title: defaultTitle(kind) }]);
+  }
+
+  function removeCapability(id: string) {
+    setCapabilities((current) => current.length > 1 ? current.filter((item) => item.id !== id) : current);
+  }
 
   return (
     <div className="space-y-3">
       <input type="hidden" name="logicalId" value={logicalId} />
       <input type="hidden" name="integration" value={integration} />
       <input type="hidden" name="health" value="UNKNOWN" />
-      <input type="hidden" name="capabilityKey" value={capabilityKey} />
-      <input type="hidden" name="capabilityKind" value={capabilityKind} />
-      <input type="hidden" name="actionsList" value={preset.actions} />
-      <input type="hidden" name="eventsList" value={preset.events} />
-      <input type="hidden" name="conditionsList" value={preset.conditions} />
+      {capabilities.map((capability, index) => {
+        const preset = capabilityPresets[capability.kind];
+        const key = `${capability.kind.toLowerCase()}-${slug(capability.title)}-${index + 1}`;
+        return (
+          <div key={`${capability.id}-hidden`}>
+            <input type="hidden" name="capabilityKey" value={key} />
+            <input type="hidden" name="capabilityKind" value={capability.kind} />
+            <input type="hidden" name="capabilityTitle" value={capability.title} />
+            <input type="hidden" name="capabilityState" value="UNKNOWN" />
+            <input type="hidden" name="actionsList" value={preset.actions} />
+            <input type="hidden" name="eventsList" value={preset.events} />
+            <input type="hidden" name="conditionsList" value={preset.conditions} />
+          </div>
+        );
+      })}
 
       <label className="block text-sm font-medium text-graphite">Gerätename
         <input name="name" className={`${inputClass} mt-1`} required value={name} onChange={(event) => setName(event.target.value)} placeholder="Kamera Schlafzimmer" />
@@ -75,24 +106,42 @@ export function AutomationDeviceManager() {
       </label>
       <div className="grid gap-2 sm:grid-cols-3">
         {(Object.keys(capabilityPresets) as CapabilityKind[]).map((kind) => (
-          <button key={kind} type="button" onClick={() => { setCapabilityKind(kind); setCapabilityTitle(capabilityPresets[kind].label === "Kamera" ? "Bild anfordern" : capabilityPresets[kind].label); }} className={`rounded-md border p-3 text-left text-sm ${capabilityKind === kind ? "border-redbrand bg-redbrand/10 text-ink" : "border-line bg-paper text-graphite"}`}>
-            <span className="flex items-center gap-2 font-semibold">{capabilityPresets[kind].icon}{capabilityPresets[kind].label}</span>
+          <button key={kind} type="button" onClick={() => addCapability(kind)} className="rounded-md border border-line bg-paper p-3 text-left text-sm text-graphite hover:border-redbrand hover:bg-redbrand/10 hover:text-ink">
+            <span className="flex items-center gap-2 font-semibold">{capabilityPresets[kind].icon}{capabilityPresets[kind].label} hinzufügen</span>
           </button>
         ))}
       </div>
-      <label className="block text-sm font-medium text-graphite">Fähigkeit
-        <input name="capabilityTitle" className={`${inputClass} mt-1`} required value={capabilityTitle} onChange={(event) => setCapabilityTitle(event.target.value)} />
-      </label>
-      <div className="rounded-md border border-line bg-surface p-3 text-sm text-graphite">
-        <div className="font-semibold text-ink">Wird eingerichtet</div>
-        <div>Aktionen: {preset.visibleActions.join(", ")}</div>
-        <div>Ereignisse: {preset.visibleEvents.join(", ")}</div>
-        <div>Bedingungen: {preset.visibleConditions.join(", ")}</div>
-        <details className="mt-2">
-          <summary className="cursor-pointer font-semibold text-ink">Technische Details</summary>
-          <div className="mt-1">Logische ID: <code>{logicalId}</code></div>
-          <div>Capability-Key: <code>{capabilityKey}</code></div>
-        </details>
+      <div className="space-y-2">
+        {capabilities.map((capability, index) => {
+          const preset = capabilityPresets[capability.kind];
+          const capabilityKey = `${capability.kind.toLowerCase()}-${slug(capability.title)}-${index + 1}`;
+          return (
+            <div key={capability.id} className="rounded-md border border-line bg-surface p-3 text-sm text-graphite">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 font-semibold text-ink">{preset.icon}{preset.label}</div>
+                  <p className="mt-1 text-xs">Diese Fähigkeit stellt passende Aktionen, Ereignisse und Bedingungen im Rule-Editor bereit.</p>
+                </div>
+                <button type="button" onClick={() => removeCapability(capability.id)} disabled={capabilities.length <= 1} className="inline-flex min-h-9 items-center rounded-md border border-line bg-paper px-3 py-1 text-xs font-semibold text-graphite disabled:opacity-40">
+                  <Trash2 className="mr-1 h-3 w-3" /> Entfernen
+                </button>
+              </div>
+              <label className="mt-3 block font-medium">Name der Fähigkeit
+                <input className={`${inputClass} mt-1`} required value={capability.title} onChange={(event) => updateCapability(capability.id, { title: event.target.value })} />
+              </label>
+              <div className="mt-3 grid gap-2 md:grid-cols-3">
+                <div><span className="font-semibold text-ink">Aktionen:</span> {preset.visibleActions.join(", ")}</div>
+                <div><span className="font-semibold text-ink">Ereignisse:</span> {preset.visibleEvents.join(", ")}</div>
+                <div><span className="font-semibold text-ink">Bedingungen:</span> {preset.visibleConditions.join(", ")}</div>
+              </div>
+              <details className="mt-2">
+                <summary className="cursor-pointer font-semibold text-ink">Technische Details</summary>
+                <div className="mt-1">Logische ID: <code>{logicalId}</code></div>
+                <div>Capability-Key: <code>{capabilityKey}</code></div>
+              </details>
+            </div>
+          );
+        })}
       </div>
       <button className="inline-flex min-h-11 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-redbrand/90" type="submit">
         <Plus className="mr-2 h-4 w-4" /> Gerät speichern
