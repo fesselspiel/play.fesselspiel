@@ -96,6 +96,14 @@ test("Pending End wird nicht durch normalen Stop ersetzt", () => {
   assert.equal(session.state !== "PENDING_END", false);
 });
 
+test("Pending-End-Planung ist pro Session serialisiert", () => {
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
+  assert.match(service, /automation-session:\$\{tenantId\}:\$\{session\.id\}/);
+  assert.match(service, /pg_advisory_xact_lock/);
+  assert.match(service, /TransactionIsolationLevel\.Serializable/);
+  assert.match(service, /lockedSession\.state === "PENDING_END"/);
+});
+
 test("Simulation zeigt Pending End bei verzögertem Session-Ende", () => {
   const rule = buildRule({ timingType: "fixed_delay", delayMinutes: 15, actionType: "session_finish" });
   assert.equal(simulate(rule, 1).pendingEnd, true);

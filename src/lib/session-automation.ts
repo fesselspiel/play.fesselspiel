@@ -487,8 +487,9 @@ export async function requestAutomationEnd(input: {
   reason?: string | null;
 }) {
   if (!input.user.tenantId) throw new Error("tenant_required");
+  const tenantId = input.user.tenantId;
   const session = input.sessionId
-    ? await prisma.automationSession.findFirst({ where: { id: input.sessionId, tenantId: input.user.tenantId }, include: { trackerType: true } })
+    ? await prisma.automationSession.findFirst({ where: { id: input.sessionId, tenantId }, include: { trackerType: true } })
     : await currentAutomationSession(input.user, input.trackerTypeId || undefined);
   if (!session) throw new Error("session_not_found");
   const access = input.role === "SYSTEM"
@@ -520,48 +521,82 @@ export async function requestAutomationEnd(input: {
     const finished = await finishAutomationSession({ user: input.user, sessionId: session.id, source: input.source, role: effectiveRole, reason: input.reason });
     return { session: finished, action: null, changed: true };
   }
-  const action = await prisma.automationAction.create({
-    data: {
+  const planned = await prisma.$transaction(async (tx) => {
+    const lockKey = `automation-session:${tenantId}:${session.id}`;
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+    const lockedSession = await tx.automationSession.findFirst({
+      where: { id: session.id, tenantId },
+      include: { trackerType: true }
+    });
+    if (!lockedSession) throw new Error("session_not_found");
+    if (lockedSession.state === "PENDING_END" && !input.override) {
+      return { kind: "kept" as const, session: lockedSession, action: null };
+    }
+    if (lockedSession.state === "FINISHED") {
+      return { kind: "finished" as const, session: lockedSession, action: null };
+    }
+    const lockedPolicy = { ...policy, state: lockedSession.state };
+    const action = await tx.automationAction.create({
+      data: {
+        tenantId,
+        sessionId: lockedSession.id,
+        actorId: input.user.id,
+        type: "session_finish",
+        source: input.source || "SYSTEM",
+        role: effectiveRole,
+        status: "WAITING",
+        timingJson: jsonObject(input.timing),
+        payloadJson: { reason: input.reason || null, policy: lockedPolicy },
+        dueAt,
+        correlationId: lockedSession.correlationId
+      }
+    });
+    const updated = await tx.automationSession.update({
+      where: { id: lockedSession.id },
+      data: {
+        state: "PENDING_END",
+        pendingEndAt: dueAt,
+        stateJson: {
+          pendingEndRequestedAt: now.toISOString(),
+          pendingEndRequestedBy: input.user.id,
+          pendingEndTiming: { ...jsonObject(input.timing), resolvedDelayMinutes: delayMinutes },
+          pendingEndDueAt: dueAt.toISOString(),
+          pendingEndReason: input.reason || null
+        }
+      }
+    });
+    return { kind: "planned" as const, session: updated, action };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  if (planned.kind === "kept") {
+    await recordAutomationEvent({
       tenantId: input.user.tenantId,
-      sessionId: session.id,
+      sessionId: planned.session.id,
       actorId: input.user.id,
-      type: "session_finish",
+      type: "session_end_kept",
+      title: "Bestehendes Endfenster bleibt unverändert",
       source: input.source || "SYSTEM",
       role: effectiveRole,
-      status: "WAITING",
-      timingJson: jsonObject(input.timing),
-      payloadJson: { reason: input.reason || null, policy },
-      dueAt,
-      correlationId: session.correlationId
-    }
-  });
-  const updated = await prisma.automationSession.update({
-    where: { id: session.id },
-    data: {
-      state: "PENDING_END",
-      pendingEndAt: dueAt,
-      stateJson: {
-        pendingEndRequestedAt: now.toISOString(),
-        pendingEndRequestedBy: input.user.id,
-        pendingEndTiming: { ...jsonObject(input.timing), resolvedDelayMinutes: delayMinutes },
-        pendingEndDueAt: dueAt.toISOString(),
-        pendingEndReason: input.reason || null
-      }
-    }
-  });
+      details: { pendingEndAt: planned.session.pendingEndAt, reason: input.reason || null, policy: { ...policy, state: planned.session.state } },
+      correlationId: planned.session.correlationId
+    });
+    return { session: planned.session, action: null, changed: false };
+  }
+  if (planned.kind === "finished") {
+    return { session: planned.session, action: null, changed: false };
+  }
   await recordAutomationEvent({
     tenantId: input.user.tenantId,
-    sessionId: session.id,
-    actionId: action.id,
+    sessionId: planned.session.id,
+    actionId: planned.action.id,
     actorId: input.user.id,
     type: "session_pending_end",
     title: "Session-Ende geplant",
     source: input.source || "SYSTEM",
     role: effectiveRole,
     details: { dueAt, reason: input.reason || null, policy },
-    correlationId: session.correlationId
+    correlationId: planned.session.correlationId
   });
-  return { session: updated, action, changed: true };
+  return { session: planned.session, action: planned.action, changed: true };
 }
 
 export async function finishAutomationSession(input: {
