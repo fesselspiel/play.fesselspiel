@@ -192,7 +192,7 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
                 <Clock className="mt-1 h-5 w-5 text-redbrand" />
                 <div>
                   <h2 className="text-lg font-semibold text-ink">Ende ist vorgemerkt</h2>
-                  <p className="mt-1 text-sm text-graphite">Ein normaler erneuter Stop verändert dieses Fenster nicht. Nur ein bewusster Override beendet sofort.</p>
+                  <p className="mt-1 text-sm text-graphite">Ein normaler erneuter Stop verändert dieses Fenster nicht. Nur eine bewusste Sofort-Beendigung beendet die Session vor dem geplanten Zeitpunkt.</p>
                 </div>
               </div>
               <div className="mt-4 grid gap-2 text-sm text-graphite sm:grid-cols-2">
@@ -227,7 +227,7 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
                   <form action={endAutomation} className="grid gap-2 sm:grid-cols-[1fr_auto]">
                     <input type="hidden" name="sessionId" value={session.id} />
                     <input type="hidden" name="override" value="on" />
-                    <Field label="Override-Grund">
+                    <Field label="Grund für sofortiges Beenden">
                       <input name="reason" className={inputClass} placeholder="Optional" />
                     </Field>
                     <div className="flex items-end">
@@ -277,7 +277,8 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
           </Panel>
 
           <Panel>
-            <h2 className="text-lg font-semibold text-ink">Actions</h2>
+            <h2 className="text-lg font-semibold text-ink">Geplante Aktionen</h2>
+            <p className="mt-1 text-sm text-graphite">Hier stehen Aktionen, die durch Regeln oder manuelle Bedienung geplant wurden. Geräteaktionen werden erst an die Bridge übergeben und danach quittiert.</p>
             <div className="mt-4 space-y-2">
               {session.actions.length ? session.actions.map((action) => (
                 <details key={action.id} className="rounded-md border border-line bg-paper p-3">
@@ -299,7 +300,7 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
                     <pre className="mt-2 max-h-52 overflow-auto text-xs text-graphite">{JSON.stringify({ id: action.id, type: action.type, status: action.status, correlationId: action.correlationId, ruleId: action.ruleId, ruleVersionId: action.ruleVersionId, contextId: action.contextId, deviceId: action.deviceId, capabilityId: action.capabilityId, timing: action.timingJson, payload: action.payloadJson, result: action.resultJson, error: action.error }, null, 2)}</pre>
                   </details>
                 </details>
-              )) : <SoftPanel><Cpu className="h-5 w-5 text-redbrand" /> Noch keine geplanten Actions.</SoftPanel>}
+              )) : <SoftPanel><Cpu className="h-5 w-5 text-redbrand" /> Noch keine geplanten Aktionen.</SoftPanel>}
             </div>
           </Panel>
         </div>

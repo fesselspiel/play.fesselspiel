@@ -205,3 +205,11 @@ test("Bridge-Resultate werden terminal idempotent behandelt", () => {
   const service = readFileSync("src/lib/session-automation.ts", "utf8");
   assert.match(service, /\["SUCCEEDED",\s*"FAILED",\s*"CANCELLED"\]\.includes\(action\.status\)/);
 });
+
+test("Automation-Session-Seiten verwenden fachliche Aktionssprache", () => {
+  const overview = readFileSync("src/app/automation/page.tsx", "utf8");
+  const detail = readFileSync("src/app/automation/sessions/[id]/page.tsx", "utf8");
+  assert.doesNotMatch(`${overview}\n${detail}`, /Override-Grund|Noch keine geplanten Actions|>Actions</);
+  assert.match(detail, /Geplante Aktionen/);
+  assert.match(detail, /Grund für sofortiges Beenden/);
+});

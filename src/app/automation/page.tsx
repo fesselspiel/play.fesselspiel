@@ -192,7 +192,7 @@ export default async function AutomationPage() {
                         <form action={endAutomation} className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
                           <input type="hidden" name="sessionId" value={session.id} />
                           <input type="hidden" name="override" value="on" />
-                          <Field label="Override-Grund">
+                          <Field label="Grund für sofortiges Beenden">
                             <input name="reason" className={inputClass} placeholder="Optional" />
                           </Field>
                           <div className="flex items-end">
