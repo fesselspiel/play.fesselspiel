@@ -105,13 +105,13 @@ const html = `<!doctype html>
   <section class="feature">
     <div>
       <h2>4. Tracker und Kontingente</h2>
-      <p>Tracker messen Zeiten für wiederkehrende Themen. Segufix und KG sind konkrete Tracker-Instanzen. Kontingente zeigen, was täglich, wöchentlich oder monatlich noch offen ist.</p>
+      <p>Tracker messen Zeiten für wiederkehrende Themen. Jeder Tracker ist eine frei benennbare Konfiguration mit eigenen Feldern, Farben und Kontingenten. So bleibt sichtbar, was täglich, wöchentlich oder monatlich noch offen ist.</p>
       <div class="note">Tipp: API und Telegram können Tracker starten, stoppen und Kontingente abfragen. Das ist für Alexa, Kurzbefehle oder Automationen gedacht.</div>
     </div>
     <div class="shot"><svg viewBox="0 0 560 300" role="img" aria-label="Tracker">
       <rect width="560" height="300" fill="#fff"/>
-      <rect x="28" y="30" width="504" height="64" rx="8" fill="#F5F5F5"/><text x="52" y="69" font-size="22" font-family="Arial" fill="#111">Segufix Time Tracker</text><rect x="382" y="54" width="110" height="12" rx="6" fill="#E30613"/>
-      <rect x="28" y="116" width="504" height="64" rx="8" fill="#F5F5F5"/><text x="52" y="155" font-size="22" font-family="Arial" fill="#111">KG Time Tracker</text><rect x="382" y="140" width="82" height="12" rx="6" fill="#0284C7"/>
+      <rect x="28" y="30" width="504" height="64" rx="8" fill="#F5F5F5"/><text x="52" y="69" font-size="22" font-family="Arial" fill="#111">Zeit-Tracker</text><rect x="382" y="54" width="110" height="12" rx="6" fill="#E30613"/>
+      <rect x="28" y="116" width="504" height="64" rx="8" fill="#F5F5F5"/><text x="52" y="155" font-size="22" font-family="Arial" fill="#111">Tages-Tracker</text><rect x="382" y="140" width="82" height="12" rx="6" fill="#0284C7"/>
       <rect x="28" y="202" width="240" height="58" rx="8" fill="#111"/><text x="52" y="238" font-size="18" font-family="Arial" fill="#fff">Noch 120 Minuten</text>
     </svg></div>
   </section>
@@ -165,7 +165,7 @@ const pages = [
     title: "Tracker und Kontingente",
     subtitle: "Zeiten messen, Ziele sehen und per API steuern",
     blocks: [
-      ["Tracker", "Segufix und KG sind Tracker-Instanzen. Neue Tracker können als eigene Systeme konfiguriert werden."],
+      ["Tracker", "Tracker sind frei konfigurierbare Instanzen. Neue Tracker können als eigene Systeme mit Feldern, Farben und Kontingenten angelegt werden."],
       ["Kontingente", "Tägliche, wöchentliche und monatliche Ziele zeigen, was bereits erfüllt ist und was noch offen bleibt."],
       ["API und Alexa", "API-Tokens erlauben Statusabfragen, Start/Stop von Trackern, Kontingente und andere Webaufrufe."]
     ]
