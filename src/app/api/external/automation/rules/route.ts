@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
     name,
     mode: typeof body.mode === "string" ? body.mode : "ONCE",
     triggerType,
+    triggerJson: body.trigger,
     conditionJson: body.conditions,
     timingJson: body.timing,
     actionJson: body.actions
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
     conditionJson: body.conditions,
     timingJson: body.timing,
     actionJson: body.actions,
-    descriptionText: automationRuleSummary({ triggerType, conditionJson: body.conditions, timingJson: body.timing, actionJson: body.actions }, context)
+    descriptionText: automationRuleSummary({ triggerType, triggerJson: body.trigger, conditionJson: body.conditions, timingJson: body.timing, actionJson: body.actions }, context)
   });
   return NextResponse.json({ ok: true, item: rule }, { status: 201 });
 }

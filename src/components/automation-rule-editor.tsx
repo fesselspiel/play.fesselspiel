@@ -15,6 +15,9 @@ import {
   labelAutomationValue,
   simulateAutomationRuleTimeline,
   timingLabels,
+  triggerCapabilityFilter,
+  triggerNeedsCapability,
+  triggerNeedsDevice,
   triggerOptions,
   type AutomationActionKey,
   type AutomationConditionKey,
@@ -47,6 +50,26 @@ type TrackerOption = {
   color: string;
 };
 
+function stateOptionsForCapability(kind?: CapabilityKind) {
+  if (kind === "Switch") return [
+    ["ON", "Eingeschaltet"],
+    ["OFF", "Ausgeschaltet"],
+    ["ERROR", "Fehler"],
+    ["OFFLINE", "Nicht erreichbar"]
+  ];
+  if (kind === "Voice") return [
+    ["ONLINE", "Verbunden"],
+    ["OFFLINE", "Nicht erreichbar"],
+    ["ERROR", "Fehler"]
+  ];
+  return [
+    ["ONLINE", "Verbunden"],
+    ["OFFLINE", "Nicht erreichbar"],
+    ["BOOTING", "Startet"],
+    ["ERROR", "Fehler"]
+  ];
+}
+
 function parseInitial(value?: string) {
   if (!value) return defaultRuleFormValue();
   try {
@@ -78,10 +101,14 @@ export function AutomationRuleEditor({
   const summary = automationRuleSummary(stored, context);
   const flow = automationRuleFlow(stored, context);
   const simulation = simulateAutomationRuleTimeline({ ...stored, scrubMinute }, context);
+  const triggerCapabilityKind = triggerCapabilityFilter(value.triggerType);
+  const triggerCapabilities = triggerCapabilityKind ? capabilities.filter((capability) => capability.kind === triggerCapabilityKind) : capabilities;
+  const conditionCapability = capabilities.find((capability) => capability.id === value.conditionCapabilityId);
+  const conditionStateOptions = stateOptionsForCapability(conditionCapability?.kind);
 
   useEffect(() => {
-    setValue((current) => normalizeActions(current));
-  }, [capabilities]);
+    setValue((current) => normalizeRuleForm(current));
+  }, [capabilities, devices, trackers]);
 
   function update(next: Partial<RuleFormValue>) {
     setValue((current) => {
@@ -112,7 +139,7 @@ export function AutomationRuleEditor({
         merged.delayMinutes = 0;
       }
       if (merged.maxMinutes < merged.minMinutes) merged.maxMinutes = merged.minMinutes;
-      return normalizeActions(merged);
+      return normalizeRuleForm(merged);
     });
   }
 
@@ -152,6 +179,48 @@ export function AutomationRuleEditor({
       cameraBootDelaySeconds: first.cameraBootDelaySeconds,
       recoveryCapabilityId: first.recoveryCapabilityId
     };
+  }
+
+  function normalizeRuleForm(current: RuleFormValue): RuleFormValue {
+    const next = { ...current };
+    const conditions = conditionOptions[next.triggerType] || ["none"];
+    if (!conditions.includes(next.conditionType)) next.conditionType = conditions[0];
+    const triggerCapKind = triggerCapabilityFilter(next.triggerType);
+    const triggerCaps = triggerCapKind ? capabilities.filter((capability) => capability.kind === triggerCapKind) : capabilities;
+    if (triggerNeedsDevice(next.triggerType)) {
+      if (!devices.some((device) => device.id === next.triggerDeviceId)) next.triggerDeviceId = devices[0]?.id || "";
+    } else {
+      next.triggerDeviceId = "";
+    }
+    if (triggerNeedsCapability(next.triggerType)) {
+      if (!triggerCaps.some((capability) => capability.id === next.triggerCapabilityId)) next.triggerCapabilityId = triggerCaps[0]?.id || "";
+    } else {
+      next.triggerCapabilityId = "";
+    }
+    if (["device_online", "device_offline"].includes(next.conditionType)) {
+      if (!devices.some((device) => device.id === next.conditionDeviceId)) next.conditionDeviceId = devices[0]?.id || "";
+    } else {
+      next.conditionDeviceId = "";
+    }
+    if (next.conditionType === "capability_state") {
+      const currentCapability = capabilities.find((capability) => capability.id === next.conditionCapabilityId);
+      if (!currentCapability) {
+        const first = capabilities[0];
+        next.conditionCapabilityId = first?.id || "";
+        next.conditionExpectedState = first?.state || "ONLINE";
+      } else {
+        const validStates = stateOptionsForCapability(currentCapability.kind).map(([key]) => key);
+        if (!validStates.includes(next.conditionExpectedState)) next.conditionExpectedState = validStates[0] || "ONLINE";
+      }
+    } else {
+      next.conditionCapabilityId = "";
+    }
+    if (next.conditionType === "quota_remaining" && !trackers.some((tracker) => tracker.id === next.conditionTrackerTypeId)) {
+      next.conditionTrackerTypeId = trackers[0]?.id || "";
+    } else if (next.conditionType !== "quota_remaining") {
+      next.conditionTrackerTypeId = "";
+    }
+    return normalizeActions(next);
   }
 
   function updateAction(index: number, patch: Partial<RuleActionFormValue>) {
@@ -196,6 +265,22 @@ export function AutomationRuleEditor({
             {triggerOptions.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
           </select>
           <p className="mt-2 text-xs leading-5 text-graphite">{triggerOptions.find((option) => option.key === value.triggerType)?.description}</p>
+          {triggerNeedsDevice(value.triggerType) ? (
+            <label className="mt-3 block text-sm text-graphite">Auslöser-Gerät
+              <select className={`${inputClass} mt-1`} value={value.triggerDeviceId} onChange={(event) => update({ triggerDeviceId: event.target.value })}>
+                {devices.length ? devices.map((device) => <option key={device.id} value={device.id}>{device.name}</option>) : <option value="">Kein Gerät eingerichtet</option>}
+              </select>
+            </label>
+          ) : null}
+          {triggerNeedsCapability(value.triggerType) ? (
+            <label className="mt-3 block text-sm text-graphite">Auslöser-Fähigkeit
+              <select className={`${inputClass} mt-1`} value={value.triggerCapabilityId} onChange={(event) => update({ triggerCapabilityId: event.target.value })}>
+                {triggerCapabilities.length ? triggerCapabilities.map((capability) => (
+                  <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
+                )) : <option value="">{triggerCapabilityKind === "Camera" ? "Keine Kamera eingerichtet" : "Keine Fähigkeit eingerichtet"}</option>}
+              </select>
+            </label>
+          ) : null}
         </section>
 
         <section className="rounded-lg border border-line bg-paper p-4">
@@ -229,12 +314,7 @@ export function AutomationRuleEditor({
               </label>
               <label>Erwarteter Zustand
                 <select className={`${inputClass} mt-1`} value={value.conditionExpectedState} onChange={(event) => update({ conditionExpectedState: event.target.value })}>
-                  <option value="ONLINE">Verbunden</option>
-                  <option value="OFFLINE">Nicht erreichbar</option>
-                  <option value="BOOTING">Startet</option>
-                  <option value="ERROR">Fehler</option>
-                  <option value="ON">Eingeschaltet</option>
-                  <option value="OFF">Ausgeschaltet</option>
+                  {conditionStateOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
                 </select>
               </label>
             </div>

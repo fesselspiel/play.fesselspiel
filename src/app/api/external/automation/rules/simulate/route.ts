@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
     name: typeof body.name === "string" ? body.name : "Simulation",
     mode: typeof body.mode === "string" ? body.mode : "ONCE",
     triggerType,
+    triggerJson: body.trigger,
     conditionJson: body.conditions,
     timingJson: body.timing,
     actionJson: body.actions

@@ -889,6 +889,15 @@ function triggerMatches(ruleTrigger: string, eventType: string) {
   return false;
 }
 
+function triggerTargetMatches(triggerJson: unknown, event: { deviceId?: string | null; capabilityId?: string | null }) {
+  const trigger = asRecord(triggerJson);
+  const deviceId = clean(trigger.deviceId);
+  const capabilityId = clean(trigger.capabilityId);
+  if (deviceId && deviceId !== event.deviceId) return false;
+  if (capabilityId && capabilityId !== event.capabilityId) return false;
+  return true;
+}
+
 async function conditionIsCurrentlyValid(input: {
   tenantId: string;
   sessionId?: string | null;
@@ -978,7 +987,7 @@ async function processAutomationRulesForEvent(event: {
     where: { tenantId: event.tenantId, active: true },
     include: { versions: { orderBy: { version: "desc" }, take: 1 } }
   });
-  for (const rule of rules.filter((item) => triggerMatches(item.triggerType, event.type))) {
+  for (const rule of rules.filter((item) => triggerMatches(item.triggerType, event.type) && triggerTargetMatches(item.triggerJson, event))) {
     const version = rule.versions[0];
     if (!version) continue;
     const actions = jsonArray(version.actionJson);

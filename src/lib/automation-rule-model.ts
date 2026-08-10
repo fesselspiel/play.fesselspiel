@@ -203,8 +203,23 @@ export const timingLabels: Record<AutomationTimingKey, string> = {
   random_delay: "Zufällige Verzögerung"
 };
 
+export function triggerNeedsDevice(triggerType: AutomationTriggerKey) {
+  return triggerType === "device_state_changed";
+}
+
+export function triggerNeedsCapability(triggerType: AutomationTriggerKey) {
+  return ["image_uploaded", "camera_online", "camera_offline", "capability_event"].includes(triggerType);
+}
+
+export function triggerCapabilityFilter(triggerType: AutomationTriggerKey): CapabilityKind | null {
+  if (["image_uploaded", "camera_online", "camera_offline"].includes(triggerType)) return "Camera";
+  return null;
+}
+
 export type RuleFormValue = {
   triggerType: AutomationTriggerKey;
+  triggerDeviceId: string;
+  triggerCapabilityId: string;
   conditionType: AutomationConditionKey;
   conditionMinutes: number;
   conditionDeviceId: string;
@@ -244,6 +259,8 @@ export function defaultRuleFormValue(): RuleFormValue {
   const action = defaultRuleActionValue();
   return {
     triggerType: "session_started",
+    triggerDeviceId: "",
+    triggerCapabilityId: "",
     conditionType: "none",
     conditionMinutes: 20,
     conditionDeviceId: "",
@@ -278,6 +295,7 @@ function asObject(value: unknown) {
 
 export function ruleFormFromStored(rule?: {
   triggerType?: string | null;
+  triggerJson?: unknown;
   conditionJson?: unknown;
   timingJson?: unknown;
   actionJson?: unknown;
@@ -286,6 +304,9 @@ export function ruleFormFromStored(rule?: {
   const value = defaultRuleFormValue();
   if (!rule) return value;
   if (triggerOptions.some((option) => option.key === rule.triggerType)) value.triggerType = rule.triggerType as AutomationTriggerKey;
+  const trigger = asObject(rule.triggerJson);
+  value.triggerDeviceId = typeof trigger.deviceId === "string" ? trigger.deviceId : "";
+  value.triggerCapabilityId = typeof trigger.capabilityId === "string" ? trigger.capabilityId : "";
   const condition = Array.isArray(rule.conditionJson) ? asObject(rule.conditionJson[0]) : {};
   if (condition.type && conditionLabels[condition.type as AutomationConditionKey]) value.conditionType = condition.type as AutomationConditionKey;
   value.conditionMinutes = numberValue(condition.minutes, value.conditionMinutes);
@@ -326,6 +347,10 @@ export function ruleFormFromStored(rule?: {
 }
 
 export function buildStoredRule(value: RuleFormValue) {
+  const triggerJson = {
+    deviceId: triggerNeedsDevice(value.triggerType) ? value.triggerDeviceId || null : null,
+    capabilityId: triggerNeedsCapability(value.triggerType) ? value.triggerCapabilityId || null : null
+  };
   const conditions = value.conditionType === "none" ? [] : [{
     type: value.conditionType,
     minutes: value.conditionType === "controller_absent" ? value.conditionMinutes : 0,
@@ -361,7 +386,7 @@ export function buildStoredRule(value: RuleFormValue) {
   }));
   return {
     triggerType: value.triggerType,
-    triggerJson: {},
+    triggerJson,
     conditionJson: conditions,
     timingJson: timing,
     actionJson: actions,
@@ -373,6 +398,7 @@ export function validateAutomationRulePayload(input: {
   name?: string | null;
   mode?: string | null;
   triggerType?: string | null;
+  triggerJson?: unknown;
   conditionJson?: unknown;
   timingJson?: unknown;
   actionJson?: unknown;
@@ -385,6 +411,20 @@ export function validateAutomationRulePayload(input: {
   }
   if (input.mode && !["ONCE", "REPEAT"].includes(input.mode)) {
     errors.push("Bitte wähle eine gültige Ausführung.");
+  }
+  const triggerJson = asObject(input.triggerJson);
+  if (triggerNeedsDevice(trigger)) {
+    const deviceId = typeof triggerJson.deviceId === "string" ? triggerJson.deviceId : "";
+    if (!deviceId) errors.push("Bitte wähle das Gerät, auf dessen Ereignis die Regel reagieren soll.");
+    if (deviceId && !devices.some((device) => device.id === deviceId)) errors.push("Das gewählte Auslöser-Gerät ist auf dieser Seite nicht verfügbar.");
+  }
+  if (triggerNeedsCapability(trigger)) {
+    const capabilityId = typeof triggerJson.capabilityId === "string" ? triggerJson.capabilityId : "";
+    const capability = capabilityId ? capabilities.find((item) => item.id === capabilityId) : null;
+    const requiredKind = triggerCapabilityFilter(trigger);
+    if (!capabilityId) errors.push("Bitte wähle die Fähigkeit, auf deren Ereignis die Regel reagieren soll.");
+    if (capabilityId && !capability) errors.push("Die gewählte Auslöser-Fähigkeit ist auf dieser Seite nicht verfügbar.");
+    if (capability && requiredKind && capability.kind !== requiredKind) errors.push("Für diesen Auslöser muss eine Kamera-Fähigkeit gewählt werden.");
   }
 
   const conditions = Array.isArray(input.conditionJson) ? input.conditionJson : [];
@@ -471,11 +511,12 @@ export function validateAutomationRulePayload(input: {
 
 export function automationRuleSummary(input: {
   triggerType: string;
+  triggerJson?: unknown;
   conditionJson?: unknown;
   timingJson?: unknown;
   actionJson?: unknown;
 }, context: { capabilities?: AutomationCapabilityReference[]; devices?: AutomationDeviceReference[]; trackers?: AutomationTrackerReference[] } = {}) {
-  const trigger = triggerOptions.find((option) => option.key === input.triggerType)?.label || "Ein Ereignis tritt ein";
+  const trigger = describeTrigger(input.triggerType, input.triggerJson, context);
   const condition = Array.isArray(input.conditionJson) ? asObject(input.conditionJson[0]) : {};
   const timing = asObject(input.timingJson);
   const actions = Array.isArray(input.actionJson) ? input.actionJson.map((item) => asObject(item)) : [];
@@ -493,12 +534,12 @@ export function automationRuleSummary(input: {
   return `Wenn ${trigger.toLowerCase()}, ${timingText} und ${actionText}.${recoveryText}`;
 }
 
-export function automationRuleFlow(input: { triggerType: string; conditionJson?: unknown; timingJson?: unknown; actionJson?: unknown }, context: { capabilities?: AutomationCapabilityReference[]; devices?: AutomationDeviceReference[]; trackers?: AutomationTrackerReference[] } = {}) {
+export function automationRuleFlow(input: { triggerType: string; triggerJson?: unknown; conditionJson?: unknown; timingJson?: unknown; actionJson?: unknown }, context: { capabilities?: AutomationCapabilityReference[]; devices?: AutomationDeviceReference[]; trackers?: AutomationTrackerReference[] } = {}) {
   const condition = Array.isArray(input.conditionJson) ? asObject(input.conditionJson[0]) : {};
   const timing = asObject(input.timingJson);
   const actions = Array.isArray(input.actionJson) ? input.actionJson.map((item) => asObject(item)) : [];
   const steps = [
-    triggerOptions.find((option) => option.key === input.triggerType)?.label || "Ereignis tritt ein"
+    describeTrigger(input.triggerType, input.triggerJson, context)
   ];
   if (condition.type && condition.type !== "none") {
     steps.push(describeCondition(condition, context));
@@ -683,6 +724,20 @@ function evaluateSimulationCondition(condition: Record<string, unknown>, context
     };
   }
   return { passed: false, canBecomeTrue: false, result: "Bedingung kann in dieser Simulation nicht ausgewertet werden" };
+}
+
+function describeTrigger(triggerType: string, triggerJson?: unknown, context: { capabilities?: AutomationCapabilityReference[]; devices?: AutomationDeviceReference[]; trackers?: AutomationTrackerReference[] } = {}) {
+  const base = triggerOptions.find((option) => option.key === triggerType)?.label || "Ein Ereignis tritt ein";
+  const trigger = asObject(triggerJson);
+  if (triggerNeedsDevice(triggerType as AutomationTriggerKey)) {
+    const device = nameById(context.devices, trigger.deviceId, "das gewählte Gerät", (item) => item.name);
+    return `${base}: ${device}`;
+  }
+  if (triggerNeedsCapability(triggerType as AutomationTriggerKey)) {
+    const capability = nameById(context.capabilities, trigger.capabilityId, "die gewählte Fähigkeit", (item) => `${item.deviceName || "Gerät"} · ${item.title || "Fähigkeit"}`);
+    return `${base}: ${capability}`;
+  }
+  return base;
 }
 
 function describeActions(actions: Record<string, unknown>[]) {
