@@ -159,6 +159,9 @@ export default async function AutomationPage() {
                     {session.title} · {labelAutomationValue("states", session.state)}
                   </summary>
                   <div className="mt-3 space-y-3 text-sm text-graphite">
+                    <Link href={`/automation/sessions/${session.id}`} className="inline-flex min-h-10 items-center rounded-md bg-redbrand px-3 py-2 text-sm font-semibold text-white shadow-soft hover:bg-redbrand/90">
+                      Detail öffnen
+                    </Link>
                     <div className="grid gap-2 sm:grid-cols-2">
                       <div className="rounded-md border border-line bg-surface p-3">
                         <div className="text-xs uppercase tracking-wide text-graphite">Aktueller Zustand</div>
@@ -282,11 +285,16 @@ export default async function AutomationPage() {
                   <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">
                     {session.title} · {labelAutomationValue("states", session.state)}
                   </summary>
-                  <div className="mt-3 grid gap-2 text-sm text-graphite sm:grid-cols-2">
-                    <div>Tracker: <span className="font-semibold text-ink">{session.trackerType?.title || "Kein Tracker"}</span></div>
-                    <div>Start: <span className="font-semibold text-ink">{formatDateTime(session.startedAt)}</span></div>
-                    <div>Ende: <span className="font-semibold text-ink">{formatDateTime(session.finishedAt || session.cancelledAt)}</span></div>
-                    <div>Dauer: <span className="font-semibold text-ink">{session.startedAt && (session.finishedAt || session.cancelledAt) ? `${minutesBetween(session.startedAt, session.finishedAt || session.cancelledAt)} Minuten` : "Nicht berechnet"}</span></div>
+                  <div className="mt-3 space-y-3">
+                    <Link href={`/automation/sessions/${session.id}`} className="inline-flex min-h-10 items-center rounded-md bg-redbrand px-3 py-2 text-sm font-semibold text-white shadow-soft hover:bg-redbrand/90">
+                      Detail öffnen
+                    </Link>
+                    <div className="grid gap-2 text-sm text-graphite sm:grid-cols-2">
+                      <div>Tracker: <span className="font-semibold text-ink">{session.trackerType?.title || "Kein Tracker"}</span></div>
+                      <div>Start: <span className="font-semibold text-ink">{formatDateTime(session.startedAt)}</span></div>
+                      <div>Ende: <span className="font-semibold text-ink">{formatDateTime(session.finishedAt || session.cancelledAt)}</span></div>
+                      <div>Dauer: <span className="font-semibold text-ink">{session.startedAt && (session.finishedAt || session.cancelledAt) ? `${minutesBetween(session.startedAt, session.finishedAt || session.cancelledAt)} Minuten` : "Nicht berechnet"}</span></div>
+                    </div>
                   </div>
                   <details className="mt-3 rounded-md border border-line bg-surface p-3">
                     <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Ereignisse anzeigen</summary>
