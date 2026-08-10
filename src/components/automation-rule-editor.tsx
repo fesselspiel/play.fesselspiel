@@ -410,7 +410,7 @@ export function AutomationRuleEditor({
                   {action.actionType === "voice_speak" ? (
                     <textarea className={`${inputClass} mt-2`} value={action.voiceText} onChange={(event) => updateAction(index, { voiceText: event.target.value })} rows={2} placeholder="Text, den ioBroker sprechen soll" />
                   ) : null}
-                  {action.actionType === "camera_request_image" ? (
+                  {action.actionType === "camera_request_image" || action.actionType === "camera_health_check" ? (
                     <div className="mt-3 space-y-2 text-sm text-graphite">
                       <div className="grid grid-cols-2 gap-2">
                         <label>Timeout
@@ -419,24 +419,34 @@ export function AutomationRuleEditor({
                             <span>Sek.</span>
                           </div>
                         </label>
-                        <label>Wiederholungen
-                          <input className={`${inputClass} mt-1`} type="number" min={0} max={10} value={action.cameraMaxRetries} onChange={(event) => updateAction(index, { cameraMaxRetries: Number(event.target.value) })} />
-                        </label>
+                        {action.actionType === "camera_request_image" ? (
+                          <label>Wiederholungen
+                            <input className={`${inputClass} mt-1`} type="number" min={0} max={10} value={action.cameraMaxRetries} onChange={(event) => updateAction(index, { cameraMaxRetries: Number(event.target.value) })} />
+                          </label>
+                        ) : null}
                       </div>
-                      <label>Boot-Wartezeit
-                        <div className="mt-1 flex items-center gap-2">
-                          <input className={inputClass} type="number" min={0} value={action.cameraBootDelaySeconds} onChange={(event) => updateAction(index, { cameraBootDelaySeconds: Number(event.target.value) })} />
-                          <span>Sek.</span>
-                        </div>
-                      </label>
-                      <label>Neustart-Schalter
-                        <select className={`${inputClass} mt-1`} value={action.recoveryCapabilityId} onChange={(event) => updateAction(index, { recoveryCapabilityId: event.target.value })}>
-                          <option value="">Kein automatischer Neustart</option>
-                          {recoveryCapabilities.map((capability) => (
-                            <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
-                          ))}
-                        </select>
-                      </label>
+                      {action.actionType === "camera_request_image" ? (
+                        <>
+                          <label>Boot-Wartezeit
+                            <div className="mt-1 flex items-center gap-2">
+                              <input className={inputClass} type="number" min={0} value={action.cameraBootDelaySeconds} onChange={(event) => updateAction(index, { cameraBootDelaySeconds: Number(event.target.value) })} />
+                              <span>Sek.</span>
+                            </div>
+                          </label>
+                          <label>Neustart-Schalter
+                            <select className={`${inputClass} mt-1`} value={action.recoveryCapabilityId} onChange={(event) => updateAction(index, { recoveryCapabilityId: event.target.value })}>
+                              <option value="">Kein automatischer Neustart</option>
+                              {recoveryCapabilities.map((capability) => (
+                                <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
+                              ))}
+                            </select>
+                          </label>
+                        </>
+                      ) : (
+                        <p className="rounded-md border border-line bg-paper p-2 text-xs leading-5">
+                          Die Bridge prüft nur die Verbindung und meldet den Kamerazustand zurück. Es wird kein Bild gespeichert.
+                        </p>
+                      )}
                     </div>
                   ) : null}
                 </div>

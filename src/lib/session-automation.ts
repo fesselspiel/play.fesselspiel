@@ -63,6 +63,7 @@ function firstArrayRecord(value: unknown): Record<string, unknown> {
 function humanActionTitle(type: string) {
   const labels: Record<string, string> = {
     camera_request_image: "Bild anfordern",
+    camera_health_check: "Verbindung prüfen",
     switch_on: "Einschalten",
     switch_off: "Ausschalten",
     switch_toggle: "Umschalten",

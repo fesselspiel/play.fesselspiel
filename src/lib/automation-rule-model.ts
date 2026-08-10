@@ -21,7 +21,7 @@ export type AutomationConditionKey =
   | "quota_remaining";
 
 export type AutomationTimingKey = "immediate" | "fixed_delay" | "random_delay";
-export type AutomationActionKey = "camera_request_image" | "switch_on" | "switch_off" | "switch_toggle" | "voice_speak" | "session_finish";
+export type AutomationActionKey = "camera_request_image" | "camera_health_check" | "switch_on" | "switch_off" | "switch_toggle" | "voice_speak" | "session_finish";
 export type CapabilityKind = "Camera" | "Switch" | "Voice";
 
 export type RuleActionFormValue = {
@@ -202,13 +202,14 @@ export const conditionLabels: Record<AutomationConditionKey, string> = {
 };
 
 export const actionOptionsByCapability: Record<CapabilityKind, AutomationActionKey[]> = {
-  Camera: ["camera_request_image"],
+  Camera: ["camera_request_image", "camera_health_check"],
   Switch: ["switch_on", "switch_off", "switch_toggle"],
   Voice: ["voice_speak"]
 };
 
 export const actionLabels: Record<AutomationActionKey, string> = {
   camera_request_image: "Bild anfordern",
+  camera_health_check: "Verbindung prüfen",
   switch_on: "Einschalten",
   switch_off: "Ausschalten",
   switch_toggle: "Umschalten",
@@ -399,7 +400,7 @@ export function buildStoredRule(value: RuleFormValue) {
     capabilityKind: action.capabilityKind || null,
     text: action.actionType === "voice_speak" ? action.voiceText : null,
     maxRetries: action.actionType === "camera_request_image" ? action.cameraMaxRetries : null,
-    timeoutSeconds: action.actionType === "camera_request_image" ? action.cameraTimeoutSeconds : null,
+    timeoutSeconds: ["camera_request_image", "camera_health_check"].includes(action.actionType) ? action.cameraTimeoutSeconds : null,
     bootDelaySeconds: action.actionType === "camera_request_image" ? action.cameraBootDelaySeconds : null,
     recoveryCapabilityId: action.actionType === "camera_request_image" ? action.recoveryCapabilityId || null : null
   }));
@@ -514,9 +515,12 @@ export function validateAutomationRulePayload(input: {
     if (actionType === "voice_speak" && typeof action.text === "string" && !action.text.trim()) {
       errors.push(`${prefix}Für Sprachausgabe braucht die Aktion einen Text.`);
     }
+    if (actionType === "camera_request_image" || actionType === "camera_health_check") {
+      if (capability && capability.kind !== "Camera") errors.push(`${prefix}Für diese Kamera-Aktion muss eine Kamera-Fähigkeit gewählt werden.`);
+      if (numberValue(action.timeoutSeconds, 0) < 1) errors.push(`${prefix}Der Kamera-Timeout muss mindestens eine Sekunde betragen.`);
+    }
     if (actionType === "camera_request_image") {
       if (numberValue(action.maxRetries, 0) < 0) errors.push(`${prefix}Die Anzahl der Wiederholungen darf nicht negativ sein.`);
-      if (numberValue(action.timeoutSeconds, 0) < 1) errors.push(`${prefix}Der Kamera-Timeout muss mindestens eine Sekunde betragen.`);
       if (numberValue(action.bootDelaySeconds, 0) < 0) errors.push(`${prefix}Die Boot-Wartezeit darf nicht negativ sein.`);
       const recoveryCapabilityId = typeof action.recoveryCapabilityId === "string" ? action.recoveryCapabilityId : "";
       const recoveryCapability = recoveryCapabilityId ? capabilities.find((item) => item.id === recoveryCapabilityId) : null;
@@ -576,6 +580,8 @@ export function automationRuleFlow(input: { triggerType: string; triggerJson?: u
         if (action.recoveryCapabilityId) steps.push("Bei Fehler: Kamera-Strom neu schalten");
         steps.push(`Bei Fehler: bis zu ${numberValue(action.maxRetries, 0)} Wiederholung(en)`);
       }
+    } else if (action.type === "camera_health_check") {
+      steps.push(numberValue(action.timeoutSeconds, 20) ? `Verbindung höchstens ${numberValue(action.timeoutSeconds, 20)} Sekunden prüfen` : "Kameraverbindung prüfen");
     }
   });
   return steps;
@@ -717,7 +723,7 @@ export function simulateAutomationRuleTimeline(input: {
       simulationOverrides: context.simulationOverrides || {},
       actions: actions.map((action) => ({
         type: action.type,
-        timeoutSeconds: action.type === "camera_request_image" ? numberValue(action.timeoutSeconds, 20) : null,
+        timeoutSeconds: ["camera_request_image", "camera_health_check"].includes(String(action.type)) ? numberValue(action.timeoutSeconds, 20) : null,
         maxRetries: action.type === "camera_request_image" ? numberValue(action.maxRetries, 0) : null,
         bootDelaySeconds: action.type === "camera_request_image" ? numberValue(action.bootDelaySeconds, 20) : null
       })),
@@ -756,6 +762,7 @@ function explainSimulationState(input: { scrubMinute: number; conditionType?: st
   }
   if (input.actionCount && input.actionCount > 1) return `Alle ${input.actionCount} Aktionen sind fällig. Die Simulation führt weiterhin nichts echt aus.`;
   if (input.actionType === "camera_request_image") return "Die Bildanforderung ist fällig. In der echten Ausführung würde jetzt ein geschützter Bildrequest erzeugt und an die Bridge übergeben.";
+  if (input.actionType === "camera_health_check") return "Die Verbindungsprüfung ist fällig. In der echten Ausführung würde die Bridge die Kamera prüfen und den Zustand zurückmelden.";
   if (input.actionType === "session_finish") return "Die Session-Ende-Aktion ist fällig. In der echten Ausführung würde der Zustand entsprechend gesetzt.";
   return "Die Aktion ist fällig. Die Simulation führt weiterhin nichts echt aus.";
 }

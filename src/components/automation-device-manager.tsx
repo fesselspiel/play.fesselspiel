@@ -10,7 +10,7 @@ const capabilityPresets: Record<CapabilityKind, { label: string; icon: JSX.Eleme
   Camera: {
     label: "Kamera",
     icon: <Camera className="h-4 w-4" />,
-    actions: "request_image, health_check",
+    actions: "camera_request_image, camera_health_check",
     events: "image_uploaded, camera_offline, camera_online",
     conditions: "is_online, last_image_younger_than",
     visibleActions: ["Bild anfordern", "Verbindung prüfen"],

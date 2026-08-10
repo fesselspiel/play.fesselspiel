@@ -274,6 +274,20 @@ test("Kamera-spezifische Auslöser begrenzen Fähigkeitsbedingungen auf Kameras"
   assert.match(model, /Die gewählte Fähigkeitsbedingung passt nicht zum Auslöser/);
 });
 
+test("Kamera-Fähigkeiten bieten Bildanforderung und Verbindungsprüfung ohne JSON-Konfiguration", () => {
+  const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
+  const devices = readFileSync("src/components/automation-device-manager.tsx", "utf8");
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
+  assert.match(model, /Camera:\s*\["camera_request_image",\s*"camera_health_check"\]/);
+  assert.match(model, /camera_health_check:\s*"Verbindung prüfen"/);
+  assert.match(model, /Die Verbindungsprüfung ist fällig/);
+  assert.match(editor, /action\.actionType === "camera_request_image" \|\| action\.actionType === "camera_health_check"/);
+  assert.match(editor, /Es wird kein Bild gespeichert/);
+  assert.match(devices, /camera_request_image, camera_health_check/);
+  assert.match(service, /camera_health_check:\s*"Verbindung prüfen"/);
+});
+
 test("Normale Automation-Oberflächen verwenden deutsche Fachsprache", () => {
   const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
   const devices = readFileSync("src/components/automation-device-manager.tsx", "utf8");
