@@ -475,6 +475,7 @@ export function AutomationRuleEditor({
           <SimBox title="Vorgemerktes Ende" items={simulation.pendingEnd.map((item) => `${item.state}: ${item.text}`)} />
           <SimBox title="Recovery bei Fehler" items={simulation.recoveryActions.map((item) => `${item.minute} min · ${item.title}`)} />
           <SimBox title="Zufallswerte" items={simulation.randomValues.map((item) => `${item.label}: ${item.value}`)} />
+          <SimBox title="Variablen" items={simulation.humanVariables} />
         </div>
         <details className="mt-3 rounded-md border border-line bg-surface p-3">
           <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische Simulationsvariablen</summary>

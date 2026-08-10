@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
   if (!validation.ok) return NextResponse.json({ ok: false, error: "validation_failed", messages: validation.errors }, { status: 422 });
   const result = simulateAutomationRule({
     triggerType,
+    triggerJson: body.trigger,
     conditionJson: body.conditions,
     timingJson: body.timing,
     actionJson: body.actions,

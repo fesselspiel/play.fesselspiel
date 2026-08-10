@@ -561,6 +561,7 @@ export function automationRuleFlow(input: { triggerType: string; triggerJson?: u
 
 export function simulateAutomationRuleTimeline(input: {
   triggerType: string;
+  triggerJson?: unknown;
   conditionJson?: unknown;
   timingJson?: unknown;
   actionJson?: unknown;
@@ -582,7 +583,8 @@ export function simulateAutomationRuleTimeline(input: {
   const dueMinute = conditionEvaluation.canBecomeTrue ? conditionMinutes + delay : null;
   const scrubLimit = Math.max(1, (dueMinute ?? Math.max(conditionMinutes, delay)) + 5);
   const scrubMinute = Math.min(Math.max(0, input.scrubMinute ?? 0), scrubLimit);
-  const events = [{ minute: 0, title: triggerOptions.find((option) => option.key === input.triggerType)?.label || "Trigger" }];
+  const ruleTitle = describeTrigger(input.triggerType, input.triggerJson, context);
+  const events = [{ minute: 0, title: ruleTitle }];
   const conditions = condition.type && condition.type !== "none"
     ? [{
         minute: conditionMinutes,
@@ -599,7 +601,6 @@ export function simulateAutomationRuleTimeline(input: {
     minute: dueMinute ?? conditionMinutes,
     title: actions.length > 1 ? `Aktion ${index + 1}: ${actionLabels[action.type as AutomationActionKey] || "Aktion"}` : actionLabels[action.type as AutomationActionKey] || "Aktion"
   }));
-  const ruleTitle = triggerOptions.find((option) => option.key === input.triggerType)?.label || "Regel";
   const hasSessionFinish = actions.some((action) => action.type === "session_finish") && conditionEvaluation.canBecomeTrue && dueMinute !== null;
   const pendingEnd = hasSessionFinish && dueMinute > 0
     ? [{
@@ -639,6 +640,16 @@ export function simulateAutomationRuleTimeline(input: {
     pendingEnd,
     recoveryActions,
     randomValues: timing.type === "random_delay" ? [{ label: "Gewählte Zufallswartezeit", value: `${delay} Minuten` }] : [],
+    humanVariables: [
+      `Auslöser: ${ruleTitle}`,
+      ...(condition.type && condition.type !== "none" ? [`Bedingung: ${describeCondition(condition, context)}`] : ["Bedingung: keine zusätzliche Bedingung"]),
+      `Bedingung aktuell: ${conditionEvaluation.passed ? "erfüllt" : "nicht erfüllt"}`,
+      ...(conditionType === "controller_absent" ? [`Abwesenheitsfenster: ${conditionMinutes} Minuten`] : []),
+      ...(timing.type === "fixed_delay" ? [`Feste Wartezeit: ${delay} Minuten`] : []),
+      ...(timing.type === "random_delay" ? [`Zufallsfenster: ${numberValue(timing.minMinutes, 0)} bis ${numberValue(timing.maxMinutes, 0)} Minuten`, `Gezogener Wert: ${delay} Minuten`] : []),
+      `Fälligkeit: ${dueMinute === null ? "keine Fälligkeit, weil die Bedingung blockiert" : `Minute ${dueMinute}`}`,
+      `Side Effects: keine echten Aktionen in der Simulation`
+    ],
     timeline: [
       { minute: 0, title: "Auslöser eingetreten", status: scrubMinute >= 0 ? "erledigt" : "wartet" },
       ...(condition.type && condition.type !== "none" ? [{ minute: conditionMinutes, title: describeCondition(condition, context), status: conditionEvaluation.passed && scrubMinute >= conditionMinutes ? "erfüllt" : scrubMinute >= conditionMinutes ? "blockiert" : "wartet" }] : []),

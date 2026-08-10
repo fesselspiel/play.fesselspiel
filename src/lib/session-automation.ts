@@ -1217,6 +1217,7 @@ export async function createAutomationRule(input: {
 
 export function simulateAutomationRule(input: {
   triggerType: string;
+  triggerJson?: unknown;
   conditionJson?: unknown;
   timingJson?: unknown;
   actionJson?: unknown;
