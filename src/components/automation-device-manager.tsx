@@ -99,6 +99,129 @@ function parametersFor(capability: CapabilityDraft) {
   };
 }
 
+function capabilityKeyFor(capability: CapabilityDraft, index = 0) {
+  return `${capability.kind.toLowerCase()}-${slug(capability.title)}-${slug(capability.id)}-${index + 1}`;
+}
+
+function CapabilityHiddenFields({ capability, index = 0 }: { capability: CapabilityDraft; index?: number }) {
+  const preset = capabilityPresets[capability.kind];
+  return (
+    <div>
+      <input type="hidden" name="capabilityKey" value={capabilityKeyFor(capability, index)} />
+      <input type="hidden" name="capabilityKind" value={capability.kind} />
+      <input type="hidden" name="capabilityTitle" value={capability.title} />
+      <input type="hidden" name="capabilityState" value="UNKNOWN" />
+      <input type="hidden" name="actionsList" value={preset.actions} />
+      <input type="hidden" name="eventsList" value={preset.events} />
+      <input type="hidden" name="conditionsList" value={preset.conditions} />
+      <input type="hidden" name="parametersJson" value={JSON.stringify(parametersFor(capability))} />
+    </div>
+  );
+}
+
+function CapabilityFields({
+  capability,
+  onChange,
+  onRemove,
+  canRemove = true
+}: {
+  capability: CapabilityDraft;
+  onChange: (next: Partial<CapabilityDraft>) => void;
+  onRemove?: () => void;
+  canRemove?: boolean;
+}) {
+  const preset = capabilityPresets[capability.kind];
+  return (
+    <div className="rounded-md border border-line bg-surface p-3 text-sm text-graphite">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 font-semibold text-ink">{preset.icon}{preset.label}</div>
+          <p className="mt-1 text-xs">Diese Fähigkeit stellt passende Aktionen, Ereignisse und Bedingungen im Rule-Editor bereit.</p>
+        </div>
+        {onRemove ? (
+          <button type="button" onClick={onRemove} disabled={!canRemove} className="inline-flex min-h-9 items-center rounded-md border border-line bg-paper px-3 py-1 text-xs font-semibold text-graphite disabled:opacity-40">
+            <Trash2 className="mr-1 h-3 w-3" /> Entfernen
+          </button>
+        ) : null}
+      </div>
+      <label className="mt-3 block font-medium">Name der Fähigkeit
+        <input className={`${inputClass} mt-1`} required value={capability.title} onChange={(event) => onChange({ title: event.target.value })} />
+      </label>
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        <label className="block font-medium">ioBroker-/MQTT-Datenpunkt
+          <input className={`${inputClass} mt-1`} value={capability.dataPoint} onChange={(event) => onChange({ dataPoint: event.target.value })} placeholder="z.B. alias.0.schlafzimmer.kamera" />
+        </label>
+        {capability.kind === "Camera" ? (
+          <label className="block font-medium">Maximales Bildalter
+            <div className="mt-1 flex items-center gap-2">
+              <input className={inputClass} type="number" min={1} value={capability.maxAgeSeconds} onChange={(event) => onChange({ maxAgeSeconds: Number(event.target.value) })} />
+              <span>Sek.</span>
+            </div>
+          </label>
+        ) : null}
+        {capability.kind === "Camera" ? (
+          <label className="block font-medium">Timeout
+            <div className="mt-1 flex items-center gap-2">
+              <input className={inputClass} type="number" min={1} value={capability.timeoutSeconds} onChange={(event) => onChange({ timeoutSeconds: Number(event.target.value) })} />
+              <span>Sek.</span>
+            </div>
+          </label>
+        ) : null}
+        {capability.kind === "Camera" ? (
+          <label className="block font-medium">Boot-Wartezeit
+            <div className="mt-1 flex items-center gap-2">
+              <input className={inputClass} type="number" min={0} value={capability.bootDelaySeconds} onChange={(event) => onChange({ bootDelaySeconds: Number(event.target.value) })} />
+              <span>Sek.</span>
+            </div>
+          </label>
+        ) : null}
+        {capability.kind === "Switch" ? (
+          <label className="block font-medium">Wert für ein
+            <input className={`${inputClass} mt-1`} value={capability.onValue} onChange={(event) => onChange({ onValue: event.target.value })} />
+          </label>
+        ) : null}
+        {capability.kind === "Switch" ? (
+          <label className="block font-medium">Wert für aus
+            <input className={`${inputClass} mt-1`} value={capability.offValue} onChange={(event) => onChange({ offValue: event.target.value })} />
+          </label>
+        ) : null}
+        {capability.kind === "Voice" ? (
+          <label className="block font-medium">Optionaler Ansage-Präfix
+            <input className={`${inputClass} mt-1`} value={capability.voicePrefix} onChange={(event) => onChange({ voicePrefix: event.target.value })} placeholder="z.B. Playplaner sagt:" />
+          </label>
+        ) : null}
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        <div><span className="font-semibold text-ink">Aktionen:</span> {preset.visibleActions.join(", ")}</div>
+        <div><span className="font-semibold text-ink">Ereignisse:</span> {preset.visibleEvents.join(", ")}</div>
+        <div><span className="font-semibold text-ink">Bedingungen:</span> {preset.visibleConditions.join(", ")}</div>
+      </div>
+    </div>
+  );
+}
+
+export function AutomationCapabilityManager() {
+  const [kind, setKind] = useState<CapabilityKind>("Camera");
+  const [capability, setCapability] = useState<CapabilityDraft>(() => defaultCapability("Camera", `cap-${Date.now()}`));
+
+  function changeKind(nextKind: CapabilityKind) {
+    setKind(nextKind);
+    setCapability((current) => ({ ...defaultCapability(nextKind, current.id), dataPoint: current.dataPoint }));
+  }
+
+  return (
+    <div className="space-y-3">
+      <label className="block text-sm font-medium text-graphite">Art der Fähigkeit
+        <select className={`${inputClass} mt-1`} value={kind} onChange={(event) => changeKind(event.target.value as CapabilityKind)}>
+          {(Object.keys(capabilityPresets) as CapabilityKind[]).map((item) => <option key={item} value={item}>{capabilityPresets[item].label}</option>)}
+        </select>
+      </label>
+      <CapabilityHiddenFields capability={capability} />
+      <CapabilityFields capability={capability} onChange={(next) => setCapability((current) => ({ ...current, ...next }))} />
+    </div>
+  );
+}
+
 export function AutomationDeviceManager() {
   const [name, setName] = useState("");
   const [integration, setIntegration] = useState("IOBROKER");
@@ -123,18 +246,9 @@ export function AutomationDeviceManager() {
       <input type="hidden" name="integration" value={integration} />
       <input type="hidden" name="health" value="UNKNOWN" />
       {capabilities.map((capability, index) => {
-        const preset = capabilityPresets[capability.kind];
-        const key = `${capability.kind.toLowerCase()}-${slug(capability.title)}-${index + 1}`;
         return (
           <div key={`${capability.id}-hidden`}>
-            <input type="hidden" name="capabilityKey" value={key} />
-            <input type="hidden" name="capabilityKind" value={capability.kind} />
-            <input type="hidden" name="capabilityTitle" value={capability.title} />
-            <input type="hidden" name="capabilityState" value="UNKNOWN" />
-            <input type="hidden" name="actionsList" value={preset.actions} />
-            <input type="hidden" name="eventsList" value={preset.events} />
-            <input type="hidden" name="conditionsList" value={preset.conditions} />
-            <input type="hidden" name="parametersJson" value={JSON.stringify(parametersFor(capability))} />
+            <CapabilityHiddenFields capability={capability} index={index} />
           </div>
         );
       })}
@@ -158,71 +272,15 @@ export function AutomationDeviceManager() {
       </div>
       <div className="space-y-2">
         {capabilities.map((capability, index) => {
-          const preset = capabilityPresets[capability.kind];
-          const capabilityKey = `${capability.kind.toLowerCase()}-${slug(capability.title)}-${index + 1}`;
+          const capabilityKey = capabilityKeyFor(capability, index);
           return (
-            <div key={capability.id} className="rounded-md border border-line bg-surface p-3 text-sm text-graphite">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2 font-semibold text-ink">{preset.icon}{preset.label}</div>
-                  <p className="mt-1 text-xs">Diese Fähigkeit stellt passende Aktionen, Ereignisse und Bedingungen im Rule-Editor bereit.</p>
-                </div>
-                <button type="button" onClick={() => removeCapability(capability.id)} disabled={capabilities.length <= 1} className="inline-flex min-h-9 items-center rounded-md border border-line bg-paper px-3 py-1 text-xs font-semibold text-graphite disabled:opacity-40">
-                  <Trash2 className="mr-1 h-3 w-3" /> Entfernen
-                </button>
-              </div>
-              <label className="mt-3 block font-medium">Name der Fähigkeit
-                <input className={`${inputClass} mt-1`} required value={capability.title} onChange={(event) => updateCapability(capability.id, { title: event.target.value })} />
-              </label>
-              <div className="mt-3 grid gap-2 md:grid-cols-2">
-                <label className="block font-medium">ioBroker-/MQTT-Datenpunkt
-                  <input className={`${inputClass} mt-1`} value={capability.dataPoint} onChange={(event) => updateCapability(capability.id, { dataPoint: event.target.value })} placeholder="z.B. alias.0.schlafzimmer.kamera" />
-                </label>
-                {capability.kind === "Camera" ? (
-                  <label className="block font-medium">Maximales Bildalter
-                    <div className="mt-1 flex items-center gap-2">
-                      <input className={inputClass} type="number" min={1} value={capability.maxAgeSeconds} onChange={(event) => updateCapability(capability.id, { maxAgeSeconds: Number(event.target.value) })} />
-                      <span>Sek.</span>
-                    </div>
-                  </label>
-                ) : null}
-                {capability.kind === "Camera" ? (
-                  <label className="block font-medium">Timeout
-                    <div className="mt-1 flex items-center gap-2">
-                      <input className={inputClass} type="number" min={1} value={capability.timeoutSeconds} onChange={(event) => updateCapability(capability.id, { timeoutSeconds: Number(event.target.value) })} />
-                      <span>Sek.</span>
-                    </div>
-                  </label>
-                ) : null}
-                {capability.kind === "Camera" ? (
-                  <label className="block font-medium">Boot-Wartezeit
-                    <div className="mt-1 flex items-center gap-2">
-                      <input className={inputClass} type="number" min={0} value={capability.bootDelaySeconds} onChange={(event) => updateCapability(capability.id, { bootDelaySeconds: Number(event.target.value) })} />
-                      <span>Sek.</span>
-                    </div>
-                  </label>
-                ) : null}
-                {capability.kind === "Switch" ? (
-                  <label className="block font-medium">Wert für ein
-                    <input className={`${inputClass} mt-1`} value={capability.onValue} onChange={(event) => updateCapability(capability.id, { onValue: event.target.value })} />
-                  </label>
-                ) : null}
-                {capability.kind === "Switch" ? (
-                  <label className="block font-medium">Wert für aus
-                    <input className={`${inputClass} mt-1`} value={capability.offValue} onChange={(event) => updateCapability(capability.id, { offValue: event.target.value })} />
-                  </label>
-                ) : null}
-                {capability.kind === "Voice" ? (
-                  <label className="block font-medium">Optionaler Ansage-Präfix
-                    <input className={`${inputClass} mt-1`} value={capability.voicePrefix} onChange={(event) => updateCapability(capability.id, { voicePrefix: event.target.value })} placeholder="z.B. Playplaner sagt:" />
-                  </label>
-                ) : null}
-              </div>
-              <div className="mt-3 grid gap-2 md:grid-cols-3">
-                <div><span className="font-semibold text-ink">Aktionen:</span> {preset.visibleActions.join(", ")}</div>
-                <div><span className="font-semibold text-ink">Ereignisse:</span> {preset.visibleEvents.join(", ")}</div>
-                <div><span className="font-semibold text-ink">Bedingungen:</span> {preset.visibleConditions.join(", ")}</div>
-              </div>
+            <div key={capability.id}>
+              <CapabilityFields
+                capability={capability}
+                onChange={(next) => updateCapability(capability.id, next)}
+                onRemove={() => removeCapability(capability.id)}
+                canRemove={capabilities.length > 1}
+              />
               <details className="mt-2">
                 <summary className="cursor-pointer font-semibold text-ink">Technische Details</summary>
                 <div className="mt-1">Logische ID: <code>{logicalId}</code></div>

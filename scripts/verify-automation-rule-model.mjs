@@ -175,3 +175,11 @@ test("Externe Automation-Simulation kann Controller-Gegenereignisse simulieren",
   assert.match(route, /controllerActionMinute/);
   assert.match(service, /controllerActionMinute\?: number \| null/);
 });
+
+test("Bestehende Automation-Geräte können geführte Fähigkeiten erhalten", () => {
+  const component = readFileSync("src/components/automation-device-manager.tsx", "utf8");
+  const page = readFileSync("src/app/settings/automation/page.tsx", "utf8");
+  assert.match(component, /export function AutomationCapabilityManager/);
+  assert.match(page, /addCapabilityToDevice/);
+  assert.match(page, /Fähigkeit hinzufügen/);
+});

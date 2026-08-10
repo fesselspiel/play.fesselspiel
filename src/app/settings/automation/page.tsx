@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Activity, BookOpen, Cpu, FlaskConical, RadioTower } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { AutomationDeviceManager } from "@/components/automation-device-manager";
+import { AutomationCapabilityManager, AutomationDeviceManager } from "@/components/automation-device-manager";
 import { AutomationRuleEditor } from "@/components/automation-rule-editor";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
@@ -299,6 +299,46 @@ async function updateCapability(formData: FormData) {
   redirect("/settings/automation?saved=capability");
 }
 
+async function addCapabilityToDevice(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  requireAdmin(user);
+  await requireFeature("automation");
+  if (!user.tenantId) redirect("/settings/automation?error=tenant");
+  const deviceId = String(formData.get("deviceId") || "");
+  const device = await prisma.automationDevice.findFirst({ where: { id: deviceId, tenantId: user.tenantId } });
+  if (!device) redirect("/settings/automation?error=Gerät nicht gefunden");
+  const capabilityKey = String(formData.get("capabilityKey") || "").trim();
+  const capabilityTitle = String(formData.get("capabilityTitle") || capabilityKey).trim();
+  if (!capabilityKey || !capabilityTitle) redirect("/settings/automation?error=Fähigkeit ist unvollständig");
+  const capability = await upsertAutomationCapability({
+    tenantId: user.tenantId,
+    deviceId: device.id,
+    key: capabilityKey,
+    kind: String(formData.get("capabilityKind") || "Camera"),
+    title: capabilityTitle,
+    state: String(formData.get("capabilityState") || "UNKNOWN"),
+    actions: parseList(formData.get("actionsList")),
+    events: parseList(formData.get("eventsList")),
+    conditions: parseList(formData.get("conditionsList")),
+    parameters: parseJson(formData.get("parametersJson"), {}),
+    ui: {}
+  });
+  await recordAutomationEvent({
+    tenantId: user.tenantId,
+    actorId: user.id,
+    deviceId: device.id,
+    capabilityId: capability.id,
+    type: "capability_added",
+    title: `Fähigkeit hinzugefügt: ${device.name} · ${capability.title}`,
+    source: "WEB",
+    role: "OWNER",
+    details: { capabilityId: capability.id, deviceId: device.id, kind: capability.kind, title: capability.title }
+  });
+  redirect("/settings/automation?saved=capability-added");
+}
+
 async function deleteCapability(formData: FormData) {
   "use server";
   const user = await currentUser();
@@ -593,6 +633,17 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                         <form action={deleteDevice} className="mt-3">
                           <input type="hidden" name="deviceId" value={device.id} />
                           <SubmitButton pendingLabel="Löscht...">Gerät löschen</SubmitButton>
+                        </form>
+                      </details>
+                      <details className="mt-2 rounded border border-line bg-surface p-3">
+                        <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Fähigkeit hinzufügen</summary>
+                        <p className="mt-2 text-sm text-graphite">
+                          Ergänzt dieses Gerät um eine weitere fachliche Fähigkeit. Die passenden Aktionen, Ereignisse und Bedingungen erscheinen danach automatisch im Rule-Editor.
+                        </p>
+                        <form action={addCapabilityToDevice} className="mt-3 space-y-3">
+                          <input type="hidden" name="deviceId" value={device.id} />
+                          <AutomationCapabilityManager />
+                          <SubmitButton pendingLabel="Speichert...">Fähigkeit hinzufügen</SubmitButton>
                         </form>
                       </details>
                       {device.capabilities.map((capability) => {

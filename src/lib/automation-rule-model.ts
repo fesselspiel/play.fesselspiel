@@ -91,6 +91,7 @@ export const automationLabels = {
     rule_condition_blocked: "Regelbedingung hat nicht gepasst",
     rule_processing_failed: "Regelverarbeitung ist fehlgeschlagen",
     device_deleted: "Gerät wurde entfernt",
+    capability_added: "Fähigkeit wurde hinzugefügt",
     capability_deleted: "Fähigkeit wurde entfernt",
     action_created: "Aktion wurde geplant",
     action_ready: "Aktion ist bereit",
