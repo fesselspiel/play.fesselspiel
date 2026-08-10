@@ -6,6 +6,7 @@ import { Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui
 import { currentUser } from "@/lib/auth";
 import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
+import { rotateMqttCredentials, writeMosquittoRuntimeFiles } from "@/lib/mqtt-bridge";
 import { createAutomationRule, describeAutomationRule, simulateAutomationRule, upsertAutomationCapability, upsertAutomationDevice } from "@/lib/session-automation";
 
 function requireAdmin(user: { role?: string }) {
@@ -47,7 +48,27 @@ async function saveBridge(formData: FormData) {
       health: String(formData.get("health") || "UNKNOWN")
     }
   });
+  await writeMosquittoRuntimeFiles();
   redirect("/settings/automation?saved=bridge");
+}
+
+async function rotateMqtt(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  requireAdmin(user);
+  await requireFeature("automation");
+  if (!user.tenantId) redirect("/settings/automation?error=tenant");
+  const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId }, select: { slug: true } });
+  const username = String(formData.get("mqttUsername") || "").trim();
+  const baseTopic = String(formData.get("mqttBaseTopic") || "").trim();
+  const result = await rotateMqttCredentials({
+    tenantId: user.tenantId,
+    tenantSlug: tenant?.slug,
+    username: username || null,
+    baseTopic: baseTopic || null
+  });
+  redirect(`/settings/automation?mqttPassword=${encodeURIComponent(result.password)}&mqttUser=${encodeURIComponent(result.bridge.mqttUsername || "")}`);
 }
 
 async function saveDevice(formData: FormData) {
@@ -105,8 +126,9 @@ async function saveRule(formData: FormData) {
   redirect("/settings/automation?saved=rule");
 }
 
-export default async function AutomationSettingsPage() {
+export default async function AutomationSettingsPage(props: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   await requireFeature("automation");
+  const searchParams = await props.searchParams;
   const user = await currentUser();
   if (!user) redirect("/login");
   requireAdmin(user);
@@ -117,6 +139,8 @@ export default async function AutomationSettingsPage() {
     prisma.automationRule.findMany({ where: { tenantId: user.tenantId }, include: { versions: { orderBy: { version: "desc" }, take: 3 } }, orderBy: { updatedAt: "desc" } }),
     prisma.automationEvent.findMany({ where: { tenantId: user.tenantId }, orderBy: { createdAt: "desc" }, take: 60 })
   ]);
+  const mqttPassword = typeof searchParams?.mqttPassword === "string" ? searchParams.mqttPassword : "";
+  const mqttUser = typeof searchParams?.mqttUser === "string" ? searchParams.mqttUser : "";
   const simulation = simulateAutomationRule({ triggerType: "session_started", timingJson: { type: "fixed_delay", minutes: 15 }, actionJson: [{ type: "camera_request_image" }] });
 
   return (
@@ -135,6 +159,22 @@ export default async function AutomationSettingsPage() {
             <Field label="MQTT Client ID"><input name="mqttClientId" className={inputClass} defaultValue={bridge?.mqttClientId || ""} /></Field>
             <Field label="MQTT Benutzer"><input name="mqttUsername" className={inputClass} defaultValue={bridge?.mqttUsername || ""} /></Field>
             <div className="flex items-end"><SubmitButton pendingLabel="Speichert...">Bridge speichern</SubmitButton></div>
+          </form>
+          <form action={rotateMqtt} className="mt-4 rounded-lg border border-line bg-paper p-4">
+            <div className="text-sm font-semibold text-ink">MQTT-Zugang erzeugen oder rotieren</div>
+            <p className="mt-1 text-sm text-graphite">Das Passwort wird nur einmal angezeigt und danach verschlüsselt gespeichert. Mosquitto bekommt daraus beim Start eine eigene Passwortdatei.</p>
+            <input type="hidden" name="mqttUsername" value={bridge?.mqttUsername || ""} />
+            <input type="hidden" name="mqttBaseTopic" value={bridge?.mqttBaseTopic || ""} />
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <SubmitButton pendingLabel="Erzeuge...">MQTT-Zugang rotieren</SubmitButton>
+              {bridge?.mqttUsername ? <span className="text-sm text-graphite">Benutzer: <code>{bridge.mqttUsername}</code></span> : null}
+            </div>
+            {mqttPassword ? (
+              <div className="mt-3 rounded-md border border-redbrand/30 bg-redbrand/10 p-3 text-sm text-ink">
+                <div className="font-semibold">Einmaliges MQTT-Passwort für {mqttUser || "den Adapter"}</div>
+                <code className="mt-2 block overflow-auto rounded bg-surface p-2">{mqttPassword}</code>
+              </div>
+            ) : null}
           </form>
           <div className="mt-4 rounded-lg border border-line bg-paper p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-ink"><BookOpen className="h-4 w-4" /> Adapter-Contract</div>

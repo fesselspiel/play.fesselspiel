@@ -14,6 +14,41 @@ Authorization: Bearer fsp_...
 
 Der Token wird im Portal unter `Einstellungen > API-Tokens` angelegt. Er muss mindestens Zugriff auf externe API, Automation und Tracker haben. Tokens gehören nicht in `.env`.
 
+## MQTT-Broker
+
+Playplaner bringt serverseitig einen eigenen Mosquitto-Container mit:
+
+```text
+Service: mqtt
+Container: kink_social_mqtt
+Interner Port: 1883
+Host-Port: 127.0.0.1:18883
+```
+
+Die MQTT-Credentials werden nicht in `.env` gespeichert. Admins erzeugen oder rotieren sie unter `Einstellungen > Automation > Bridge`. Das Portal speichert das Passwort verschlüsselt in `AutomationBridge.mqttPasswordEnc` und schreibt daraus Runtime-Dateien:
+
+```text
+mosquitto_config/passwords.raw
+mosquitto_config/passwords
+mosquitto_config/acl
+```
+
+`passwords.raw` wird beim Start des Mosquitto-Containers mit `mosquitto_passwd -U` in echte Mosquitto-Hashes umgewandelt. Die ACL erlaubt pro Seite nur die zugehörigen Topics.
+
+Standard-Topic:
+
+```text
+playplaner/v1/<seiten-slug>/#
+```
+
+Zusätzlicher technischer Alias:
+
+```text
+playplaner/v1/<tenant-id>/#
+```
+
+Der Broker ist zunächst nur lokal gebunden. Für externe Adapter wird davor ein TLS-Terminator, VPN oder gesicherter Tunnel verwendet.
+
 ## Grundablauf
 
 1. Adapter startet und sendet Heartbeat.
@@ -24,6 +59,8 @@ Der Token wird im Portal unter `Einstellungen > API-Tokens` angelegt. Er muss mi
 6. Adapter führt lokal aus.
 7. Adapter meldet Ergebnis zurück.
 8. Portal schreibt Automation-Events und normale AuditLogs.
+
+MQTT kann parallel verwendet werden, bleibt aber Transport. Die fachliche Wahrheit liegt in den HTTP-Endpunkten und der Datenbank. Ein späterer Adapter kann entweder kurz pollen oder MQTT-Topics für schnelle Signale abonnieren und danach die HTTP-Commands abholen.
 
 ## Heartbeat
 

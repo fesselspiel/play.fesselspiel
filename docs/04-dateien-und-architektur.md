@@ -7,6 +7,8 @@
 - `Dockerfile`: Production-Build für Next.js.
 - `docker-compose.yml`: App, PostgreSQL, Volumes, Traefik-Labels.
 - `docker-entrypoint.sh`: DB-Push, Seed und App-Start mit Logausgabe.
+- `mosquitto/`: eigener Mosquitto-Broker-Container für die Automation-/ioBroker-Bridge.
+- `mosquitto_config/`: Runtime-Dateien für MQTT-Passwörter und ACLs; wird vom Backend erzeugt und nicht als Secret-Quelle im Repository gepflegt.
 - `.env.example`: Beispielkonfiguration ohne echte Secrets.
 - `package.json`: Scripts und Dependencies.
 - `prisma/schema.prisma`: Datenmodell.
@@ -34,6 +36,7 @@
 - `src/lib/telegram-item-dialogue.ts`: Dialogstatus und Felder für Item-Anlage.
 - `src/lib/tracker-core.ts`: generische Tracker-Start-/Stop-/Query-Logik über `TrackerType` und `TrackerEntry`.
 - `src/lib/session-automation.ts`: Automation-Sessions, Regeln, Aktionen, Geräte, Capabilities, Simulation und Bildanforderungen.
+- `src/lib/mqtt-bridge.ts`: MQTT-Zugangsdaten rotieren und Mosquitto-Runtime-Dateien aus der Datenbank schreiben.
 
 Telegram-Formatierung:
 

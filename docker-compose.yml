@@ -35,6 +35,7 @@ services:
     volumes:
       - uploads_data:/app/uploads
       - ./runtime-logs:/app/logs
+      - ./mosquitto_config:/app/mosquitto-config
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.playfesselspiel.rule=Host(`playplaner.com`) || Host(`play.fesselspiel.com`)"
@@ -93,6 +94,16 @@ services:
       POSTFIX_myorigin: ${EMAIL_POSTFIX_HOSTNAME:-playplaner.com}
       POSTFIX_mynetworks: ${EMAIL_POSTFIX_NETWORKS:-127.0.0.0/8 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16}
 
+  mqtt:
+    build: ./mosquitto
+    container_name: kink_social_mqtt
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MQTT_PORT:-18883}:1883"
+    volumes:
+      - mqtt_data:/mosquitto/data
+      - ./mosquitto_config:/mosquitto/runtime
+
   cron:
     image: alpine:3.20
     container_name: kink_social_cron
@@ -114,3 +125,4 @@ volumes:
   postgres_data:
   uploads_data:
   clamav_data:
+  mqtt_data:
