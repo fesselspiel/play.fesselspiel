@@ -1156,3 +1156,15 @@ Details:
 - Der Live-Smoke prüft Actor, Profil, Tenant, alle Zirkel des Test-Tenants, Context-Cleanup und Token-Cleanup.
 - Produktiv-Rückfallpunkt: `/opt/kink-social-platform/backups/pre-20260716-tenant-circle-18e6306`, Image-Tag `kink-social-platform-app:pre-20260716-tenant-circle-18e6306`.
 - Git-Rollback ohne Force-Push: `git revert 1a8d365 67b11f5 18e6306`, Revert pushen und regulär neu deployen. Für den Datenbank-Rückbau kann die nullable Spalte `ExternalViewContext.circleId` nach Entfernung aller neuen Kontexte separat entfernt werden; ein Code-Rollback kann sie gefahrlos ungenutzt stehen lassen.
+
+## 2026-08-10: Automation-Rule-Editor und Simulation
+
+- Die Automation-Einstellungen nutzen keinen normalen JSON-Editor mehr fuer Regeln und Geraete.
+- Regeln werden ueber einen gefuehrten Editor erstellt und bearbeitet: Trigger, Bedingungen, Zeitlogik und Aktionen bauen aufeinander auf und zeigen nur fachlich passende Optionen.
+- Aus jeder Regel entstehen automatisch eine deutsche Zusammenfassung und eine Flow-Darstellung. Technische Keys bleiben nur in Hidden Fields fuer die Server-Action beziehungsweise unter `Technische Details`.
+- Die Simulation wird aus der konkret konfigurierten Regel berechnet. Ein Zeitregler zeigt Events, Session-Zustand, Bedingungen, wartende/faellige Aktionen, simulierte Aktionen, Zufallswerte und Variablen ohne echte Side Effects.
+- Geraete werden fachlich als Kamera, Schalter oder Sprachausgabe mit passenden Faehigkeiten angelegt; Actions, Events und Conditions werden daraus abgeleitet.
+- Automation-Protokolle und laufende Automation-Sessions zeigen normale deutsche Statuswerte. Raw JSON, IDs, Correlation-ID und Execution-Kontext bleiben in einem separaten technischen Aufklapper sichtbar.
+- Pending-End speichert und zeigt Anforderungszeit, ausloesenden Benutzer, Zeitmodell, einmal bestimmten Ausfuehrungszeitpunkt und Restzeit. Ein erneuter normaler Stop ersetzt dieses Zeitfenster nicht.
+- `src/lib/automation-rule-model.ts` buendelt Labels, Validierungsmodell, Summary, Flow und pure Simulation, damit Web-UI und Tests dieselbe Semantik verwenden.
+- `scripts/verify-automation-rule-model.mjs` deckt die wichtigsten Abnahmepunkte als pure Tests ab: Doppelstart, Tracker-Kopplung, Pending-End, fester Delay, persistiertes Zufallsfenster, Event-Abwesenheit, Rollen-/Policy-Smoke, Override, Versionierung, Simulation ohne Side Effects, Korrelation, geschuetzte Bilder und Tenant-Isolation.

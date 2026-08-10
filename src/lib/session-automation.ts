@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { logAction } from "@/lib/audit";
+import { automationRuleSummary, simulateAutomationRuleTimeline } from "@/lib/automation-rule-model";
 import { minutesBetween } from "@/lib/dates";
 import { saveFileBuffer } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
@@ -321,7 +322,17 @@ export async function requestAutomationEnd(input: {
   });
   const updated = await prisma.automationSession.update({
     where: { id: session.id },
-    data: { state: "PENDING_END", pendingEndAt: dueAt }
+    data: {
+      state: "PENDING_END",
+      pendingEndAt: dueAt,
+      stateJson: {
+        pendingEndRequestedAt: now.toISOString(),
+        pendingEndRequestedBy: input.user.id,
+        pendingEndTiming: jsonObject(input.timing),
+        pendingEndDueAt: dueAt.toISOString(),
+        pendingEndReason: input.reason || null
+      }
+    }
   });
   await recordAutomationEvent({
     tenantId: input.user.tenantId,
@@ -649,14 +660,7 @@ export function describeAutomationRule(input: {
   actionJson?: unknown;
   mode?: string;
 }) {
-  const timing = jsonObject(input.timingJson);
-  const actions = jsonArray(input.actionJson);
-  const timingText = timing.type === "random_delay"
-    ? `zufällig nach ${timing.minMinutes || 0}-${timing.maxMinutes || 0} Minuten`
-    : timing.type === "fixed_delay"
-      ? `nach ${timing.minutes || timing.delayMinutes || 0} Minuten`
-      : "sofort";
-  return `Wenn ${input.triggerType}, dann ${timingText} ${actions.length || 1} Aktion(en) ausführen. Modus: ${input.mode || "ONCE"}.`;
+  return automationRuleSummary(input);
 }
 
 export async function createAutomationRule(input: {
@@ -719,24 +723,13 @@ export async function createAutomationRule(input: {
 
 export function simulateAutomationRule(input: {
   triggerType: string;
+  conditionJson?: unknown;
   timingJson?: unknown;
   actionJson?: unknown;
   startAt?: Date;
+  scrubMinute?: number;
 }) {
-  const startAt = input.startAt || new Date();
-  const dueAt = dueAtFromTiming(input.timingJson, startAt);
-  const actions = jsonArray(input.actionJson);
-  return {
-    startAt: startAt.toISOString(),
-    timeline: [
-      { at: startAt.toISOString(), kind: "trigger", title: `Trigger: ${input.triggerType}` },
-      { at: dueAt.toISOString(), kind: "actions_ready", title: `${actions.length || 1} Aktion(en) werden fällig` }
-    ],
-    variables: {
-      delayMinutes: Math.max(0, Math.round((dueAt.getTime() - startAt.getTime()) / 60000)),
-      sideEffects: false
-    }
-  };
+  return simulateAutomationRuleTimeline(input);
 }
 
 export async function upsertAutomationDevice(input: {

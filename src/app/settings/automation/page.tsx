@@ -1,13 +1,16 @@
 import { redirect } from "next/navigation";
-import { Activity, BookOpen, Cpu, FlaskConical, Plus, RadioTower } from "lucide-react";
+import { Activity, BookOpen, Cpu, FlaskConical, RadioTower } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { AutomationDeviceManager } from "@/components/automation-device-manager";
+import { AutomationRuleEditor } from "@/components/automation-rule-editor";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
+import { automationRuleFlow, automationRuleSummary, labelAutomationValue, ruleFormFromStored } from "@/lib/automation-rule-model";
 import { currentUser } from "@/lib/auth";
 import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { rotateMqttCredentials, writeMosquittoRuntimeFiles } from "@/lib/mqtt-bridge";
-import { createAutomationRule, describeAutomationRule, simulateAutomationRule, upsertAutomationCapability, upsertAutomationDevice } from "@/lib/session-automation";
+import { createAutomationRule, recordAutomationEvent, upsertAutomationCapability, upsertAutomationDevice } from "@/lib/session-automation";
 
 function requireAdmin(user: { role?: string }) {
   if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") redirect("/");
@@ -21,6 +24,13 @@ function parseJson(value: FormDataEntryValue | null, fallback: unknown) {
   } catch {
     return fallback;
   }
+}
+
+function parseList(value: FormDataEntryValue | null) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 async function saveBridge(formData: FormData) {
@@ -95,11 +105,11 @@ async function saveDevice(formData: FormData) {
       kind: String(formData.get("capabilityKind") || "Camera"),
       title: String(formData.get("capabilityTitle") || capabilityKey),
       state: String(formData.get("capabilityState") || "UNKNOWN"),
-      actions: parseJson(formData.get("actionsJson"), []),
-      events: parseJson(formData.get("eventsJson"), []),
-      conditions: parseJson(formData.get("conditionsJson"), []),
-      parameters: parseJson(formData.get("parametersJson"), {}),
-      ui: parseJson(formData.get("uiJson"), {})
+      actions: parseList(formData.get("actionsList")),
+      events: parseList(formData.get("eventsList")),
+      conditions: parseList(formData.get("conditionsList")),
+      parameters: {},
+      ui: {}
     });
   }
   redirect("/settings/automation?saved=device");
@@ -111,8 +121,8 @@ async function saveRule(formData: FormData) {
   if (!user) redirect("/login");
   requireAdmin(user);
   await requireFeature("automation");
-  await createAutomationRule({
-    user,
+  const ruleId = String(formData.get("ruleId") || "");
+  const next = {
     name: String(formData.get("name") || "").trim(),
     description: String(formData.get("description") || "").trim() || null,
     active: formData.get("active") === "on",
@@ -122,7 +132,39 @@ async function saveRule(formData: FormData) {
     conditionJson: parseJson(formData.get("conditionJson"), []),
     timingJson: parseJson(formData.get("timingJson"), {}),
     actionJson: parseJson(formData.get("actionJson"), [])
-  });
+  };
+  if (ruleId) {
+    if (!user.tenantId) redirect("/settings/automation?error=tenant");
+    const current = await prisma.automationRule.findFirst({ where: { id: ruleId, tenantId: user.tenantId } });
+    if (!current) redirect("/settings/automation?error=rule");
+    const version = current.currentVersion + 1;
+    const descriptionText = automationRuleSummary(next);
+    await prisma.automationRule.update({
+      where: { id: current.id },
+      data: {
+        ...next,
+        descriptionText,
+        currentVersion: version,
+        versions: {
+          create: {
+            tenantId: user.tenantId,
+            version,
+            name: next.name,
+            mode: next.mode,
+            triggerType: next.triggerType,
+            triggerJson: next.triggerJson as never,
+            conditionJson: next.conditionJson as never,
+            timingJson: next.timingJson as never,
+            actionJson: next.actionJson as never,
+            descriptionText
+          }
+        }
+      }
+    });
+    await recordAutomationEvent({ tenantId: user.tenantId, ruleId, actorId: user.id, type: "rule_updated", title: `Regel geändert: ${next.name}`, source: "WEB", role: "OWNER", details: { version, descriptionText } });
+  } else {
+    await createAutomationRule({ user, ...next });
+  }
   redirect("/settings/automation?saved=rule");
 }
 
@@ -141,7 +183,13 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
   ]);
   const mqttPassword = typeof searchParams?.mqttPassword === "string" ? searchParams.mqttPassword : "";
   const mqttUser = typeof searchParams?.mqttUser === "string" ? searchParams.mqttUser : "";
-  const simulation = simulateAutomationRule({ triggerType: "session_started", timingJson: { type: "fixed_delay", minutes: 15 }, actionJson: [{ type: "camera_request_image" }] });
+  const capabilities = devices.flatMap((device) => device.capabilities.map((capability) => ({
+    id: capability.id,
+    kind: capability.kind as "Camera" | "Switch" | "Voice",
+    title: capability.title,
+    deviceName: device.name,
+    state: capability.state
+  })));
 
   return (
     <AppShell>
@@ -154,9 +202,16 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
           <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><RadioTower className="h-4 w-4" /> Bridge</summary>
           <form action={saveBridge} className="mt-4 grid gap-3 md:grid-cols-2">
             <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="enabled" type="checkbox" defaultChecked={bridge?.enabled} /> Aktiv</label>
-            <Field label="Health"><input name="health" className={inputClass} defaultValue={bridge?.health || "UNKNOWN"} /></Field>
-            <Field label="MQTT Base Topic"><input name="mqttBaseTopic" className={inputClass} defaultValue={bridge?.mqttBaseTopic || "playplaner/v1"} /></Field>
-            <Field label="MQTT Client ID"><input name="mqttClientId" className={inputClass} defaultValue={bridge?.mqttClientId || ""} /></Field>
+            <Field label="Verbindungszustand">
+              <select name="health" className={inputClass} defaultValue={bridge?.health || "UNKNOWN"}>
+                <option value="UNKNOWN">Nicht verbunden</option>
+                <option value="ONLINE">Verbunden</option>
+                <option value="OFFLINE">Nicht erreichbar</option>
+                <option value="ERROR">Fehler</option>
+              </select>
+            </Field>
+            <Field label="MQTT-Themenbereich"><input name="mqttBaseTopic" className={inputClass} defaultValue={bridge?.mqttBaseTopic || "playplaner/v1"} /></Field>
+            <Field label="MQTT-Client"><input name="mqttClientId" className={inputClass} defaultValue={bridge?.mqttClientId || ""} /></Field>
             <Field label="MQTT Benutzer"><input name="mqttUsername" className={inputClass} defaultValue={bridge?.mqttUsername || ""} /></Field>
             <div className="flex items-end"><SubmitButton pendingLabel="Speichert...">Bridge speichern</SubmitButton></div>
           </form>
@@ -199,22 +254,9 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
           <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><Cpu className="h-4 w-4" /> Geräte und Fähigkeiten</summary>
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <Panel>
-              <h2 className="text-base font-semibold text-ink">Gerät hinzufügen oder synchronisieren</h2>
-              <form action={saveDevice} className="mt-3 space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Logische ID"><input name="logicalId" className={inputClass} required placeholder="camera-bedroom" /></Field>
-                  <Field label="Name"><input name="name" className={inputClass} required placeholder="Kamera Schlafzimmer" /></Field>
-                  <Field label="Integration"><input name="integration" className={inputClass} defaultValue="IOBROKER" /></Field>
-                  <Field label="Health"><input name="health" className={inputClass} defaultValue="UNKNOWN" /></Field>
-                </div>
-                <Field label="Capability Key"><input name="capabilityKey" className={inputClass} placeholder="camera" /></Field>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Field label="Capability Typ"><select name="capabilityKind" className={inputClass}><option>Camera</option><option>Switch</option><option>Voice</option></select></Field>
-                  <Field label="Capability Titel"><input name="capabilityTitle" className={inputClass} placeholder="Bild anfordern" /></Field>
-                  <Field label="State"><input name="capabilityState" className={inputClass} defaultValue="UNKNOWN" /></Field>
-                </div>
-                <Field label="Actions JSON"><textarea name="actionsJson" className={inputClass} rows={2} defaultValue={'["request_image"]'} /></Field>
-                <SubmitButton pendingLabel="Speichert..."><Plus className="h-4 w-4" /> Gerät speichern</SubmitButton>
+              <h2 className="text-base font-semibold text-ink">Gerät hinzufügen</h2>
+              <form action={saveDevice} className="mt-3">
+                <AutomationDeviceManager />
               </form>
             </Panel>
             <Panel>
@@ -222,10 +264,14 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
               <div className="mt-3 space-y-2">
                 {devices.map((device) => (
                   <details key={device.id} className="rounded-md border border-line bg-paper p-3">
-                    <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">{device.name} · {device.health}</summary>
+                    <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">{device.name} · {labelAutomationValue("health", device.health)}</summary>
                     <div className="mt-2 space-y-1 text-sm text-graphite">
-                      <p>{device.integration} · {device.logicalId}</p>
-                      {device.capabilities.map((capability) => <p key={capability.id}>{capability.kind}: {capability.title} · {capability.state}</p>)}
+                      <p>{labelAutomationValue("integrations", device.integration)}</p>
+                      {device.capabilities.map((capability) => <p key={capability.id}>{capability.title} · {labelAutomationValue("health", capability.state)}</p>)}
+                      <details className="mt-2 rounded border border-line bg-surface p-2">
+                        <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische Details</summary>
+                        <pre className="mt-2 overflow-auto text-xs">{JSON.stringify({ logicalId: device.logicalId, integration: device.integration, capabilities: device.capabilities.map((capability) => ({ key: capability.key, kind: capability.kind, state: capability.state })) }, null, 2)}</pre>
+                      </details>
                     </div>
                   </details>
                 ))}
@@ -244,12 +290,8 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                 <Field label="Beschreibung"><input name="description" className={inputClass} /></Field>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="active" type="checkbox" defaultChecked /> Aktiv</label>
-                  <Field label="Modus"><select name="mode" className={inputClass}><option>ONCE</option><option>REPEAT</option></select></Field>
-                  <Field label="Trigger"><input name="triggerType" className={inputClass} defaultValue="session_started" /></Field>
                 </div>
-                <Field label="Bedingungen JSON"><textarea name="conditionJson" className={inputClass} rows={3} defaultValue="[]" /></Field>
-                <Field label="Zeitlogik JSON"><textarea name="timingJson" className={inputClass} rows={3} defaultValue={'{"type":"fixed_delay","minutes":15}'} /></Field>
-                <Field label="Actions JSON"><textarea name="actionJson" className={inputClass} rows={4} defaultValue={'[{"type":"camera_request_image"}]'} /></Field>
+                <AutomationRuleEditor capabilities={capabilities} />
                 <SubmitButton pendingLabel="Speichert...">Regel speichern</SubmitButton>
               </form>
             </Panel>
@@ -259,8 +301,23 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                 {rules.map((rule) => (
                   <details key={rule.id} className="rounded-md border border-line bg-paper p-3">
                     <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">{rule.name}</summary>
-                    <p className="mt-2 text-sm text-graphite">{rule.descriptionText || describeAutomationRule(rule)}</p>
+                    <p className="mt-2 text-sm text-graphite">{rule.descriptionText || automationRuleSummary(rule)}</p>
+                    <div className="mt-3 flex flex-col items-start gap-2">
+                      {automationRuleFlow(rule).map((step, index) => (
+                        <div key={`${rule.id}-${step}-${index}`} className="rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink">{step}</div>
+                      ))}
+                    </div>
                     <p className="mt-1 text-xs text-graphite">Version {rule.currentVersion} · {rule.active ? "aktiv" : "inaktiv"}</p>
+                    <details className="mt-3 rounded-md border border-line bg-surface p-3">
+                      <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Regel bearbeiten</summary>
+                      <form action={saveRule} className="mt-3 space-y-3">
+                        <Field label="Name"><input name="name" className={inputClass} required defaultValue={rule.name} /></Field>
+                        <Field label="Beschreibung"><input name="description" className={inputClass} defaultValue={rule.description || ""} /></Field>
+                        <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="active" type="checkbox" defaultChecked={rule.active} /> Aktiv</label>
+                        <AutomationRuleEditor ruleId={rule.id} capabilities={capabilities} initial={JSON.stringify(ruleFormFromStored(rule))} />
+                        <SubmitButton pendingLabel="Speichert...">Änderungen speichern</SubmitButton>
+                      </form>
+                    </details>
                   </details>
                 ))}
               </div>
@@ -272,14 +329,10 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
           <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><FlaskConical className="h-4 w-4" /> Simulation und Protokoll</summary>
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <Panel>
-              <h2 className="text-base font-semibold text-ink">Beispiel-Simulation</h2>
+              <h2 className="text-base font-semibold text-ink">Simulation</h2>
+              <p className="mt-2 text-sm text-graphite">Die Simulation findet direkt im Regel-Editor der jeweiligen Regel statt und erzeugt keine echten Aktionen.</p>
               <div className="mt-3 space-y-2">
-                {simulation.timeline.map((item) => (
-                  <div key={`${item.kind}-${item.at}`} className="rounded-md border border-line bg-paper p-3 text-sm">
-                    <div className="font-semibold text-ink">{item.title}</div>
-                    <div className="text-graphite">{item.at}</div>
-                  </div>
-                ))}
+                {rules.slice(0, 5).map((rule) => <div key={rule.id} className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">{rule.name}: {rule.descriptionText || automationRuleSummary(rule)}</div>)}
               </div>
             </Panel>
             <Panel>
@@ -287,8 +340,17 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
               <div className="mt-3 max-h-96 space-y-2 overflow-auto">
                 {events.map((event) => (
                   <details key={event.id} className="rounded-md border border-line bg-paper p-3">
-                    <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">{event.title}</summary>
-                    <pre className="mt-2 overflow-auto rounded bg-surface p-2 text-xs text-graphite">{JSON.stringify({ type: event.type, details: event.detailsJson }, null, 2)}</pre>
+                    <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
+                      {labelAutomationValue("eventTypes", event.type) === event.type ? event.title : labelAutomationValue("eventTypes", event.type)}
+                    </summary>
+                    <div className="mt-2 space-y-1 text-sm text-graphite">
+                      <p>Quelle: {labelAutomationValue("sources", event.source)} · Rolle: {labelAutomationValue("roles", event.role)}</p>
+                      <p>Zeit: {event.createdAt.toLocaleString("de-DE")}</p>
+                    </div>
+                    <details className="mt-2 rounded bg-surface p-2">
+                      <summary className="cursor-pointer list-none text-xs font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische Details</summary>
+                      <pre className="mt-2 overflow-auto text-xs text-graphite">{JSON.stringify({ type: event.type, correlationId: event.correlationId, details: event.detailsJson, raw: event.rawJson }, null, 2)}</pre>
+                    </details>
                   </details>
                 ))}
               </div>

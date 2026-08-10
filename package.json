@@ -24,7 +24,8 @@
     "files:scan-backfill": "node scripts/backfill-file-scan-status.js",
     "test:media-access:live": "node scripts/verify-media-access-live.js",
     "test:view-context:live": "node scripts/verify-view-context-isolation-live.js",
-    "test:clamav": "node scripts/verify-clamav-instream.js"
+    "test:clamav": "node scripts/verify-clamav-instream.js",
+    "test:automation": "node --test scripts/verify-automation-rule-model.mjs"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",
