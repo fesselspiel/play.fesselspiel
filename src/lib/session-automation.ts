@@ -90,7 +90,7 @@ function isVoiceAction(type: string) {
 function voiceEventForResult(success: boolean) {
   return success
     ? { type: "speech_finished", title: "Sprachausgabe wurde beendet", state: "ONLINE" }
-    : { type: "voice_error", title: "Sprachausgabe meldet einen Fehler", state: "ERROR" };
+    : { type: "voice_error", title: "Sprachausgabe ist nicht erreichbar", state: "ERROR" };
 }
 
 function isAdminRole(role?: string | null) {

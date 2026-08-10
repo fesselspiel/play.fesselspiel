@@ -160,6 +160,22 @@ async function migrateTelegramUserSettingsToTenantSettings(fallbackTenantId) {
   }
 }
 
+async function migrateAutomationVoiceActions() {
+  const voiceCapabilities = await prisma.automationCapability.findMany({
+    where: { kind: "Voice" },
+    select: { id: true, actionsJson: true }
+  });
+  for (const capability of voiceCapabilities) {
+    const actions = Array.isArray(capability.actionsJson) ? capability.actionsJson : [];
+    if (!actions.includes("speak")) continue;
+    const normalized = Array.from(new Set(actions.map((action) => action === "speak" ? "voice_speak" : action)));
+    await prisma.automationCapability.update({
+      where: { id: capability.id },
+      data: { actionsJson: normalized }
+    });
+  }
+}
+
 async function main() {
   const tenant = await prisma.tenant.upsert({
     where: { slug: "playplaner" },
@@ -268,6 +284,7 @@ async function main() {
     });
   }
   await migrateTelegramUserSettingsToTenantSettings(tenant.id);
+  await migrateAutomationVoiceActions();
   const ownerTenant = async (ownerId) => {
     const owner = await prisma.user.findUnique({ where: { id: ownerId }, select: { tenantId: true } });
     return owner?.tenantId || tenant.id;

@@ -348,7 +348,9 @@ test("Sprachausgabe-Ereignisse sind fachliche Auslöser und werden materialisier
   assert.equal(rule.triggerType, "speech_finished");
   assert.match(model, /speech_started:\s*"Sprachausgabe wurde gestartet"/);
   assert.match(model, /speech_finished:\s*"Sprachausgabe wurde beendet"/);
-  assert.match(model, /voice_error:\s*"Sprachausgabe meldet einen Fehler"/);
+  assert.match(model, /voice_error:\s*"Sprachausgabe ist nicht erreichbar"/);
+  assert.match(readFileSync("src/components/automation-device-manager.tsx", "utf8"), /actions:\s*"voice_speak"/);
+  assert.doesNotMatch(readFileSync("src/components/automation-device-manager.tsx", "utf8"), /actions:\s*"speak"/);
   assert.match(model, /if \(\["speech_started",\s*"speech_finished",\s*"voice_error"\]\.includes\(triggerType\)\) return "Voice"/);
   assert.match(service, /function isVoiceAction/);
   assert.match(service, /type:\s*"speech_started"/);

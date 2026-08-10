@@ -30,11 +30,11 @@ const capabilityPresets: Record<CapabilityKind, { label: string; icon: JSX.Eleme
   Voice: {
     label: "Sprachausgabe",
     icon: <Volume2 className="h-4 w-4" />,
-    actions: "speak",
+    actions: "voice_speak",
     events: "speech_started, speech_finished, voice_error",
     conditions: "is_online",
     visibleActions: ["Text sprechen"],
-    visibleEvents: ["Ansage gestartet", "Ansage beendet", "Ansage fehlgeschlagen"],
+    visibleEvents: ["Ansage gestartet", "Ansage beendet", "Sprachausgabe nicht erreichbar"],
     visibleConditions: ["Sprachausgabe ist verbunden"]
   }
 };
