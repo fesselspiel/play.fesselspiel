@@ -22,10 +22,10 @@ const capabilityPresets: Record<CapabilityKind, { label: string; icon: JSX.Eleme
     icon: <ToggleLeft className="h-4 w-4" />,
     actions: "switch_on, switch_off, switch_toggle",
     events: "switched_on, switched_off, switch_error",
-    conditions: "is_on, is_off",
+    conditions: "is_on, is_off, switch_state_for",
     visibleActions: ["Einschalten", "Ausschalten", "Umschalten"],
     visibleEvents: ["Wurde eingeschaltet", "Wurde ausgeschaltet", "Schaltfehler"],
-    visibleConditions: ["Ist eingeschaltet", "Ist ausgeschaltet"]
+    visibleConditions: ["Ist eingeschaltet", "Ist ausgeschaltet", "Ist seit einer Zeit ein oder aus"]
   },
   Voice: {
     label: "Sprachausgabe",

@@ -19,6 +19,7 @@ export type AutomationConditionKey =
   | "device_offline"
   | "capability_state"
   | "last_image_younger_than"
+  | "switch_state_for"
   | "quota_remaining";
 
 export type AutomationTimingKey = "immediate" | "fixed_delay" | "random_delay";
@@ -61,6 +62,7 @@ export type AutomationSimulationOverrides = {
   deviceHealth?: Record<string, string>;
   capabilityState?: Record<string, string>;
   lastImageAgeSeconds?: Record<string, number>;
+  capabilityStateAgeMinutes?: Record<string, number>;
 };
 
 export type AutomationRuleContext = {
@@ -180,17 +182,17 @@ export const triggerOptions: Array<{ key: AutomationTriggerKey; label: string; d
 ];
 
 export const conditionOptions: Record<AutomationTriggerKey, AutomationConditionKey[]> = {
-  session_started: ["none", "controller_absent", "device_online", "device_offline", "last_image_younger_than"],
-  session_pending_end: ["none", "device_online", "device_offline", "last_image_younger_than"],
+  session_started: ["none", "controller_absent", "device_online", "device_offline", "last_image_younger_than", "switch_state_for"],
+  session_pending_end: ["none", "device_online", "device_offline", "last_image_younger_than", "switch_state_for"],
   session_finished: ["none", "quota_remaining"],
-  action_succeeded: ["none", "capability_state", "last_image_younger_than"],
-  action_failed: ["none", "device_offline", "capability_state", "last_image_younger_than"],
-  image_uploaded: ["none", "capability_state", "last_image_younger_than"],
-  camera_online: ["none", "device_online", "capability_state", "last_image_younger_than"],
-  camera_offline: ["none", "device_offline", "capability_state", "last_image_younger_than"],
-  capability_event: ["capability_state", "device_online", "device_offline", "last_image_younger_than"],
-  event_absent: ["controller_absent", "device_online", "device_offline"],
-  device_state_changed: ["capability_state", "device_online", "device_offline", "last_image_younger_than"],
+  action_succeeded: ["none", "capability_state", "last_image_younger_than", "switch_state_for"],
+  action_failed: ["none", "device_offline", "capability_state", "last_image_younger_than", "switch_state_for"],
+  image_uploaded: ["none", "capability_state", "last_image_younger_than", "switch_state_for"],
+  camera_online: ["none", "device_online", "capability_state", "last_image_younger_than", "switch_state_for"],
+  camera_offline: ["none", "device_offline", "capability_state", "last_image_younger_than", "switch_state_for"],
+  capability_event: ["capability_state", "device_online", "device_offline", "last_image_younger_than", "switch_state_for"],
+  event_absent: ["controller_absent", "device_online", "device_offline", "switch_state_for"],
+  device_state_changed: ["capability_state", "device_online", "device_offline", "last_image_younger_than", "switch_state_for"],
   quota_open: ["quota_remaining"]
 };
 
@@ -201,6 +203,7 @@ export const conditionLabels: Record<AutomationConditionKey, string> = {
   device_offline: "Gerät ist nicht erreichbar",
   capability_state: "Fähigkeit hat bestimmten Zustand",
   last_image_younger_than: "Letztes Kamerabild ist jünger als Vorgabe",
+  switch_state_for: "Schalter ist seit einer Zeit ein oder aus",
   quota_remaining: "Kontingent ist noch offen"
 };
 
@@ -249,6 +252,7 @@ export type RuleFormValue = {
   conditionCapabilityId: string;
   conditionExpectedState: string;
   conditionImageMaxAgeSeconds: number;
+  conditionStateAgeMinutes: number;
   conditionTrackerTypeId: string;
   timingType: AutomationTimingKey;
   delayMinutes: number;
@@ -291,6 +295,7 @@ export function defaultRuleFormValue(): RuleFormValue {
     conditionCapabilityId: "",
     conditionExpectedState: "ONLINE",
     conditionImageMaxAgeSeconds: 300,
+    conditionStateAgeMinutes: 5,
     conditionTrackerTypeId: "",
     timingType: "immediate",
     delayMinutes: 5,
@@ -339,6 +344,7 @@ export function ruleFormFromStored(rule?: {
   value.conditionCapabilityId = typeof condition.capabilityId === "string" ? condition.capabilityId : "";
   value.conditionExpectedState = typeof condition.state === "string" ? condition.state : value.conditionExpectedState;
   value.conditionImageMaxAgeSeconds = numberValue(condition.maxAgeSeconds ?? condition.seconds, value.conditionImageMaxAgeSeconds);
+  value.conditionStateAgeMinutes = numberValue(condition.minutes ?? condition.stateAgeMinutes, value.conditionStateAgeMinutes);
   value.conditionTrackerTypeId = typeof condition.trackerTypeId === "string" ? condition.trackerTypeId : "";
   const timing = asObject(rule.timingJson);
   if (timing.type && timingLabels[timing.type as AutomationTimingKey]) value.timingType = timing.type as AutomationTimingKey;
@@ -379,10 +385,10 @@ export function buildStoredRule(value: RuleFormValue) {
   };
   const conditions = value.conditionType === "none" ? [] : [{
     type: value.conditionType,
-    minutes: value.conditionType === "controller_absent" ? value.conditionMinutes : 0,
+    minutes: value.conditionType === "controller_absent" ? value.conditionMinutes : value.conditionType === "switch_state_for" ? value.conditionStateAgeMinutes : 0,
     deviceId: ["device_online", "device_offline"].includes(value.conditionType) ? value.conditionDeviceId || null : null,
-    capabilityId: ["capability_state", "last_image_younger_than"].includes(value.conditionType) ? value.conditionCapabilityId || null : null,
-    state: value.conditionType === "capability_state" ? value.conditionExpectedState || null : null,
+    capabilityId: ["capability_state", "last_image_younger_than", "switch_state_for"].includes(value.conditionType) ? value.conditionCapabilityId || null : null,
+    state: ["capability_state", "switch_state_for"].includes(value.conditionType) ? value.conditionExpectedState || null : null,
     maxAgeSeconds: value.conditionType === "last_image_younger_than" ? Math.max(1, value.conditionImageMaxAgeSeconds) : null,
     trackerTypeId: value.conditionType === "quota_remaining" ? value.conditionTrackerTypeId || null : null
   }];
@@ -487,6 +493,16 @@ export function validateAutomationRulePayload(input: {
     if (capabilityId && !capability) errors.push("Die gewählte Kamera ist auf dieser Seite nicht verfügbar.");
     if (capability && capability.kind !== "Camera") errors.push("Für diese Bedingung muss eine Kamera-Fähigkeit gewählt werden.");
     if (numberValue(condition.maxAgeSeconds ?? condition.seconds, 0) < 1) errors.push("Das maximale Bildalter muss mindestens eine Sekunde betragen.");
+  }
+  if (conditionType === "switch_state_for") {
+    const capabilityId = typeof condition.capabilityId === "string" ? condition.capabilityId : "";
+    const capability = capabilityId ? capabilities.find((item) => item.id === capabilityId) : null;
+    const expectedState = typeof condition.state === "string" ? condition.state.trim() : "";
+    if (!capabilityId) errors.push("Bitte wähle den Schalter für diese Bedingung.");
+    if (capabilityId && !capability) errors.push("Der gewählte Schalter ist auf dieser Seite nicht verfügbar.");
+    if (capability && capability.kind !== "Switch") errors.push("Für diese Bedingung muss eine Schaltfähigkeit gewählt werden.");
+    if (!["ON", "OFF"].includes(expectedState)) errors.push("Bitte wähle, ob der Schalter ein- oder ausgeschaltet sein soll.");
+    if (numberValue(condition.minutes ?? condition.stateAgeMinutes, 0) < 1) errors.push("Die Dauer des Schaltzustands muss mindestens eine Minute betragen.");
   }
   if (conditionType === "quota_remaining") {
     const trackerTypeId = typeof condition.trackerTypeId === "string" ? condition.trackerTypeId : "";
@@ -767,6 +783,14 @@ function simulationStateVariables(condition: Record<string, unknown>, context: A
     const age = effectiveLastImageAgeSeconds(capability, context);
     return [`Simuliertes letztes Kamerabild: ${title} · ${age === null ? "kein Bild vorhanden" : `${age} Sekunden alt`}`];
   }
+  if (type === "switch_state_for") {
+    const capability = typeof condition.capabilityId === "string" ? context.capabilities?.find((item) => item.id === condition.capabilityId) : null;
+    if (!capability) return [];
+    const title = `${capability.deviceName || "Gerät"} · ${capability.title || "Schalter"}`;
+    const state = effectiveCapabilityState(capability, context);
+    const age = effectiveCapabilityStateAgeMinutes(capability, context);
+    return [`Simulierter Schaltzustand: ${title} ist ${labelAutomationValue("health", state)} seit ${age} Minuten`];
+  }
   return [];
 }
 
@@ -803,6 +827,12 @@ function effectiveLastImageAgeSeconds(capability: AutomationCapabilityReference 
   if (!capability) return null;
   const age = context.simulationOverrides?.lastImageAgeSeconds?.[capability.id];
   return Number.isFinite(age) ? Math.max(0, Math.round(Number(age))) : null;
+}
+
+function effectiveCapabilityStateAgeMinutes(capability: AutomationCapabilityReference | null | undefined, context: AutomationRuleContext) {
+  if (!capability) return 0;
+  const age = context.simulationOverrides?.capabilityStateAgeMinutes?.[capability.id];
+  return Number.isFinite(age) ? Math.max(0, Math.round(Number(age))) : 0;
 }
 
 function evaluateSimulationCondition(condition: Record<string, unknown>, context: AutomationRuleContext = {}) {
@@ -844,6 +874,21 @@ function evaluateSimulationCondition(condition: Record<string, unknown>, context
           ? "Kein letztes Kamerabild in der Simulation vorhanden"
           : `Letztes Bild ist ${ageSeconds} Sekunden alt, erlaubt sind höchstens ${maxAgeSeconds} Sekunden`
         : "Keine Kamera für die Simulation ausgewählt"
+    };
+  }
+  if (type === "switch_state_for") {
+    const capability = typeof condition.capabilityId === "string" ? context.capabilities?.find((item) => item.id === condition.capabilityId) : null;
+    const expected = typeof condition.state === "string" ? condition.state : "";
+    const requiredMinutes = Math.max(1, numberValue(condition.minutes ?? condition.stateAgeMinutes, 0));
+    const state = effectiveCapabilityState(capability, context);
+    const ageMinutes = effectiveCapabilityStateAgeMinutes(capability, context);
+    const passed = Boolean(capability && capability.kind === "Switch" && ["ON", "OFF"].includes(expected) && state === expected && ageMinutes >= requiredMinutes);
+    return {
+      passed,
+      canBecomeTrue: passed,
+      result: capability
+        ? `Schalter ist ${labelAutomationValue("health", state)} seit ${ageMinutes} Minuten, benötigt sind ${requiredMinutes} Minuten`
+        : "Kein Schalter für die Simulation ausgewählt"
     };
   }
   if (type === "quota_remaining") {
@@ -902,6 +947,10 @@ function describeCondition(condition: Record<string, unknown>, context: Automati
   if (type === "last_image_younger_than") {
     const capability = nameById(context.capabilities, condition.capabilityId, "die gewählte Kamera", (item) => `${item.deviceName || "Gerät"} · ${item.title || "Kamera"}`);
     return `${capability} hat ein Bild jünger als ${numberValue(condition.maxAgeSeconds ?? condition.seconds, 300)} Sekunden`;
+  }
+  if (type === "switch_state_for") {
+    const capability = nameById(context.capabilities, condition.capabilityId, "der gewählte Schalter", (item) => `${item.deviceName || "Gerät"} · ${item.title || "Schalter"}`);
+    return `${capability} ist seit ${numberValue(condition.minutes ?? condition.stateAgeMinutes, 5)} Minuten ${labelAutomationValue("health", typeof condition.state === "string" ? condition.state : "")}`;
   }
   if (type === "quota_remaining") {
     const tracker = nameById(context.trackers, condition.trackerTypeId, "das gewählte Kontingent", (item) => item.title);

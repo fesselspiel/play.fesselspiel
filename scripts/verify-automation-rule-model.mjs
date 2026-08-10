@@ -304,6 +304,23 @@ test("Kamera-Bedingung letztes Bild ist jünger wird zentral unterstützt", () =
   assert.match(route, /allowedNumberOverrides/);
 });
 
+test("Schalter-Bedingung ein oder aus seit X Minuten wird zentral unterstützt", () => {
+  const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
+  const devices = readFileSync("src/components/automation-device-manager.tsx", "utf8");
+  const route = readFileSync("src/app/api/external/automation/rules/simulate/route.ts", "utf8");
+  assert.match(model, /switch_state_for/);
+  assert.match(model, /Schalter ist seit einer Zeit ein oder aus/);
+  assert.match(model, /capabilityStateAgeMinutes/);
+  assert.match(editor, /Schaltzustand für diese Simulation/);
+  assert.match(editor, /conditionStateAgeMinutes/);
+  assert.match(service, /type === "switch_state_for"/);
+  assert.match(service, /capability\.updatedAt <= threshold/);
+  assert.match(devices, /switch_state_for/);
+  assert.match(route, /capabilityStateAgeMinutes/);
+});
+
 test("Normale Automation-Oberflächen verwenden deutsche Fachsprache", () => {
   const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
   const devices = readFileSync("src/components/automation-device-manager.tsx", "utf8");

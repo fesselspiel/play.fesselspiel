@@ -65,7 +65,8 @@ export async function POST(request: NextRequest) {
     simulationOverrides: {
       deviceHealth: allowedStateOverrides(asRecord(body.simulationOverrides).deviceHealth, devices.map((device) => device.id)),
       capabilityState: allowedStateOverrides(asRecord(body.simulationOverrides).capabilityState, capabilities.map((capability) => capability.id)),
-      lastImageAgeSeconds: allowedNumberOverrides(asRecord(body.simulationOverrides).lastImageAgeSeconds, capabilities.filter((capability) => capability.kind === "Camera").map((capability) => capability.id))
+      lastImageAgeSeconds: allowedNumberOverrides(asRecord(body.simulationOverrides).lastImageAgeSeconds, capabilities.filter((capability) => capability.kind === "Camera").map((capability) => capability.id)),
+      capabilityStateAgeMinutes: allowedNumberOverrides(asRecord(body.simulationOverrides).capabilityStateAgeMinutes, capabilities.filter((capability) => capability.kind === "Switch").map((capability) => capability.id))
     }
   };
   const triggerType = typeof body.triggerType === "string" ? body.triggerType : "session_started";

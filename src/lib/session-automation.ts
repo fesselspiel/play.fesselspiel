@@ -1229,6 +1229,31 @@ async function conditionIsCurrentlyValid(input: {
           : `${cameraName} hat noch kein empfangenes Bild`
     };
   }
+  if (type === "switch_state_for") {
+    const conditionCapabilityId = clean(condition.capabilityId);
+    const capabilityId = conditionCapabilityId || input.capabilityId;
+    if (!capabilityId) return { passed: false, reason: "Kein Schalter ausgewählt" };
+    const expected = clean(condition.state || condition.expected || condition.value);
+    if (!["ON", "OFF"].includes(expected)) return { passed: false, reason: "Kein gültiger Schaltzustand ausgewählt" };
+    const requiredMinutes = Math.max(1, numberFromPayload(condition, "minutes", numberFromPayload(condition, "stateAgeMinutes", 5)));
+    const capability = await prisma.automationCapability.findFirst({
+      where: { id: capabilityId, tenantId: input.tenantId },
+      select: { kind: true, title: true, state: true, updatedAt: true, device: { select: { name: true } } }
+    });
+    if (!capability) return { passed: false, reason: "Schalter ist auf dieser Seite nicht verfügbar" };
+    if (capability.kind !== "Switch") return { passed: false, reason: "Die gewählte Fähigkeit ist kein Schalter" };
+    const threshold = new Date(Date.now() - requiredMinutes * 60_000);
+    const passed = capability.state === expected && capability.updatedAt <= threshold;
+    const switchName = `${capability.device?.name || "Gerät"} · ${capability.title || "Schalter"}`;
+    return {
+      passed,
+      reason: passed
+        ? `${switchName} ist seit mindestens ${requiredMinutes} Minuten ${expected === "ON" ? "eingeschaltet" : "ausgeschaltet"}`
+        : capability.state === expected
+          ? `${switchName} ist noch nicht lange genug ${expected === "ON" ? "eingeschaltet" : "ausgeschaltet"}`
+          : `${switchName} ist aktuell nicht ${expected === "ON" ? "eingeschaltet" : "ausgeschaltet"}`
+    };
+  }
   if (type === "quota_remaining") {
     const trackerTypeId = clean(condition.trackerTypeId);
     if (!trackerTypeId) return { passed: false, reason: "Kein Tracker ausgewählt" };
