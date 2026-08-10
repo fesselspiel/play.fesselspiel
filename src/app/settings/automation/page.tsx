@@ -142,6 +142,22 @@ function humanAutomationDetailEntries(details: Record<string, unknown>) {
     });
 }
 
+function humanAutomationPolicyEntries(policy: Record<string, unknown>) {
+  const entries: Array<[string, string]> = [];
+  const role = typeof policy.role === "string" ? labelAutomationValue("roles", policy.role) : "";
+  const action = typeof policy.action === "string" ? automationActionTitle(policy.action) : "";
+  const state = typeof policy.state === "string" ? labelAutomationValue("states", policy.state) : "";
+  const decision = typeof policy.decision === "string" ? policy.decision : "";
+  const reason = typeof policy.reason === "string" ? policy.reason : "";
+  if (role) entries.push(["Rolle", role]);
+  if (action) entries.push(["Erlaubte Aktion", action]);
+  if (state) entries.push(["Session-Zustand", state]);
+  if (typeof policy.allowed === "boolean") entries.push(["Entscheidung", policy.allowed ? "erlaubt" : "nicht erlaubt"]);
+  if (decision) entries.push(["Policy", humanDetailValue(decision)]);
+  if (reason) entries.push(["Begründung", humanDetailValue(reason)]);
+  return entries;
+}
+
 async function saveBridge(formData: FormData) {
   "use server";
   const user = await currentUser();
@@ -791,7 +807,10 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                 {events.map((event) => {
                   const details = jsonRecord(event.detailsJson);
                   const detailEntries = humanAutomationDetailEntries(details);
-                  const policy = jsonRecord(event.context?.policyJson);
+                  const detailPolicy = jsonRecord(details.policy);
+                  const contextPolicy = jsonRecord(event.context?.policyJson);
+                  const policy = Object.keys(contextPolicy).length ? contextPolicy : detailPolicy;
+                  const policyEntries = humanAutomationPolicyEntries(policy);
                   const timing = jsonRecord(event.context?.timingJson);
                   return (
                     <details key={event.id} className="rounded-md border border-line bg-paper p-3">
@@ -858,10 +877,17 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                             {event.childEvents.map((child) => <div key={child.id}>Folge: {formatAutomationEventTime(child.createdAt)} · {automationEventTitle(child)}</div>)}
                           </div>
                         ) : null}
-                        {event.context ? (
+                        {policyEntries.length || event.context ? (
                           <div className="rounded-md border border-line bg-surface p-3">
                             <div className="text-xs uppercase text-graphite">Entscheidung</div>
-                            {policy.decision ? <div>Policy: {humanDetailValue(policy.decision)}{policy.reason ? ` · ${humanDetailValue(policy.reason)}` : ""}</div> : null}
+                            <div className="mt-2 grid gap-1">
+                              {policyEntries.map(([label, value]) => (
+                                <div key={label} className="grid gap-1 sm:grid-cols-[180px_1fr]">
+                                  <span className="font-medium text-ink">{label}</span>
+                                  <span>{value}</span>
+                                </div>
+                              ))}
+                            </div>
                             {timing.dueAt ? <div>Geplante Ausführung: {humanDetailValue(timing.dueAt)}</div> : null}
                           </div>
                         ) : null}

@@ -225,6 +225,15 @@ test("Automation-Session-Aktionen nutzen zentrale Rollen-Policy statt Besitzer-S
   assert.doesNotMatch(service, /where:\s*\{\s*id:\s*input\.sessionId,\s*tenantId:\s*input\.user\.tenantId,\s*ownerId:\s*input\.user\.id\s*\}/);
 });
 
+test("Automation-Protokoll zeigt Policy-Entscheidungen fachlich an", () => {
+  const settings = readFileSync("src/app/settings/automation/page.tsx", "utf8");
+  assert.match(settings, /function humanAutomationPolicyEntries/);
+  assert.match(settings, /Erlaubte Aktion/);
+  assert.match(settings, /Session-Zustand/);
+  assert.match(settings, /details\.policy/);
+  assert.match(settings, /Begründung/);
+});
+
 test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben", () => {
   const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
   const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
