@@ -76,6 +76,16 @@ test("Doppelstart bleibt idempotent", () => {
   assert.equal(active.ownerId === "u1" && active.trackerTypeId === "t1" && ["RUNNING", "PENDING_END"].includes(active.state), true);
 });
 
+test("Automation-Session-Start serialisiert Doppelstarts pro Benutzer und Tracker", () => {
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
+  assert.match(service, /pg_advisory_xact_lock/);
+  assert.match(service, /automation-start:\$\{input\.user\.tenantId\}:\$\{input\.user\.id\}:\$\{tracker\.id\}/);
+  assert.match(service, /TransactionIsolationLevel\.Serializable/);
+  assert.match(service, /tx\.automationSession\.findFirst/);
+  assert.match(service, /tx\.trackerEntry\.create/);
+  assert.match(service, /tx\.automationSession\.create/);
+});
+
 test("Session und Tracker werden gekoppelt", () => {
   const session = { trackerTypeId: "tracker-a", trackerEntryId: "entry-a" };
   assert.equal(Boolean(session.trackerTypeId && session.trackerEntryId), true);

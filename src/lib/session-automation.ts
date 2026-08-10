@@ -1,10 +1,10 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { logAction } from "@/lib/audit";
 import { automationRuleSummary, simulateAutomationRuleTimeline } from "@/lib/automation-rule-model";
 import { minutesBetween } from "@/lib/dates";
 import { saveFileBuffer } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
-import { findTrackerTypeByIdForUser, findTrackerTypeByTextForUser, startTrackerEntryForType, stopTrackerEntryForType, uniqueTrackerSlug } from "@/lib/tracker-core";
+import { findTrackerTypeByIdForUser, findTrackerTypeByTextForUser, stopTrackerEntryForType, trackerSlugBase } from "@/lib/tracker-core";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 
 export const automationStates = ["IDLE", "RUNNING", "PENDING_END", "FINISHED", "CANCELLED"] as const;
@@ -137,6 +137,23 @@ export async function automationSessionAccess(user: AutomationUser, session: Aut
 function numberFromPayload(payload: Record<string, unknown>, key: string, fallback: number) {
   const value = Number(payload[key]);
   return Number.isFinite(value) ? Math.max(0, Math.round(value)) : fallback;
+}
+
+async function uniqueTrackerSlugInTransaction(tx: Prisma.TransactionClient, trackerTypeId: string, key: string, startTime: Date) {
+  const base = trackerSlugBase(key, startTime);
+  let slug = base;
+  let counter = 2;
+  while (true) {
+    const existing = await tx.trackerEntry.findFirst({ where: { trackerTypeId, slug }, select: { id: true } });
+    if (!existing) return slug;
+    slug = `${base}-${counter++}`;
+  }
+}
+
+function isRetryableAutomationStartError(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") return true;
+  const message = error instanceof Error ? error.message : "";
+  return /could not serialize|deadlock detected|serialization failure/i.test(message);
 }
 
 function concreteDelayMinutes(timing: unknown) {
@@ -331,54 +348,111 @@ export async function startAutomationSession(input: {
     ? await findTrackerTypeByIdForUser(input.trackerTypeId, input.user)
     : await findTrackerTypeByTextForUser(input.trackerKeyOrTitle || "", input.user);
   if (!tracker) throw new Error("tracker_not_found");
-  const existing = await currentAutomationSession(input.user, tracker.id);
-  if (existing) {
+  const corr = input.idempotencyKey || correlationId("session");
+  const title = input.title || tracker.title;
+  const lockKey = `automation-start:${input.user.tenantId}:${input.user.id}:${tracker.id}`;
+  let result: {
+    session: Awaited<ReturnType<typeof currentAutomationSession>>;
+    trackerEntryId?: string | null;
+    created: boolean;
+  } | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      result = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+        const existing = await tx.automationSession.findFirst({
+          where: { tenantId: input.user.tenantId!, ownerId: input.user.id, state: { in: ["RUNNING", "PENDING_END"] }, trackerTypeId: tracker.id },
+          include: {
+            trackerType: true,
+            trackerEntry: true,
+            actions: { orderBy: { createdAt: "desc" }, take: 20 },
+            events: { orderBy: { createdAt: "desc" }, take: 30 },
+            imageRequests: { include: { file: true }, orderBy: { requestedAt: "desc" } }
+          },
+          orderBy: { startedAt: "desc" }
+        });
+        if (existing) return { session: existing, trackerEntryId: existing.trackerEntryId, created: false };
+        const startTime = new Date();
+        if (tracker.autoCloseOpenSession) {
+          const open = await tx.trackerEntry.findFirst({
+            where: { trackerTypeId: tracker.id, ownerId: input.user.id, endTime: null, allDay: false },
+            orderBy: { startTime: "desc" }
+          });
+          if (open) {
+            const endTime = new Date();
+            await tx.trackerEntry.update({
+              where: { id: open.id },
+              data: { endTime, durationMinutes: minutesBetween(open.startTime, endTime) }
+            });
+          }
+        }
+        const trackerEntry = await tx.trackerEntry.create({
+          data: {
+            tenantId: input.user.tenantId || tracker.tenantId,
+            ownerId: input.user.id,
+            trackerTypeId: tracker.id,
+            slug: await uniqueTrackerSlugInTransaction(tx, tracker.id, tracker.key, startTime),
+            title: tracker.title,
+            startTime,
+            allDay: false,
+            notes: input.notes || "Automatisierte Session gestartet",
+            fieldValues: {}
+          }
+        });
+        const session = await tx.automationSession.create({
+          data: {
+            tenantId: input.user.tenantId!,
+            ownerId: input.user.id,
+            trackerTypeId: tracker.id,
+            trackerEntryId: trackerEntry.id,
+            slug: await uniqueAutomationSlug(input.user.tenantId!, title, startTime),
+            title,
+            state: "RUNNING",
+            source: input.source || "SYSTEM",
+            role: input.role || "OWNER",
+            correlationId: corr,
+            startedAt: startTime,
+            notes: input.notes || null,
+            metadataJson: jsonObject(input.metadata)
+          },
+          include: {
+            trackerType: true,
+            trackerEntry: true,
+            actions: { orderBy: { createdAt: "desc" }, take: 20 },
+            events: { orderBy: { createdAt: "desc" }, take: 30 },
+            imageRequests: { include: { file: true }, orderBy: { requestedAt: "desc" } }
+          }
+        });
+        return { session, trackerEntryId: trackerEntry.id, created: true };
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      break;
+    } catch (error) {
+      if (!isRetryableAutomationStartError(error) || attempt === 2) throw error;
+    }
+  }
+  if (!result?.session) throw new Error("automation_start_failed");
+  if (!result.created) {
     await recordAutomationEvent({
       tenantId: input.user.tenantId,
-      sessionId: existing.id,
+      sessionId: result.session.id,
       actorId: input.user.id,
       type: "session_start_ignored",
       title: `${tracker.title} läuft bereits`,
       source: input.source || "SYSTEM",
       role: input.role || "OWNER",
-      details: { existingSessionId: existing.id }
+      details: { existingSessionId: result.session.id },
+      correlationId: result.session.correlationId
     });
-    return { session: existing, created: false };
+    return { session: result.session, created: false };
   }
-  const startTime = new Date();
-  const corr = input.idempotencyKey || correlationId("session");
-  const trackerEntry = await startTrackerEntryForType({
-    trackerType: tracker,
-    user: input.user,
-    startTime,
-    notes: input.notes || "Automatisierte Session gestartet"
-  });
-  const title = input.title || tracker.title;
-  const session = await prisma.automationSession.create({
-    data: {
-      tenantId: input.user.tenantId,
-      ownerId: input.user.id,
-      trackerTypeId: tracker.id,
-      trackerEntryId: trackerEntry.id,
-      slug: await uniqueAutomationSlug(input.user.tenantId, title, startTime),
-      title,
-      state: "RUNNING",
-      source: input.source || "SYSTEM",
-      role: input.role || "OWNER",
-      correlationId: corr,
-      startedAt: startTime,
-      notes: input.notes || null,
-      metadataJson: jsonObject(input.metadata)
-    },
-    include: { trackerType: true, trackerEntry: true }
-  });
+  const session = result.session;
   const context = await createAutomationContext({
     tenantId: input.user.tenantId,
     sessionId: session.id,
     actorId: input.user.id,
     source: input.source || "SYSTEM",
     role: input.role || "OWNER",
-    variables: { trackerTypeId: tracker.id, trackerEntryId: trackerEntry.id },
+    variables: { trackerTypeId: tracker.id, trackerEntryId: result.trackerEntryId },
     policy: { decision: "allow", reason: "owner_start" },
     correlationId: corr
   });
@@ -391,7 +465,7 @@ export async function startAutomationSession(input: {
     title: `${tracker.title} gestartet`,
     source: input.source || "SYSTEM",
     role: input.role || "OWNER",
-    details: { trackerTypeId: tracker.id, trackerEntryId: trackerEntry.id },
+    details: { trackerTypeId: tracker.id, trackerEntryId: result.trackerEntryId },
     correlationId: corr
   });
   return { session, created: true };
