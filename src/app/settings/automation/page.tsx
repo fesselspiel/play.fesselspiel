@@ -107,6 +107,40 @@ function humanDetailValue(value: unknown) {
   return JSON.stringify(value);
 }
 
+function humanAutomationDetailEntries(details: Record<string, unknown>) {
+  const labels: Record<string, string> = {
+    version: "Regelversion",
+    descriptionText: "Beschreibung",
+    name: "Name",
+    title: "Titel",
+    reason: "Grund",
+    status: "Status",
+    state: "Zustand",
+    health: "Verbindung",
+    dueAt: "Fällig",
+    pendingEndAt: "Vorgemerkter Endzeitpunkt",
+    resolvedDelayMinutes: "Berechnete Wartezeit",
+    delayMinutes: "Wartezeit",
+    minMinutes: "Minimale Wartezeit",
+    maxMinutes: "Maximale Wartezeit",
+    timeoutSeconds: "Timeout",
+    maxRetries: "Wiederholungen",
+    bootDelaySeconds: "Boot-Wartezeit",
+    actionCount: "Anzahl Aktionen",
+    capabilities: "Anzahl Fähigkeiten",
+    requestId: "Bildanforderung",
+    error: "Fehler"
+  };
+  return Object.entries(details)
+    .filter(([key]) => labels[key])
+    .map(([key, value]) => {
+      const statusValue = key === "status" ? labelAutomationValue("actionStatuses", String(value || "")) : null;
+      const stateValue = key === "state" ? labelAutomationValue("states", String(value || "")) : null;
+      const healthValue = key === "health" ? labelAutomationValue("health", String(value || "")) : null;
+      return [labels[key], statusValue || stateValue || healthValue || humanDetailValue(value)] as const;
+    });
+}
+
 async function saveBridge(formData: FormData) {
   "use server";
   const user = await currentUser();
@@ -704,6 +738,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
               <div className="mt-3 max-h-96 space-y-2 overflow-auto">
                 {events.map((event) => {
                   const details = jsonRecord(event.detailsJson);
+                  const detailEntries = humanAutomationDetailEntries(details);
                   const policy = jsonRecord(event.context?.policyJson);
                   const timing = jsonRecord(event.context?.timingJson);
                   return (
@@ -751,13 +786,13 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                             </div>
                           ) : null}
                         </div>
-                        {Object.keys(details).length ? (
+                        {detailEntries.length ? (
                           <div className="rounded-md border border-line bg-surface p-3">
                             <div className="text-xs uppercase text-graphite">Details</div>
                             <div className="mt-2 grid gap-1">
-                              {Object.entries(details).slice(0, 6).map(([key, value]) => (
-                                <div key={key} className="grid gap-1 sm:grid-cols-[180px_1fr]">
-                                  <span className="font-medium text-ink">{key}</span>
+                              {detailEntries.slice(0, 6).map(([label, value]) => (
+                                <div key={label} className="grid gap-1 sm:grid-cols-[180px_1fr]">
+                                  <span className="font-medium text-ink">{label}</span>
                                   <span>{humanDetailValue(value)}</span>
                                 </div>
                               ))}
