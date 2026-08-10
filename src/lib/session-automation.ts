@@ -1195,6 +1195,40 @@ async function conditionIsCurrentlyValid(input: {
     const passed = expected ? capability?.state === expected : Boolean(capability?.state);
     return { passed, reason: passed ? "Fähigkeitszustand passt" : "Fähigkeitszustand passt nicht" };
   }
+  if (type === "last_image_younger_than") {
+    const conditionCapabilityId = clean(condition.capabilityId);
+    const capabilityId = conditionCapabilityId || input.capabilityId;
+    if (!capabilityId) return { passed: false, reason: "Keine Kamera ausgewählt" };
+    const maxAgeSeconds = Math.max(1, numberFromPayload(condition, "maxAgeSeconds", numberFromPayload(condition, "seconds", 300)));
+    const capability = await prisma.automationCapability.findFirst({
+      where: { id: capabilityId, tenantId: input.tenantId },
+      select: { kind: true, title: true, device: { select: { name: true } } }
+    });
+    if (!capability) return { passed: false, reason: "Kamera ist auf dieser Seite nicht verfügbar" };
+    if (capability.kind !== "Camera") return { passed: false, reason: "Die gewählte Fähigkeit ist keine Kamera" };
+    const threshold = new Date(Date.now() - maxAgeSeconds * 1000);
+    const latestImage = await prisma.automationImageRequest.findFirst({
+      where: {
+        tenantId: input.tenantId,
+        capabilityId,
+        status: "UPLOADED",
+        fileId: { not: null },
+        uploadedAt: { not: null }
+      },
+      orderBy: { uploadedAt: "desc" },
+      select: { uploadedAt: true }
+    });
+    const passed = Boolean(latestImage?.uploadedAt && latestImage.uploadedAt >= threshold);
+    const cameraName = `${capability.device?.name || "Gerät"} · ${capability.title || "Kamera"}`;
+    return {
+      passed,
+      reason: passed
+        ? `${cameraName} hat ein aktuelles Bild`
+        : latestImage?.uploadedAt
+          ? `${cameraName} hat kein Bild jünger als ${maxAgeSeconds} Sekunden`
+          : `${cameraName} hat noch kein empfangenes Bild`
+    };
+  }
   if (type === "quota_remaining") {
     const trackerTypeId = clean(condition.trackerTypeId);
     if (!trackerTypeId) return { passed: false, reason: "Kein Tracker ausgewählt" };

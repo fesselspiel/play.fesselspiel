@@ -18,6 +18,7 @@ export type AutomationConditionKey =
   | "device_online"
   | "device_offline"
   | "capability_state"
+  | "last_image_younger_than"
   | "quota_remaining";
 
 export type AutomationTimingKey = "immediate" | "fixed_delay" | "random_delay";
@@ -59,6 +60,7 @@ export type AutomationTrackerReference = {
 export type AutomationSimulationOverrides = {
   deviceHealth?: Record<string, string>;
   capabilityState?: Record<string, string>;
+  lastImageAgeSeconds?: Record<string, number>;
 };
 
 export type AutomationRuleContext = {
@@ -178,17 +180,17 @@ export const triggerOptions: Array<{ key: AutomationTriggerKey; label: string; d
 ];
 
 export const conditionOptions: Record<AutomationTriggerKey, AutomationConditionKey[]> = {
-  session_started: ["none", "controller_absent", "device_online", "device_offline"],
-  session_pending_end: ["none", "device_online", "device_offline"],
+  session_started: ["none", "controller_absent", "device_online", "device_offline", "last_image_younger_than"],
+  session_pending_end: ["none", "device_online", "device_offline", "last_image_younger_than"],
   session_finished: ["none", "quota_remaining"],
-  action_succeeded: ["none", "capability_state"],
-  action_failed: ["none", "device_offline", "capability_state"],
-  image_uploaded: ["none", "capability_state"],
-  camera_online: ["none", "device_online", "capability_state"],
-  camera_offline: ["none", "device_offline", "capability_state"],
-  capability_event: ["capability_state", "device_online", "device_offline"],
+  action_succeeded: ["none", "capability_state", "last_image_younger_than"],
+  action_failed: ["none", "device_offline", "capability_state", "last_image_younger_than"],
+  image_uploaded: ["none", "capability_state", "last_image_younger_than"],
+  camera_online: ["none", "device_online", "capability_state", "last_image_younger_than"],
+  camera_offline: ["none", "device_offline", "capability_state", "last_image_younger_than"],
+  capability_event: ["capability_state", "device_online", "device_offline", "last_image_younger_than"],
   event_absent: ["controller_absent", "device_online", "device_offline"],
-  device_state_changed: ["capability_state", "device_online", "device_offline"],
+  device_state_changed: ["capability_state", "device_online", "device_offline", "last_image_younger_than"],
   quota_open: ["quota_remaining"]
 };
 
@@ -198,6 +200,7 @@ export const conditionLabels: Record<AutomationConditionKey, string> = {
   device_online: "Gerät ist verbunden",
   device_offline: "Gerät ist nicht erreichbar",
   capability_state: "Fähigkeit hat bestimmten Zustand",
+  last_image_younger_than: "Letztes Kamerabild ist jünger als Vorgabe",
   quota_remaining: "Kontingent ist noch offen"
 };
 
@@ -245,6 +248,7 @@ export type RuleFormValue = {
   conditionDeviceId: string;
   conditionCapabilityId: string;
   conditionExpectedState: string;
+  conditionImageMaxAgeSeconds: number;
   conditionTrackerTypeId: string;
   timingType: AutomationTimingKey;
   delayMinutes: number;
@@ -286,6 +290,7 @@ export function defaultRuleFormValue(): RuleFormValue {
     conditionDeviceId: "",
     conditionCapabilityId: "",
     conditionExpectedState: "ONLINE",
+    conditionImageMaxAgeSeconds: 300,
     conditionTrackerTypeId: "",
     timingType: "immediate",
     delayMinutes: 5,
@@ -333,6 +338,7 @@ export function ruleFormFromStored(rule?: {
   value.conditionDeviceId = typeof condition.deviceId === "string" ? condition.deviceId : "";
   value.conditionCapabilityId = typeof condition.capabilityId === "string" ? condition.capabilityId : "";
   value.conditionExpectedState = typeof condition.state === "string" ? condition.state : value.conditionExpectedState;
+  value.conditionImageMaxAgeSeconds = numberValue(condition.maxAgeSeconds ?? condition.seconds, value.conditionImageMaxAgeSeconds);
   value.conditionTrackerTypeId = typeof condition.trackerTypeId === "string" ? condition.trackerTypeId : "";
   const timing = asObject(rule.timingJson);
   if (timing.type && timingLabels[timing.type as AutomationTimingKey]) value.timingType = timing.type as AutomationTimingKey;
@@ -375,8 +381,9 @@ export function buildStoredRule(value: RuleFormValue) {
     type: value.conditionType,
     minutes: value.conditionType === "controller_absent" ? value.conditionMinutes : 0,
     deviceId: ["device_online", "device_offline"].includes(value.conditionType) ? value.conditionDeviceId || null : null,
-    capabilityId: value.conditionType === "capability_state" ? value.conditionCapabilityId || null : null,
+    capabilityId: ["capability_state", "last_image_younger_than"].includes(value.conditionType) ? value.conditionCapabilityId || null : null,
     state: value.conditionType === "capability_state" ? value.conditionExpectedState || null : null,
+    maxAgeSeconds: value.conditionType === "last_image_younger_than" ? Math.max(1, value.conditionImageMaxAgeSeconds) : null,
     trackerTypeId: value.conditionType === "quota_remaining" ? value.conditionTrackerTypeId || null : null
   }];
   const timing = value.timingType === "fixed_delay"
@@ -472,6 +479,14 @@ export function validateAutomationRulePayload(input: {
     if (capabilityId && !capability) errors.push("Die gewählte Fähigkeit ist auf dieser Seite nicht verfügbar.");
     if (capability && requiredKind && capability.kind !== requiredKind) errors.push("Die gewählte Fähigkeitsbedingung passt nicht zum Auslöser.");
     if (!expectedState) errors.push("Bitte wähle den erwarteten Zustand.");
+  }
+  if (conditionType === "last_image_younger_than") {
+    const capabilityId = typeof condition.capabilityId === "string" ? condition.capabilityId : "";
+    const capability = capabilityId ? capabilities.find((item) => item.id === capabilityId) : null;
+    if (!capabilityId) errors.push("Bitte wähle die Kamera für diese Bedingung.");
+    if (capabilityId && !capability) errors.push("Die gewählte Kamera ist auf dieser Seite nicht verfügbar.");
+    if (capability && capability.kind !== "Camera") errors.push("Für diese Bedingung muss eine Kamera-Fähigkeit gewählt werden.");
+    if (numberValue(condition.maxAgeSeconds ?? condition.seconds, 0) < 1) errors.push("Das maximale Bildalter muss mindestens eine Sekunde betragen.");
   }
   if (conditionType === "quota_remaining") {
     const trackerTypeId = typeof condition.trackerTypeId === "string" ? condition.trackerTypeId : "";
@@ -745,6 +760,13 @@ function simulationStateVariables(condition: Record<string, unknown>, context: A
     const title = `${capability.deviceName || "Gerät"} · ${capability.title || "Fähigkeit"}`;
     return [`Simulierter Fähigkeitszustand: ${title} ist ${labelAutomationValue("health", effectiveCapabilityState(capability, context))}`];
   }
+  if (type === "last_image_younger_than") {
+    const capability = typeof condition.capabilityId === "string" ? context.capabilities?.find((item) => item.id === condition.capabilityId) : null;
+    if (!capability) return [];
+    const title = `${capability.deviceName || "Gerät"} · ${capability.title || "Kamera"}`;
+    const age = effectiveLastImageAgeSeconds(capability, context);
+    return [`Simuliertes letztes Kamerabild: ${title} · ${age === null ? "kein Bild vorhanden" : `${age} Sekunden alt`}`];
+  }
   return [];
 }
 
@@ -777,6 +799,12 @@ function effectiveCapabilityState(capability: AutomationCapabilityReference | nu
   return context.simulationOverrides?.capabilityState?.[capability.id] || capability.state || "UNKNOWN";
 }
 
+function effectiveLastImageAgeSeconds(capability: AutomationCapabilityReference | null | undefined, context: AutomationRuleContext) {
+  if (!capability) return null;
+  const age = context.simulationOverrides?.lastImageAgeSeconds?.[capability.id];
+  return Number.isFinite(age) ? Math.max(0, Math.round(Number(age))) : null;
+}
+
 function evaluateSimulationCondition(condition: Record<string, unknown>, context: AutomationRuleContext = {}) {
   const type = condition.type as AutomationConditionKey | undefined;
   if (!type || type === "none") return { passed: true, canBecomeTrue: true, result: "Keine zusätzliche Bedingung" };
@@ -801,6 +829,21 @@ function evaluateSimulationCondition(condition: Record<string, unknown>, context
       passed,
       canBecomeTrue: passed,
       result: capability ? `Simulierter Zustand: ${labelAutomationValue("health", state)}` : "Keine Fähigkeit für die Simulation ausgewählt"
+    };
+  }
+  if (type === "last_image_younger_than") {
+    const capability = typeof condition.capabilityId === "string" ? context.capabilities?.find((item) => item.id === condition.capabilityId) : null;
+    const maxAgeSeconds = Math.max(1, numberValue(condition.maxAgeSeconds ?? condition.seconds, 0));
+    const ageSeconds = effectiveLastImageAgeSeconds(capability, context);
+    const passed = Boolean(capability && ageSeconds !== null && ageSeconds <= maxAgeSeconds);
+    return {
+      passed,
+      canBecomeTrue: passed,
+      result: capability
+        ? ageSeconds === null
+          ? "Kein letztes Kamerabild in der Simulation vorhanden"
+          : `Letztes Bild ist ${ageSeconds} Sekunden alt, erlaubt sind höchstens ${maxAgeSeconds} Sekunden`
+        : "Keine Kamera für die Simulation ausgewählt"
     };
   }
   if (type === "quota_remaining") {
@@ -855,6 +898,10 @@ function describeCondition(condition: Record<string, unknown>, context: Automati
   if (type === "capability_state") {
     const capability = nameById(context.capabilities, condition.capabilityId, "die gewählte Fähigkeit", (item) => `${item.deviceName || "Gerät"} · ${item.title || "Fähigkeit"}`);
     return `${capability} hat den Zustand ${labelAutomationValue("health", typeof condition.state === "string" ? condition.state : "")}`;
+  }
+  if (type === "last_image_younger_than") {
+    const capability = nameById(context.capabilities, condition.capabilityId, "die gewählte Kamera", (item) => `${item.deviceName || "Gerät"} · ${item.title || "Kamera"}`);
+    return `${capability} hat ein Bild jünger als ${numberValue(condition.maxAgeSeconds ?? condition.seconds, 300)} Sekunden`;
   }
   if (type === "quota_remaining") {
     const tracker = nameById(context.trackers, condition.trackerTypeId, "das gewählte Kontingent", (item) => item.title);

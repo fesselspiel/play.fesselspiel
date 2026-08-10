@@ -98,6 +98,7 @@ export function AutomationRuleEditor({
   const [controllerActionMinute, setControllerActionMinute] = useState(19);
   const [simulatedDeviceHealth, setSimulatedDeviceHealth] = useState<Record<string, string>>({});
   const [simulatedCapabilityState, setSimulatedCapabilityState] = useState<Record<string, string>>({});
+  const [simulatedLastImageAgeSeconds, setSimulatedLastImageAgeSeconds] = useState<Record<string, number>>({});
   const availableConditions = conditionOptions[value.triggerType] || ["none"];
   const recoveryCapabilities = capabilities.filter((capability) => capability.kind === "Switch");
   const stored = useMemo(() => buildStoredRule(value), [value]);
@@ -107,9 +108,10 @@ export function AutomationRuleEditor({
     trackers,
     simulationOverrides: {
       deviceHealth: simulatedDeviceHealth,
-      capabilityState: simulatedCapabilityState
+      capabilityState: simulatedCapabilityState,
+      lastImageAgeSeconds: simulatedLastImageAgeSeconds
     }
-  }), [capabilities, devices, trackers, simulatedDeviceHealth, simulatedCapabilityState]);
+  }), [capabilities, devices, trackers, simulatedDeviceHealth, simulatedCapabilityState, simulatedLastImageAgeSeconds]);
   const summary = automationRuleSummary(stored, context);
   const flow = automationRuleFlow(stored, context);
   const simulation = simulateAutomationRuleTimeline({
@@ -119,7 +121,7 @@ export function AutomationRuleEditor({
   }, context);
   const triggerCapabilityKind = triggerCapabilityFilter(value.triggerType);
   const triggerCapabilities = triggerCapabilityKind ? capabilities.filter((capability) => capability.kind === triggerCapabilityKind) : capabilities;
-  const conditionCapabilityKind = triggerCapabilityKind;
+  const conditionCapabilityKind = value.conditionType === "last_image_younger_than" ? "Camera" : triggerCapabilityKind;
   const conditionCapabilities = conditionCapabilityKind ? capabilities.filter((capability) => capability.kind === conditionCapabilityKind) : capabilities;
   const conditionCapability = capabilities.find((capability) => capability.id === value.conditionCapabilityId);
   const conditionStateOptions = stateOptionsForCapability(conditionCapability?.kind);
@@ -141,6 +143,10 @@ export function AutomationRuleEditor({
         const first = requiredKind ? capabilities.find((capability) => capability.kind === requiredKind) : capabilities[0];
         merged.conditionCapabilityId = first?.id || "";
         merged.conditionExpectedState = first?.state || "ONLINE";
+      }
+      if (merged.conditionType === "last_image_younger_than" && !merged.conditionCapabilityId) {
+        merged.conditionCapabilityId = capabilities.find((capability) => capability.kind === "Camera")?.id || "";
+        merged.conditionImageMaxAgeSeconds = Math.max(1, merged.conditionImageMaxAgeSeconds || 300);
       }
       if (merged.conditionType === "quota_remaining" && !merged.conditionTrackerTypeId) {
         merged.conditionTrackerTypeId = trackers[0]?.id || "";
@@ -221,18 +227,19 @@ export function AutomationRuleEditor({
     } else {
       next.conditionDeviceId = "";
     }
-    if (next.conditionType === "capability_state") {
-      const conditionCapKind = triggerCapabilityFilter(next.triggerType);
+    if (next.conditionType === "capability_state" || next.conditionType === "last_image_younger_than") {
+      const conditionCapKind = next.conditionType === "last_image_younger_than" ? "Camera" : triggerCapabilityFilter(next.triggerType);
       const allowedConditionCapabilities = conditionCapKind ? capabilities.filter((capability) => capability.kind === conditionCapKind) : capabilities;
       const currentCapability = allowedConditionCapabilities.find((capability) => capability.id === next.conditionCapabilityId);
       if (!currentCapability) {
         const first = allowedConditionCapabilities[0];
         next.conditionCapabilityId = first?.id || "";
         next.conditionExpectedState = first?.state || "ONLINE";
-      } else {
+      } else if (next.conditionType === "capability_state") {
         const validStates = stateOptionsForCapability(currentCapability.kind).map(([key]) => key);
         if (!validStates.includes(next.conditionExpectedState)) next.conditionExpectedState = validStates[0] || "ONLINE";
       }
+      if (next.conditionType === "last_image_younger_than") next.conditionImageMaxAgeSeconds = Math.max(1, next.conditionImageMaxAgeSeconds || 300);
     } else {
       next.conditionCapabilityId = "";
     }
@@ -337,6 +344,23 @@ export function AutomationRuleEditor({
                 <select className={`${inputClass} mt-1`} value={value.conditionExpectedState} onChange={(event) => update({ conditionExpectedState: event.target.value })}>
                   {conditionStateOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
                 </select>
+              </label>
+            </div>
+          ) : null}
+          {value.conditionType === "last_image_younger_than" ? (
+            <div className="mt-3 grid gap-2 text-sm text-graphite">
+              <label>Kamera
+                <select className={`${inputClass} mt-1`} value={value.conditionCapabilityId} onChange={(event) => update({ conditionCapabilityId: event.target.value })}>
+                  {conditionCapabilities.length ? conditionCapabilities.map((capability) => (
+                    <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
+                  )) : <option value="">Keine Kamera eingerichtet</option>}
+                </select>
+              </label>
+              <label>Maximales Bildalter
+                <div className="mt-1 flex items-center gap-2">
+                  <input className={inputClass} type="number" min={1} value={value.conditionImageMaxAgeSeconds} onChange={(event) => update({ conditionImageMaxAgeSeconds: Number(event.target.value) })} />
+                  <span>Sek.</span>
+                </div>
               </label>
             </div>
           ) : null}
@@ -531,6 +555,24 @@ export function AutomationRuleEditor({
               </select>
             </label>
             <p className="mt-2 text-xs leading-5">Dieser Zustand ist nur ein Simulationswert. Die gespeicherte Fähigkeit und die echte Gerätebrücke bleiben unverändert.</p>
+          </div>
+        ) : null}
+        {value.conditionType === "last_image_younger_than" ? (
+          <div className="mt-3 rounded-md border border-line bg-surface p-3 text-sm text-graphite">
+            <label className="block font-semibold text-ink">Letztes Kamerabild für diese Simulation
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  className={inputClass}
+                  type="number"
+                  min={0}
+                  value={simulatedLastImageAgeSeconds[value.conditionCapabilityId] ?? value.conditionImageMaxAgeSeconds}
+                  onChange={(event) => setSimulatedLastImageAgeSeconds((current) => ({ ...current, [value.conditionCapabilityId]: Number(event.target.value) }))}
+                  disabled={!value.conditionCapabilityId}
+                />
+                <span>Sekunden alt</span>
+              </div>
+            </label>
+            <p className="mt-2 text-xs leading-5">Dieser Wert ist nur ein Simulationswert. Es wird kein echtes Bild gesucht oder gespeichert.</p>
           </div>
         ) : null}
         <input className="mt-4 w-full accent-redbrand" type="range" min={0} max={simulation.durationMinutes} value={scrubMinute} onChange={(event) => setScrubMinute(Number(event.target.value))} />

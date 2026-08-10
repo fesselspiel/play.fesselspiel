@@ -20,6 +20,16 @@ function allowedStateOverrides(raw: unknown, allowedIds: string[]): Record<strin
   ) as Record<string, string>;
 }
 
+function allowedNumberOverrides(raw: unknown, allowedIds: string[]): Record<string, number> {
+  const data = asRecord(raw);
+  const allowed = new Set(allowedIds);
+  return Object.fromEntries(
+    Object.entries(data)
+      .filter(([id, value]) => allowed.has(id) && Number.isFinite(Number(value)))
+      .map(([id, value]) => [id, Math.max(0, Math.round(Number(value)))])
+  );
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireApiUser(request);
   if ("response" in auth) return auth.response;
@@ -54,7 +64,8 @@ export async function POST(request: NextRequest) {
     trackers: trackerTypes,
     simulationOverrides: {
       deviceHealth: allowedStateOverrides(asRecord(body.simulationOverrides).deviceHealth, devices.map((device) => device.id)),
-      capabilityState: allowedStateOverrides(asRecord(body.simulationOverrides).capabilityState, capabilities.map((capability) => capability.id))
+      capabilityState: allowedStateOverrides(asRecord(body.simulationOverrides).capabilityState, capabilities.map((capability) => capability.id)),
+      lastImageAgeSeconds: allowedNumberOverrides(asRecord(body.simulationOverrides).lastImageAgeSeconds, capabilities.filter((capability) => capability.kind === "Camera").map((capability) => capability.id))
     }
   };
   const triggerType = typeof body.triggerType === "string" ? body.triggerType : "session_started";

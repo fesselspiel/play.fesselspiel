@@ -288,6 +288,22 @@ test("Kamera-Fähigkeiten bieten Bildanforderung und Verbindungsprüfung ohne JS
   assert.match(service, /camera_health_check:\s*"Verbindung prüfen"/);
 });
 
+test("Kamera-Bedingung letztes Bild ist jünger wird zentral unterstützt", () => {
+  const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
+  const route = readFileSync("src/app/api/external/automation/rules/simulate/route.ts", "utf8");
+  assert.match(model, /last_image_younger_than/);
+  assert.match(model, /Letztes Kamerabild ist jünger als Vorgabe/);
+  assert.match(model, /lastImageAgeSeconds/);
+  assert.match(editor, /Letztes Kamerabild für diese Simulation/);
+  assert.match(editor, /conditionImageMaxAgeSeconds/);
+  assert.match(service, /type === "last_image_younger_than"/);
+  assert.match(service, /automationImageRequest\.findFirst/);
+  assert.match(service, /status:\s*"UPLOADED"/);
+  assert.match(route, /allowedNumberOverrides/);
+});
+
 test("Normale Automation-Oberflächen verwenden deutsche Fachsprache", () => {
   const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
   const devices = readFileSync("src/components/automation-device-manager.tsx", "utf8");
