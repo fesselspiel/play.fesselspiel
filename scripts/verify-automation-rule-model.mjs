@@ -168,3 +168,10 @@ test("Automation-Event-Titel verwenden keine rohen Action-Keys", () => {
   const source = readFileSync("src/lib/session-automation.ts", "utf8");
   assert.equal(/title:\s*`[^`]*(Action|Aktion)[^`]*:\s*\$\{(?:action|input)\.type\}/.test(source), false);
 });
+
+test("Externe Automation-Simulation kann Controller-Gegenereignisse simulieren", () => {
+  const route = readFileSync("src/app/api/external/automation/rules/simulate/route.ts", "utf8");
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
+  assert.match(route, /controllerActionMinute/);
+  assert.match(service, /controllerActionMinute\?: number \| null/);
+});

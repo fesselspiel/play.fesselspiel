@@ -1223,6 +1223,7 @@ export function simulateAutomationRule(input: {
   actionJson?: unknown;
   startAt?: Date;
   scrubMinute?: number;
+  controllerActionMinute?: number | null;
 }, context?: Parameters<typeof simulateAutomationRuleTimeline>[1]) {
   return simulateAutomationRuleTimeline(input, context);
 }

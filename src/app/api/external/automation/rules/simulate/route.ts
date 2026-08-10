@@ -57,7 +57,12 @@ export async function POST(request: NextRequest) {
     timingJson: body.timing,
     actionJson: body.actions,
     startAt: typeof body.startAt === "string" ? new Date(body.startAt) : undefined,
-    scrubMinute: Number.isFinite(Number(body.scrubMinute)) ? Number(body.scrubMinute) : undefined
+    scrubMinute: Number.isFinite(Number(body.scrubMinute)) ? Number(body.scrubMinute) : undefined,
+    controllerActionMinute: body.controllerActionMinute === null
+      ? null
+      : Number.isFinite(Number(body.controllerActionMinute))
+        ? Number(body.controllerActionMinute)
+        : undefined
   }, context);
   return NextResponse.json({ ok: true, simulation: result });
 }

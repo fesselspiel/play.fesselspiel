@@ -1198,3 +1198,4 @@ Details:
 - Bei Abwesenheitsbedingungen kann die Simulation jetzt eine Controller-Aktion innerhalb des Fensters einblenden. Timeline, Ereignisse, Bedingungen und Variablen zeigen dadurch verständlich, wann die Regel blockiert und warum spätere Aktionen nicht fällig werden.
 - Automation-Session-Ereignisse verlinken nun auf eine echte Detailseite unter `/automation/sessions/[id]`. Dort werden Zustand, Tracker-Kopplung, Pending-End, erlaubte Aktionen, Bildanforderungen, Actions und Ereignisverlauf fachlich angezeigt; IDs und Raw-Daten bleiben im technischen Aufklapper.
 - Automation-Actions schreiben in neuen Event-Titeln nun deutsche Aktionsnamen wie `Bild anfordern` oder `Session beenden`; rohe Action-Keys bleiben nur in technischen Details und Payloads.
+- Die externe Automation-Simulationsroute unterstützt denselben Simulationsparameter für Controller-Gegenereignisse wie der Web-Editor, damit App/Agent/API dieselbe Abwesenheitslogik nachvollziehen können.
