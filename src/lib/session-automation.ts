@@ -637,8 +637,54 @@ export async function runDueAutomationActions(now = new Date()) {
 export async function claimAutomationBridgeCommands(input: {
   tenantId: string;
   limit?: number;
+  staleAfterSeconds?: number;
 }) {
   const limit = Math.min(100, Math.max(1, input.limit || 25));
+  const now = new Date();
+  const staleAfterSeconds = Math.min(3600, Math.max(30, input.staleAfterSeconds || 120));
+  const staleBefore = new Date(now.getTime() - staleAfterSeconds * 1000);
+  const stale = await prisma.automationAction.findMany({
+    where: {
+      tenantId: input.tenantId,
+      status: "RUNNING",
+      startedAt: { lte: staleBefore },
+      OR: [{ deviceId: { not: null } }, { capabilityId: { not: null } }]
+    },
+    select: {
+      id: true,
+      tenantId: true,
+      sessionId: true,
+      actorId: true,
+      deviceId: true,
+      capabilityId: true,
+      type: true,
+      correlationId: true,
+      startedAt: true
+    },
+    take: limit
+  });
+  for (const action of stale) {
+    const updated = await prisma.automationAction.updateMany({
+      where: { id: action.id, tenantId: input.tenantId, status: "RUNNING", startedAt: { lte: staleBefore } },
+      data: { status: "READY", startedAt: null, resultJson: { requeuedForBridge: true, requeuedAt: now.toISOString(), previousClaimAt: action.startedAt?.toISOString() || null } }
+    });
+    if (!updated.count) continue;
+    await recordAutomationEvent({
+      tenantId: input.tenantId,
+      sessionId: action.sessionId,
+      actionId: action.id,
+      actorId: action.actorId,
+      deviceId: action.deviceId,
+      capabilityId: action.capabilityId,
+      type: "action_requeued_for_bridge",
+      title: `Bridge-Aktion erneut bereitgestellt: ${humanActionTitle(action.type)}`,
+      source: "SYSTEM",
+      role: "SYSTEM",
+      details: { actionTitle: humanActionTitle(action.type), actionType: action.type, staleAfterSeconds, previousClaimAt: action.startedAt?.toISOString() || null },
+      correlationId: action.correlationId,
+      skipRuleProcessing: true
+    });
+  }
   const ready = await prisma.automationAction.findMany({
     where: {
       tenantId: input.tenantId,
@@ -654,7 +700,6 @@ export async function claimAutomationBridgeCommands(input: {
     take: limit
   });
   const claimed = [];
-  const now = new Date();
   for (const action of ready) {
     const updated = await prisma.automationAction.updateMany({
       where: { id: action.id, tenantId: input.tenantId, status: "READY" },
@@ -700,6 +745,9 @@ export async function finishAutomationBridgeCommand(input: {
     include: { device: true, capability: true }
   });
   if (!action) throw new Error("action_not_found");
+  if (["SUCCEEDED", "FAILED", "CANCELLED"].includes(action.status)) {
+    return action;
+  }
   const now = new Date();
   const status = input.success ? "SUCCEEDED" : "FAILED";
   const updated = await prisma.automationAction.update({
@@ -786,7 +834,7 @@ async function handleCameraActionFailure(input: {
       deviceId: input.action.deviceId,
       capabilityId: input.action.capabilityId,
       type: "camera_recovery_exhausted",
-      title: "Kamera-Recovery beendet: keine Wiederholung mehr offen",
+      title: "Kamera-Wiederherstellung beendet: keine Wiederholung mehr offen",
       source: "SYSTEM",
       role: "SYSTEM",
       details: { retryCount, maxRetries, error: input.error, requestId },
@@ -849,7 +897,7 @@ async function handleCameraActionFailure(input: {
       maxRetries,
       timeoutSeconds: numberFromPayload(payload, "timeoutSeconds", 20),
       bootDelaySeconds,
-      reason: "Automatische Kamera-Recovery"
+      reason: "Automatische Kamera-Wiederherstellung"
     }
   });
   await recordAutomationEvent({
@@ -863,7 +911,7 @@ async function handleCameraActionFailure(input: {
     capabilityId: input.action.capabilityId,
     parentEventId: null,
     type: "camera_recovery_scheduled",
-    title: `Kamera-Recovery geplant: Versuch ${nextRetry} von ${maxRetries}`,
+    title: `Kamera-Wiederherstellung geplant: Versuch ${nextRetry} von ${maxRetries}`,
     source: "SYSTEM",
     role: "SYSTEM",
     details: { retryCount: nextRetry, maxRetries, retryDueAt: retryDueAt.toISOString(), bootDelaySeconds, previousRequestId: requestId || null, nextRequestId },

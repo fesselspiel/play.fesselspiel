@@ -97,6 +97,7 @@ export const automationLabels = {
     action_ready: "Aktion ist bereit",
     action_ready_for_bridge: "Aktion ist bereit für die Bridge",
     action_claimed_by_bridge: "Bridge hat Aktion übernommen",
+    action_requeued_for_bridge: "Bridge-Aktion wurde erneut bereitgestellt",
     action_succeeded: "Aktion war erfolgreich",
     action_failed: "Aktion ist fehlgeschlagen",
     action_cancelled: "Aktion wurde nicht ausgeführt",

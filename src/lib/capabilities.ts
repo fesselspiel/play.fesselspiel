@@ -593,7 +593,7 @@ export const capabilities: readonly Capability[] = [
         key: "rules",
         label: "Automation-Regeln",
         type: "admin",
-        description: "Verwaltet versionierte Regeln und simuliert sie ohne Side Effects.",
+        description: "Verwaltet versionierte Regeln und simuliert sie ohne echte Aktionen auszuführen.",
         apiEndpoints: [
           { method: "GET", path: "/api/external/automation/rules", description: "Automation-Regeln mit Versionen lesen." },
           { method: "POST", path: "/api/external/automation/rules", description: "Regel anlegen. JSON: name, triggerType, trigger?, conditions?, timing?, actions?, mode?." },

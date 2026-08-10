@@ -192,3 +192,16 @@ test("Normale Automation-Oberflächen vermeiden englische Technikbegriffe", () =
   assert.match(model, /capabilityKinds/);
   assert.match(settingsPage, /labelAutomationValue\("capabilityKinds"/);
 });
+
+test("Bridge-Reconnect stellt stale Kommandos erneut bereit", () => {
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
+  assert.match(service, /staleAfterSeconds/);
+  assert.match(service, /status:\s*"RUNNING"[\s\S]*startedAt:\s*\{\s*lte:\s*staleBefore\s*\}/);
+  assert.match(service, /status:\s*"READY",\s*startedAt:\s*null/);
+  assert.match(service, /action_requeued_for_bridge/);
+});
+
+test("Bridge-Resultate werden terminal idempotent behandelt", () => {
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
+  assert.match(service, /\["SUCCEEDED",\s*"FAILED",\s*"CANCELLED"\]\.includes\(action\.status\)/);
+});
