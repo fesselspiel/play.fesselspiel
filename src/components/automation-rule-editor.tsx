@@ -94,13 +94,19 @@ export function AutomationRuleEditor({
 }) {
   const [value, setValue] = useState<RuleFormValue>(() => parseInitial(initial));
   const [scrubMinute, setScrubMinute] = useState(0);
+  const [simulateControllerAction, setSimulateControllerAction] = useState(false);
+  const [controllerActionMinute, setControllerActionMinute] = useState(19);
   const availableConditions = conditionOptions[value.triggerType] || ["none"];
   const recoveryCapabilities = capabilities.filter((capability) => capability.kind === "Switch");
   const stored = useMemo(() => buildStoredRule(value), [value]);
   const context = useMemo(() => ({ capabilities, devices, trackers }), [capabilities, devices, trackers]);
   const summary = automationRuleSummary(stored, context);
   const flow = automationRuleFlow(stored, context);
-  const simulation = simulateAutomationRuleTimeline({ ...stored, scrubMinute }, context);
+  const simulation = simulateAutomationRuleTimeline({
+    ...stored,
+    scrubMinute,
+    controllerActionMinute: value.conditionType === "controller_absent" && simulateControllerAction ? controllerActionMinute : null
+  }, context);
   const triggerCapabilityKind = triggerCapabilityFilter(value.triggerType);
   const triggerCapabilities = triggerCapabilityKind ? capabilities.filter((capability) => capability.kind === triggerCapabilityKind) : capabilities;
   const conditionCapability = capabilities.find((capability) => capability.id === value.conditionCapabilityId);
@@ -449,6 +455,29 @@ export function AutomationRuleEditor({
 
       <div className="rounded-lg border border-line bg-paper p-4">
         <div className="flex items-center gap-2 font-semibold text-ink"><Shuffle className="h-4 w-4" /> Simulation</div>
+        {value.conditionType === "controller_absent" ? (
+          <div className="mt-3 rounded-md border border-line bg-surface p-3 text-sm text-graphite">
+            <label className="flex items-center gap-2 font-semibold text-ink">
+              <input type="checkbox" checked={simulateControllerAction} onChange={(event) => setSimulateControllerAction(event.target.checked)} />
+              Controller-Aktion im Abwesenheitsfenster simulieren
+            </label>
+            {simulateControllerAction ? (
+              <label className="mt-3 block">Zeitpunkt der simulierten Aktion
+                <div className="mt-1 flex items-center gap-2">
+                  <input
+                    className={inputClass}
+                    type="number"
+                    min={0}
+                    max={Math.max(0, value.conditionMinutes)}
+                    value={controllerActionMinute}
+                    onChange={(event) => setControllerActionMinute(Number(event.target.value))}
+                  />
+                  <span>Minuten nach Start</span>
+                </div>
+              </label>
+            ) : null}
+          </div>
+        ) : null}
         <input className="mt-4 w-full accent-redbrand" type="range" min={0} max={simulation.durationMinutes} value={scrubMinute} onChange={(event) => setScrubMinute(Number(event.target.value))} />
         <div className="mt-2 text-sm text-graphite">Simulationszeitpunkt: Minute {simulation.scrubMinute} von {simulation.durationMinutes}</div>
         <div className="mt-3 rounded-md border border-redbrand/20 bg-redbrand/5 p-3 text-sm font-medium text-ink">{simulation.explanation}</div>

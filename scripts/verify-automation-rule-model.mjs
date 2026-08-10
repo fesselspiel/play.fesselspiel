@@ -15,7 +15,10 @@ function simulate(rule, scrubMinute, randomSeed = 3, context = {}) {
   const timing = rule.timingJson || {};
   const action = rule.actionJson[0] || {};
   const conditionMinutes = condition.type === "controller_absent" ? Number(condition.minutes || 0) : 0;
+  const controllerActionMinute = Number.isFinite(context.controllerActionMinute) ? context.controllerActionMinute : null;
+  const controllerActionBlocks = condition.type === "controller_absent" && controllerActionMinute !== null && controllerActionMinute <= conditionMinutes && scrubMinute >= controllerActionMinute;
   const conditionPassed = (() => {
+    if (controllerActionBlocks) return false;
     if (!condition.type || condition.type === "none" || condition.type === "controller_absent") return scrubMinute >= conditionMinutes;
     if (condition.type === "device_online" || condition.type === "device_offline") {
       const device = context.devices?.find((item) => item.id === condition.deviceId);
@@ -36,12 +39,12 @@ function simulate(rule, scrubMinute, randomSeed = 3, context = {}) {
   return {
     dueMinute,
     conditionPassed,
-    waiting: conditionPassed && scrubMinute < dueMinute,
-    due: conditionPassed && scrubMinute >= dueMinute,
+    waiting: dueMinute !== null && conditionPassed && scrubMinute < dueMinute,
+    due: dueMinute !== null && conditionPassed && scrubMinute >= dueMinute,
     blocked: !conditionPassed && scrubMinute >= conditionMinutes,
-    complete: scrubMinute > dueMinute,
-    sessionState: action.type === "session_finish" && scrubMinute >= dueMinute ? "FINISHED" : action.type === "session_finish" && dueMinute > 0 && scrubMinute >= conditionMinutes ? "PENDING_END" : "RUNNING",
-    pendingEnd: action.type === "session_finish" && dueMinute > 0,
+    complete: dueMinute !== null && scrubMinute > dueMinute,
+    sessionState: dueMinute !== null && action.type === "session_finish" && scrubMinute >= dueMinute ? "FINISHED" : dueMinute !== null && action.type === "session_finish" && dueMinute > 0 && scrubMinute >= conditionMinutes ? "PENDING_END" : "RUNNING",
+    pendingEnd: dueMinute !== null && action.type === "session_finish" && dueMinute > 0,
     sideEffects: false,
     actionType: action.type
   };
@@ -63,6 +66,8 @@ test("Abnahmebeispiel: Controller-Abwesenheit plus Zufallsfenster", () => {
   assert.equal(simulate(rule, 24).waiting, true);
   assert.equal(simulate(rule, 30).due, true);
   assert.equal(simulate(rule, 30).actionType, "camera_request_image");
+  assert.equal(simulate(rule, 19, 3, { controllerActionMinute: 19 }).conditionPassed, false);
+  assert.equal(simulate(rule, 30, 3, { controllerActionMinute: 19 }).due, false);
 });
 
 test("Doppelstart bleibt idempotent", () => {

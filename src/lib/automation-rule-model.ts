@@ -567,6 +567,7 @@ export function simulateAutomationRuleTimeline(input: {
   actionJson?: unknown;
   scrubMinute?: number;
   randomSeed?: number;
+  controllerActionMinute?: number | null;
 }, context: { capabilities?: AutomationCapabilityReference[]; devices?: AutomationDeviceReference[]; trackers?: AutomationTrackerReference[] } = {}) {
   const condition = Array.isArray(input.conditionJson) ? asObject(input.conditionJson[0]) : {};
   const timing = asObject(input.timingJson);
@@ -574,6 +575,10 @@ export function simulateAutomationRuleTimeline(input: {
   const primaryAction = actions[0] || {};
   const conditionType = condition.type as AutomationConditionKey | undefined;
   const conditionMinutes = conditionType === "controller_absent" ? numberValue(condition.minutes, 0) : 0;
+  const controllerActionMinute = conditionType === "controller_absent" && input.controllerActionMinute !== null && input.controllerActionMinute !== undefined
+    ? numberValue(input.controllerActionMinute, 0)
+    : null;
+  const controllerActionBlocks = controllerActionMinute !== null && controllerActionMinute <= conditionMinutes;
   const conditionEvaluation = evaluateSimulationCondition(condition, context);
   const delay = timing.type === "random_delay"
     ? numberValue(timing.minMinutes, 0) + ((input.randomSeed ?? 3) % (Math.max(0, numberValue(timing.maxMinutes, 0) - numberValue(timing.minMinutes, 0)) + 1))
@@ -584,18 +589,25 @@ export function simulateAutomationRuleTimeline(input: {
   const scrubLimit = Math.max(1, (dueMinute ?? Math.max(conditionMinutes, delay)) + 5);
   const scrubMinute = Math.min(Math.max(0, input.scrubMinute ?? 0), scrubLimit);
   const ruleTitle = describeTrigger(input.triggerType, input.triggerJson, context);
-  const events = [{ minute: 0, title: ruleTitle }];
+  const controllerActionHasHappened = controllerActionMinute !== null && scrubMinute >= controllerActionMinute;
+  const controllerActionBlocksNow = controllerActionBlocks && controllerActionHasHappened;
+  const events = [
+    { minute: 0, title: ruleTitle },
+    ...(controllerActionMinute !== null ? [{ minute: controllerActionMinute, title: "Controller-Aktion simuliert" }] : [])
+  ];
   const conditions = condition.type && condition.type !== "none"
     ? [{
         minute: conditionMinutes,
         title: describeCondition(condition, context),
-        passed: conditionEvaluation.passed && scrubMinute >= conditionMinutes,
-        result: scrubMinute < conditionMinutes && condition.type === "controller_absent"
-          ? `Warte noch ${Math.max(0, conditionMinutes - scrubMinute)} Minuten auf mögliche Controller-Aktion`
-          : conditionEvaluation.result
+        passed: conditionEvaluation.passed && scrubMinute >= conditionMinutes && !controllerActionBlocksNow,
+        result: controllerActionBlocksNow
+          ? `Bei Minute ${controllerActionMinute} wurde eine Controller-Aktion simuliert. Die Abwesenheitsbedingung ist damit nicht mehr erfüllt.`
+          : scrubMinute < conditionMinutes && condition.type === "controller_absent"
+            ? `Warte noch ${Math.max(0, conditionMinutes - scrubMinute)} Minuten auf mögliche Controller-Aktion`
+            : conditionEvaluation.result
       }]
     : [];
-  const conditionSatisfiedAtScrub = !condition.type || condition.type === "none" || (conditionEvaluation.passed && scrubMinute >= conditionMinutes);
+  const conditionSatisfiedAtScrub = !condition.type || condition.type === "none" || (conditionEvaluation.passed && scrubMinute >= conditionMinutes && !controllerActionBlocksNow);
   const actionsAreDue = dueMinute !== null && conditionSatisfiedAtScrub && scrubMinute >= dueMinute;
   const actionItems = actions.map((action, index) => ({
     minute: dueMinute ?? conditionMinutes,
@@ -614,9 +626,9 @@ export function simulateAutomationRuleTimeline(input: {
             : `Das vorgemerkte Ende ist seit Minute ${dueMinute} fällig.`
       }]
     : [];
-  const waitingActions = conditionEvaluation.canBecomeTrue && !actionsAreDue ? actionItems : [];
+  const waitingActions = conditionEvaluation.canBecomeTrue && !controllerActionBlocksNow && !actionsAreDue ? actionItems : [];
   const dueActions = actionsAreDue ? actionItems : [];
-  const blockedActions = conditionEvaluation.canBecomeTrue ? [] : actionItems;
+  const blockedActions = conditionEvaluation.canBecomeTrue && !controllerActionBlocksNow ? [] : actionItems;
   const failureMinute = (dueMinute ?? conditionMinutes) + 1;
   const recoveryActions = scrubMinute >= failureMinute
     ? actions.flatMap((action, index) => actionsAreDue && action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0
@@ -643,16 +655,18 @@ export function simulateAutomationRuleTimeline(input: {
     humanVariables: [
       `Auslöser: ${ruleTitle}`,
       ...(condition.type && condition.type !== "none" ? [`Bedingung: ${describeCondition(condition, context)}`] : ["Bedingung: keine zusätzliche Bedingung"]),
-      `Bedingung aktuell: ${conditionEvaluation.passed ? "erfüllt" : "nicht erfüllt"}`,
+      `Bedingung aktuell: ${conditionSatisfiedAtScrub ? "erfüllt" : "nicht erfüllt"}`,
       ...(conditionType === "controller_absent" ? [`Abwesenheitsfenster: ${conditionMinutes} Minuten`] : []),
+      ...(controllerActionMinute !== null ? [`Simulierte Controller-Aktion: Minute ${controllerActionMinute}`, `Auswirkung: ${controllerActionBlocksNow ? "Regel blockiert" : controllerActionBlocks ? "würde die Regel blockieren" : "außerhalb des Fensters, Regel bleibt möglich"}`] : []),
       ...(timing.type === "fixed_delay" ? [`Feste Wartezeit: ${delay} Minuten`] : []),
       ...(timing.type === "random_delay" ? [`Zufallsfenster: ${numberValue(timing.minMinutes, 0)} bis ${numberValue(timing.maxMinutes, 0)} Minuten`, `Gezogener Wert: ${delay} Minuten`] : []),
-      `Fälligkeit: ${dueMinute === null ? "keine Fälligkeit, weil die Bedingung blockiert" : `Minute ${dueMinute}`}`,
+      `Fälligkeit: ${dueMinute === null ? "keine Fälligkeit, weil die Bedingung blockiert" : controllerActionBlocksNow ? `durch simulierte Controller-Aktion blockiert, sonst Minute ${dueMinute}` : `Minute ${dueMinute}`}`,
       `Side Effects: keine echten Aktionen in der Simulation`
     ],
     timeline: [
       { minute: 0, title: "Auslöser eingetreten", status: scrubMinute >= 0 ? "erledigt" : "wartet" },
-      ...(condition.type && condition.type !== "none" ? [{ minute: conditionMinutes, title: describeCondition(condition, context), status: conditionEvaluation.passed && scrubMinute >= conditionMinutes ? "erfüllt" : scrubMinute >= conditionMinutes ? "blockiert" : "wartet" }] : []),
+      ...(controllerActionMinute !== null ? [{ minute: controllerActionMinute, title: "Controller-Aktion in der Simulation", status: controllerActionHasHappened ? (controllerActionBlocks ? "blockiert Bedingung" : "außerhalb des Fensters") : "steht noch aus" }] : []),
+      ...(condition.type && condition.type !== "none" ? [{ minute: conditionMinutes, title: describeCondition(condition, context), status: conditionEvaluation.passed && scrubMinute >= conditionMinutes && !controllerActionBlocksNow ? "erfüllt" : scrubMinute >= conditionMinutes || controllerActionBlocksNow ? "blockiert" : "wartet" }] : []),
       ...(delay && dueMinute !== null ? [{ minute: dueMinute, title: timing.type === "random_delay" ? `Zufällige Wartezeit endet nach ${delay} Minuten` : `Wartezeit endet nach ${delay} Minuten`, status: scrubMinute >= dueMinute ? "erledigt" : "wartet" }] : []),
       ...actionItems.map((item) => ({ ...item, status: blockedActions.length ? "blockiert" : actionsAreDue ? "fällig" : "wartet" })),
       ...(actions.some((action) => action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0) ? [{ minute: failureMinute, title: "Falls ein Bild nicht ankommt: Recovery starten", status: scrubMinute >= failureMinute ? "bereit" : "wartet" }] : [])
@@ -665,14 +679,17 @@ export function simulateAutomationRuleTimeline(input: {
       dueMinute: dueMinute ?? conditionMinutes,
       actionType: primaryAction.type as string | undefined,
       actionCount: actions.length,
-      conditionBlocked: !conditionEvaluation.canBecomeTrue
+      conditionBlocked: !conditionEvaluation.canBecomeTrue || controllerActionBlocksNow
     }),
     variables: {
       conditionMinutes,
       delayMinutes: delay,
       dueMinute,
       conditionPassed: conditionEvaluation.passed,
-      conditionBlocked: !conditionEvaluation.canBecomeTrue,
+      conditionBlocked: !conditionEvaluation.canBecomeTrue || controllerActionBlocksNow,
+      controllerActionMinute,
+      controllerActionBlocks,
+      controllerActionHasHappened,
       actions: actions.map((action) => ({
         type: action.type,
         timeoutSeconds: action.type === "camera_request_image" ? numberValue(action.timeoutSeconds, 20) : null,
