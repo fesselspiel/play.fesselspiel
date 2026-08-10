@@ -47,6 +47,13 @@ type CapabilityDraft = {
   id: string;
   kind: CapabilityKind;
   title: string;
+  dataPoint: string;
+  onValue: string;
+  offValue: string;
+  timeoutSeconds: number;
+  maxAgeSeconds: number;
+  bootDelaySeconds: number;
+  voicePrefix: string;
 };
 
 function defaultTitle(kind: CapabilityKind) {
@@ -55,10 +62,47 @@ function defaultTitle(kind: CapabilityKind) {
   return "Ansage sprechen";
 }
 
+function defaultCapability(kind: CapabilityKind, id: string): CapabilityDraft {
+  return {
+    id,
+    kind,
+    title: defaultTitle(kind),
+    dataPoint: "",
+    onValue: "true",
+    offValue: "false",
+    timeoutSeconds: kind === "Camera" ? 20 : 10,
+    maxAgeSeconds: kind === "Camera" ? 60 : 0,
+    bootDelaySeconds: kind === "Camera" ? 20 : 0,
+    voicePrefix: ""
+  };
+}
+
+function parametersFor(capability: CapabilityDraft) {
+  if (capability.kind === "Camera") {
+    return {
+      dataPoint: capability.dataPoint || null,
+      timeoutSeconds: capability.timeoutSeconds,
+      lastImageMaxAgeSeconds: capability.maxAgeSeconds,
+      bootDelaySeconds: capability.bootDelaySeconds
+    };
+  }
+  if (capability.kind === "Switch") {
+    return {
+      dataPoint: capability.dataPoint || null,
+      onValue: capability.onValue || "true",
+      offValue: capability.offValue || "false"
+    };
+  }
+  return {
+    dataPoint: capability.dataPoint || null,
+    prefix: capability.voicePrefix || null
+  };
+}
+
 export function AutomationDeviceManager() {
   const [name, setName] = useState("");
   const [integration, setIntegration] = useState("IOBROKER");
-  const [capabilities, setCapabilities] = useState<CapabilityDraft[]>([{ id: "cap-1", kind: "Camera", title: "Bild anfordern" }]);
+  const [capabilities, setCapabilities] = useState<CapabilityDraft[]>([defaultCapability("Camera", "cap-1")]);
   const logicalId = useMemo(() => `${integration.toLowerCase()}-${slug(name)}`, [integration, name]);
 
   function updateCapability(id: string, next: Partial<CapabilityDraft>) {
@@ -66,7 +110,7 @@ export function AutomationDeviceManager() {
   }
 
   function addCapability(kind: CapabilityKind) {
-    setCapabilities((current) => [...current, { id: `cap-${Date.now()}-${current.length}`, kind, title: defaultTitle(kind) }]);
+    setCapabilities((current) => [...current, defaultCapability(kind, `cap-${Date.now()}-${current.length}`)]);
   }
 
   function removeCapability(id: string) {
@@ -90,6 +134,7 @@ export function AutomationDeviceManager() {
             <input type="hidden" name="actionsList" value={preset.actions} />
             <input type="hidden" name="eventsList" value={preset.events} />
             <input type="hidden" name="conditionsList" value={preset.conditions} />
+            <input type="hidden" name="parametersJson" value={JSON.stringify(parametersFor(capability))} />
           </div>
         );
       })}
@@ -129,6 +174,50 @@ export function AutomationDeviceManager() {
               <label className="mt-3 block font-medium">Name der Fähigkeit
                 <input className={`${inputClass} mt-1`} required value={capability.title} onChange={(event) => updateCapability(capability.id, { title: event.target.value })} />
               </label>
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                <label className="block font-medium">ioBroker-/MQTT-Datenpunkt
+                  <input className={`${inputClass} mt-1`} value={capability.dataPoint} onChange={(event) => updateCapability(capability.id, { dataPoint: event.target.value })} placeholder="z.B. alias.0.schlafzimmer.kamera" />
+                </label>
+                {capability.kind === "Camera" ? (
+                  <label className="block font-medium">Maximales Bildalter
+                    <div className="mt-1 flex items-center gap-2">
+                      <input className={inputClass} type="number" min={1} value={capability.maxAgeSeconds} onChange={(event) => updateCapability(capability.id, { maxAgeSeconds: Number(event.target.value) })} />
+                      <span>Sek.</span>
+                    </div>
+                  </label>
+                ) : null}
+                {capability.kind === "Camera" ? (
+                  <label className="block font-medium">Timeout
+                    <div className="mt-1 flex items-center gap-2">
+                      <input className={inputClass} type="number" min={1} value={capability.timeoutSeconds} onChange={(event) => updateCapability(capability.id, { timeoutSeconds: Number(event.target.value) })} />
+                      <span>Sek.</span>
+                    </div>
+                  </label>
+                ) : null}
+                {capability.kind === "Camera" ? (
+                  <label className="block font-medium">Boot-Wartezeit
+                    <div className="mt-1 flex items-center gap-2">
+                      <input className={inputClass} type="number" min={0} value={capability.bootDelaySeconds} onChange={(event) => updateCapability(capability.id, { bootDelaySeconds: Number(event.target.value) })} />
+                      <span>Sek.</span>
+                    </div>
+                  </label>
+                ) : null}
+                {capability.kind === "Switch" ? (
+                  <label className="block font-medium">Wert für ein
+                    <input className={`${inputClass} mt-1`} value={capability.onValue} onChange={(event) => updateCapability(capability.id, { onValue: event.target.value })} />
+                  </label>
+                ) : null}
+                {capability.kind === "Switch" ? (
+                  <label className="block font-medium">Wert für aus
+                    <input className={`${inputClass} mt-1`} value={capability.offValue} onChange={(event) => updateCapability(capability.id, { offValue: event.target.value })} />
+                  </label>
+                ) : null}
+                {capability.kind === "Voice" ? (
+                  <label className="block font-medium">Optionaler Ansage-Präfix
+                    <input className={`${inputClass} mt-1`} value={capability.voicePrefix} onChange={(event) => updateCapability(capability.id, { voicePrefix: event.target.value })} placeholder="z.B. Playplaner sagt:" />
+                  </label>
+                ) : null}
+              </div>
               <div className="mt-3 grid gap-2 md:grid-cols-3">
                 <div><span className="font-semibold text-ink">Aktionen:</span> {preset.visibleActions.join(", ")}</div>
                 <div><span className="font-semibold text-ink">Ereignisse:</span> {preset.visibleEvents.join(", ")}</div>

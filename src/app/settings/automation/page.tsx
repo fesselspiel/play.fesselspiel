@@ -37,6 +37,40 @@ function jsonRecord(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
+function numberField(formData: FormData, name: string, fallback: number) {
+  const value = Number(formData.get(name));
+  return Number.isFinite(value) ? Math.max(0, Math.round(value)) : fallback;
+}
+
+function stringField(formData: FormData, name: string, fallback = "") {
+  return String(formData.get(name) || fallback).trim();
+}
+
+function capabilityParametersFromForm(formData: FormData, kind: string, current: Record<string, unknown> = {}) {
+  if (kind === "Camera") {
+    return {
+      dataPoint: stringField(formData, "dataPoint", String(current.dataPoint || "")) || null,
+      timeoutSeconds: numberField(formData, "timeoutSeconds", Number(current.timeoutSeconds || 20)),
+      lastImageMaxAgeSeconds: numberField(formData, "lastImageMaxAgeSeconds", Number(current.lastImageMaxAgeSeconds || 60)),
+      bootDelaySeconds: numberField(formData, "bootDelaySeconds", Number(current.bootDelaySeconds || 20))
+    };
+  }
+  if (kind === "Switch") {
+    return {
+      dataPoint: stringField(formData, "dataPoint", String(current.dataPoint || "")) || null,
+      onValue: stringField(formData, "onValue", String(current.onValue || "true")) || "true",
+      offValue: stringField(formData, "offValue", String(current.offValue || "false")) || "false"
+    };
+  }
+  if (kind === "Voice") {
+    return {
+      dataPoint: stringField(formData, "dataPoint", String(current.dataPoint || "")) || null,
+      prefix: stringField(formData, "voicePrefix", String(current.prefix || "")) || null
+    };
+  }
+  return current;
+}
+
 function displayUserName(user: { name?: string | null; username?: string | null; email?: string | null; profile?: { displayName?: string | null } | null } | null) {
   if (!user) return "";
   return user.profile?.displayName || user.name || user.username || user.email || "Unbekannter Benutzer";
@@ -143,6 +177,7 @@ async function saveDevice(formData: FormData) {
   const actionsLists = formData.getAll("actionsList");
   const eventsLists = formData.getAll("eventsList");
   const conditionsLists = formData.getAll("conditionsList");
+  const parametersJsons = formData.getAll("parametersJson");
   for (const [index, capabilityKey] of capabilityKeys.entries()) {
     await upsertAutomationCapability({
       tenantId: user.tenantId,
@@ -154,7 +189,7 @@ async function saveDevice(formData: FormData) {
       actions: parseList(actionsLists[index] || null),
       events: parseList(eventsLists[index] || null),
       conditions: parseList(conditionsLists[index] || null),
-      parameters: {},
+      parameters: parseJson(parametersJsons[index] || null, {}),
       ui: {}
     });
   }
@@ -222,7 +257,8 @@ async function updateCapability(formData: FormData) {
     where: { id: capability.id },
     data: {
       title: String(formData.get("title") || capability.title).trim() || capability.title,
-      state: String(formData.get("state") || capability.state)
+      state: String(formData.get("state") || capability.state),
+      parametersJson: capabilityParametersFromForm(formData, capability.kind, jsonRecord(capability.parametersJson)) as never
     }
   });
   redirect("/settings/automation?saved=capability");
@@ -524,34 +560,68 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                           <SubmitButton pendingLabel="Löscht...">Gerät löschen</SubmitButton>
                         </form>
                       </details>
-                      {device.capabilities.map((capability) => (
-                        <details key={`${capability.id}-edit`} className="mt-2 rounded border border-line bg-surface p-3">
-                          <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Fähigkeit bearbeiten: {capability.title}</summary>
-                          <form action={updateCapability} className="mt-3 grid gap-3 sm:grid-cols-2">
-                            <input type="hidden" name="capabilityId" value={capability.id} />
-                            <Field label="Name"><input name="title" className={inputClass} defaultValue={capability.title} /></Field>
-                            <Field label="Zustand">
-                              <select name="state" className={inputClass} defaultValue={capability.state}>
-                                <option value="UNKNOWN">Nicht verbunden</option>
-                                <option value="ONLINE">Verbunden</option>
-                                <option value="OFFLINE">Nicht erreichbar</option>
-                                <option value="ERROR">Fehler</option>
-                                <option value="BOOTING">Startet</option>
-                              </select>
-                            </Field>
-                            <div className="flex items-end"><SubmitButton pendingLabel="Speichert...">Fähigkeit speichern</SubmitButton></div>
-                          </form>
-                          <div className="mt-3 rounded border border-redbrand/30 bg-redbrand/5 p-3">
-                            <p className="text-sm text-graphite">
-                              Entfernt nur diese Fähigkeit. Das Gerät selbst bleibt bestehen.
-                            </p>
-                            <form action={deleteCapability} className="mt-3">
+                      {device.capabilities.map((capability) => {
+                        const parameters = jsonRecord(capability.parametersJson);
+                        return (
+                          <details key={`${capability.id}-edit`} className="mt-2 rounded border border-line bg-surface p-3">
+                            <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Fähigkeit bearbeiten: {capability.title}</summary>
+                            <form action={updateCapability} className="mt-3 grid gap-3 sm:grid-cols-2">
                               <input type="hidden" name="capabilityId" value={capability.id} />
-                              <SubmitButton pendingLabel="Löscht...">Fähigkeit löschen</SubmitButton>
+                              <Field label="Name"><input name="title" className={inputClass} defaultValue={capability.title} /></Field>
+                              <Field label="Zustand">
+                                <select name="state" className={inputClass} defaultValue={capability.state}>
+                                  <option value="UNKNOWN">Nicht verbunden</option>
+                                  <option value="ONLINE">Verbunden</option>
+                                  <option value="OFFLINE">Nicht erreichbar</option>
+                                  <option value="ERROR">Fehler</option>
+                                  <option value="BOOTING">Startet</option>
+                                </select>
+                              </Field>
+                              <Field label="ioBroker-/MQTT-Datenpunkt">
+                                <input name="dataPoint" className={inputClass} defaultValue={String(parameters.dataPoint || "")} placeholder="z.B. alias.0.schlafzimmer.kamera" />
+                              </Field>
+                              {capability.kind === "Camera" ? (
+                                <>
+                                  <Field label="Timeout in Sekunden">
+                                    <input name="timeoutSeconds" className={inputClass} type="number" min={1} defaultValue={String(parameters.timeoutSeconds || 20)} />
+                                  </Field>
+                                  <Field label="Maximales Bildalter in Sekunden">
+                                    <input name="lastImageMaxAgeSeconds" className={inputClass} type="number" min={1} defaultValue={String(parameters.lastImageMaxAgeSeconds || 60)} />
+                                  </Field>
+                                  <Field label="Boot-Wartezeit in Sekunden">
+                                    <input name="bootDelaySeconds" className={inputClass} type="number" min={0} defaultValue={String(parameters.bootDelaySeconds || 20)} />
+                                  </Field>
+                                </>
+                              ) : null}
+                              {capability.kind === "Switch" ? (
+                                <>
+                                  <Field label="Wert für ein">
+                                    <input name="onValue" className={inputClass} defaultValue={String(parameters.onValue || "true")} />
+                                  </Field>
+                                  <Field label="Wert für aus">
+                                    <input name="offValue" className={inputClass} defaultValue={String(parameters.offValue || "false")} />
+                                  </Field>
+                                </>
+                              ) : null}
+                              {capability.kind === "Voice" ? (
+                                <Field label="Optionaler Ansage-Präfix">
+                                  <input name="voicePrefix" className={inputClass} defaultValue={String(parameters.prefix || "")} placeholder="z.B. Playplaner sagt:" />
+                                </Field>
+                              ) : null}
+                              <div className="flex items-end"><SubmitButton pendingLabel="Speichert...">Fähigkeit speichern</SubmitButton></div>
                             </form>
-                          </div>
-                        </details>
-                      ))}
+                            <div className="mt-3 rounded border border-redbrand/30 bg-redbrand/5 p-3">
+                              <p className="text-sm text-graphite">
+                                Entfernt nur diese Fähigkeit. Das Gerät selbst bleibt bestehen.
+                              </p>
+                              <form action={deleteCapability} className="mt-3">
+                                <input type="hidden" name="capabilityId" value={capability.id} />
+                                <SubmitButton pendingLabel="Löscht...">Fähigkeit löschen</SubmitButton>
+                              </form>
+                            </div>
+                          </details>
+                        );
+                      })}
                       <details className="mt-2 rounded border border-line bg-surface p-2">
                         <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische Details</summary>
                         <pre className="mt-2 overflow-auto text-xs">{JSON.stringify({ logicalId: device.logicalId, integration: device.integration, capabilities: device.capabilities.map((capability) => ({ key: capability.key, kind: capability.kind, state: capability.state })) }, null, 2)}</pre>
