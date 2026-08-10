@@ -20,7 +20,24 @@ type AutomationRole = typeof automationRoles[number];
 type AutomationUser = {
   id: string;
   tenantId?: string | null;
+  circleId?: string | null;
   role?: string;
+};
+
+type AutomationSessionForAccess = {
+  id: string;
+  tenantId: string;
+  ownerId: string;
+  state: string;
+};
+
+export type AutomationSessionAccess = {
+  canView: boolean;
+  role: AutomationRole | null;
+  reason: string;
+  canRequestEnd: boolean;
+  canOverrideEnd: boolean;
+  canRequestImage: boolean;
 };
 
 function jsonObject(value: unknown): Prisma.InputJsonObject {
@@ -53,6 +70,68 @@ function humanActionTitle(type: string) {
     session_finish: "Session beenden"
   };
   return labels[type] || "Aktion ausführen";
+}
+
+function isAdminRole(role?: string | null) {
+  return role === "ADMIN" || role === "SUPER_ADMIN";
+}
+
+function automationActionAllowedState(state: string) {
+  return ["RUNNING", "PENDING_END"].includes(state);
+}
+
+async function usersShareAutomationCircle(tenantId: string, user: AutomationUser, ownerId: string) {
+  const userCircleIds = new Set<string>();
+  if (user.circleId) userCircleIds.add(user.circleId);
+  const ownerCircleIds = new Set<string>();
+  const [memberships, owner] = await Promise.all([
+    prisma.tenantMembership.findMany({
+      where: { tenantId, active: true, userId: { in: [user.id, ownerId] }, circleId: { not: null }, user: { active: true } },
+      select: { userId: true, circleId: true }
+    }),
+    prisma.user.findFirst({ where: { id: ownerId, tenantId, active: true }, select: { circleId: true } })
+  ]);
+  if (owner?.circleId) ownerCircleIds.add(owner.circleId);
+  for (const membership of memberships) {
+    if (!membership.circleId) continue;
+    if (membership.userId === user.id) userCircleIds.add(membership.circleId);
+    if (membership.userId === ownerId) ownerCircleIds.add(membership.circleId);
+  }
+  return [...userCircleIds].some((circleId) => ownerCircleIds.has(circleId));
+}
+
+export async function automationSessionAccess(user: AutomationUser, session: AutomationSessionForAccess): Promise<AutomationSessionAccess> {
+  const denied: AutomationSessionAccess = {
+    canView: false,
+    role: null,
+    reason: "Kein Zugriff auf diese Session",
+    canRequestEnd: false,
+    canOverrideEnd: false,
+    canRequestImage: false
+  };
+  if (!user.tenantId || user.tenantId !== session.tenantId) return denied;
+  const allowedState = automationActionAllowedState(session.state);
+  if (session.ownerId === user.id) {
+    return {
+      canView: true,
+      role: "OWNER",
+      reason: "Session-Benutzer",
+      canRequestEnd: allowedState,
+      canOverrideEnd: session.state === "PENDING_END",
+      canRequestImage: allowedState
+    };
+  }
+  if (isAdminRole(user.role) || await usersShareAutomationCircle(session.tenantId, user, session.ownerId)) {
+    return {
+      canView: true,
+      role: "CONTROLLER",
+      reason: isAdminRole(user.role) ? "Administrator als Controller" : "Controller im gemeinsamen Zirkel",
+      canRequestEnd: allowedState,
+      canOverrideEnd: session.state === "PENDING_END",
+      canRequestImage: allowedState
+    };
+  }
+  return denied;
 }
 
 function numberFromPayload(payload: Record<string, unknown>, key: string, fallback: number) {
@@ -335,9 +414,16 @@ export async function requestAutomationEnd(input: {
 }) {
   if (!input.user.tenantId) throw new Error("tenant_required");
   const session = input.sessionId
-    ? await prisma.automationSession.findFirst({ where: { id: input.sessionId, tenantId: input.user.tenantId, ownerId: input.user.id }, include: { trackerType: true } })
+    ? await prisma.automationSession.findFirst({ where: { id: input.sessionId, tenantId: input.user.tenantId }, include: { trackerType: true } })
     : await currentAutomationSession(input.user, input.trackerTypeId || undefined);
   if (!session) throw new Error("session_not_found");
+  const access = input.role === "SYSTEM"
+    ? { canRequestEnd: true, canOverrideEnd: true, role: "SYSTEM" as AutomationRole, reason: "Systemaktion" }
+    : await automationSessionAccess(input.user, session);
+  if (!access.canRequestEnd) throw new Error("automation_action_not_allowed");
+  if (input.override && !access.canOverrideEnd) throw new Error("automation_override_not_allowed");
+  const effectiveRole = input.role === "SYSTEM" ? "SYSTEM" : access.role || "OWNER";
+  const policy = { role: effectiveRole, reason: access.reason, action: input.override ? "session_finish_override" : "session_finish_request", state: session.state, allowed: true };
   if (session.state === "PENDING_END" && !input.override) {
     await recordAutomationEvent({
       tenantId: input.user.tenantId,
@@ -346,8 +432,8 @@ export async function requestAutomationEnd(input: {
       type: "session_end_kept",
       title: "Bestehendes Endfenster bleibt unverändert",
       source: input.source || "SYSTEM",
-      role: input.role || "OWNER",
-      details: { pendingEndAt: session.pendingEndAt, reason: input.reason || null },
+      role: effectiveRole,
+      details: { pendingEndAt: session.pendingEndAt, reason: input.reason || null, policy },
       correlationId: session.correlationId
     });
     return { session, action: null, changed: false };
@@ -357,7 +443,7 @@ export async function requestAutomationEnd(input: {
   const delayMinutes = Math.max(0, Math.round((dueAt.getTime() - now.getTime()) / 60_000));
   const immediate = dueAt.getTime() <= now.getTime() + 1000;
   if (immediate) {
-    const finished = await finishAutomationSession({ user: input.user, sessionId: session.id, source: input.source, role: input.role, reason: input.reason });
+    const finished = await finishAutomationSession({ user: input.user, sessionId: session.id, source: input.source, role: effectiveRole, reason: input.reason });
     return { session: finished, action: null, changed: true };
   }
   const action = await prisma.automationAction.create({
@@ -367,10 +453,10 @@ export async function requestAutomationEnd(input: {
       actorId: input.user.id,
       type: "session_finish",
       source: input.source || "SYSTEM",
-      role: input.role || "OWNER",
+      role: effectiveRole,
       status: "WAITING",
       timingJson: jsonObject(input.timing),
-      payloadJson: { reason: input.reason || null },
+      payloadJson: { reason: input.reason || null, policy },
       dueAt,
       correlationId: session.correlationId
     }
@@ -397,8 +483,8 @@ export async function requestAutomationEnd(input: {
     type: "session_pending_end",
     title: "Session-Ende geplant",
     source: input.source || "SYSTEM",
-    role: input.role || "OWNER",
-    details: { dueAt, reason: input.reason || null },
+    role: effectiveRole,
+    details: { dueAt, reason: input.reason || null, policy },
     correlationId: session.correlationId
   });
   return { session: updated, action, changed: true };
@@ -413,14 +499,19 @@ export async function finishAutomationSession(input: {
 }) {
   if (!input.user.tenantId) throw new Error("tenant_required");
   const session = await prisma.automationSession.findFirst({
-    where: { id: input.sessionId, tenantId: input.user.tenantId, ownerId: input.user.id },
+    where: { id: input.sessionId, tenantId: input.user.tenantId },
     include: { trackerType: true, trackerEntry: true }
   });
   if (!session) throw new Error("session_not_found");
+  const access = input.role === "SYSTEM"
+    ? { canRequestEnd: true, canOverrideEnd: true, role: "SYSTEM" as AutomationRole, reason: "Systemaktion" }
+    : await automationSessionAccess(input.user, session);
+  if (!access.canRequestEnd && session.state !== "FINISHED") throw new Error("automation_action_not_allowed");
+  const effectiveRole = input.role === "SYSTEM" ? "SYSTEM" : access.role || "OWNER";
   if (session.state === "FINISHED") return session;
   const now = new Date();
   if (session.trackerType) {
-    await stopTrackerEntryForType({ trackerType: session.trackerType, user: input.user, notes: input.reason || undefined });
+    await stopTrackerEntryForType({ trackerType: session.trackerType, user: { id: session.ownerId, tenantId: input.user.tenantId }, notes: input.reason || undefined });
   } else if (session.trackerEntry && !session.trackerEntry.endTime) {
     await prisma.trackerEntry.update({
       where: { id: session.trackerEntry.id },
@@ -448,8 +539,8 @@ export async function finishAutomationSession(input: {
     type: "session_finished",
     title: "Session beendet",
     source: input.source || "SYSTEM",
-    role: input.role || "OWNER",
-    details: { finishedAt: now, reason: input.reason || null },
+    role: effectiveRole,
+    details: { finishedAt: now, reason: input.reason || null, policy: { role: effectiveRole, reason: access.reason, action: "session_finish", state: session.state, allowed: true } },
     correlationId: session.correlationId
   });
   return updated;
@@ -1357,8 +1448,10 @@ export async function createAutomationImageRequest(input: {
   reason?: string | null;
 }) {
   if (!input.user.tenantId) throw new Error("tenant_required");
-  const session = await prisma.automationSession.findFirst({ where: { id: input.sessionId, tenantId: input.user.tenantId, ownerId: input.user.id } });
+  const session = await prisma.automationSession.findFirst({ where: { id: input.sessionId, tenantId: input.user.tenantId } });
   if (!session) throw new Error("session_not_found");
+  const access = await automationSessionAccess(input.user, session);
+  if (!access.canRequestImage) throw new Error("automation_action_not_allowed");
   const requestId = correlationId("img");
   const action = await createAutomationAction({
     tenantId: input.user.tenantId,
@@ -1366,10 +1459,18 @@ export async function createAutomationImageRequest(input: {
     actorId: input.user.id,
     type: "camera_request_image",
     source: "SYSTEM",
-    role: "OWNER",
+    role: access.role || "OWNER",
     deviceId: input.deviceId || null,
     capabilityId: input.capabilityId || null,
-    payload: { requestId, reason: input.reason || null, maxRetries: 2, retryCount: 0, timeoutSeconds: 20, bootDelaySeconds: 20 },
+    payload: {
+      requestId,
+      reason: input.reason || null,
+      maxRetries: 2,
+      retryCount: 0,
+      timeoutSeconds: 20,
+      bootDelaySeconds: 20,
+      policy: { role: access.role, reason: access.reason, action: "camera_request_image", state: session.state, allowed: true }
+    },
     correlationId: session.correlationId
   });
   const request = await prisma.automationImageRequest.create({
@@ -1396,7 +1497,8 @@ export async function createAutomationImageRequest(input: {
     capabilityId: input.capabilityId || null,
     type: "image_requested",
     title: "Bild angefordert",
-    details: { requestId },
+    role: access.role || "OWNER",
+    details: { requestId, policy: { role: access.role, reason: access.reason, action: "camera_request_image", state: session.state, allowed: true } },
     correlationId: session.correlationId
   });
   return request;

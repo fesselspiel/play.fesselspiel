@@ -9,7 +9,7 @@ import { currentUser } from "@/lib/auth";
 import { formatDateTime, minutesBetween } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
-import { createAutomationImageRequest, requestAutomationEnd } from "@/lib/session-automation";
+import { automationSessionAccess, createAutomationImageRequest, requestAutomationEnd } from "@/lib/session-automation";
 
 function detailsObject(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -72,7 +72,6 @@ async function endAutomation(formData: FormData) {
     sessionId,
     timing: delayMinutes > 0 ? { type: "fixed_delay", minutes: delayMinutes } : { type: "immediate" },
     source: "WEB",
-    role: "OWNER",
     override: formData.get("override") === "on",
     reason: String(formData.get("reason") || "") || null
   });
@@ -101,12 +100,10 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
   if (!user) redirect("/login");
   if (!user.tenantId) redirect("/");
   const params = await props.params;
-  const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
   const session = await prisma.automationSession.findFirst({
     where: {
       id: params.id,
-      tenantId: user.tenantId,
-      ...(isAdmin ? {} : { ownerId: user.id })
+      tenantId: user.tenantId
     },
     include: {
       owner: { include: { profile: true } },
@@ -132,6 +129,8 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
     }
   });
   if (!session) notFound();
+  const access = await automationSessionAccess(user, session);
+  if (!access.canView) notFound();
   const [devices, tenantUsers] = await Promise.all([
     prisma.automationDevice.findMany({ where: { tenantId: user.tenantId }, include: { capabilities: true }, orderBy: { name: "asc" } }),
     prisma.user.findMany({
@@ -142,8 +141,7 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
   ]);
   const userNames = new Map(tenantUsers.map((item) => [item.id, displayUserName(item)]));
   const cameraCapabilities = devices.flatMap((device) => device.capabilities.filter((capability) => capability.kind.toLowerCase() === "camera").map((capability) => ({ device, capability })));
-  const canControl = session.ownerId === user.id && ["RUNNING", "PENDING_END"].includes(session.state);
-  const canRequestImage = canControl && cameraCapabilities.length > 0;
+  const canRequestImage = access.canRequestImage && cameraCapabilities.length > 0;
   const stateJson = detailsObject(session.stateJson);
   const pendingTiming = detailsObject(stateJson.pendingEndTiming);
 
@@ -164,6 +162,11 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
               <div className="rounded-md border border-line bg-paper p-3">
                 <div className="text-xs uppercase tracking-wide text-graphite">Session-Benutzer</div>
                 <div className="mt-1 text-lg font-semibold text-ink">{displayUserName(session.owner)}</div>
+              </div>
+              <div className="rounded-md border border-line bg-paper p-3">
+                <div className="text-xs uppercase tracking-wide text-graphite">Deine Rolle</div>
+                <div className="mt-1 text-lg font-semibold text-ink">{access.role ? labelAutomationValue("roles", access.role) : "Kein Zugriff"}</div>
+                <div className="mt-1 text-xs text-graphite">{access.reason}</div>
               </div>
               <div className="rounded-md border border-line bg-paper p-3">
                 <div className="text-xs uppercase tracking-wide text-graphite">Gekoppelter Tracker</div>
@@ -207,9 +210,9 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
 
           <Panel>
             <h2 className="text-lg font-semibold text-ink">Erlaubte Aktionen</h2>
-            {canControl ? (
+            {access.canRequestEnd || canRequestImage ? (
               <div className="mt-4 space-y-3">
-                {session.state === "RUNNING" ? (
+                {session.state === "RUNNING" && access.canRequestEnd ? (
                   <form action={endAutomation} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                     <input type="hidden" name="sessionId" value={session.id} />
                     <Field label="Verzögerung Minuten">
@@ -223,7 +226,7 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
                     </div>
                   </form>
                 ) : null}
-                {session.state === "PENDING_END" ? (
+                {session.state === "PENDING_END" && access.canOverrideEnd ? (
                   <form action={endAutomation} className="grid gap-2 sm:grid-cols-[1fr_auto]">
                     <input type="hidden" name="sessionId" value={session.id} />
                     <input type="hidden" name="override" value="on" />

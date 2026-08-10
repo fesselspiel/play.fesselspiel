@@ -214,6 +214,17 @@ test("Automation-Session-Seiten verwenden fachliche Aktionssprache", () => {
   assert.match(detail, /Grund für sofortiges Beenden/);
 });
 
+test("Automation-Session-Aktionen nutzen zentrale Rollen-Policy statt Besitzer-Sonderlogik", () => {
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
+  const detail = readFileSync("src/app/automation/sessions/[id]/page.tsx", "utf8");
+  assert.match(service, /export async function automationSessionAccess/);
+  assert.match(service, /Controller im gemeinsamen Zirkel/);
+  assert.match(service, /stopTrackerEntryForType\(\{ trackerType: session\.trackerType, user: \{ id: session\.ownerId/);
+  assert.match(detail, /automationSessionAccess\(user, session\)/);
+  assert.doesNotMatch(detail, /session\.ownerId === user\.id && \["RUNNING", "PENDING_END"\]/);
+  assert.doesNotMatch(service, /where:\s*\{\s*id:\s*input\.sessionId,\s*tenantId:\s*input\.user\.tenantId,\s*ownerId:\s*input\.user\.id\s*\}/);
+});
+
 test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben", () => {
   const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
   const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
