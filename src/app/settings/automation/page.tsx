@@ -182,6 +182,32 @@ async function updateDevice(formData: FormData) {
   redirect("/settings/automation?saved=device");
 }
 
+async function deleteDevice(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  requireAdmin(user);
+  await requireFeature("automation");
+  if (!user.tenantId) redirect("/settings/automation?error=tenant");
+  const deviceId = String(formData.get("deviceId") || "");
+  const device = await prisma.automationDevice.findFirst({
+    where: { id: deviceId, tenantId: user.tenantId },
+    include: { capabilities: { select: { id: true } } }
+  });
+  if (!device) redirect("/settings/automation?error=Gerät nicht gefunden");
+  await prisma.automationDevice.delete({ where: { id: device.id } });
+  await recordAutomationEvent({
+    tenantId: user.tenantId,
+    actorId: user.id,
+    type: "device_deleted",
+    title: `Gerät gelöscht: ${device.name}`,
+    source: "WEB",
+    role: "OWNER",
+    details: { deviceId: device.id, name: device.name, capabilities: device.capabilities.length }
+  });
+  redirect("/settings/automation?saved=device-deleted");
+}
+
 async function updateCapability(formData: FormData) {
   "use server";
   const user = await currentUser();
@@ -200,6 +226,33 @@ async function updateCapability(formData: FormData) {
     }
   });
   redirect("/settings/automation?saved=capability");
+}
+
+async function deleteCapability(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  requireAdmin(user);
+  await requireFeature("automation");
+  if (!user.tenantId) redirect("/settings/automation?error=tenant");
+  const capabilityId = String(formData.get("capabilityId") || "");
+  const capability = await prisma.automationCapability.findFirst({
+    where: { id: capabilityId, tenantId: user.tenantId },
+    include: { device: { select: { name: true } } }
+  });
+  if (!capability) redirect("/settings/automation?error=Fähigkeit nicht gefunden");
+  await prisma.automationCapability.delete({ where: { id: capability.id } });
+  await recordAutomationEvent({
+    tenantId: user.tenantId,
+    actorId: user.id,
+    deviceId: capability.deviceId,
+    type: "capability_deleted",
+    title: `Fähigkeit gelöscht: ${capability.device.name} · ${capability.title}`,
+    source: "WEB",
+    role: "OWNER",
+    details: { capabilityId: capability.id, deviceId: capability.deviceId, kind: capability.kind, title: capability.title }
+  });
+  redirect("/settings/automation?saved=capability-deleted");
 }
 
 async function saveRule(formData: FormData) {
@@ -290,6 +343,29 @@ async function saveRule(formData: FormData) {
     await createAutomationRule({ user, ...next, descriptionText: automationRuleSummary(next, ruleContext) });
   }
   redirect("/settings/automation?saved=rule");
+}
+
+async function deleteRule(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  requireAdmin(user);
+  await requireFeature("automation");
+  if (!user.tenantId) redirect("/settings/automation?error=tenant");
+  const ruleId = String(formData.get("ruleId") || "");
+  const rule = await prisma.automationRule.findFirst({ where: { id: ruleId, tenantId: user.tenantId } });
+  if (!rule) redirect("/settings/automation?error=Regel nicht gefunden");
+  await prisma.automationRule.delete({ where: { id: rule.id } });
+  await recordAutomationEvent({
+    tenantId: user.tenantId,
+    actorId: user.id,
+    type: "rule_deleted",
+    title: `Regel gelöscht: ${rule.name}`,
+    source: "WEB",
+    role: "OWNER",
+    details: { ruleId: rule.id, name: rule.name, version: rule.currentVersion }
+  });
+  redirect("/settings/automation?saved=rule-deleted");
 }
 
 export default async function AutomationSettingsPage(props: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
@@ -438,6 +514,16 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                           <div className="flex items-end"><SubmitButton pendingLabel="Speichert...">Gerät speichern</SubmitButton></div>
                         </form>
                       </details>
+                      <details className="mt-2 rounded border border-redbrand/30 bg-redbrand/5 p-3">
+                        <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Gerät entfernen</summary>
+                        <p className="mt-2 text-sm text-graphite">
+                          Entfernt das Gerät und seine Fähigkeiten aus der Automation. Historische Protokolleinträge bleiben nachvollziehbar erhalten.
+                        </p>
+                        <form action={deleteDevice} className="mt-3">
+                          <input type="hidden" name="deviceId" value={device.id} />
+                          <SubmitButton pendingLabel="Löscht...">Gerät löschen</SubmitButton>
+                        </form>
+                      </details>
                       {device.capabilities.map((capability) => (
                         <details key={`${capability.id}-edit`} className="mt-2 rounded border border-line bg-surface p-3">
                           <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Fähigkeit bearbeiten: {capability.title}</summary>
@@ -455,6 +541,15 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                             </Field>
                             <div className="flex items-end"><SubmitButton pendingLabel="Speichert...">Fähigkeit speichern</SubmitButton></div>
                           </form>
+                          <div className="mt-3 rounded border border-redbrand/30 bg-redbrand/5 p-3">
+                            <p className="text-sm text-graphite">
+                              Entfernt nur diese Fähigkeit. Das Gerät selbst bleibt bestehen.
+                            </p>
+                            <form action={deleteCapability} className="mt-3">
+                              <input type="hidden" name="capabilityId" value={capability.id} />
+                              <SubmitButton pendingLabel="Löscht...">Fähigkeit löschen</SubmitButton>
+                            </form>
+                          </div>
                         </details>
                       ))}
                       <details className="mt-2 rounded border border-line bg-surface p-2">
@@ -505,6 +600,16 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                         <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="active" type="checkbox" defaultChecked={rule.active} /> Aktiv</label>
                         <AutomationRuleEditor ruleId={rule.id} capabilities={capabilities} devices={deviceOptions} trackers={trackerOptions} initial={JSON.stringify(ruleFormFromStored(rule))} />
                         <SubmitButton pendingLabel="Speichert...">Änderungen speichern</SubmitButton>
+                      </form>
+                    </details>
+                    <details className="mt-2 rounded-md border border-redbrand/30 bg-redbrand/5 p-3">
+                      <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Regel löschen</summary>
+                      <p className="mt-2 text-sm text-graphite">
+                        Löscht die Regel für zukünftige Ausführungen. Bereits protokollierte Ereignisse und geplante Historie bleiben erhalten.
+                      </p>
+                      <form action={deleteRule} className="mt-3">
+                        <input type="hidden" name="ruleId" value={rule.id} />
+                        <SubmitButton pendingLabel="Löscht...">Regel löschen</SubmitButton>
                       </form>
                     </details>
                   </details>

@@ -1185,3 +1185,4 @@ Details:
 - Interne IDs, Correlation-ID, Raw JSON und Execution Context bleiben vollstaendig unter `Technische Details` verfuegbar.
 - Die Geraeteanlage kann nun mehrere Faehigkeiten an einem Geraet anlegen, zum Beispiel Kamera plus Schalter plus Sprachausgabe. Jede Faehigkeit erzeugt fachlich passende Aktionen, Ereignisse und Bedingungen ohne JSON-Eingabe.
 - Capability-Keys werden automatisch eindeutig generiert, damit doppelte oder aehnlich benannte Faehigkeiten eines Geraets sich nicht gegenseitig ueberschreiben.
+- Regeln, Geraete und einzelne Faehigkeiten koennen in der Automation-Administration jetzt fachlich entfernt werden. Die Loeschaktionen liegen unter eigenen Aufklappern, erzeugen normale Automation-Ereignisse und behalten historische Protokolle nachvollziehbar.
