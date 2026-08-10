@@ -1176,3 +1176,6 @@ Details:
 - Kamera-Regeln koennen nun fachlich Timeout, Wiederholungen, Boot-Wartezeit und optional einen Switch fuer Recovery konfigurieren.
 - Meldet der Adapter eine fehlgeschlagene Bildanforderung, markiert die Engine den geschuetzten Bildrequest als fehlgeschlagen, plant optional den Recovery-Schalter und danach einen erneuten Bildrequest mit stabiler Korrelation.
 - Die Simulation zeigt den Fehlerpfad inklusive Recovery-Aktionen, ohne echte Actions, Bildrequests oder Geraetebefehle auszufuehren.
+- Bedingungen im Rule-Editor besitzen nun fachliche Zielauswahlen: Geraet fuer Online/Offline-Pruefung, konkrete Faehigkeit plus erwarteter Zustand und Tracker fuer offene Kontingente.
+- Webformular und externe Rule-API validieren diese Ziele gegen die aktuelle Seite. Ungueltige Geraete, Faehigkeiten oder Tracker koennen nicht mehr als versteckte Payload gespeichert werden.
+- Die Engine wertet die in der Bedingung gespeicherten Ziele aus. Tracker-Kontingente nutzen die vorhandene zentrale Quotenlogik statt eines eigenen Automation-Quotensystems.

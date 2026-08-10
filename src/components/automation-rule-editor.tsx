@@ -29,7 +29,20 @@ type CapabilityOption = {
   kind: CapabilityKind;
   title: string;
   deviceName: string;
+  deviceId: string;
   state: string;
+};
+
+type DeviceOption = {
+  id: string;
+  name: string;
+  health: string;
+};
+
+type TrackerOption = {
+  id: string;
+  title: string;
+  color: string;
 };
 
 function parseInitial(value?: string) {
@@ -44,10 +57,14 @@ function parseInitial(value?: string) {
 export function AutomationRuleEditor({
   initial,
   capabilities,
+  devices,
+  trackers,
   ruleId
 }: {
   initial?: string;
   capabilities: CapabilityOption[];
+  devices: DeviceOption[];
+  trackers: TrackerOption[];
   ruleId?: string;
 }) {
   const [value, setValue] = useState<RuleFormValue>(() => parseInitial(initial));
@@ -61,9 +78,10 @@ export function AutomationRuleEditor({
     [capabilityKind]
   );
   const stored = useMemo(() => buildStoredRule(value), [value]);
-  const summary = automationRuleSummary(stored);
-  const flow = automationRuleFlow(stored);
-  const simulation = simulateAutomationRuleTimeline({ ...stored, scrubMinute });
+  const context = useMemo(() => ({ capabilities, devices, trackers }), [capabilities, devices, trackers]);
+  const summary = automationRuleSummary(stored, context);
+  const flow = automationRuleFlow(stored, context);
+  const simulation = simulateAutomationRuleTimeline({ ...stored, scrubMinute }, context);
 
   useEffect(() => {
     if (!availableActions.includes(value.actionType)) {
@@ -76,6 +94,17 @@ export function AutomationRuleEditor({
       const merged = { ...current, ...next };
       const conditions = conditionOptions[merged.triggerType] || ["none"];
       if (!conditions.includes(merged.conditionType)) merged.conditionType = conditions[0];
+      if (["device_online", "device_offline"].includes(merged.conditionType) && !merged.conditionDeviceId) {
+        merged.conditionDeviceId = devices[0]?.id || "";
+      }
+      if (merged.conditionType === "capability_state" && !merged.conditionCapabilityId) {
+        const first = capabilities[0];
+        merged.conditionCapabilityId = first?.id || "";
+        merged.conditionExpectedState = first?.state || "ONLINE";
+      }
+      if (merged.conditionType === "quota_remaining" && !merged.conditionTrackerTypeId) {
+        merged.conditionTrackerTypeId = trackers[0]?.id || "";
+      }
       const cap = capabilities.find((item) => item.id === merged.capabilityId);
       if (cap) {
         merged.capabilityKind = cap.kind;
@@ -128,6 +157,41 @@ export function AutomationRuleEditor({
                 <input className={inputClass} type="number" min={1} value={value.conditionMinutes} onChange={(event) => update({ conditionMinutes: Number(event.target.value) })} />
                 <span>Minuten</span>
               </div>
+            </label>
+          ) : null}
+          {value.conditionType === "device_online" || value.conditionType === "device_offline" ? (
+            <label className="mt-3 block text-sm text-graphite">Gerät
+              <select className={`${inputClass} mt-1`} value={value.conditionDeviceId} onChange={(event) => update({ conditionDeviceId: event.target.value })}>
+                {devices.length ? devices.map((device) => <option key={device.id} value={device.id}>{device.name}</option>) : <option value="">Kein Gerät eingerichtet</option>}
+              </select>
+            </label>
+          ) : null}
+          {value.conditionType === "capability_state" ? (
+            <div className="mt-3 grid gap-2 text-sm text-graphite">
+              <label>Fähigkeit
+                <select className={`${inputClass} mt-1`} value={value.conditionCapabilityId} onChange={(event) => update({ conditionCapabilityId: event.target.value })}>
+                  {capabilities.length ? capabilities.map((capability) => (
+                    <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
+                  )) : <option value="">Keine Fähigkeit eingerichtet</option>}
+                </select>
+              </label>
+              <label>Erwarteter Zustand
+                <select className={`${inputClass} mt-1`} value={value.conditionExpectedState} onChange={(event) => update({ conditionExpectedState: event.target.value })}>
+                  <option value="ONLINE">Verbunden</option>
+                  <option value="OFFLINE">Nicht erreichbar</option>
+                  <option value="BOOTING">Startet</option>
+                  <option value="ERROR">Fehler</option>
+                  <option value="ON">Eingeschaltet</option>
+                  <option value="OFF">Ausgeschaltet</option>
+                </select>
+              </label>
+            </div>
+          ) : null}
+          {value.conditionType === "quota_remaining" ? (
+            <label className="mt-3 block text-sm text-graphite">Tracker
+              <select className={`${inputClass} mt-1`} value={value.conditionTrackerTypeId} onChange={(event) => update({ conditionTrackerTypeId: event.target.value })}>
+                {trackers.length ? trackers.map((tracker) => <option key={tracker.id} value={tracker.id}>{tracker.title}</option>) : <option value="">Kein Tracker eingerichtet</option>}
+              </select>
             </label>
           ) : null}
         </section>

@@ -175,24 +175,48 @@ async function saveRule(formData: FormData) {
     actionJson: parseJson(formData.get("actionJson"), [])
   };
   if (!user.tenantId) redirect("/settings/automation?error=tenant");
-  const capabilities = await prisma.automationCapability.findMany({
-    where: { tenantId: user.tenantId },
-    select: { id: true, kind: true, title: true, device: { select: { name: true } } }
-  });
+  const [capabilities, devices, trackerTypes] = await Promise.all([
+    prisma.automationCapability.findMany({
+      where: { tenantId: user.tenantId },
+      select: { id: true, kind: true, title: true, state: true, deviceId: true, device: { select: { name: true } } }
+    }),
+    prisma.automationDevice.findMany({
+      where: { tenantId: user.tenantId },
+      select: { id: true, name: true, health: true }
+    }),
+    prisma.trackerType.findMany({
+      where: { tenantId: user.tenantId, enabled: true },
+      select: { id: true, title: true, color: true }
+    })
+  ]);
   const validation = validateAutomationRulePayload(next, capabilities.map((capability) => ({
     id: capability.id,
     kind: capability.kind as "Camera" | "Switch" | "Voice",
     title: capability.title,
-    deviceName: capability.device.name
-  })));
+    deviceName: capability.device.name,
+    deviceId: capability.deviceId,
+    state: capability.state
+  })), devices, trackerTypes);
   if (!validation.ok) {
     redirect(`/settings/automation?error=${encodeURIComponent(validation.errors[0] || "Regel ist ungültig")}`);
   }
+  const ruleContext = {
+    capabilities: capabilities.map((capability) => ({
+      id: capability.id,
+      kind: capability.kind as "Camera" | "Switch" | "Voice",
+      title: capability.title,
+      deviceName: capability.device.name,
+      deviceId: capability.deviceId,
+      state: capability.state
+    })),
+    devices,
+    trackers: trackerTypes
+  };
   if (ruleId) {
     const current = await prisma.automationRule.findFirst({ where: { id: ruleId, tenantId: user.tenantId } });
     if (!current) redirect("/settings/automation?error=rule");
     const version = current.currentVersion + 1;
-    const descriptionText = automationRuleSummary(next);
+    const descriptionText = automationRuleSummary(next, ruleContext);
     await prisma.automationRule.update({
       where: { id: current.id },
       data: {
@@ -217,7 +241,7 @@ async function saveRule(formData: FormData) {
     });
     await recordAutomationEvent({ tenantId: user.tenantId, ruleId, actorId: user.id, type: "rule_updated", title: `Regel geändert: ${next.name}`, source: "WEB", role: "OWNER", details: { version, descriptionText } });
   } else {
-    await createAutomationRule({ user, ...next });
+    await createAutomationRule({ user, ...next, descriptionText: automationRuleSummary(next, ruleContext) });
   }
   redirect("/settings/automation?saved=rule");
 }
@@ -229,9 +253,10 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
   if (!user) redirect("/login");
   requireAdmin(user);
   if (!user.tenantId) redirect("/");
-  const [bridge, devices, rules, events] = await Promise.all([
+  const [bridge, devices, trackerTypes, rules, events] = await Promise.all([
     prisma.automationBridge.findUnique({ where: { tenantId: user.tenantId } }),
     prisma.automationDevice.findMany({ where: { tenantId: user.tenantId }, include: { capabilities: true }, orderBy: { name: "asc" } }),
+    prisma.trackerType.findMany({ where: { tenantId: user.tenantId, enabled: true }, orderBy: { title: "asc" } }),
     prisma.automationRule.findMany({ where: { tenantId: user.tenantId }, include: { versions: { orderBy: { version: "desc" }, take: 3 } }, orderBy: { updatedAt: "desc" } }),
     prisma.automationEvent.findMany({
       where: { tenantId: user.tenantId },
@@ -247,9 +272,12 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
     id: capability.id,
     kind: capability.kind as "Camera" | "Switch" | "Voice",
     title: capability.title,
+    deviceId: device.id,
     deviceName: device.name,
     state: capability.state
   })));
+  const deviceOptions = devices.map((device) => ({ id: device.id, name: device.name, health: device.health }));
+  const trackerOptions = trackerTypes.map((tracker) => ({ id: tracker.id, title: tracker.title, color: tracker.color }));
 
   return (
     <AppShell>
@@ -395,7 +423,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                 <div className="grid gap-3 sm:grid-cols-3">
                   <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="active" type="checkbox" defaultChecked /> Aktiv</label>
                 </div>
-                <AutomationRuleEditor capabilities={capabilities} />
+                <AutomationRuleEditor capabilities={capabilities} devices={deviceOptions} trackers={trackerOptions} />
                 <SubmitButton pendingLabel="Speichert...">Regel speichern</SubmitButton>
               </form>
             </Panel>
@@ -405,9 +433,9 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                 {rules.map((rule) => (
                   <details key={rule.id} className="rounded-md border border-line bg-paper p-3">
                     <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">{rule.name}</summary>
-                    <p className="mt-2 text-sm text-graphite">{rule.descriptionText || automationRuleSummary(rule)}</p>
+                    <p className="mt-2 text-sm text-graphite">{rule.descriptionText || automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })}</p>
                     <div className="mt-3 flex flex-col items-start gap-2">
-                      {automationRuleFlow(rule).map((step, index) => (
+                      {automationRuleFlow(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions }).map((step, index) => (
                         <div key={`${rule.id}-${step}-${index}`} className="rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink">{step}</div>
                       ))}
                     </div>
@@ -418,7 +446,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                         <Field label="Name"><input name="name" className={inputClass} required defaultValue={rule.name} /></Field>
                         <Field label="Beschreibung"><input name="description" className={inputClass} defaultValue={rule.description || ""} /></Field>
                         <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="active" type="checkbox" defaultChecked={rule.active} /> Aktiv</label>
-                        <AutomationRuleEditor ruleId={rule.id} capabilities={capabilities} initial={JSON.stringify(ruleFormFromStored(rule))} />
+                        <AutomationRuleEditor ruleId={rule.id} capabilities={capabilities} devices={deviceOptions} trackers={trackerOptions} initial={JSON.stringify(ruleFormFromStored(rule))} />
                         <SubmitButton pendingLabel="Speichert...">Änderungen speichern</SubmitButton>
                       </form>
                     </details>
@@ -436,7 +464,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
               <h2 className="text-base font-semibold text-ink">Simulation</h2>
               <p className="mt-2 text-sm text-graphite">Die Simulation findet direkt im Regel-Editor der jeweiligen Regel statt und erzeugt keine echten Aktionen.</p>
               <div className="mt-3 space-y-2">
-                {rules.slice(0, 5).map((rule) => <div key={rule.id} className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">{rule.name}: {rule.descriptionText || automationRuleSummary(rule)}</div>)}
+                {rules.slice(0, 5).map((rule) => <div key={rule.id} className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">{rule.name}: {rule.descriptionText || automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })}</div>)}
               </div>
             </Panel>
             <Panel>

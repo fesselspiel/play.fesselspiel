@@ -5,6 +5,7 @@ import { minutesBetween } from "@/lib/dates";
 import { saveFileBuffer } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
 import { findTrackerTypeByIdForUser, findTrackerTypeByTextForUser, startTrackerEntryForType, stopTrackerEntryForType, uniqueTrackerSlug } from "@/lib/tracker-core";
+import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 
 export const automationStates = ["IDLE", "RUNNING", "PENDING_END", "FINISHED", "CANCELLED"] as const;
 export const automationActionStatuses = ["CREATED", "WAITING", "READY", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"] as const;
@@ -519,6 +520,7 @@ export async function runDueAutomationActions(now = new Date()) {
       const conditionResult = await conditionIsCurrentlyValid({
         tenantId: action.tenantId,
         sessionId: action.sessionId,
+        actorId: action.actorId,
         eventCreatedAt: typeof payload.sourceEventAt === "string" ? new Date(payload.sourceEventAt) : action.createdAt,
         conditionJson,
         deviceId: action.deviceId,
@@ -885,6 +887,7 @@ function triggerMatches(ruleTrigger: string, eventType: string) {
 async function conditionIsCurrentlyValid(input: {
   tenantId: string;
   sessionId?: string | null;
+  actorId?: string | null;
   eventCreatedAt?: Date | null;
   conditionJson?: unknown;
   deviceId?: string | null;
@@ -910,8 +913,10 @@ async function conditionIsCurrentlyValid(input: {
     };
   }
   if (type === "device_online" || type === "device_offline") {
-    if (!input.deviceId) return { passed: false, reason: "Kein Gerät ausgewählt" };
-    const device = await prisma.automationDevice.findFirst({ where: { id: input.deviceId, tenantId: input.tenantId }, select: { health: true } });
+    const conditionDeviceId = clean(condition.deviceId);
+    const deviceId = conditionDeviceId || input.deviceId;
+    if (!deviceId) return { passed: false, reason: "Kein Gerät ausgewählt" };
+    const device = await prisma.automationDevice.findFirst({ where: { id: deviceId, tenantId: input.tenantId }, select: { health: true } });
     const online = device?.health === "ONLINE";
     return {
       passed: type === "device_online" ? online : !online,
@@ -919,14 +924,33 @@ async function conditionIsCurrentlyValid(input: {
     };
   }
   if (type === "capability_state") {
-    if (!input.capabilityId) return { passed: false, reason: "Keine Fähigkeit ausgewählt" };
+    const conditionCapabilityId = clean(condition.capabilityId);
+    const capabilityId = conditionCapabilityId || input.capabilityId;
+    if (!capabilityId) return { passed: false, reason: "Keine Fähigkeit ausgewählt" };
     const expected = clean(condition.state || condition.expected || condition.value);
-    const capability = await prisma.automationCapability.findFirst({ where: { id: input.capabilityId, tenantId: input.tenantId }, select: { state: true } });
+    const capability = await prisma.automationCapability.findFirst({ where: { id: capabilityId, tenantId: input.tenantId }, select: { state: true } });
     const passed = expected ? capability?.state === expected : Boolean(capability?.state);
     return { passed, reason: passed ? "Fähigkeitszustand passt" : "Fähigkeitszustand passt nicht" };
   }
   if (type === "quota_remaining") {
-    return { passed: true, reason: "Tracker-Kontingent ist offen" };
+    const trackerTypeId = clean(condition.trackerTypeId);
+    if (!trackerTypeId) return { passed: false, reason: "Kein Tracker ausgewählt" };
+    let ownerId = input.actorId || null;
+    if (!ownerId && input.sessionId) {
+      const session = await prisma.automationSession.findFirst({
+        where: { id: input.sessionId, tenantId: input.tenantId },
+        select: { ownerId: true }
+      });
+      ownerId = session?.ownerId || null;
+    }
+    if (!ownerId) return { passed: false, reason: "Kein Benutzer für Kontingentprüfung" };
+    const statuses = await trackerQuotaStatusForUser({ id: ownerId, tenantId: input.tenantId });
+    const status = statuses.find((item) => item.tracker.id === trackerTypeId);
+    if (!status || !status.hasQuota) return { passed: false, reason: "Für diesen Tracker ist kein Kontingent konfiguriert" };
+    return {
+      passed: !status.complete,
+      reason: status.complete ? "Tracker-Kontingent ist bereits erfüllt" : `Tracker-Kontingent ist offen: ${quotaSummaryText(status)}`
+    };
   }
   return { passed: false, reason: "Bedingung wird nicht unterstützt" };
 }
@@ -962,6 +986,7 @@ async function processAutomationRulesForEvent(event: {
       const conditionResult = await conditionIsCurrentlyValid({
         tenantId: event.tenantId,
         sessionId: event.sessionId,
+        actorId: event.actorId,
         eventCreatedAt: event.createdAt,
         conditionJson: version.conditionJson,
         deviceId: clean(actionSpec.deviceId || event.deviceId) || event.deviceId,
@@ -1128,9 +1153,10 @@ export async function createAutomationRule(input: {
   conditionJson?: unknown;
   timingJson?: unknown;
   actionJson?: unknown;
+  descriptionText?: string;
 }) {
   if (!input.user.tenantId) throw new Error("tenant_required");
-  const descriptionText = describeAutomationRule(input);
+  const descriptionText = input.descriptionText || describeAutomationRule(input);
   const rule = await prisma.automationRule.create({
     data: {
       tenantId: input.user.tenantId,
