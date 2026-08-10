@@ -80,6 +80,9 @@ export function AutomationRuleEditor({
         merged.capabilityKind = cap.kind;
         const actions = actionOptionsByCapability[cap.kind];
         if (!actions.includes(merged.actionType)) merged.actionType = actions[0];
+      } else {
+        merged.capabilityKind = "";
+        merged.actionType = "session_finish";
       }
       if (merged.timingType === "immediate") {
         merged.delayMinutes = 0;

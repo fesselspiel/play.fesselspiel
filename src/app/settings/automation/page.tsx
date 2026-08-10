@@ -5,7 +5,7 @@ import { AutomationDeviceManager } from "@/components/automation-device-manager"
 import { AutomationRuleEditor } from "@/components/automation-rule-editor";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
-import { automationRuleFlow, automationRuleSummary, labelAutomationValue, ruleFormFromStored } from "@/lib/automation-rule-model";
+import { automationRuleFlow, automationRuleSummary, labelAutomationValue, ruleFormFromStored, validateAutomationRulePayload } from "@/lib/automation-rule-model";
 import { currentUser } from "@/lib/auth";
 import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
@@ -115,6 +115,47 @@ async function saveDevice(formData: FormData) {
   redirect("/settings/automation?saved=device");
 }
 
+async function updateDevice(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  requireAdmin(user);
+  await requireFeature("automation");
+  if (!user.tenantId) redirect("/settings/automation?error=tenant");
+  const deviceId = String(formData.get("deviceId") || "");
+  const device = await prisma.automationDevice.findFirst({ where: { id: deviceId, tenantId: user.tenantId } });
+  if (!device) redirect("/settings/automation?error=Gerät nicht gefunden");
+  await prisma.automationDevice.update({
+    where: { id: device.id },
+    data: {
+      name: String(formData.get("name") || device.name).trim() || device.name,
+      integration: String(formData.get("integration") || device.integration),
+      health: String(formData.get("health") || device.health)
+    }
+  });
+  redirect("/settings/automation?saved=device");
+}
+
+async function updateCapability(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  requireAdmin(user);
+  await requireFeature("automation");
+  if (!user.tenantId) redirect("/settings/automation?error=tenant");
+  const capabilityId = String(formData.get("capabilityId") || "");
+  const capability = await prisma.automationCapability.findFirst({ where: { id: capabilityId, tenantId: user.tenantId } });
+  if (!capability) redirect("/settings/automation?error=Fähigkeit nicht gefunden");
+  await prisma.automationCapability.update({
+    where: { id: capability.id },
+    data: {
+      title: String(formData.get("title") || capability.title).trim() || capability.title,
+      state: String(formData.get("state") || capability.state)
+    }
+  });
+  redirect("/settings/automation?saved=capability");
+}
+
 async function saveRule(formData: FormData) {
   "use server";
   const user = await currentUser();
@@ -133,8 +174,21 @@ async function saveRule(formData: FormData) {
     timingJson: parseJson(formData.get("timingJson"), {}),
     actionJson: parseJson(formData.get("actionJson"), [])
   };
+  if (!user.tenantId) redirect("/settings/automation?error=tenant");
+  const capabilities = await prisma.automationCapability.findMany({
+    where: { tenantId: user.tenantId },
+    select: { id: true, kind: true, title: true, device: { select: { name: true } } }
+  });
+  const validation = validateAutomationRulePayload(next, capabilities.map((capability) => ({
+    id: capability.id,
+    kind: capability.kind as "Camera" | "Switch" | "Voice",
+    title: capability.title,
+    deviceName: capability.device.name
+  })));
+  if (!validation.ok) {
+    redirect(`/settings/automation?error=${encodeURIComponent(validation.errors[0] || "Regel ist ungültig")}`);
+  }
   if (ruleId) {
-    if (!user.tenantId) redirect("/settings/automation?error=tenant");
     const current = await prisma.automationRule.findFirst({ where: { id: ruleId, tenantId: user.tenantId } });
     if (!current) redirect("/settings/automation?error=rule");
     const version = current.currentVersion + 1;
@@ -188,6 +242,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
   ]);
   const mqttPassword = typeof searchParams?.mqttPassword === "string" ? searchParams.mqttPassword : "";
   const mqttUser = typeof searchParams?.mqttUser === "string" ? searchParams.mqttUser : "";
+  const error = typeof searchParams?.error === "string" ? searchParams.error : "";
   const capabilities = devices.flatMap((device) => device.capabilities.map((capability) => ({
     id: capability.id,
     kind: capability.kind as "Camera" | "Switch" | "Voice",
@@ -202,6 +257,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
       <PageGuide title="Regeln, Geräte und ioBroker">
         Hier verwaltest du die serverseitige Automatisierung. Das Portal bleibt die Quelle für Timing, Regeln, Tracker-Kopplung und Protokoll; ioBroker und MQTT sind nur die Brücke zu Geräten.
       </PageGuide>
+      {error ? <div className="mb-4 rounded-lg border border-redbrand/30 bg-redbrand/10 p-3 text-sm font-semibold text-ink">{error}</div> : null}
       <div className="space-y-4">
         <details open className="rounded-lg border border-line bg-surface p-4">
           <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><RadioTower className="h-4 w-4" /> Bridge</summary>
@@ -273,6 +329,49 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                     <div className="mt-2 space-y-1 text-sm text-graphite">
                       <p>{labelAutomationValue("integrations", device.integration)}</p>
                       {device.capabilities.map((capability) => <p key={capability.id}>{capability.title} · {labelAutomationValue("health", capability.state)}</p>)}
+                      <details className="mt-3 rounded border border-line bg-surface p-3">
+                        <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Gerät bearbeiten</summary>
+                        <form action={updateDevice} className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <input type="hidden" name="deviceId" value={device.id} />
+                          <Field label="Name"><input name="name" className={inputClass} defaultValue={device.name} /></Field>
+                          <Field label="Integration">
+                            <select name="integration" className={inputClass} defaultValue={device.integration}>
+                              <option value="IOBROKER">ioBroker</option>
+                              <option value="MQTT">MQTT</option>
+                              <option value="MANUAL">Manuell</option>
+                            </select>
+                          </Field>
+                          <Field label="Verbindungszustand">
+                            <select name="health" className={inputClass} defaultValue={device.health}>
+                              <option value="UNKNOWN">Nicht verbunden</option>
+                              <option value="ONLINE">Verbunden</option>
+                              <option value="OFFLINE">Nicht erreichbar</option>
+                              <option value="ERROR">Fehler</option>
+                              <option value="BOOTING">Startet</option>
+                            </select>
+                          </Field>
+                          <div className="flex items-end"><SubmitButton pendingLabel="Speichert...">Gerät speichern</SubmitButton></div>
+                        </form>
+                      </details>
+                      {device.capabilities.map((capability) => (
+                        <details key={`${capability.id}-edit`} className="mt-2 rounded border border-line bg-surface p-3">
+                          <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Fähigkeit bearbeiten: {capability.title}</summary>
+                          <form action={updateCapability} className="mt-3 grid gap-3 sm:grid-cols-2">
+                            <input type="hidden" name="capabilityId" value={capability.id} />
+                            <Field label="Name"><input name="title" className={inputClass} defaultValue={capability.title} /></Field>
+                            <Field label="Zustand">
+                              <select name="state" className={inputClass} defaultValue={capability.state}>
+                                <option value="UNKNOWN">Nicht verbunden</option>
+                                <option value="ONLINE">Verbunden</option>
+                                <option value="OFFLINE">Nicht erreichbar</option>
+                                <option value="ERROR">Fehler</option>
+                                <option value="BOOTING">Startet</option>
+                              </select>
+                            </Field>
+                            <div className="flex items-end"><SubmitButton pendingLabel="Speichert...">Fähigkeit speichern</SubmitButton></div>
+                          </form>
+                        </details>
+                      ))}
                       <details className="mt-2 rounded border border-line bg-surface p-2">
                         <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische Details</summary>
                         <pre className="mt-2 overflow-auto text-xs">{JSON.stringify({ logicalId: device.logicalId, integration: device.integration, capabilities: device.capabilities.map((capability) => ({ key: capability.key, kind: capability.kind, state: capability.state })) }, null, 2)}</pre>

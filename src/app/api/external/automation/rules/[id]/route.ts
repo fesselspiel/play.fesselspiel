@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
+import { validateAutomationRulePayload } from "@/lib/automation-rule-model";
 import { prisma } from "@/lib/prisma";
 import { describeAutomationRule, recordAutomationEvent } from "@/lib/session-automation";
 
@@ -49,6 +50,17 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
     timingJson: jsonObject(body.timing ?? current.timingJson),
     actionJson: jsonArray(body.actions ?? current.actionJson)
   };
+  const capabilities = await prisma.automationCapability.findMany({
+    where: { tenantId: auth.user.tenantId },
+    select: { id: true, kind: true, title: true, device: { select: { name: true } } }
+  });
+  const validation = validateAutomationRulePayload(next, capabilities.map((capability) => ({
+    id: capability.id,
+    kind: capability.kind as "Camera" | "Switch" | "Voice",
+    title: capability.title,
+    deviceName: capability.device.name
+  })));
+  if (!validation.ok) return NextResponse.json({ ok: false, error: "validation_failed", messages: validation.errors }, { status: 422 });
   const descriptionText = describeAutomationRule(next);
   const version = current.currentVersion + 1;
   const rule = await prisma.automationRule.update({

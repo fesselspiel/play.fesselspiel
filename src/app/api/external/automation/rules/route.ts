@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
+import { validateAutomationRulePayload } from "@/lib/automation-rule-model";
 import { prisma } from "@/lib/prisma";
 import { createAutomationRule } from "@/lib/session-automation";
 
@@ -28,6 +29,24 @@ export async function POST(request: NextRequest) {
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const triggerType = typeof body.triggerType === "string" ? body.triggerType.trim() : "";
   if (!name || !triggerType) return NextResponse.json({ ok: false, error: "name_and_trigger_required" }, { status: 400 });
+  const capabilities = await prisma.automationCapability.findMany({
+    where: { tenantId: auth.user.tenantId || "" },
+    select: { id: true, kind: true, title: true, device: { select: { name: true } } }
+  });
+  const validation = validateAutomationRulePayload({
+    name,
+    mode: typeof body.mode === "string" ? body.mode : "ONCE",
+    triggerType,
+    conditionJson: body.conditions,
+    timingJson: body.timing,
+    actionJson: body.actions
+  }, capabilities.map((capability) => ({
+    id: capability.id,
+    kind: capability.kind as "Camera" | "Switch" | "Voice",
+    title: capability.title,
+    deviceName: capability.device.name
+  })));
+  if (!validation.ok) return NextResponse.json({ ok: false, error: "validation_failed", messages: validation.errors }, { status: 422 });
   const rule = await createAutomationRule({
     user: auth.user,
     name,

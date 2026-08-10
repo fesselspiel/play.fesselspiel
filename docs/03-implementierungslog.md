@@ -1171,3 +1171,5 @@ Details:
 - Automation-Events loesen jetzt aktive `AutomationRule`-Datensaetze aus. Die Engine speichert die verwendete `AutomationRuleVersion`, einen `AutomationExecutionContext`, persistente `AutomationAction`-Eintraege und bei Kamera-Aktionen einen geschuetzten `AutomationImageRequest`.
 - Bedingungen werden beim Planen und bei faelligen Actions erneut bewertet. Dadurch fuehrt eine Regel wie `keine Controller-Aktion innerhalb von 20 Minuten` nur aus, wenn die Bedingung zum faelligen Zeitpunkt noch stimmt.
 - Zufallsfenster werden beim Ausloesen einmal materialisiert und in `timingJson` gespeichert. Nach Neustarts arbeitet der vorhandene Cron/Adapter denselben geplanten Zeitpunkt ab.
+- Regel-Payloads werden serverseitig gegen Trigger, passende Bedingungen, Zeitlogik, Action und Capability-Typ validiert. Dadurch akzeptieren Webformular und externe API keine widerspruechlichen versteckten JSON-Werte.
+- Vorhandene Geraete und Faehigkeiten koennen in der Automation-Administration fachlich bearbeitet werden, ohne rohe Capability- oder Action-JSONs zu pflegen.

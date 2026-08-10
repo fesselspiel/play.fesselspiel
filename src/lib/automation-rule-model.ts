@@ -19,6 +19,13 @@ export type AutomationTimingKey = "immediate" | "fixed_delay" | "random_delay";
 export type AutomationActionKey = "camera_request_image" | "switch_on" | "switch_off" | "switch_toggle" | "voice_speak" | "session_finish";
 export type CapabilityKind = "Camera" | "Switch" | "Voice";
 
+export type AutomationCapabilityReference = {
+  id: string;
+  kind: CapabilityKind;
+  title?: string;
+  deviceName?: string;
+};
+
 export const automationLabels = {
   states: {
     IDLE: "Bereit",
@@ -168,7 +175,7 @@ export function defaultRuleFormValue(): RuleFormValue {
     maxMinutes: 10,
     capabilityId: "",
     capabilityKind: "",
-    actionType: "camera_request_image",
+    actionType: "session_finish",
     voiceText: "",
     mode: "ONCE"
   };
@@ -233,6 +240,76 @@ export function buildStoredRule(value: RuleFormValue) {
     timingJson: timing,
     actionJson: actions,
     mode: value.mode
+  };
+}
+
+export function validateAutomationRulePayload(input: {
+  name?: string | null;
+  mode?: string | null;
+  triggerType?: string | null;
+  conditionJson?: unknown;
+  timingJson?: unknown;
+  actionJson?: unknown;
+}, capabilities: AutomationCapabilityReference[] = []) {
+  const errors: string[] = [];
+  const trigger = input.triggerType as AutomationTriggerKey;
+  if (!input.name?.trim()) errors.push("Bitte gib der Regel einen Namen.");
+  if (!triggerOptions.some((option) => option.key === trigger)) {
+    errors.push("Bitte wähle einen gültigen Auslöser.");
+  }
+  if (input.mode && !["ONCE", "REPEAT"].includes(input.mode)) {
+    errors.push("Bitte wähle eine gültige Ausführung.");
+  }
+
+  const conditions = Array.isArray(input.conditionJson) ? input.conditionJson : [];
+  if (conditions.length > 1) errors.push("Bitte verwende in dieser Oberfläche genau eine Bedingung.");
+  const condition = conditions.length ? asObject(conditions[0]) : {};
+  const conditionType = (condition.type || "none") as AutomationConditionKey;
+  const allowedConditions = conditionOptions[trigger] || [];
+  if (!conditionLabels[conditionType] || !allowedConditions.includes(conditionType)) {
+    errors.push("Die gewählte Bedingung passt nicht zu diesem Auslöser.");
+  }
+  if (conditionType === "controller_absent" && numberValue(condition.minutes, 0) < 1) {
+    errors.push("Der Zeitraum für Controller-Abwesenheit muss mindestens eine Minute betragen.");
+  }
+
+  const timing = asObject(input.timingJson);
+  const timingType = (timing.type || "immediate") as AutomationTimingKey;
+  if (!timingLabels[timingType]) errors.push("Bitte wähle eine gültige Zeitlogik.");
+  if (timingType === "fixed_delay" && numberValue(timing.minutes ?? timing.delayMinutes, 0) < 1) {
+    errors.push("Die feste Verzögerung muss mindestens eine Minute betragen.");
+  }
+  if (timingType === "random_delay") {
+    const min = numberValue(timing.minMinutes, 0);
+    const max = numberValue(timing.maxMinutes, -1);
+    if (max < min) errors.push("Beim Zufallsfenster darf die maximale Zeit nicht kleiner als die minimale Zeit sein.");
+  }
+
+  const actions = Array.isArray(input.actionJson) ? input.actionJson : [];
+  if (actions.length !== 1) errors.push("Bitte wähle genau eine Aktion.");
+  const action = actions.length ? asObject(actions[0]) : {};
+  const actionType = action.type as AutomationActionKey;
+  if (!actionLabels[actionType]) errors.push("Bitte wähle eine gültige Aktion.");
+  const capabilityId = typeof action.capabilityId === "string" ? action.capabilityId : "";
+  const capability = capabilityId ? capabilities.find((item) => item.id === capabilityId) : null;
+  if (actionType === "session_finish" && capabilityId) errors.push("Session beenden ist eine Portal-Aktion und braucht kein Gerät.");
+  if (actionType !== "session_finish") {
+    if (!capabilityId) errors.push("Diese Aktion braucht eine Gerätefähigkeit.");
+    if (capabilityId && !capability) errors.push("Die gewählte Gerätefähigkeit ist auf dieser Seite nicht verfügbar.");
+    if (capability && !actionOptionsByCapability[capability.kind]) {
+      errors.push("Die gewählte Gerätefähigkeit hat einen unbekannten Typ.");
+    }
+    if (capability && actionOptionsByCapability[capability.kind] && !actionOptionsByCapability[capability.kind].includes(actionType)) {
+      errors.push("Die gewählte Aktion passt nicht zur Gerätefähigkeit.");
+    }
+  }
+  if (actionType === "voice_speak" && typeof action.text === "string" && !action.text.trim()) {
+    errors.push("Für Sprachausgabe braucht die Aktion einen Text.");
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors
   };
 }
 
