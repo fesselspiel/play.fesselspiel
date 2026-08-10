@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
 import { prisma } from "@/lib/prisma";
+import { recordAutomationEvent } from "@/lib/session-automation";
 
 export const runtime = "nodejs";
 
@@ -24,4 +25,67 @@ export async function GET(request: NextRequest) {
     take: limit
   });
   return NextResponse.json({ ok: true, items: events });
+}
+
+export async function POST(request: NextRequest) {
+  const auth = await requireApiUser(request, { allowUnaccepted: true });
+  if ("response" in auth) return auth.response;
+  const blocked = apiFeatureGate(auth.user, "externalApi", "scheduledRules");
+  if (blocked) return blocked;
+  if (!auth.user.tenantId) return NextResponse.json({ ok: false, error: "tenant_required" }, { status: 400 });
+  const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+  const type = typeof body.type === "string" ? body.type.trim() : "";
+  const title = typeof body.title === "string" ? body.title.trim() : "";
+  if (!type || !title) return NextResponse.json({ ok: false, error: "type_and_title_required" }, { status: 400 });
+
+  let deviceId = typeof body.deviceId === "string" ? body.deviceId : null;
+  let capabilityId = typeof body.capabilityId === "string" ? body.capabilityId : null;
+  if (deviceId) {
+    const device = await prisma.automationDevice.findFirst({ where: { id: deviceId, tenantId: auth.user.tenantId }, select: { id: true } });
+    if (!device) deviceId = null;
+  }
+  if (capabilityId) {
+    const capability = await prisma.automationCapability.findFirst({ where: { id: capabilityId, tenantId: auth.user.tenantId }, select: { id: true, deviceId: true } });
+    if (!capability) {
+      capabilityId = null;
+    } else if (!deviceId) {
+      deviceId = capability.deviceId;
+    }
+  }
+  if (deviceId) {
+    await prisma.automationDevice.updateMany({
+      where: { id: deviceId, tenantId: auth.user.tenantId },
+      data: {
+        health: typeof body.deviceHealth === "string" ? body.deviceHealth : undefined,
+        statusJson: body.deviceState && typeof body.deviceState === "object" ? body.deviceState as never : undefined,
+        lastSeenAt: new Date()
+      }
+    });
+  }
+  if (capabilityId) {
+    await prisma.automationCapability.updateMany({
+      where: { id: capabilityId, tenantId: auth.user.tenantId },
+      data: {
+        state: typeof body.capabilityState === "string" ? body.capabilityState : undefined,
+        stateJson: body.capabilityStateJson && typeof body.capabilityStateJson === "object" ? body.capabilityStateJson as never : undefined
+      }
+    });
+  }
+
+  const item = await recordAutomationEvent({
+    tenantId: auth.user.tenantId,
+    actorId: auth.user.id,
+    sessionId: typeof body.sessionId === "string" ? body.sessionId : null,
+    actionId: typeof body.actionId === "string" ? body.actionId : null,
+    deviceId,
+    capabilityId,
+    type,
+    title,
+    source: typeof body.source === "string" ? body.source : "IOBROKER",
+    role: "SYSTEM",
+    details: body.details,
+    raw: body.raw,
+    correlationId: typeof body.correlationId === "string" ? body.correlationId : undefined
+  });
+  return NextResponse.json({ ok: true, item }, { status: 201 });
 }

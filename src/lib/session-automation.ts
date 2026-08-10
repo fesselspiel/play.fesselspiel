@@ -441,15 +441,38 @@ export async function createAutomationAction(input: {
 
 export async function runDueAutomationActions(now = new Date()) {
   const due = await prisma.automationAction.findMany({
-    where: { status: { in: ["WAITING", "READY"] }, dueAt: { lte: now } },
+    where: { status: "WAITING", dueAt: { lte: now } },
     include: { session: true, actor: true, capability: true, device: true },
     orderBy: { dueAt: "asc" },
     take: 50
   });
   const results: Array<{ id: string; status: AutomationActionStatus; message: string }> = [];
   for (const action of due) {
+    if (action.deviceId || action.capabilityId) {
+      const queued = await prisma.automationAction.updateMany({
+        where: { id: action.id, status: "WAITING" },
+        data: { status: "READY", resultJson: { queuedForBridge: true, queuedAt: now.toISOString() } }
+      });
+      if (!queued.count) continue;
+      await recordAutomationEvent({
+        tenantId: action.tenantId,
+        sessionId: action.sessionId,
+        actionId: action.id,
+        actorId: action.actorId,
+        deviceId: action.deviceId,
+        capabilityId: action.capabilityId,
+        type: "action_ready_for_bridge",
+        title: `Action bereit für Bridge: ${action.type}`,
+        source: "SYSTEM",
+        role: "SYSTEM",
+        details: { dueAt: action.dueAt, target: action.target },
+        correlationId: action.correlationId
+      });
+      results.push({ id: action.id, status: "READY", message: "Action für Bridge bereitgestellt" });
+      continue;
+    }
     const claimed = await prisma.automationAction.updateMany({
-      where: { id: action.id, status: { in: ["WAITING", "READY"] } },
+      where: { id: action.id, status: "WAITING" },
       data: { status: "RUNNING", startedAt: now }
     });
     if (!claimed.count) continue;
@@ -506,6 +529,117 @@ export async function runDueAutomationActions(now = new Date()) {
     }
   }
   return results;
+}
+
+export async function claimAutomationBridgeCommands(input: {
+  tenantId: string;
+  limit?: number;
+}) {
+  const limit = Math.min(100, Math.max(1, input.limit || 25));
+  const ready = await prisma.automationAction.findMany({
+    where: {
+      tenantId: input.tenantId,
+      status: "READY",
+      OR: [{ deviceId: { not: null } }, { capabilityId: { not: null } }]
+    },
+    include: {
+      session: { include: { trackerType: true, trackerEntry: true } },
+      device: true,
+      capability: true
+    },
+    orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
+    take: limit
+  });
+  const claimed = [];
+  const now = new Date();
+  for (const action of ready) {
+    const updated = await prisma.automationAction.updateMany({
+      where: { id: action.id, tenantId: input.tenantId, status: "READY" },
+      data: { status: "RUNNING", startedAt: now }
+    });
+    if (!updated.count) continue;
+    claimed.push({
+      ...action,
+      status: "RUNNING",
+      startedAt: now,
+      payloadJson: action.payloadJson || {}
+    });
+    await recordAutomationEvent({
+      tenantId: input.tenantId,
+      sessionId: action.sessionId,
+      actionId: action.id,
+      actorId: action.actorId,
+      deviceId: action.deviceId,
+      capabilityId: action.capabilityId,
+      type: "action_claimed_by_bridge",
+      title: `Bridge hat Action übernommen: ${action.type}`,
+      source: "IOBROKER",
+      role: "SYSTEM",
+      details: { deviceId: action.deviceId, capabilityId: action.capabilityId },
+      correlationId: action.correlationId
+    });
+  }
+  return claimed;
+}
+
+export async function finishAutomationBridgeCommand(input: {
+  tenantId: string;
+  actionId: string;
+  success: boolean;
+  result?: unknown;
+  error?: string | null;
+  deviceState?: unknown;
+  capabilityState?: string | null;
+  capabilityStateJson?: unknown;
+}) {
+  const action = await prisma.automationAction.findFirst({
+    where: { id: input.actionId, tenantId: input.tenantId },
+    include: { device: true, capability: true }
+  });
+  if (!action) throw new Error("action_not_found");
+  const now = new Date();
+  const status = input.success ? "SUCCEEDED" : "FAILED";
+  const updated = await prisma.automationAction.update({
+    where: { id: action.id },
+    data: {
+      status,
+      finishedAt: now,
+      resultJson: input.success ? jsonObject(input.result) : { failedAt: now.toISOString() },
+      error: input.success ? null : input.error || "bridge_action_failed"
+    }
+  });
+  if (action.deviceId && input.deviceState && typeof input.deviceState === "object") {
+    await prisma.automationDevice.update({
+      where: { id: action.deviceId },
+      data: { statusJson: jsonObject(input.deviceState), health: input.success ? "ONLINE" : action.device?.health || "UNKNOWN", lastSeenAt: now }
+    });
+  }
+  if (action.capabilityId && (input.capabilityState || input.capabilityStateJson)) {
+    await prisma.automationCapability.update({
+      where: { id: action.capabilityId },
+      data: {
+        state: input.capabilityState || action.capability?.state || "UNKNOWN",
+        stateJson: jsonObject(input.capabilityStateJson),
+        updatedAt: now
+      }
+    });
+  }
+  await recordAutomationEvent({
+    tenantId: input.tenantId,
+    sessionId: action.sessionId,
+    actionId: action.id,
+    actorId: action.actorId,
+    deviceId: action.deviceId,
+    capabilityId: action.capabilityId,
+    type: input.success ? "action_succeeded" : "action_failed",
+    title: input.success ? `Bridge-Action ausgeführt: ${action.type}` : `Bridge-Action fehlgeschlagen: ${action.type}`,
+    source: "IOBROKER",
+    role: "SYSTEM",
+    details: input.success ? jsonObject(input.result) : { error: input.error || "bridge_action_failed" },
+    raw: { result: input.result || null, deviceState: input.deviceState || null, capabilityState: input.capabilityState || null },
+    correlationId: action.correlationId
+  });
+  return updated;
 }
 
 export function describeAutomationRule(input: {

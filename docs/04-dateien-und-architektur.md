@@ -150,6 +150,9 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `src/app/api/external/automation/sessions/route.ts`
 - `src/app/api/external/automation/sessions/[id]/end/route.ts`
 - `src/app/api/external/automation/actions/run-due/route.ts`
+- `src/app/api/external/automation/adapter/heartbeat/route.ts`
+- `src/app/api/external/automation/adapter/commands/route.ts`
+- `src/app/api/external/automation/adapter/commands/[id]/result/route.ts`
 - `src/app/api/external/automation/rules/route.ts`
 - `src/app/api/external/automation/rules/[id]/route.ts`
 - `src/app/api/external/automation/rules/simulate/route.ts`

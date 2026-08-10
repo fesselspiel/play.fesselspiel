@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Activity, Cpu, FlaskConical, Plus, RadioTower } from "lucide-react";
+import { Activity, BookOpen, Cpu, FlaskConical, Plus, RadioTower } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
@@ -136,6 +136,23 @@ export default async function AutomationSettingsPage() {
             <Field label="MQTT Benutzer"><input name="mqttUsername" className={inputClass} defaultValue={bridge?.mqttUsername || ""} /></Field>
             <div className="flex items-end"><SubmitButton pendingLabel="Speichert...">Bridge speichern</SubmitButton></div>
           </form>
+          <div className="mt-4 rounded-lg border border-line bg-paper p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-ink"><BookOpen className="h-4 w-4" /> Adapter-Contract</div>
+            <p className="mt-2 text-sm text-graphite">
+              Der spätere ioBroker-Adapter nutzt normale API-Tokens und ruft nur Portal-Endpunkte auf. Die Bridge-Logik bleibt dadurch mandantenfähig und vollständig protokolliert.
+            </p>
+            <div className="mt-3 grid gap-2 text-xs text-graphite md:grid-cols-2">
+              <code className="rounded border border-line bg-surface p-2">POST /api/external/automation/adapter/heartbeat</code>
+              <code className="rounded border border-line bg-surface p-2">GET /api/external/automation/adapter/commands</code>
+              <code className="rounded border border-line bg-surface p-2">POST /api/external/automation/adapter/commands/{"{id}"}/result</code>
+              <code className="rounded border border-line bg-surface p-2">POST /api/external/automation/events</code>
+              <code className="rounded border border-line bg-surface p-2">POST /api/external/automation/devices</code>
+              <code className="rounded border border-line bg-surface p-2">POST /api/external/automation/image-requests/{"{requestId}"}/upload</code>
+            </div>
+            <a className="mt-3 inline-flex text-sm font-semibold text-redbrand hover:underline" href="/docs/iobroker-adapter-contract.md">
+              Contract-Dokument öffnen
+            </a>
+          </div>
         </details>
 
         <details className="rounded-lg border border-line bg-surface p-4">

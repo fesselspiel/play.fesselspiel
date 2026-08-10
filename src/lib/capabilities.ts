@@ -614,9 +614,12 @@ export const capabilities: readonly Capability[] = [
           { method: "POST", path: "/api/external/automation/devices", description: "Gerät und Capabilities aus ioBroker synchronisieren." },
           { method: "GET", path: "/api/external/automation/bridge", description: "Bridge-Health und MQTT-Konfiguration lesen." },
           { method: "PATCH", path: "/api/external/automation/bridge", description: "Bridge-Health, Heartbeat und MQTT-Metadaten aktualisieren." },
-          { method: "POST", path: "/api/external/automation/actions/run-due", description: "Fällige persistierte Automation-Actions ausführen. Für Cron/Worker." }
+          { method: "POST", path: "/api/external/automation/actions/run-due", description: "Fällige persistierte Automation-Actions ausführen. Für Cron/Worker." },
+          { method: "POST", path: "/api/external/automation/adapter/heartbeat", description: "Adapter-Heartbeat senden und Bridge-Status aktualisieren." },
+          { method: "GET", path: "/api/external/automation/adapter/commands?limit=25", description: "Fällige Geräte-/Capability-Commands atomar für den Adapter abholen." },
+          { method: "POST", path: "/api/external/automation/adapter/commands/{id}/result", description: "Ausführungsergebnis eines Adapter-Commands zurückmelden." }
         ],
-        auditActions: ["automation_device_synced", "automation_bridge_updated", "automation_action_created", "automation_action_succeeded", "automation_action_failed"]
+        auditActions: ["automation_device_synced", "automation_bridge_updated", "automation_bridge_heartbeat", "automation_action_created", "automation_action_ready_for_bridge", "automation_action_claimed_by_bridge", "automation_action_succeeded", "automation_action_failed"]
       },
       {
         key: "images",
@@ -627,7 +630,8 @@ export const capabilities: readonly Capability[] = [
           { method: "GET", path: "/api/external/automation/image-requests?sessionId=...", description: "Bildanforderungen lesen." },
           { method: "POST", path: "/api/external/automation/image-requests", description: "Bildanforderung erzeugen. JSON: sessionId, deviceId?, capabilityId?, reason?." },
           { method: "POST", path: "/api/external/automation/image-requests/{requestId}/upload", description: "Kamerabild per Multipart `file` zu einer Request-ID hochladen." },
-          { method: "GET", path: "/api/external/automation/events?sessionId=...&type=...", description: "Automation-Ereignisse für Debugging, Push und App-Timeline lesen." }
+          { method: "GET", path: "/api/external/automation/events?sessionId=...&type=...", description: "Automation-Ereignisse für Debugging, Push und App-Timeline lesen." },
+          { method: "POST", path: "/api/external/automation/events", description: "Geräte-/Capability-Event aus ioBroker oder Adapter ins Portal zurückmelden." }
         ],
         auditActions: ["automation_image_requested", "automation_image_uploaded"]
       }

@@ -76,6 +76,17 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Diese Quota-Event-IDs koennen direkt mit den normalen Feed-Kommentar-, Like- und Dismiss-Endpunkten verwendet werden.
 - Laufende Tracker in `openTrackers[]` liefern in `GET /api/external/status` und im Tracker-SSE-Stream ebenfalls `eventId`, `canComment`, `commentCount`, Likes und `engagement.comments`.
 
+## Automation-Bridge fuer ioBroker
+
+- Das Portal stellt jetzt den vollstaendigen Adapter-Contract bereit, ohne den ioBroker-Adapter selbst im Portal-Repo zu bauen.
+- Fällige Geräte- und Capability-Actions werden nicht mehr als erledigt markiert, sondern als Bridge-Commands im Status `READY` bereitgestellt.
+- `GET /api/external/automation/adapter/commands?limit=25` holt fällige Commands atomar ab und setzt sie auf `RUNNING`.
+- `POST /api/external/automation/adapter/commands/{id}/result` meldet Erfolg oder Fehler zurück, aktualisiert Device-/Capability-Zustände und schreibt Automation-Events.
+- `POST /api/external/automation/adapter/heartbeat` aktualisiert Bridge-Health, Heartbeat-Zeit und Metadaten.
+- `POST /api/external/automation/events` nimmt lokale Geräte-/Capability-Events aus ioBroker entgegen und protokolliert sie tenant-sicher.
+- Die offiziellen Automation-Capabilities listen diese Adapter-Endpunkte, damit API-Konsole, Agenten und spätere native Apps sie erkennen.
+- Der separate Adapter-Contract liegt unter `docs/12-iobroker-adapter-contract.md`.
+
 ## Initiale App
 
 - Next.js 14 App Router Projekt erstellt.
