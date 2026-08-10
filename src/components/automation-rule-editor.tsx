@@ -290,10 +290,22 @@ export function AutomationRuleEditor({
         <div className="flex items-center gap-2 font-semibold text-ink"><Shuffle className="h-4 w-4" /> Simulation</div>
         <input className="mt-4 w-full accent-redbrand" type="range" min={0} max={simulation.durationMinutes} value={scrubMinute} onChange={(event) => setScrubMinute(Number(event.target.value))} />
         <div className="mt-2 text-sm text-graphite">Simulationszeitpunkt: Minute {simulation.scrubMinute} von {simulation.durationMinutes}</div>
+        <div className="mt-3 rounded-md border border-redbrand/20 bg-redbrand/5 p-3 text-sm font-medium text-ink">{simulation.explanation}</div>
+        <div className="mt-4 overflow-x-auto">
+          <div className="flex min-w-max items-stretch gap-2">
+            {simulation.timeline.map((item) => (
+              <div key={`${item.minute}-${item.title}`} className={`w-44 rounded-md border p-3 text-sm ${item.minute <= simulation.scrubMinute ? "border-redbrand/40 bg-redbrand/10 text-ink" : "border-line bg-surface text-graphite"}`}>
+                <div className="text-xs font-semibold uppercase text-graphite">Minute {item.minute}</div>
+                <div className="mt-1 font-semibold">{item.title}</div>
+                <div className="mt-2 text-xs">{item.status}</div>
+              </div>
+            ))}
+          </div>
+        </div>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <SimBox title="Session-Zustand" items={[labelAutomationValue("states", simulation.sessionState)]} />
           <SimBox title="Ereignisse" items={simulation.events.map((item) => `${item.minute} min · ${item.title}`)} />
-          <SimBox title="Bedingungen" items={simulation.conditions.map((item) => `${item.title}: ${item.passed ? "erfüllt" : "noch offen"}`)} />
+          <SimBox title="Bedingungen" items={simulation.conditions.map((item) => `${item.title}: ${item.passed ? "erfüllt" : "noch offen"} · ${item.result}`)} />
           <SimBox title="Wartende Aktionen" items={simulation.waitingActions.map((item) => `${item.minute} min · ${item.title}`)} />
           <SimBox title="Fällige Aktionen" items={simulation.dueActions.map((item) => `${item.minute} min · ${item.title}`)} />
           <SimBox title="Recovery bei Fehler" items={simulation.recoveryActions.map((item) => `${item.minute} min · ${item.title}`)} />

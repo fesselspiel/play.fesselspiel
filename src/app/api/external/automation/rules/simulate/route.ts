@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
+import { validateAutomationRulePayload } from "@/lib/automation-rule-model";
+import { prisma } from "@/lib/prisma";
 import { simulateAutomationRule } from "@/lib/session-automation";
 
 export const runtime = "nodejs";
@@ -9,14 +11,51 @@ export async function POST(request: NextRequest) {
   if ("response" in auth) return auth.response;
   const blocked = apiFeatureGate(auth.user, "externalApi", "scheduledRules");
   if (blocked) return blocked;
+  if (!auth.user.tenantId) return NextResponse.json({ ok: false, error: "tenant_required" }, { status: 400 });
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+  const [capabilities, devices, trackerTypes] = await Promise.all([
+    prisma.automationCapability.findMany({
+      where: { tenantId: auth.user.tenantId },
+      select: { id: true, kind: true, title: true, state: true, deviceId: true, device: { select: { name: true } } }
+    }),
+    prisma.automationDevice.findMany({
+      where: { tenantId: auth.user.tenantId },
+      select: { id: true, name: true, health: true }
+    }),
+    prisma.trackerType.findMany({
+      where: { tenantId: auth.user.tenantId, enabled: true },
+      select: { id: true, title: true, color: true }
+    })
+  ]);
+  const context = {
+    capabilities: capabilities.map((capability) => ({
+      id: capability.id,
+      kind: capability.kind as "Camera" | "Switch" | "Voice",
+      title: capability.title,
+      deviceName: capability.device.name,
+      deviceId: capability.deviceId,
+      state: capability.state
+    })),
+    devices,
+    trackers: trackerTypes
+  };
+  const triggerType = typeof body.triggerType === "string" ? body.triggerType : "session_started";
+  const validation = validateAutomationRulePayload({
+    name: typeof body.name === "string" ? body.name : "Simulation",
+    mode: typeof body.mode === "string" ? body.mode : "ONCE",
+    triggerType,
+    conditionJson: body.conditions,
+    timingJson: body.timing,
+    actionJson: body.actions
+  }, context.capabilities, context.devices, context.trackers);
+  if (!validation.ok) return NextResponse.json({ ok: false, error: "validation_failed", messages: validation.errors }, { status: 422 });
   const result = simulateAutomationRule({
-    triggerType: typeof body.triggerType === "string" ? body.triggerType : "manual_test",
+    triggerType,
     conditionJson: body.conditions,
     timingJson: body.timing,
     actionJson: body.actions,
     startAt: typeof body.startAt === "string" ? new Date(body.startAt) : undefined,
     scrubMinute: Number.isFinite(Number(body.scrubMinute)) ? Number(body.scrubMinute) : undefined
-  });
+  }, context);
   return NextResponse.json({ ok: true, simulation: result });
 }

@@ -455,7 +455,12 @@ export function simulateAutomationRuleTimeline(input: {
   const scrubMinute = Math.min(Math.max(0, input.scrubMinute ?? 0), Math.max(1, dueMinute + 5));
   const events = [{ minute: 0, title: triggerOptions.find((option) => option.key === input.triggerType)?.label || "Trigger" }];
   const conditions = condition.type && condition.type !== "none"
-    ? [{ minute: conditionMinutes, title: describeCondition(condition, context), passed: scrubMinute >= conditionMinutes }]
+    ? [{
+        minute: conditionMinutes,
+        title: describeCondition(condition, context),
+        passed: scrubMinute >= conditionMinutes,
+        result: scrubMinute >= conditionMinutes ? "Bedingung erfüllt" : condition.type === "controller_absent" ? `Warte noch ${Math.max(0, conditionMinutes - scrubMinute)} Minuten auf mögliche Controller-Aktion` : "Bedingung noch nicht erfüllt"
+      }]
     : [];
   const waitingActions = scrubMinute < dueMinute ? [{ minute: dueMinute, title: actionLabels[action.type as AutomationActionKey] || "Aktion" }] : [];
   const dueActions = scrubMinute >= dueMinute ? [{ minute: dueMinute, title: actionLabels[action.type as AutomationActionKey] || "Aktion" }] : [];
@@ -478,6 +483,21 @@ export function simulateAutomationRuleTimeline(input: {
     completedActions: scrubMinute > dueMinute ? dueActions : [],
     recoveryActions,
     randomValues: timing.type === "random_delay" ? [{ label: "Gewählte Zufallswartezeit", value: `${delay} Minuten` }] : [],
+    timeline: [
+      { minute: 0, title: "Auslöser eingetreten", status: scrubMinute >= 0 ? "erledigt" : "wartet" },
+      ...(condition.type && condition.type !== "none" ? [{ minute: conditionMinutes, title: describeCondition(condition, context), status: scrubMinute >= conditionMinutes ? "erfüllt" : "wartet" }] : []),
+      ...(delay ? [{ minute: dueMinute, title: timing.type === "random_delay" ? `Zufällige Wartezeit endet nach ${delay} Minuten` : `Wartezeit endet nach ${delay} Minuten`, status: scrubMinute >= dueMinute ? "erledigt" : "wartet" }] : []),
+      { minute: dueMinute, title: actionLabels[action.type as AutomationActionKey] || "Aktion", status: scrubMinute >= dueMinute ? "fällig" : "wartet" },
+      ...(action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0 ? [{ minute: failureMinute, title: "Falls kein Bild ankommt: Recovery starten", status: scrubMinute >= failureMinute ? "bereit" : "wartet" }] : [])
+    ],
+    explanation: explainSimulationState({
+      scrubMinute,
+      conditionType: condition.type as string | undefined,
+      conditionMinutes,
+      delay,
+      dueMinute,
+      actionType: action.type as string | undefined
+    }),
     variables: {
       conditionMinutes,
       delayMinutes: delay,
@@ -488,6 +508,20 @@ export function simulateAutomationRuleTimeline(input: {
       sideEffects: false
     }
   };
+}
+
+function explainSimulationState(input: { scrubMinute: number; conditionType?: string; conditionMinutes: number; delay: number; dueMinute: number; actionType?: string }) {
+  if (input.conditionType && input.conditionType !== "none" && input.scrubMinute < input.conditionMinutes) {
+    return `Die Regel wartet noch auf die Bedingung. Bis Minute ${input.conditionMinutes} darf kein widersprechendes Ereignis eintreten.`;
+  }
+  if (input.scrubMinute < input.dueMinute) {
+    return input.delay
+      ? `Die Bedingung ist erfüllt. Die Aktion wartet noch bis Minute ${input.dueMinute}.`
+      : "Die Regel ist ausgelöst, die Aktion ist noch nicht fällig.";
+  }
+  if (input.actionType === "camera_request_image") return "Die Bildanforderung ist fällig. In der echten Ausführung würde jetzt ein geschützter Bildrequest erzeugt und an die Bridge übergeben.";
+  if (input.actionType === "session_finish") return "Die Session-Ende-Aktion ist fällig. In der echten Ausführung würde der Zustand entsprechend gesetzt.";
+  return "Die Aktion ist fällig. Die Simulation erzeugt weiterhin keine echten Side Effects.";
 }
 
 function nameById<T extends { id: string }>(items: T[] | undefined, id: unknown, fallback: string, label: (item: T) => string) {

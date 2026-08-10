@@ -1179,3 +1179,5 @@ Details:
 - Bedingungen im Rule-Editor besitzen nun fachliche Zielauswahlen: Geraet fuer Online/Offline-Pruefung, konkrete Faehigkeit plus erwarteter Zustand und Tracker fuer offene Kontingente.
 - Webformular und externe Rule-API validieren diese Ziele gegen die aktuelle Seite. Ungueltige Geraete, Faehigkeiten oder Tracker koennen nicht mehr als versteckte Payload gespeichert werden.
 - Die Engine wertet die in der Bedingung gespeicherten Ziele aus. Tracker-Kontingente nutzen die vorhandene zentrale Quotenlogik statt eines eigenen Automation-Quotensystems.
+- Die externe Simulations-API validiert Regeln jetzt ebenfalls serverseitig und nutzt dieselben Geraete-, Faehigkeits- und Tracker-Kontextdaten wie der Web-Editor.
+- Die scrubbable Simulation liefert eine sichtbare Timeline mit Status je Schritt und eine erklaerende Momentaufnahme, warum eine Aktion wartet, faellig ist oder nur simuliert wird.

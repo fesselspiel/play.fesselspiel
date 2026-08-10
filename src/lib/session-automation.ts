@@ -1208,8 +1208,8 @@ export function simulateAutomationRule(input: {
   actionJson?: unknown;
   startAt?: Date;
   scrubMinute?: number;
-}) {
-  return simulateAutomationRuleTimeline(input);
+}, context?: Parameters<typeof simulateAutomationRuleTimeline>[1]) {
+  return simulateAutomationRuleTimeline(input, context);
 }
 
 export async function upsertAutomationDevice(input: {
