@@ -34,6 +34,46 @@ function clean(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function firstArrayRecord(value: unknown): Record<string, unknown> {
+  return Array.isArray(value) && value[0] && typeof value[0] === "object" && !Array.isArray(value[0]) ? value[0] as Record<string, unknown> : {};
+}
+
+function humanActionTitle(type: string) {
+  const labels: Record<string, string> = {
+    camera_request_image: "Bild anfordern",
+    switch_on: "Einschalten",
+    switch_off: "Ausschalten",
+    switch_toggle: "Umschalten",
+    voice_speak: "Text sprechen",
+    session_finish: "Session beenden"
+  };
+  return labels[type] || "Aktion ausführen";
+}
+
+function concreteDelayMinutes(timing: unknown) {
+  const data = asRecord(timing);
+  const type = clean(data.type || data.mode) || "immediate";
+  if (type === "fixed_delay") return Math.max(0, Number(data.minutes || data.delayMinutes || 0));
+  if (type === "random_delay") {
+    const min = Math.max(0, Number(data.minMinutes || 0));
+    const max = Math.max(min, Number(data.maxMinutes || min));
+    return min + Math.floor(Math.random() * (max - min + 1));
+  }
+  return 0;
+}
+
+function conditionDelayMinutes(conditions: unknown) {
+  const condition = firstArrayRecord(conditions);
+  const type = clean(condition.type);
+  if (!type || type === "none") return 0;
+  if (type === "controller_absent") return Math.max(0, Number(condition.minutes || 0));
+  return 0;
+}
+
 export function correlationId(prefix = "auto") {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -83,6 +123,7 @@ export async function recordAutomationEvent(input: {
   details?: unknown;
   raw?: unknown;
   correlationId?: string;
+  skipRuleProcessing?: boolean;
 }) {
   const event = await prisma.automationEvent.create({
     data: {
@@ -114,6 +155,24 @@ export async function recordAutomationEvent(input: {
     href: input.sessionId ? `/automation/sessions/${input.sessionId}` : "/automation",
     details: { automationEventId: event.id, sessionId: input.sessionId || null, actionId: input.actionId || null, ...jsonObject(input.details) }
   });
+  if (!input.skipRuleProcessing) {
+    await processAutomationRulesForEvent(event).catch(async (error) => {
+      const message = error instanceof Error ? error.message : "Unbekannter Fehler";
+      await prisma.automationEvent.create({
+        data: {
+          tenantId: input.tenantId,
+          type: "rule_processing_failed",
+          title: "Regelverarbeitung fehlgeschlagen",
+          source: "SYSTEM",
+          role: "SYSTEM",
+          detailsJson: { error: message, sourceEventId: event.id },
+          rawJson: {},
+          correlationId: event.correlationId,
+          parentEventId: event.id
+        }
+      });
+    });
+  }
   return event;
 }
 
@@ -254,19 +313,8 @@ export async function startAutomationSession(input: {
 }
 
 function dueAtFromTiming(timing: unknown, now = new Date()) {
-  const data = jsonObject(timing);
-  const type = clean(data.type || data.mode) || "immediate";
-  if (type === "fixed_delay") {
-    const minutes = Math.max(0, Number(data.minutes || data.delayMinutes || 0));
-    return new Date(now.getTime() + minutes * 60_000);
-  }
-  if (type === "random_delay") {
-    const min = Math.max(0, Number(data.minMinutes || 0));
-    const max = Math.max(min, Number(data.maxMinutes || min));
-    const picked = min + Math.floor(Math.random() * (max - min + 1));
-    return new Date(now.getTime() + picked * 60_000);
-  }
-  return now;
+  const minutes = concreteDelayMinutes(timing);
+  return new Date(now.getTime() + minutes * 60_000);
 }
 
 export async function requestAutomationEnd(input: {
@@ -300,6 +348,7 @@ export async function requestAutomationEnd(input: {
   }
   const now = new Date();
   const dueAt = dueAtFromTiming(input.timing, now);
+  const delayMinutes = Math.max(0, Math.round((dueAt.getTime() - now.getTime()) / 60_000));
   const immediate = dueAt.getTime() <= now.getTime() + 1000;
   if (immediate) {
     const finished = await finishAutomationSession({ user: input.user, sessionId: session.id, source: input.source, role: input.role, reason: input.reason });
@@ -328,7 +377,7 @@ export async function requestAutomationEnd(input: {
       stateJson: {
         pendingEndRequestedAt: now.toISOString(),
         pendingEndRequestedBy: input.user.id,
-        pendingEndTiming: jsonObject(input.timing),
+        pendingEndTiming: { ...jsonObject(input.timing), resolvedDelayMinutes: delayMinutes },
         pendingEndDueAt: dueAt.toISOString(),
         pendingEndReason: input.reason || null
       }
@@ -459,6 +508,42 @@ export async function runDueAutomationActions(now = new Date()) {
   });
   const results: Array<{ id: string; status: AutomationActionStatus; message: string }> = [];
   for (const action of due) {
+    const payload = asRecord(action.payloadJson);
+    const conditionJson = payload.conditionJson;
+    if (conditionJson) {
+      const conditionResult = await conditionIsCurrentlyValid({
+        tenantId: action.tenantId,
+        sessionId: action.sessionId,
+        eventCreatedAt: typeof payload.sourceEventAt === "string" ? new Date(payload.sourceEventAt) : action.createdAt,
+        conditionJson,
+        deviceId: action.deviceId,
+        capabilityId: action.capabilityId
+      });
+      if (!conditionResult.passed) {
+        await prisma.automationAction.updateMany({
+          where: { id: action.id, status: "WAITING" },
+          data: { status: "CANCELLED", finishedAt: now, resultJson: { condition: conditionResult.reason } }
+        });
+        await recordAutomationEvent({
+          tenantId: action.tenantId,
+          sessionId: action.sessionId,
+          ruleId: action.ruleId,
+          ruleVersionId: action.ruleVersionId,
+          actionId: action.id,
+          actorId: action.actorId,
+          deviceId: action.deviceId,
+          capabilityId: action.capabilityId,
+          type: "action_cancelled",
+          title: `${humanActionTitle(action.type)} nicht ausgeführt: ${conditionResult.reason}`,
+          source: "SYSTEM",
+          role: "SYSTEM",
+          details: { condition: conditionResult.reason },
+          correlationId: action.correlationId
+        });
+        results.push({ id: action.id, status: "CANCELLED", message: conditionResult.reason });
+        continue;
+      }
+    }
     if (action.deviceId || action.capabilityId) {
       const queued = await prisma.automationAction.updateMany({
         where: { id: action.id, status: "WAITING" },
@@ -651,6 +736,239 @@ export async function finishAutomationBridgeCommand(input: {
     correlationId: action.correlationId
   });
   return updated;
+}
+
+function triggerMatches(ruleTrigger: string, eventType: string) {
+  if (ruleTrigger === eventType) return true;
+  if (ruleTrigger === "session_started" && eventType === "session_started") return true;
+  if (ruleTrigger === "session_pending_end" && eventType === "session_pending_end") return true;
+  if (ruleTrigger === "action_succeeded" && eventType === "action_succeeded") return true;
+  if (ruleTrigger === "action_failed" && eventType === "action_failed") return true;
+  if (ruleTrigger === "device_state_changed" && eventType === "device_state_changed") return true;
+  if (ruleTrigger === "quota_open" && eventType === "quota_open") return true;
+  if (ruleTrigger === "event_absent" && ["session_started", "session_pending_end", "action_succeeded", "action_failed"].includes(eventType)) return true;
+  return false;
+}
+
+async function conditionIsCurrentlyValid(input: {
+  tenantId: string;
+  sessionId?: string | null;
+  eventCreatedAt?: Date | null;
+  conditionJson?: unknown;
+  deviceId?: string | null;
+  capabilityId?: string | null;
+}) {
+  const condition = firstArrayRecord(input.conditionJson);
+  const type = clean(condition.type);
+  if (!type || type === "none") return { passed: true, reason: "Keine zusätzliche Bedingung" };
+  if (type === "controller_absent") {
+    if (!input.sessionId) return { passed: false, reason: "Keine Session für Controller-Prüfung" };
+    const since = input.eventCreatedAt || new Date(0);
+    const controllerEvents = await prisma.automationEvent.count({
+      where: {
+        tenantId: input.tenantId,
+        sessionId: input.sessionId,
+        role: "CONTROLLER",
+        createdAt: { gte: since }
+      }
+    });
+    return {
+      passed: controllerEvents === 0,
+      reason: controllerEvents === 0 ? "Keine Controller-Aktion gefunden" : "Controller hat inzwischen gehandelt"
+    };
+  }
+  if (type === "device_online" || type === "device_offline") {
+    if (!input.deviceId) return { passed: false, reason: "Kein Gerät ausgewählt" };
+    const device = await prisma.automationDevice.findFirst({ where: { id: input.deviceId, tenantId: input.tenantId }, select: { health: true } });
+    const online = device?.health === "ONLINE";
+    return {
+      passed: type === "device_online" ? online : !online,
+      reason: online ? "Gerät ist verbunden" : "Gerät ist nicht verbunden"
+    };
+  }
+  if (type === "capability_state") {
+    if (!input.capabilityId) return { passed: false, reason: "Keine Fähigkeit ausgewählt" };
+    const expected = clean(condition.state || condition.expected || condition.value);
+    const capability = await prisma.automationCapability.findFirst({ where: { id: input.capabilityId, tenantId: input.tenantId }, select: { state: true } });
+    const passed = expected ? capability?.state === expected : Boolean(capability?.state);
+    return { passed, reason: passed ? "Fähigkeitszustand passt" : "Fähigkeitszustand passt nicht" };
+  }
+  if (type === "quota_remaining") {
+    return { passed: true, reason: "Tracker-Kontingent ist offen" };
+  }
+  return { passed: false, reason: "Bedingung wird nicht unterstützt" };
+}
+
+async function processAutomationRulesForEvent(event: {
+  id: string;
+  tenantId: string;
+  sessionId: string | null;
+  actorId: string | null;
+  deviceId: string | null;
+  capabilityId: string | null;
+  type: string;
+  source: string;
+  role: string;
+  correlationId: string;
+  createdAt: Date;
+}) {
+  if (event.type.startsWith("rule_") || event.type === "action_created" || event.type === "action_ready_for_bridge" || event.type === "rule_processing_failed") return;
+  const rules = await prisma.automationRule.findMany({
+    where: { tenantId: event.tenantId, active: true },
+    include: { versions: { orderBy: { version: "desc" }, take: 1 } }
+  });
+  for (const rule of rules.filter((item) => triggerMatches(item.triggerType, event.type))) {
+    const version = rule.versions[0];
+    if (!version) continue;
+    const actions = jsonArray(version.actionJson);
+    if (!actions.length) continue;
+    const condition = firstArrayRecord(version.conditionJson);
+    const actionSpecs = actions.map((item) => asRecord(item));
+    const hasDelayedAbsence = clean(condition.type) === "controller_absent" && conditionDelayMinutes(version.conditionJson) > 0;
+    if (!hasDelayedAbsence) {
+      const actionSpec = actionSpecs[0];
+      const conditionResult = await conditionIsCurrentlyValid({
+        tenantId: event.tenantId,
+        sessionId: event.sessionId,
+        eventCreatedAt: event.createdAt,
+        conditionJson: version.conditionJson,
+        deviceId: clean(actionSpec.deviceId || event.deviceId) || event.deviceId,
+        capabilityId: clean(actionSpec.capabilityId || event.capabilityId) || event.capabilityId
+      });
+      if (!conditionResult.passed) {
+        await recordAutomationEvent({
+          tenantId: event.tenantId,
+          sessionId: event.sessionId,
+          ruleId: rule.id,
+          ruleVersionId: version.id,
+          parentEventId: event.id,
+          actorId: event.actorId,
+          type: "rule_condition_blocked",
+          title: `Regel nicht ausgeführt: ${conditionResult.reason}`,
+          source: "SYSTEM",
+          role: "SYSTEM",
+          details: { rule: rule.name, condition: conditionResult.reason },
+          correlationId: event.correlationId,
+          skipRuleProcessing: true
+        });
+        continue;
+      }
+    }
+    const delay = concreteDelayMinutes(version.timingJson);
+    const conditionDelay = conditionDelayMinutes(version.conditionJson);
+    const dueAt = new Date(event.createdAt.getTime() + (conditionDelay + delay) * 60_000);
+    const resolvedTiming = {
+      ...asRecord(version.timingJson),
+      conditionDelayMinutes: conditionDelay,
+      resolvedDelayMinutes: delay,
+      dueAt: dueAt.toISOString()
+    };
+    const context = await createAutomationContext({
+      tenantId: event.tenantId,
+      sessionId: event.sessionId,
+      actorId: event.actorId,
+      source: "SCHEDULED_RULE",
+      role: "SYSTEM",
+      ruleId: rule.id,
+      ruleVersionId: version.id,
+      variables: { sourceEventId: event.id, sourceEventType: event.type, dueAt: dueAt.toISOString() },
+      conditions: jsonArray(version.conditionJson),
+      policy: { decision: "allow", reason: "rule_triggered" },
+      timing: resolvedTiming,
+      correlationId: event.correlationId
+    });
+    await recordAutomationEvent({
+      tenantId: event.tenantId,
+      sessionId: event.sessionId,
+      ruleId: rule.id,
+      ruleVersionId: version.id,
+      contextId: context.id,
+      parentEventId: event.id,
+      actorId: event.actorId,
+      type: "rule_triggered",
+      title: `Regel ausgelöst: ${rule.name}`,
+      source: "SCHEDULED_RULE",
+      role: "SYSTEM",
+      details: { summary: version.descriptionText, dueAt: dueAt.toISOString(), conditionDelayMinutes: conditionDelay, resolvedDelayMinutes: delay },
+      correlationId: event.correlationId,
+      skipRuleProcessing: true
+    });
+    for (const [index, actionSpec] of actionSpecs.entries()) {
+      const actionType = clean(actionSpec.type) || "session_finish";
+      const capabilityId = clean(actionSpec.capabilityId || event.capabilityId) || null;
+      const capability = capabilityId ? await prisma.automationCapability.findFirst({ where: { id: capabilityId, tenantId: event.tenantId }, include: { device: true } }) : null;
+      const deviceId = clean(actionSpec.deviceId || capability?.deviceId || event.deviceId) || null;
+      const requestId = actionType === "camera_request_image" ? correlationId("img") : null;
+      const idempotencyKey = rule.mode === "ONCE"
+        ? `rule:${rule.id}:${version.id}:${event.sessionId || event.id}:${index}`
+        : `rule:${rule.id}:${version.id}:${event.id}:${Date.now()}:${index}`;
+      const action = await prisma.automationAction.upsert({
+        where: { tenantId_idempotencyKey: { tenantId: event.tenantId, idempotencyKey } },
+        update: {},
+        create: {
+          tenantId: event.tenantId,
+          sessionId: event.sessionId,
+          ruleId: rule.id,
+          ruleVersionId: version.id,
+          actorId: event.actorId,
+          contextId: context.id,
+          deviceId,
+          capabilityId,
+          type: actionType,
+          source: "SCHEDULED_RULE",
+          role: "SYSTEM",
+          status: "WAITING",
+          timingJson: resolvedTiming,
+          payloadJson: {
+            ...asRecord(actionSpec),
+            requestId,
+            sourceEventId: event.id,
+            sourceEventType: event.type,
+            sourceEventAt: event.createdAt.toISOString(),
+            conditionJson: jsonArray(version.conditionJson)
+          },
+          dueAt,
+          idempotencyKey,
+          correlationId: event.correlationId
+        }
+      });
+      if (requestId && event.sessionId) {
+        await prisma.automationImageRequest.upsert({
+          where: { requestId },
+          update: {},
+          create: {
+            tenantId: event.tenantId,
+            sessionId: event.sessionId,
+            actionId: action.id,
+            requesterId: event.actorId,
+            deviceId,
+            capabilityId,
+            requestId,
+            reason: `Regel: ${rule.name}`
+          }
+        });
+      }
+      await recordAutomationEvent({
+        tenantId: event.tenantId,
+        sessionId: event.sessionId,
+        ruleId: rule.id,
+        ruleVersionId: version.id,
+        actionId: action.id,
+        deviceId,
+        capabilityId,
+        contextId: context.id,
+        parentEventId: event.id,
+        actorId: event.actorId,
+        type: "action_created",
+        title: `${humanActionTitle(actionType)} geplant`,
+        source: "SCHEDULED_RULE",
+        role: "SYSTEM",
+        details: { dueAt: dueAt.toISOString(), rule: rule.name, summary: version.descriptionText },
+        correlationId: event.correlationId,
+        skipRuleProcessing: true
+      });
+    }
+  }
 }
 
 export function describeAutomationRule(input: {

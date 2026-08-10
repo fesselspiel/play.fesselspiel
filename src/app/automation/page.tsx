@@ -225,6 +225,7 @@ export default async function AutomationPage() {
                 <div className="mt-2 space-y-1 text-sm text-graphite">
                   <div>Quelle: {labelAutomationValue("sources", event.source)}</div>
                   <div>Rolle: {labelAutomationValue("roles", event.role)}</div>
+                  {event.actor ? <div>Ausgelöst von: {event.actor.profile?.displayName || event.actor.name || event.actor.username || event.actor.email}</div> : null}
                   {event.device ? <div>Gerät: {event.device.name}</div> : null}
                   {event.capability ? <div>Aktion/Fähigkeit: {actionLabels[event.type as keyof typeof actionLabels] || event.capability.title}</div> : null}
                 </div>

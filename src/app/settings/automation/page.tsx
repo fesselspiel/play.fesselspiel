@@ -179,7 +179,12 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
     prisma.automationBridge.findUnique({ where: { tenantId: user.tenantId } }),
     prisma.automationDevice.findMany({ where: { tenantId: user.tenantId }, include: { capabilities: true }, orderBy: { name: "asc" } }),
     prisma.automationRule.findMany({ where: { tenantId: user.tenantId }, include: { versions: { orderBy: { version: "desc" }, take: 3 } }, orderBy: { updatedAt: "desc" } }),
-    prisma.automationEvent.findMany({ where: { tenantId: user.tenantId }, orderBy: { createdAt: "desc" }, take: 60 })
+    prisma.automationEvent.findMany({
+      where: { tenantId: user.tenantId },
+      include: { actor: { include: { profile: true } }, rule: true, device: true, capability: true, parentEvent: true },
+      orderBy: { createdAt: "desc" },
+      take: 60
+    })
   ]);
   const mqttPassword = typeof searchParams?.mqttPassword === "string" ? searchParams.mqttPassword : "";
   const mqttUser = typeof searchParams?.mqttUser === "string" ? searchParams.mqttUser : "";
@@ -345,6 +350,11 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                     </summary>
                     <div className="mt-2 space-y-1 text-sm text-graphite">
                       <p>Quelle: {labelAutomationValue("sources", event.source)} · Rolle: {labelAutomationValue("roles", event.role)}</p>
+                      {event.actor ? <p>Ausgelöst von: {event.actor.profile?.displayName || event.actor.name || event.actor.username || event.actor.email}</p> : null}
+                      {event.rule ? <p>Regel: {event.rule.name}</p> : null}
+                      {event.device ? <p>Gerät: {event.device.name}</p> : null}
+                      {event.capability ? <p>Fähigkeit: {event.capability.title}</p> : null}
+                      {event.parentEvent ? <p>Auslöser: {labelAutomationValue("eventTypes", event.parentEvent.type) === event.parentEvent.type ? event.parentEvent.title : labelAutomationValue("eventTypes", event.parentEvent.type)}</p> : null}
                       <p>Zeit: {event.createdAt.toLocaleString("de-DE")}</p>
                     </div>
                     <details className="mt-2 rounded bg-surface p-2">

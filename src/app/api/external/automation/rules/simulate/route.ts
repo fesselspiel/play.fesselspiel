@@ -12,9 +12,11 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const result = simulateAutomationRule({
     triggerType: typeof body.triggerType === "string" ? body.triggerType : "manual_test",
+    conditionJson: body.conditions,
     timingJson: body.timing,
     actionJson: body.actions,
-    startAt: typeof body.startAt === "string" ? new Date(body.startAt) : undefined
+    startAt: typeof body.startAt === "string" ? new Date(body.startAt) : undefined,
+    scrubMinute: Number.isFinite(Number(body.scrubMinute)) ? Number(body.scrubMinute) : undefined
   });
   return NextResponse.json({ ok: true, simulation: result });
 }
