@@ -15,6 +15,22 @@ function detailsObject(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
+function automationEventLabel(event: { type: string; title: string }) {
+  const label = labelAutomationValue("eventTypes", event.type);
+  return label === event.type ? event.title : label;
+}
+
+function actorLabel(actor?: { profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null } | null) {
+  return actor?.profile?.displayName || actor?.name || actor?.username || actor?.email || "System";
+}
+
+function timeModelLabel(timing: Record<string, unknown>) {
+  const type = String(timing.type || "");
+  if (type === "random_delay") return `Zufällige Verzögerung${timing.resolvedDelayMinutes ? `, festgelegt auf ${timing.resolvedDelayMinutes} Minuten` : ""}`;
+  if (type === "fixed_delay") return `Feste Verzögerung${timing.resolvedDelayMinutes ? `, ${timing.resolvedDelayMinutes} Minuten` : ""}`;
+  return "Sofort";
+}
+
 async function startAutomation(formData: FormData) {
   "use server";
   const user = await currentUser();
@@ -44,6 +60,7 @@ async function endAutomation(formData: FormData) {
     timing: delayMinutes > 0 ? { type: "fixed_delay", minutes: delayMinutes } : { type: "immediate" },
     source: "WEB",
     role: "OWNER",
+    override: formData.get("override") === "on",
     reason: String(formData.get("reason") || "") || null
   });
   redirect("/automation");
@@ -76,7 +93,16 @@ export default async function AutomationPage() {
     }),
     prisma.automationSession.findMany({
       where: { tenantId, ownerId: user.id },
-      include: { trackerType: true, trackerEntry: true, imageRequests: { include: { file: true }, orderBy: { requestedAt: "desc" } } },
+      include: {
+        trackerType: true,
+        trackerEntry: true,
+        imageRequests: { include: { file: true }, orderBy: { requestedAt: "desc" } },
+        events: {
+          include: { actor: { include: { profile: true } }, device: true, capability: true, rule: true, action: true },
+          orderBy: { createdAt: "desc" },
+          take: 20
+        }
+      },
       orderBy: [{ state: "asc" }, { createdAt: "desc" }],
       take: 20
     }),
@@ -90,6 +116,7 @@ export default async function AutomationPage() {
   ]);
   const userNames = new Map(tenantUsers.map((item) => [item.id, item.profile?.displayName || item.name || item.username || item.email]));
   const running = sessions.filter((session) => session.state === "RUNNING" || session.state === "PENDING_END");
+  const history = sessions.filter((session) => session.state !== "RUNNING" && session.state !== "PENDING_END");
   const cameraCapabilities = devices.flatMap((device) => device.capabilities.filter((capability) => capability.kind.toLowerCase() === "camera").map((capability) => ({ device, capability })));
 
   return (
@@ -156,23 +183,35 @@ export default async function AutomationPage() {
                         <p className="mt-1 text-sm">Ein Ende wurde angefordert. Das bereits bestimmte Zeitfenster bleibt bei erneutem normalem Stop unverändert.</p>
                         <div className="mt-2 text-sm">Angefordert: {typeof detailsObject(session.stateJson).pendingEndRequestedAt === "string" ? formatDateTime(new Date(String(detailsObject(session.stateJson).pendingEndRequestedAt))) : "Zeitpunkt nicht gespeichert"}</div>
                         <div className="text-sm">Ausgelöst von: {typeof detailsObject(session.stateJson).pendingEndRequestedBy === "string" ? (userNames.get(String(detailsObject(session.stateJson).pendingEndRequestedBy)) || "Unbekannter Benutzer") : "Nicht gespeichert"}</div>
-                        <div className="text-sm">Zeitmodell: {String(detailsObject(detailsObject(session.stateJson).pendingEndTiming).type || "Sofort") === "random_delay" ? "Zufällige Verzögerung" : String(detailsObject(detailsObject(session.stateJson).pendingEndTiming).type || "Sofort") === "fixed_delay" ? "Feste Verzögerung" : "Sofort"}</div>
+                        <div className="text-sm">Zeitmodell: {timeModelLabel(detailsObject(detailsObject(session.stateJson).pendingEndTiming))}</div>
                         <div className="mt-2 text-sm">Geplanter Ausführungszeitpunkt: {formatDateTime(session.pendingEndAt)}</div>
                         <div className="text-sm">Restzeit: {Math.max(0, minutesBetween(new Date(), session.pendingEndAt) ?? 0)} Minuten</div>
+                        <form action={endAutomation} className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                          <input type="hidden" name="sessionId" value={session.id} />
+                          <input type="hidden" name="override" value="on" />
+                          <Field label="Override-Grund">
+                            <input name="reason" className={inputClass} placeholder="Optional" />
+                          </Field>
+                          <div className="flex items-end">
+                            <SubmitButton pendingLabel="Beendet..."><CircleStop className="h-4 w-4" /> Jetzt trotzdem beenden</SubmitButton>
+                          </div>
+                        </form>
                       </div>
                     ) : null}
-                    <form action={endAutomation} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-                      <input type="hidden" name="sessionId" value={session.id} />
-                      <Field label="Verzögerung Minuten">
-                        <input name="delayMinutes" type="number" min={0} defaultValue={0} className={inputClass} />
-                      </Field>
-                      <Field label="Grund">
-                        <input name="reason" className={inputClass} placeholder="Optional" />
-                      </Field>
-                      <div className="flex items-end">
-                        <SubmitButton pendingLabel="Plant..."><CircleStop className="h-4 w-4" /> Session beenden</SubmitButton>
-                      </div>
-                    </form>
+                    {session.state === "RUNNING" ? (
+                      <form action={endAutomation} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                        <input type="hidden" name="sessionId" value={session.id} />
+                        <Field label="Verzögerung Minuten">
+                          <input name="delayMinutes" type="number" min={0} defaultValue={0} className={inputClass} />
+                        </Field>
+                        <Field label="Grund">
+                          <input name="reason" className={inputClass} placeholder="Optional" />
+                        </Field>
+                        <div className="flex items-end">
+                          <SubmitButton pendingLabel="Plant..."><CircleStop className="h-4 w-4" /> Session beenden</SubmitButton>
+                        </div>
+                      </form>
+                    ) : null}
                     {cameraCapabilities.length ? (
                       <form action={requestImage} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                         <input type="hidden" name="sessionId" value={session.id} />
@@ -203,6 +242,28 @@ export default async function AutomationPage() {
                         ))}
                       </div>
                     ) : null}
+                    <details open className="rounded-md border border-line bg-surface p-3">
+                      <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Ereignisverlauf dieser Session</summary>
+                      <div className="mt-3 space-y-2">
+                        {session.events.length ? session.events.map((event) => (
+                          <div key={event.id} className="rounded-md border border-line bg-paper p-3">
+                            <div className="font-semibold text-ink">{formatDateTime(event.createdAt)} · {automationEventLabel(event)}</div>
+                            <div className="mt-1 text-sm text-graphite">
+                              Ausgelöst von: {actorLabel(event.actor)} · Quelle: {labelAutomationValue("sources", event.source)} · Rolle: {labelAutomationValue("roles", event.role)}
+                            </div>
+                            {event.device || event.capability || event.rule ? (
+                              <div className="mt-1 text-sm text-graphite">
+                                {[event.rule ? `Regel: ${event.rule.name}` : "", event.device ? `Gerät: ${event.device.name}` : "", event.capability ? `Fähigkeit: ${event.capability.title}` : ""].filter(Boolean).join(" · ")}
+                              </div>
+                            ) : null}
+                            <details className="mt-2 rounded bg-surface p-2">
+                              <summary className="cursor-pointer list-none text-xs font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische Details</summary>
+                              <pre className="mt-2 max-h-52 overflow-auto text-xs text-graphite">{JSON.stringify({ type: event.type, correlationId: event.correlationId, ruleId: event.ruleId, ruleVersionId: event.ruleVersionId, actionId: event.actionId, deviceId: event.deviceId, capabilityId: event.capabilityId, details: event.detailsJson, raw: event.rawJson }, null, 2)}</pre>
+                            </details>
+                          </div>
+                        )) : <div className="text-sm text-graphite">Noch keine Ereignisse für diese Session.</div>}
+                      </div>
+                    </details>
                     <details className="rounded-md border border-line bg-surface p-3">
                       <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische Details</summary>
                       <pre className="mt-2 overflow-auto text-xs">{JSON.stringify({ id: session.id, correlationId: session.correlationId, state: session.state, trackerTypeId: session.trackerTypeId, trackerEntryId: session.trackerEntryId, stateJson: session.stateJson }, null, 2)}</pre>
@@ -210,6 +271,36 @@ export default async function AutomationPage() {
                   </div>
                 </details>
               )) : <SoftPanel><Timer className="h-5 w-5 text-redbrand" /> Keine aktive Automation-Session.</SoftPanel>}
+            </div>
+          </Panel>
+
+          <Panel>
+            <h2 className="text-lg font-semibold text-ink">Session-Historie</h2>
+            <div className="mt-4 space-y-2">
+              {history.length ? history.map((session) => (
+                <details key={session.id} className="rounded-lg border border-line bg-paper p-4">
+                  <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">
+                    {session.title} · {labelAutomationValue("states", session.state)}
+                  </summary>
+                  <div className="mt-3 grid gap-2 text-sm text-graphite sm:grid-cols-2">
+                    <div>Tracker: <span className="font-semibold text-ink">{session.trackerType?.title || "Kein Tracker"}</span></div>
+                    <div>Start: <span className="font-semibold text-ink">{formatDateTime(session.startedAt)}</span></div>
+                    <div>Ende: <span className="font-semibold text-ink">{formatDateTime(session.finishedAt || session.cancelledAt)}</span></div>
+                    <div>Dauer: <span className="font-semibold text-ink">{session.startedAt && (session.finishedAt || session.cancelledAt) ? `${minutesBetween(session.startedAt, session.finishedAt || session.cancelledAt)} Minuten` : "Nicht berechnet"}</span></div>
+                  </div>
+                  <details className="mt-3 rounded-md border border-line bg-surface p-3">
+                    <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Ereignisse anzeigen</summary>
+                    <div className="mt-3 space-y-2">
+                      {session.events.length ? session.events.map((event) => (
+                        <div key={event.id} className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">
+                          <div className="font-semibold text-ink">{formatDateTime(event.createdAt)} · {automationEventLabel(event)}</div>
+                          <div>Ausgelöst von: {actorLabel(event.actor)} · Quelle: {labelAutomationValue("sources", event.source)}</div>
+                        </div>
+                      )) : <div>Keine Ereignisse gespeichert.</div>}
+                    </div>
+                  </details>
+                </details>
+              )) : <SoftPanel><Timer className="h-5 w-5 text-redbrand" /> Noch keine abgeschlossenen Automation-Sessions.</SoftPanel>}
             </div>
           </Panel>
         </div>
@@ -225,7 +316,7 @@ export default async function AutomationPage() {
                 <div className="mt-2 space-y-1 text-sm text-graphite">
                   <div>Quelle: {labelAutomationValue("sources", event.source)}</div>
                   <div>Rolle: {labelAutomationValue("roles", event.role)}</div>
-                  {event.actor ? <div>Ausgelöst von: {event.actor.profile?.displayName || event.actor.name || event.actor.username || event.actor.email}</div> : null}
+                  {event.actor ? <div>Ausgelöst von: {actorLabel(event.actor)}</div> : null}
                   {event.device ? <div>Gerät: {event.device.name}</div> : null}
                   {event.capability ? <div>Aktion/Fähigkeit: {actionLabels[event.type as keyof typeof actionLabels] || event.capability.title}</div> : null}
                 </div>
