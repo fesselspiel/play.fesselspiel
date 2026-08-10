@@ -56,6 +56,18 @@ export type AutomationTrackerReference = {
   color?: string;
 };
 
+export type AutomationSimulationOverrides = {
+  deviceHealth?: Record<string, string>;
+  capabilityState?: Record<string, string>;
+};
+
+export type AutomationRuleContext = {
+  capabilities?: AutomationCapabilityReference[];
+  devices?: AutomationDeviceReference[];
+  trackers?: AutomationTrackerReference[];
+  simulationOverrides?: AutomationSimulationOverrides;
+};
+
 export const automationLabels = {
   states: {
     IDLE: "Bereit",
@@ -522,7 +534,7 @@ export function automationRuleSummary(input: {
   conditionJson?: unknown;
   timingJson?: unknown;
   actionJson?: unknown;
-}, context: { capabilities?: AutomationCapabilityReference[]; devices?: AutomationDeviceReference[]; trackers?: AutomationTrackerReference[] } = {}) {
+}, context: AutomationRuleContext = {}) {
   const trigger = describeTrigger(input.triggerType, input.triggerJson, context);
   const condition = Array.isArray(input.conditionJson) ? asObject(input.conditionJson[0]) : {};
   const timing = asObject(input.timingJson);
@@ -541,7 +553,7 @@ export function automationRuleSummary(input: {
   return `Wenn ${trigger.toLowerCase()}, ${timingText} und ${actionText}.${recoveryText}`;
 }
 
-export function automationRuleFlow(input: { triggerType: string; triggerJson?: unknown; conditionJson?: unknown; timingJson?: unknown; actionJson?: unknown }, context: { capabilities?: AutomationCapabilityReference[]; devices?: AutomationDeviceReference[]; trackers?: AutomationTrackerReference[] } = {}) {
+export function automationRuleFlow(input: { triggerType: string; triggerJson?: unknown; conditionJson?: unknown; timingJson?: unknown; actionJson?: unknown }, context: AutomationRuleContext = {}) {
   const condition = Array.isArray(input.conditionJson) ? asObject(input.conditionJson[0]) : {};
   const timing = asObject(input.timingJson);
   const actions = Array.isArray(input.actionJson) ? input.actionJson.map((item) => asObject(item)) : [];
@@ -575,7 +587,7 @@ export function simulateAutomationRuleTimeline(input: {
   scrubMinute?: number;
   randomSeed?: number;
   controllerActionMinute?: number | null;
-}, context: { capabilities?: AutomationCapabilityReference[]; devices?: AutomationDeviceReference[]; trackers?: AutomationTrackerReference[] } = {}) {
+}, context: AutomationRuleContext = {}) {
   const condition = Array.isArray(input.conditionJson) ? asObject(input.conditionJson[0]) : {};
   const timing = asObject(input.timingJson);
   const actions = Array.isArray(input.actionJson) ? input.actionJson.map((item) => asObject(item)).filter((item) => item.type) : [];
@@ -587,6 +599,7 @@ export function simulateAutomationRuleTimeline(input: {
     : null;
   const controllerActionBlocks = controllerActionMinute !== null && controllerActionMinute <= conditionMinutes;
   const conditionEvaluation = evaluateSimulationCondition(condition, context);
+  const simulatedStateVariables = simulationStateVariables(condition, context);
   const delay = timing.type === "random_delay"
     ? numberValue(timing.minMinutes, 0) + ((input.randomSeed ?? 3) % (Math.max(0, numberValue(timing.maxMinutes, 0) - numberValue(timing.minMinutes, 0)) + 1))
     : timing.type === "fixed_delay"
@@ -667,6 +680,7 @@ export function simulateAutomationRuleTimeline(input: {
       ...(controllerActionMinute !== null ? [`Simulierte Controller-Aktion: Minute ${controllerActionMinute}`, `Auswirkung: ${controllerActionBlocksNow ? "Regel blockiert" : controllerActionBlocks ? "würde die Regel blockieren" : "außerhalb des Fensters, Regel bleibt möglich"}`] : []),
       ...(timing.type === "fixed_delay" ? [`Feste Wartezeit: ${delay} Minuten`] : []),
       ...(timing.type === "random_delay" ? [`Zufallsfenster: ${numberValue(timing.minMinutes, 0)} bis ${numberValue(timing.maxMinutes, 0)} Minuten`, `Gezogener Wert: ${delay} Minuten`] : []),
+      ...simulatedStateVariables,
       `Fälligkeit: ${dueMinute === null ? "keine Fälligkeit, weil die Bedingung blockiert" : controllerActionBlocksNow ? `durch simulierte Controller-Aktion blockiert, sonst Minute ${dueMinute}` : `Minute ${dueMinute}`}`,
       `Echte Ausführung: keine Aktionen in der Simulation`
     ],
@@ -697,6 +711,7 @@ export function simulateAutomationRuleTimeline(input: {
       controllerActionMinute,
       controllerActionBlocks,
       controllerActionHasHappened,
+      simulationOverrides: context.simulationOverrides || {},
       actions: actions.map((action) => ({
         type: action.type,
         timeoutSeconds: action.type === "camera_request_image" ? numberValue(action.timeoutSeconds, 20) : null,
@@ -706,6 +721,22 @@ export function simulateAutomationRuleTimeline(input: {
       sideEffects: false
     }
   };
+}
+
+function simulationStateVariables(condition: Record<string, unknown>, context: AutomationRuleContext) {
+  const type = condition.type as AutomationConditionKey | undefined;
+  if (type === "device_online" || type === "device_offline") {
+    const device = typeof condition.deviceId === "string" ? context.devices?.find((item) => item.id === condition.deviceId) : null;
+    if (!device) return [];
+    return [`Simulierter Gerätezustand: ${device.name} ist ${labelAutomationValue("health", effectiveDeviceHealth(device, context))}`];
+  }
+  if (type === "capability_state") {
+    const capability = typeof condition.capabilityId === "string" ? context.capabilities?.find((item) => item.id === condition.capabilityId) : null;
+    if (!capability) return [];
+    const title = `${capability.deviceName || "Gerät"} · ${capability.title || "Fähigkeit"}`;
+    return [`Simulierter Fähigkeitszustand: ${title} ist ${labelAutomationValue("health", effectiveCapabilityState(capability, context))}`];
+  }
+  return [];
 }
 
 function explainSimulationState(input: { scrubMinute: number; conditionType?: string; conditionMinutes: number; delay: number; dueMinute: number; actionType?: string; actionCount?: number; conditionBlocked?: boolean }) {
@@ -726,28 +757,40 @@ function explainSimulationState(input: { scrubMinute: number; conditionType?: st
   return "Die Aktion ist fällig. Die Simulation führt weiterhin nichts echt aus.";
 }
 
-function evaluateSimulationCondition(condition: Record<string, unknown>, context: { capabilities?: AutomationCapabilityReference[]; devices?: AutomationDeviceReference[]; trackers?: AutomationTrackerReference[] } = {}) {
+function effectiveDeviceHealth(device: AutomationDeviceReference | null | undefined, context: AutomationRuleContext) {
+  if (!device) return "UNKNOWN";
+  return context.simulationOverrides?.deviceHealth?.[device.id] || device.health || "UNKNOWN";
+}
+
+function effectiveCapabilityState(capability: AutomationCapabilityReference | null | undefined, context: AutomationRuleContext) {
+  if (!capability) return "UNKNOWN";
+  return context.simulationOverrides?.capabilityState?.[capability.id] || capability.state || "UNKNOWN";
+}
+
+function evaluateSimulationCondition(condition: Record<string, unknown>, context: AutomationRuleContext = {}) {
   const type = condition.type as AutomationConditionKey | undefined;
   if (!type || type === "none") return { passed: true, canBecomeTrue: true, result: "Keine zusätzliche Bedingung" };
   if (type === "controller_absent") return { passed: true, canBecomeTrue: true, result: "Bedingung erfüllt, wenn bis zum Ablauf keine Controller-Aktion eintritt" };
   if (type === "device_online" || type === "device_offline") {
     const device = typeof condition.deviceId === "string" ? context.devices?.find((item) => item.id === condition.deviceId) : null;
     const expected = type === "device_online" ? "ONLINE" : "OFFLINE";
-    const passed = (device?.health || "UNKNOWN") === expected;
+    const health = effectiveDeviceHealth(device, context);
+    const passed = health === expected;
     return {
       passed,
       canBecomeTrue: passed,
-      result: device ? `Aktueller Zustand: ${labelAutomationValue("health", device.health || "UNKNOWN")}` : "Kein Gerät für die Simulation ausgewählt"
+      result: device ? `Simulierter Zustand: ${labelAutomationValue("health", health)}` : "Kein Gerät für die Simulation ausgewählt"
     };
   }
   if (type === "capability_state") {
     const capability = typeof condition.capabilityId === "string" ? context.capabilities?.find((item) => item.id === condition.capabilityId) : null;
     const expected = typeof condition.state === "string" ? condition.state : "";
-    const passed = Boolean(capability && expected && capability.state === expected);
+    const state = effectiveCapabilityState(capability, context);
+    const passed = Boolean(capability && expected && state === expected);
     return {
       passed,
       canBecomeTrue: passed,
-      result: capability ? `Aktueller Zustand: ${labelAutomationValue("health", capability.state || "UNKNOWN")}` : "Keine Fähigkeit für die Simulation ausgewählt"
+      result: capability ? `Simulierter Zustand: ${labelAutomationValue("health", state)}` : "Keine Fähigkeit für die Simulation ausgewählt"
     };
   }
   if (type === "quota_remaining") {
@@ -761,7 +804,7 @@ function evaluateSimulationCondition(condition: Record<string, unknown>, context
   return { passed: false, canBecomeTrue: false, result: "Bedingung kann in dieser Simulation nicht ausgewertet werden" };
 }
 
-function describeTrigger(triggerType: string, triggerJson?: unknown, context: { capabilities?: AutomationCapabilityReference[]; devices?: AutomationDeviceReference[]; trackers?: AutomationTrackerReference[] } = {}) {
+function describeTrigger(triggerType: string, triggerJson?: unknown, context: AutomationRuleContext = {}) {
   const base = triggerOptions.find((option) => option.key === triggerType)?.label || "Ein Ereignis tritt ein";
   const trigger = asObject(triggerJson);
   if (triggerNeedsDevice(triggerType as AutomationTriggerKey)) {
@@ -788,7 +831,7 @@ function nameById<T extends { id: string }>(items: T[] | undefined, id: unknown,
   return item ? label(item) : fallback;
 }
 
-function describeCondition(condition: Record<string, unknown>, context: { capabilities?: AutomationCapabilityReference[]; devices?: AutomationDeviceReference[]; trackers?: AutomationTrackerReference[] } = {}) {
+function describeCondition(condition: Record<string, unknown>, context: AutomationRuleContext = {}) {
   const type = condition.type as AutomationConditionKey;
   if (type === "controller_absent") return `${numberValue(condition.minutes, 20)} Minuten keine Aktion des Controllers`;
   if (type === "device_online") {

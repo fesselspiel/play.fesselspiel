@@ -96,10 +96,20 @@ export function AutomationRuleEditor({
   const [scrubMinute, setScrubMinute] = useState(0);
   const [simulateControllerAction, setSimulateControllerAction] = useState(false);
   const [controllerActionMinute, setControllerActionMinute] = useState(19);
+  const [simulatedDeviceHealth, setSimulatedDeviceHealth] = useState<Record<string, string>>({});
+  const [simulatedCapabilityState, setSimulatedCapabilityState] = useState<Record<string, string>>({});
   const availableConditions = conditionOptions[value.triggerType] || ["none"];
   const recoveryCapabilities = capabilities.filter((capability) => capability.kind === "Switch");
   const stored = useMemo(() => buildStoredRule(value), [value]);
-  const context = useMemo(() => ({ capabilities, devices, trackers }), [capabilities, devices, trackers]);
+  const context = useMemo(() => ({
+    capabilities,
+    devices,
+    trackers,
+    simulationOverrides: {
+      deviceHealth: simulatedDeviceHealth,
+      capabilityState: simulatedCapabilityState
+    }
+  }), [capabilities, devices, trackers, simulatedDeviceHealth, simulatedCapabilityState]);
   const summary = automationRuleSummary(stored, context);
   const flow = automationRuleFlow(stored, context);
   const simulation = simulateAutomationRuleTimeline({
@@ -476,6 +486,36 @@ export function AutomationRuleEditor({
                 </div>
               </label>
             ) : null}
+          </div>
+        ) : null}
+        {value.conditionType === "device_online" || value.conditionType === "device_offline" ? (
+          <div className="mt-3 rounded-md border border-line bg-surface p-3 text-sm text-graphite">
+            <label className="block font-semibold text-ink">Gerätezustand für diese Simulation
+              <select
+                className={`${inputClass} mt-2`}
+                value={simulatedDeviceHealth[value.conditionDeviceId] || devices.find((device) => device.id === value.conditionDeviceId)?.health || "UNKNOWN"}
+                onChange={(event) => setSimulatedDeviceHealth((current) => ({ ...current, [value.conditionDeviceId]: event.target.value }))}
+                disabled={!value.conditionDeviceId}
+              >
+                {stateOptionsForCapability().map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+              </select>
+            </label>
+            <p className="mt-2 text-xs leading-5">Dieser Testzustand verändert kein Gerät. Er gilt nur für die Timeline und zeigt, ob die Bedingung dadurch erfüllt oder blockiert wird.</p>
+          </div>
+        ) : null}
+        {value.conditionType === "capability_state" ? (
+          <div className="mt-3 rounded-md border border-line bg-surface p-3 text-sm text-graphite">
+            <label className="block font-semibold text-ink">Zustand der Fähigkeit für diese Simulation
+              <select
+                className={`${inputClass} mt-2`}
+                value={simulatedCapabilityState[value.conditionCapabilityId] || conditionCapability?.state || "UNKNOWN"}
+                onChange={(event) => setSimulatedCapabilityState((current) => ({ ...current, [value.conditionCapabilityId]: event.target.value }))}
+                disabled={!value.conditionCapabilityId}
+              >
+                {conditionStateOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+              </select>
+            </label>
+            <p className="mt-2 text-xs leading-5">Dieser Zustand ist nur ein Simulationswert. Die gespeicherte Fähigkeit und die echte Bridge bleiben unverändert.</p>
           </div>
         ) : null}
         <input className="mt-4 w-full accent-redbrand" type="range" min={0} max={simulation.durationMinutes} value={scrubMinute} onChange={(event) => setScrubMinute(Number(event.target.value))} />
