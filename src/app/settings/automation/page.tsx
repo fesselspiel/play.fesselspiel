@@ -129,6 +129,7 @@ function humanAutomationDetailEntries(details: Record<string, unknown>) {
     actionCount: "Anzahl Aktionen",
     capabilities: "Anzahl Fähigkeiten",
     requestId: "Bildanforderung",
+    actionTitle: "Aktion",
     error: "Fehler"
   };
   return Object.entries(details)

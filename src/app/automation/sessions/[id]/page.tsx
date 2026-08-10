@@ -52,6 +52,7 @@ function humanDetailEntries(details: Record<string, unknown>) {
     pendingEndAt: "Vorgemerktes Ende",
     resolvedDelayMinutes: "Berechnete Wartezeit",
     requestId: "Bildanforderung",
+    actionTitle: "Aktion",
     error: "Fehler",
     trackerTypeId: "Tracker",
     trackerEntryId: "Tracker-Eintrag"

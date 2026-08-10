@@ -496,10 +496,10 @@ export async function createAutomationAction(input: {
     actionId: action.id,
     actorId: input.actorId || null,
     type: "action_created",
-    title: `Action angelegt: ${input.type}`,
+    title: `Aktion angelegt: ${humanActionTitle(input.type)}`,
     source: input.source || "SYSTEM",
     role: input.role || "SYSTEM",
-    details: { status: action.status, dueAt: action.dueAt, target: input.target || null },
+    details: { status: action.status, actionTitle: humanActionTitle(input.type), actionType: input.type, dueAt: action.dueAt, target: input.target || null },
     correlationId: action.correlationId
   });
   return action;
@@ -565,10 +565,10 @@ export async function runDueAutomationActions(now = new Date()) {
         deviceId: action.deviceId,
         capabilityId: action.capabilityId,
         type: "action_ready_for_bridge",
-        title: `Action bereit für Bridge: ${action.type}`,
+        title: `Aktion bereit für Bridge: ${humanActionTitle(action.type)}`,
         source: "SYSTEM",
         role: "SYSTEM",
-        details: { dueAt: action.dueAt, target: action.target },
+        details: { actionTitle: humanActionTitle(action.type), actionType: action.type, dueAt: action.dueAt, target: action.target },
         correlationId: action.correlationId
       });
       results.push({ id: action.id, status: "READY", message: "Action für Bridge bereitgestellt" });
@@ -603,10 +603,10 @@ export async function runDueAutomationActions(now = new Date()) {
         deviceId: action.deviceId,
         capabilityId: action.capabilityId,
         type: "action_succeeded",
-        title: `Action ausgeführt: ${action.type}`,
+        title: `Aktion ausgeführt: ${humanActionTitle(action.type)}`,
         source: "SYSTEM",
         role: "SYSTEM",
-        details: { queuedForBridge: Boolean(action.deviceId || action.capabilityId) },
+        details: { actionTitle: humanActionTitle(action.type), actionType: action.type, queuedForBridge: Boolean(action.deviceId || action.capabilityId) },
         correlationId: action.correlationId
       });
       results.push({ id: action.id, status: "SUCCEEDED", message: "Action ausgeführt" });
@@ -622,10 +622,10 @@ export async function runDueAutomationActions(now = new Date()) {
         actionId: action.id,
         actorId: action.actorId,
         type: "action_failed",
-        title: `Action fehlgeschlagen: ${action.type}`,
+        title: `Aktion fehlgeschlagen: ${humanActionTitle(action.type)}`,
         source: "SYSTEM",
         role: "SYSTEM",
-        details: { error: message },
+        details: { actionTitle: humanActionTitle(action.type), actionType: action.type, error: message },
         correlationId: action.correlationId
       });
       results.push({ id: action.id, status: "FAILED", message });
@@ -675,10 +675,10 @@ export async function claimAutomationBridgeCommands(input: {
       deviceId: action.deviceId,
       capabilityId: action.capabilityId,
       type: "action_claimed_by_bridge",
-      title: `Bridge hat Action übernommen: ${action.type}`,
+      title: `Bridge hat Aktion übernommen: ${humanActionTitle(action.type)}`,
       source: "IOBROKER",
       role: "SYSTEM",
-      details: { deviceId: action.deviceId, capabilityId: action.capabilityId },
+      details: { actionTitle: humanActionTitle(action.type), actionType: action.type, deviceId: action.deviceId, capabilityId: action.capabilityId },
       correlationId: action.correlationId
     });
   }
@@ -738,10 +738,10 @@ export async function finishAutomationBridgeCommand(input: {
     deviceId: action.deviceId,
     capabilityId: action.capabilityId,
     type: input.success ? "action_succeeded" : "action_failed",
-    title: input.success ? `Bridge-Action ausgeführt: ${action.type}` : `Bridge-Action fehlgeschlagen: ${action.type}`,
+    title: input.success ? `Bridge-Aktion ausgeführt: ${humanActionTitle(action.type)}` : `Bridge-Aktion fehlgeschlagen: ${humanActionTitle(action.type)}`,
     source: "IOBROKER",
     role: "SYSTEM",
-    details: input.success ? jsonObject(input.result) : { error: input.error || "bridge_action_failed" },
+    details: input.success ? { actionTitle: humanActionTitle(action.type), actionType: action.type, ...jsonObject(input.result) } : { actionTitle: humanActionTitle(action.type), actionType: action.type, error: input.error || "bridge_action_failed" },
     raw: { result: input.result || null, deviceState: input.deviceState || null, capabilityState: input.capabilityState || null },
     correlationId: action.correlationId
   });

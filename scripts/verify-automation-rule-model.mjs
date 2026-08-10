@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 function buildRule({ triggerType = "session_started", conditionType = "none", conditionMinutes = 20, conditionDeviceId = null, conditionCapabilityId = null, conditionExpectedState = null, timingType = "immediate", delayMinutes = 0, minMinutes = 5, maxMinutes = 10, actionType = "session_finish", capabilityId = null, capabilityKind = null } = {}) {
@@ -161,4 +162,9 @@ test("Geschützte Bilder laufen über Request-ID und FileAsset", () => {
 
 test("Tenant-Isolation verlangt gleiche Seite", () => {
   assert.equal({ tenantId: "tenant-a" }.tenantId === { tenantId: "tenant-b" }.tenantId, false);
+});
+
+test("Automation-Event-Titel verwenden keine rohen Action-Keys", () => {
+  const source = readFileSync("src/lib/session-automation.ts", "utf8");
+  assert.equal(/title:\s*`[^`]*(Action|Aktion)[^`]*:\s*\$\{(?:action|input)\.type\}/.test(source), false);
 });
