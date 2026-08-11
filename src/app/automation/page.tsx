@@ -99,7 +99,7 @@ export default async function AutomationPage(props: { searchParams?: Promise<Rec
       include: {
         trackerType: true,
         trackerEntry: true,
-        imageRequests: { include: { file: true }, orderBy: { requestedAt: "desc" } },
+        imageRequests: { include: { file: true, device: true, capability: true, requester: { include: { profile: true } } }, orderBy: { requestedAt: "desc" } },
         events: {
           include: { actor: { include: { profile: true } }, device: true, capability: true, rule: true, action: true },
           orderBy: { createdAt: "desc" },
@@ -259,11 +259,16 @@ export default async function AutomationPage(props: { searchParams?: Promise<Rec
                     {session.imageRequests.length ? (
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                         {session.imageRequests.map((request) => (
-                          <div key={request.id} className="rounded-md border border-line bg-surface p-2">
+                          <div key={request.id} className="rounded-md border border-line bg-surface p-2 text-xs text-graphite">
                             {request.file ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img src={`/api/files/${request.file.id}`} alt="" className="aspect-square w-full rounded object-cover" />
                             ) : <div className="flex aspect-square items-center justify-center rounded bg-canvas text-xs">{labelAutomationValue("imageStatuses", request.status)}</div>}
+                            <div className="mt-2 font-semibold text-ink">{labelAutomationValue("imageStatuses", request.status)}</div>
+                            <div>{formatDateTime(request.requestedAt)}</div>
+                            {request.device || request.capability ? <div>{[request.device?.name, request.capability?.title].filter(Boolean).join(" · ")}</div> : null}
+                            {request.requester ? <div>Angefordert von: {actorLabel(request.requester)}</div> : null}
+                            {request.reason ? <div>Anlass: {request.reason}</div> : null}
                           </div>
                         ))}
                       </div>

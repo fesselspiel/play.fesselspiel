@@ -310,6 +310,9 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
                   <div className="mt-2 font-semibold text-ink">{labelAutomationValue("imageStatuses", request.status)}</div>
                   <div>{formatDateTime(request.requestedAt)}</div>
                   {request.device || request.capability ? <div>{[request.device?.name, request.capability?.title].filter(Boolean).join(" · ")}</div> : null}
+                  {request.requester ? <div>Angefordert von: {displayUserName(request.requester)}</div> : null}
+                  {request.reason ? <div>Anlass: {request.reason}</div> : null}
+                  {request.error ? <div>Fehler: {request.error}</div> : null}
                 </div>
               )) : <SoftPanel><Camera className="h-5 w-5 text-redbrand" /> Noch keine Bildanforderung.</SoftPanel>}
             </div>

@@ -1709,6 +1709,19 @@ export async function createAutomationImageRequest(input: {
   if (!session) throw new Error("session_not_found");
   const access = await automationSessionAccess(input.user, session);
   if (!access.canRequestImage) throw new Error("automation_action_not_allowed");
+  let resolvedDeviceId = input.deviceId || null;
+  let resolvedCapabilityId = input.capabilityId || null;
+  if (resolvedCapabilityId) {
+    const capability = await prisma.automationCapability.findFirst({
+      where: { id: resolvedCapabilityId, device: { tenantId: input.user.tenantId, ...(resolvedDeviceId ? { id: resolvedDeviceId } : {}) } },
+      include: { device: true }
+    });
+    if (!capability) throw new Error("automation_capability_not_found");
+    resolvedDeviceId = capability.deviceId;
+  } else if (resolvedDeviceId) {
+    const device = await prisma.automationDevice.findFirst({ where: { id: resolvedDeviceId, tenantId: input.user.tenantId } });
+    if (!device) throw new Error("automation_device_not_found");
+  }
   const requestId = correlationId("img");
   const action = await createAutomationAction({
     tenantId: input.user.tenantId,
@@ -1717,8 +1730,8 @@ export async function createAutomationImageRequest(input: {
     type: "camera_request_image",
     source: "SYSTEM",
     role: access.role || "OWNER",
-    deviceId: input.deviceId || null,
-    capabilityId: input.capabilityId || null,
+    deviceId: resolvedDeviceId,
+    capabilityId: resolvedCapabilityId,
     payload: {
       requestId,
       reason: input.reason || null,
@@ -1736,8 +1749,8 @@ export async function createAutomationImageRequest(input: {
       sessionId: session.id,
       actionId: action.id,
       requesterId: input.user.id,
-      deviceId: input.deviceId || null,
-      capabilityId: input.capabilityId || null,
+      deviceId: resolvedDeviceId,
+      capabilityId: resolvedCapabilityId,
       requestId,
       reason: input.reason || null,
       maxRetries: 2,
@@ -1750,8 +1763,8 @@ export async function createAutomationImageRequest(input: {
     sessionId: session.id,
     actionId: action.id,
     actorId: input.user.id,
-    deviceId: input.deviceId || null,
-    capabilityId: input.capabilityId || null,
+    deviceId: resolvedDeviceId,
+    capabilityId: resolvedCapabilityId,
     type: "image_requested",
     title: "Bild angefordert",
     role: access.role || "OWNER",

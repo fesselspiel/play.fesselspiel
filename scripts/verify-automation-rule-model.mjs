@@ -206,6 +206,22 @@ test("Geschützte Bilder laufen über Request-ID und FileAsset", () => {
   assert.equal(Boolean(imageRequest.requestId && imageRequest.fileId && !imageRequest.publicPath), true);
 });
 
+test("Automation-Bildanforderungen materialisieren Kamera und Anforderer fachlich", () => {
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
+  const overview = readFileSync("src/app/automation/page.tsx", "utf8");
+  const detail = readFileSync("src/app/automation/sessions/[id]/page.tsx", "utf8");
+  assert.match(service, /resolvedDeviceId/);
+  assert.match(service, /automationCapability\.findFirst/);
+  assert.match(service, /device:\s*\{\s*tenantId:\s*input\.user\.tenantId/);
+  assert.match(service, /deviceId:\s*resolvedDeviceId/);
+  assert.match(service, /capabilityId:\s*resolvedCapabilityId/);
+  assert.match(overview, /imageRequests:\s*\{\s*include:\s*\{\s*file:\s*true,\s*device:\s*true,\s*capability:\s*true,\s*requester:/);
+  assert.match(overview, /Angefordert von:/);
+  assert.match(overview, /Anlass:/);
+  assert.match(detail, /Angefordert von:/);
+  assert.match(detail, /Anlass:/);
+});
+
 test("Tenant-Isolation verlangt gleiche Seite", () => {
   assert.equal({ tenantId: "tenant-a" }.tenantId === { tenantId: "tenant-b" }.tenantId, false);
 });
