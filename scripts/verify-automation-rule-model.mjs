@@ -496,4 +496,8 @@ test("Normale Automation-Oberflächen verwenden deutsche Fachsprache", () => {
   assert.match(editor, /validateAutomationRulePayload/);
   assert.match(editor, /Regelprüfung/);
   assert.match(editor, /Diese Regel ist vollständig und kann gespeichert werden/);
+  assert.match(settings, /Unbekannte Aktion/);
+  const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  assert.match(model, /automationFallbackLabels/);
+  assert.doesNotMatch(model, /return map\[value\] \|\| value;/);
 });

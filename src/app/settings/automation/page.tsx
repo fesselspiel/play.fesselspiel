@@ -90,7 +90,7 @@ function automationEventTitle(event: { type: string; title: string }) {
 }
 
 function automationActionTitle(type: string) {
-  return actionLabels[type as AutomationActionKey] || type;
+  return actionLabels[type as AutomationActionKey] || "Unbekannte Aktion";
 }
 
 function capabilityKindTitle(kind: string) {

@@ -178,6 +178,18 @@ export const automationLabels = {
   }
 } as const;
 
+const automationFallbackLabels: Record<keyof typeof automationLabels, string> = {
+  states: "Unbekannter Session-Zustand",
+  actionStatuses: "Unbekannter Aktionsstatus",
+  imageStatuses: "Unbekannter Bildstatus",
+  eventTypes: "Unbekanntes Ereignis",
+  health: "Unbekannter Gerätezustand",
+  integrations: "Unbekannte Integration",
+  roles: "Unbekannte Rolle",
+  sources: "Unbekannte Quelle",
+  capabilityKinds: "Unbekannte Fähigkeit"
+};
+
 export const triggerOptions: Array<{ key: AutomationTriggerKey; label: string; description: string }> = [
   { key: "session_started", label: "Session wurde gestartet", description: "Reagiert, sobald eine Automation-Session beginnt." },
   { key: "session_pending_end", label: "Session-Ende wurde vorgemerkt", description: "Reagiert, wenn ein verzögertes Ende geplant wurde." },
@@ -1113,5 +1125,5 @@ function describeCondition(condition: Record<string, unknown>, context: Automati
 export function labelAutomationValue(kind: keyof typeof automationLabels, value?: string | null) {
   if (!value) return "Nicht gesetzt";
   const map = automationLabels[kind] as Record<string, string>;
-  return map[value] || value;
+  return map[value] || automationFallbackLabels[kind] || "Unbekannter Wert";
 }
