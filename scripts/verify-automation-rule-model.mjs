@@ -396,7 +396,10 @@ test("Normale Automation-Oberflächen verwenden deutsche Fachsprache", () => {
   assert.doesNotMatch(visibleText, /Commands aus/);
   assert.doesNotMatch(visibleText, /Bridge speichern|>Bridge</);
   assert.doesNotMatch(visibleText, /Recovery bei Fehler/);
+  assert.doesNotMatch(visibleText, /Portal-Aktion ohne Gerät/);
   assert.match(visibleText, /Auslöser/);
   assert.match(visibleText, /Gerätebrücke/);
   assert.match(visibleText, /Wiederherstellung bei Fehler/);
+  assert.match(editor, /Session im Portal beenden/);
+  assert.match(editor, /<optgroup label="Gerätefähigkeiten">/);
 });

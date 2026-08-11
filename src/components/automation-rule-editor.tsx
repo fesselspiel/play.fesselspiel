@@ -453,11 +453,18 @@ export function AutomationRuleEditor({
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
                     <label className="text-sm text-graphite">Ziel
                       <select className={`${inputClass} mt-1`} value={action.capabilityId} onChange={(event) => updateAction(index, { capabilityId: event.target.value })}>
-                        <option value="">Portal-Aktion ohne Gerät</option>
-                        {capabilities.map((capability) => (
-                          <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
-                        ))}
+                        <option value="">Session im Portal beenden</option>
+                        {capabilities.length ? (
+                          <optgroup label="Gerätefähigkeiten">
+                            {capabilities.map((capability) => (
+                              <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
+                            ))}
+                          </optgroup>
+                        ) : null}
                       </select>
+                      <span className="mt-1 block text-xs leading-5 text-graphite">
+                        Ohne Gerätefähigkeit ist nur die Portal-Aktion „Session beenden“ möglich.
+                      </span>
                     </label>
                     <label className="text-sm text-graphite">Aktion
                       <select className={`${inputClass} mt-1`} value={action.actionType} onChange={(event) => updateAction(index, { actionType: event.target.value as AutomationActionKey })}>
