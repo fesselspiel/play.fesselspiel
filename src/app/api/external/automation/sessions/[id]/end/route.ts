@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
+import { serializeAutomationAction, serializeAutomationSession } from "@/lib/external-automation-serializers";
 import { requestAutomationEnd } from "@/lib/session-automation";
 
 export const runtime = "nodejs";
@@ -21,7 +22,12 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
       override: body.override === true,
       reason: typeof body.reason === "string" ? body.reason : null
     });
-    return NextResponse.json({ ok: true, ...result });
+    return NextResponse.json({
+      ok: true,
+      ...result,
+      session: result.session ? serializeAutomationSession(request, result.session) : null,
+      action: result.action ? serializeAutomationAction(result.action) : null
+    });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "automation_end_failed" }, { status: 400 });
   }

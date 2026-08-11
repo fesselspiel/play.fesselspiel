@@ -504,3 +504,29 @@ test("Normale Automation-Oberflächen verwenden deutsche Fachsprache", () => {
   assert.match(settings, /knownAutomationLabel\("eventTypes"/);
   assert.doesNotMatch(model, /return map\[value\] \|\| value;/);
 });
+
+test("Externe Automation-APIs liefern fachliche Labels und geschützte Bild-Links", () => {
+  const serializers = readFileSync("src/lib/external-automation-serializers.ts", "utf8");
+  const sessionsRoute = readFileSync("src/app/api/external/automation/sessions/route.ts", "utf8");
+  const endRoute = readFileSync("src/app/api/external/automation/sessions/[id]/end/route.ts", "utf8");
+  const eventsRoute = readFileSync("src/app/api/external/automation/events/route.ts", "utf8");
+  const imageRequestsRoute = readFileSync("src/app/api/external/automation/image-requests/route.ts", "utf8");
+  const imageUploadRoute = readFileSync("src/app/api/external/automation/image-requests/[requestId]/upload/route.ts", "utf8");
+  assert.match(serializers, /serializeAutomationSession/);
+  assert.match(serializers, /serializeAutomationEvent/);
+  assert.match(serializers, /serializeAutomationImageRequest/);
+  assert.match(serializers, /externalFileUrl\(request, fileId\)/);
+  assert.match(serializers, /stateLabel: labelAutomationValue\("states"/);
+  assert.match(serializers, /statusLabel: labelAutomationValue\("imageStatuses"/);
+  assert.match(serializers, /typeLabel/);
+  assert.match(serializers, /technicalDetails/);
+  assert.match(sessionsRoute, /serializeAutomationSession\(request, session\)/);
+  assert.match(sessionsRoute, /serializeAutomationSession\(request, result\.session\)/);
+  assert.match(endRoute, /serializeAutomationAction\(result\.action\)/);
+  assert.match(endRoute, /serializeAutomationSession\(request, result\.session\)/);
+  assert.match(eventsRoute, /items: events\.map\(serializeAutomationEvent\)/);
+  assert.match(eventsRoute, /capability:\s*\{\s*include:\s*\{\s*device:/);
+  assert.match(imageRequestsRoute, /serializeAutomationImageRequest\(request, item\)/);
+  assert.match(imageRequestsRoute, /requester:\s*\{\s*include:\s*\{\s*profile:\s*true/);
+  assert.match(imageUploadRoute, /serializeAutomationImageRequest\(request, full\)/);
+});

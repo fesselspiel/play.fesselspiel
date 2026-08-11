@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
+import { serializeAutomationImageRequest } from "@/lib/external-automation-serializers";
 import { prisma } from "@/lib/prisma";
 import { createAutomationImageRequest } from "@/lib/session-automation";
 
@@ -16,11 +17,17 @@ export async function GET(request: NextRequest) {
       tenantId: auth.user.tenantId || "",
       ...(url.searchParams.get("sessionId") ? { sessionId: url.searchParams.get("sessionId") || "" } : {})
     },
-    include: { file: true, session: true, device: true, capability: true },
+    include: {
+      file: true,
+      session: true,
+      device: true,
+      capability: { include: { device: { select: { name: true } } } },
+      requester: { include: { profile: true } }
+    },
     orderBy: { requestedAt: "desc" },
     take: 100
   });
-  return NextResponse.json({ ok: true, items });
+  return NextResponse.json({ ok: true, items: items.map((item) => serializeAutomationImageRequest(request, item)) });
 }
 
 export async function POST(request: NextRequest) {
@@ -39,7 +46,16 @@ export async function POST(request: NextRequest) {
       capabilityId: typeof body.capabilityId === "string" ? body.capabilityId : null,
       reason: typeof body.reason === "string" ? body.reason : null
     });
-    return NextResponse.json({ ok: true, item }, { status: 201 });
+    const full = await prisma.automationImageRequest.findUnique({
+      where: { id: item.id },
+      include: {
+        file: true,
+        device: true,
+        capability: { include: { device: { select: { name: true } } } },
+        requester: { include: { profile: true } }
+      }
+    });
+    return NextResponse.json({ ok: true, item: full ? serializeAutomationImageRequest(request, full) : serializeAutomationImageRequest(request, item) }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "image_request_failed" }, { status: 400 });
   }

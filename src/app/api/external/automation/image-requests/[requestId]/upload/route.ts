@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
+import { serializeAutomationImageRequest } from "@/lib/external-automation-serializers";
+import { prisma } from "@/lib/prisma";
 import { attachAutomationImage } from "@/lib/session-automation";
 
 export const runtime = "nodejs";
@@ -25,7 +27,16 @@ export async function POST(request: NextRequest, props: { params: Promise<{ requ
       mimeType: file.type || "application/octet-stream",
       metadata: Object.fromEntries([...form.entries()].filter((entry): entry is [string, string] => typeof entry[1] === "string"))
     });
-    return NextResponse.json({ ok: true, item }, { status: 201 });
+    const full = await prisma.automationImageRequest.findUnique({
+      where: { id: item.id },
+      include: {
+        file: true,
+        device: true,
+        capability: { include: { device: { select: { name: true } } } },
+        requester: { include: { profile: true } }
+      }
+    });
+    return NextResponse.json({ ok: true, item: full ? serializeAutomationImageRequest(request, full) : serializeAutomationImageRequest(request, item) }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "image_upload_failed" }, { status: 400 });
   }

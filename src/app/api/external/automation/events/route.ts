@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
+import { serializeAutomationEvent } from "@/lib/external-automation-serializers";
 import { prisma } from "@/lib/prisma";
 import { recordAutomationEvent } from "@/lib/session-automation";
 
@@ -20,11 +21,15 @@ export async function GET(request: NextRequest) {
       ...(sessionId ? { sessionId } : {}),
       ...(type ? { type } : {})
     },
-    include: { actor: { select: { id: true, name: true, username: true, profile: { select: { displayName: true } } } }, device: true, capability: true },
+    include: {
+      actor: { select: { id: true, name: true, username: true, profile: { select: { displayName: true } } } },
+      device: true,
+      capability: { include: { device: { select: { name: true } } } }
+    },
     orderBy: { createdAt: "desc" },
     take: limit
   });
-  return NextResponse.json({ ok: true, items: events });
+  return NextResponse.json({ ok: true, items: events.map(serializeAutomationEvent) });
 }
 
 export async function POST(request: NextRequest) {
@@ -93,5 +98,13 @@ export async function POST(request: NextRequest) {
     raw: body.raw,
     correlationId: typeof body.correlationId === "string" ? body.correlationId : undefined
   });
-  return NextResponse.json({ ok: true, item }, { status: 201 });
+  const full = await prisma.automationEvent.findUnique({
+    where: { id: item.id },
+    include: {
+      actor: { select: { id: true, name: true, username: true, profile: { select: { displayName: true } } } },
+      device: true,
+      capability: { include: { device: { select: { name: true } } } }
+    }
+  });
+  return NextResponse.json({ ok: true, item: full ? serializeAutomationEvent(full) : serializeAutomationEvent(item) }, { status: 201 });
 }

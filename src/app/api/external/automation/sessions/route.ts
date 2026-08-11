@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
+import { serializeAutomationSession } from "@/lib/external-automation-serializers";
 import { currentAutomationSession, startAutomationSession } from "@/lib/session-automation";
 
 export const runtime = "nodejs";
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
   if (blocked) return blocked;
   const url = new URL(request.url);
   const session = await currentAutomationSession(auth.user, url.searchParams.get("trackerTypeId"));
-  return NextResponse.json({ ok: true, item: session });
+  return NextResponse.json({ ok: true, item: session ? serializeAutomationSession(request, session) : null });
 }
 
 export async function POST(request: NextRequest) {
@@ -32,7 +33,11 @@ export async function POST(request: NextRequest) {
       idempotencyKey: request.headers.get("Idempotency-Key") || (typeof body.idempotencyKey === "string" ? body.idempotencyKey : null),
       metadata: body.metadata
     });
-    return NextResponse.json({ ok: true, ...result }, { status: result.created ? 201 : 200 });
+    return NextResponse.json({
+      ok: true,
+      ...result,
+      session: result.session ? serializeAutomationSession(request, result.session) : null
+    }, { status: result.created ? 201 : 200 });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "automation_start_failed" }, { status: 400 });
   }
