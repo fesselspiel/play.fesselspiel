@@ -246,29 +246,48 @@ export async function recordAutomationEvent(input: {
   details?: unknown;
   raw?: unknown;
   correlationId?: string;
+  idempotencyKey?: string | null;
   skipRuleProcessing?: boolean;
 }) {
-  const event = await prisma.automationEvent.create({
-    data: {
-      tenantId: input.tenantId,
-      type: input.type,
-      title: input.title,
-      source: input.source || "SYSTEM",
-      role: input.role || "SYSTEM",
-      actorId: input.actorId || null,
-      sessionId: input.sessionId || null,
-      ruleId: input.ruleId || null,
-      ruleVersionId: input.ruleVersionId || null,
-      actionId: input.actionId || null,
-      deviceId: input.deviceId || null,
-      capabilityId: input.capabilityId || null,
-      parentEventId: input.parentEventId || null,
-      contextId: input.contextId || null,
-      detailsJson: jsonObject(input.details),
-      rawJson: jsonObject(input.raw),
-      correlationId: input.correlationId || correlationId("evt")
+  if (input.idempotencyKey) {
+    const existing = await prisma.automationEvent.findUnique({
+      where: { tenantId_idempotencyKey: { tenantId: input.tenantId, idempotencyKey: input.idempotencyKey } }
+    });
+    if (existing) return existing;
+  }
+  let event;
+  try {
+    event = await prisma.automationEvent.create({
+      data: {
+        tenantId: input.tenantId,
+        type: input.type,
+        title: input.title,
+        source: input.source || "SYSTEM",
+        role: input.role || "SYSTEM",
+        actorId: input.actorId || null,
+        sessionId: input.sessionId || null,
+        ruleId: input.ruleId || null,
+        ruleVersionId: input.ruleVersionId || null,
+        actionId: input.actionId || null,
+        deviceId: input.deviceId || null,
+        capabilityId: input.capabilityId || null,
+        parentEventId: input.parentEventId || null,
+        contextId: input.contextId || null,
+        detailsJson: jsonObject(input.details),
+        rawJson: jsonObject(input.raw),
+        idempotencyKey: input.idempotencyKey || null,
+        correlationId: input.correlationId || correlationId("evt")
+      }
+    });
+  } catch (error) {
+    if (input.idempotencyKey && error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const existing = await prisma.automationEvent.findUnique({
+        where: { tenantId_idempotencyKey: { tenantId: input.tenantId, idempotencyKey: input.idempotencyKey } }
+      });
+      if (existing) return existing;
     }
-  });
+    throw error;
+  }
   await logAction({
     actorId: input.actorId || undefined,
     action: `automation_${input.type}`,
@@ -692,25 +711,42 @@ export async function createAutomationAction(input: {
   idempotencyKey?: string | null;
   correlationId?: string | null;
 }) {
-  const action = await prisma.automationAction.create({
-    data: {
-      tenantId: input.tenantId,
-      sessionId: input.sessionId || null,
-      actorId: input.actorId || null,
-      type: input.type,
-      source: input.source || "SYSTEM",
-      role: input.role || "SYSTEM",
-      target: input.target || null,
-      deviceId: input.deviceId || null,
-      capabilityId: input.capabilityId || null,
-      status: input.dueAt && input.dueAt > new Date() ? "WAITING" : "READY",
-      timingJson: jsonObject(input.timing),
-      payloadJson: jsonObject(input.payload),
-      dueAt: input.dueAt || new Date(),
-      idempotencyKey: input.idempotencyKey || null,
-      correlationId: input.correlationId || correlationId("act")
+  if (input.idempotencyKey) {
+    const existing = await prisma.automationAction.findUnique({
+      where: { tenantId_idempotencyKey: { tenantId: input.tenantId, idempotencyKey: input.idempotencyKey } }
+    });
+    if (existing) return existing;
+  }
+  let action;
+  try {
+    action = await prisma.automationAction.create({
+      data: {
+        tenantId: input.tenantId,
+        sessionId: input.sessionId || null,
+        actorId: input.actorId || null,
+        type: input.type,
+        source: input.source || "SYSTEM",
+        role: input.role || "SYSTEM",
+        target: input.target || null,
+        deviceId: input.deviceId || null,
+        capabilityId: input.capabilityId || null,
+        status: input.dueAt && input.dueAt > new Date() ? "WAITING" : "READY",
+        timingJson: jsonObject(input.timing),
+        payloadJson: jsonObject(input.payload),
+        dueAt: input.dueAt || new Date(),
+        idempotencyKey: input.idempotencyKey || null,
+        correlationId: input.correlationId || correlationId("act")
+      }
+    });
+  } catch (error) {
+    if (input.idempotencyKey && error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const existing = await prisma.automationAction.findUnique({
+        where: { tenantId_idempotencyKey: { tenantId: input.tenantId, idempotencyKey: input.idempotencyKey } }
+      });
+      if (existing) return existing;
     }
-  });
+    throw error;
+  }
   await recordAutomationEvent({
     tenantId: input.tenantId,
     sessionId: input.sessionId || null,
@@ -1703,6 +1739,7 @@ export async function createAutomationImageRequest(input: {
   deviceId?: string | null;
   capabilityId?: string | null;
   reason?: string | null;
+  idempotencyKey?: string | null;
 }) {
   if (!input.user.tenantId) throw new Error("tenant_required");
   const session = await prisma.automationSession.findFirst({ where: { id: input.sessionId, tenantId: input.user.tenantId } });
@@ -1721,6 +1758,14 @@ export async function createAutomationImageRequest(input: {
   } else if (resolvedDeviceId) {
     const device = await prisma.automationDevice.findFirst({ where: { id: resolvedDeviceId, tenantId: input.user.tenantId } });
     if (!device) throw new Error("automation_device_not_found");
+  }
+  if (input.idempotencyKey) {
+    const existingAction = await prisma.automationAction.findUnique({
+      where: { tenantId_idempotencyKey: { tenantId: input.user.tenantId, idempotencyKey: input.idempotencyKey } },
+      include: { imageRequests: true }
+    });
+    const existingRequest = existingAction?.imageRequests[0];
+    if (existingRequest) return existingRequest;
   }
   const requestId = correlationId("img");
   const action = await createAutomationAction({
@@ -1741,8 +1786,11 @@ export async function createAutomationImageRequest(input: {
       bootDelaySeconds: 20,
       policy: { role: access.role, reason: access.reason, action: "camera_request_image", state: session.state, allowed: true }
     },
+    idempotencyKey: input.idempotencyKey || null,
     correlationId: session.correlationId
   });
+  const existingRequest = await prisma.automationImageRequest.findFirst({ where: { actionId: action.id } });
+  if (existingRequest) return existingRequest;
   const request = await prisma.automationImageRequest.create({
     data: {
       tenantId: input.user.tenantId,

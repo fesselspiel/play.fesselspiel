@@ -829,6 +829,7 @@ model AutomationEvent {
   role           String                      @default("SYSTEM")
   detailsJson    Json                        @default("{}")
   rawJson        Json                        @default("{}")
+  idempotencyKey String?
   correlationId  String
   createdAt      DateTime                    @default(now())
   tenant         Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -848,6 +849,7 @@ model AutomationEvent {
   @@index([sessionId, createdAt])
   @@index([correlationId])
   @@index([parentEventId])
+  @@unique([tenantId, idempotencyKey])
 }
 
 model AutomationExecutionContext {

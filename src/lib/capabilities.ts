@@ -630,10 +630,10 @@ export const capabilities: readonly Capability[] = [
         description: "Bildanforderungen erzeugen und Kamera-Uploads geschützt an Sessions hängen.",
         apiEndpoints: [
           { method: "GET", path: "/api/external/automation/image-requests?sessionId=...", description: "Bildanforderungen lesen." },
-          { method: "POST", path: "/api/external/automation/image-requests", description: "Bildanforderung erzeugen. JSON: sessionId, deviceId?, capabilityId?, reason?." },
+          { method: "POST", path: "/api/external/automation/image-requests", description: "Bildanforderung erzeugen. JSON: sessionId, deviceId?, capabilityId?, reason?, idempotencyKey?. Alternativ Header Idempotency-Key." },
           { method: "POST", path: "/api/external/automation/image-requests/{requestId}/upload", description: "Kamerabild per Multipart `file` zu einer Request-ID hochladen." },
           { method: "GET", path: "/api/external/automation/events?sessionId=...&type=...", description: "Automation-Ereignisse für Debugging, Push und App-Timeline lesen." },
-          { method: "POST", path: "/api/external/automation/events", description: "Geräte-/Capability-Event aus ioBroker oder Adapter ins Portal zurückmelden." }
+          { method: "POST", path: "/api/external/automation/events", description: "Geräte-/Capability-Event aus ioBroker oder Adapter ins Portal zurückmelden. Unterstützt Idempotency-Key oder idempotencyKey." }
         ],
         auditActions: ["automation_image_requested", "automation_image_uploaded"]
       }

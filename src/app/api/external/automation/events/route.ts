@@ -96,7 +96,8 @@ export async function POST(request: NextRequest) {
     role: "SYSTEM",
     details: body.details,
     raw: body.raw,
-    correlationId: typeof body.correlationId === "string" ? body.correlationId : undefined
+    correlationId: typeof body.correlationId === "string" ? body.correlationId : undefined,
+    idempotencyKey: request.headers.get("Idempotency-Key") || (typeof body.idempotencyKey === "string" ? body.idempotencyKey : null)
   });
   const full = await prisma.automationEvent.findUnique({
     where: { id: item.id },

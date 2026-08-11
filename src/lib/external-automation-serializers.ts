@@ -161,6 +161,7 @@ export function serializeAutomationEvent(event: {
   role?: string | null;
   createdAt?: Date | null;
   correlationId?: string | null;
+  idempotencyKey?: string | null;
   sessionId?: string | null;
   ruleId?: string | null;
   ruleVersionId?: string | null;
@@ -196,6 +197,7 @@ export function serializeAutomationEvent(event: {
       actionId: event.actionId || null,
       contextId: event.contextId || null,
       parentEventId: event.parentEventId || null,
+      idempotencyKey: event.idempotencyKey || null,
       details: event.detailsJson ?? {},
       raw: event.rawJson ?? {}
     }

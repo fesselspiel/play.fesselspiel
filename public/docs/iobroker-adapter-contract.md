@@ -232,6 +232,7 @@ Playplaner setzt die Action auf `SUCCEEDED` oder `FAILED`, aktualisiert bekannte
 POST /api/external/automation/events
 Content-Type: application/json
 Authorization: Bearer fsp_...
+Idempotency-Key: iobroker-event-2026-06-21T15:30:00Z-camera-online
 ```
 
 ```json
@@ -252,6 +253,28 @@ Authorization: Bearer fsp_...
 ```
 
 Der Endpunkt ist tenant-sicher: fremde oder ungültige Device-/Capability-IDs werden nicht übernommen.
+Der optionale Header `Idempotency-Key` oder das JSON-Feld `idempotencyKey` verhindert doppelte Protokolleinträge, wenn der Adapter denselben Event nach einem Netzwerkfehler erneut sendet.
+
+## Bildanforderung erzeugen
+
+Manuelle oder externe Bildanforderungen können über die API angelegt werden:
+
+```http
+POST /api/external/automation/image-requests
+Content-Type: application/json
+Authorization: Bearer fsp_...
+Idempotency-Key: image-request-session-123-camera-1
+```
+
+```json
+{
+  "sessionId": "session_...",
+  "capabilityId": "cap_...",
+  "reason": "Sicherheitsbild nach Zeitfenster"
+}
+```
+
+Der optionale Idempotenzschlüssel gibt bei Wiederholung dieselbe Bildanforderung zurück und erzeugt keine zusätzliche Action.
 
 ## Kamerabilder hochladen
 

@@ -507,6 +507,8 @@ test("Normale Automation-Oberflächen verwenden deutsche Fachsprache", () => {
 
 test("Externe Automation-APIs liefern fachliche Labels und geschützte Bild-Links", () => {
   const serializers = readFileSync("src/lib/external-automation-serializers.ts", "utf8");
+  const schema = readFileSync("prisma/schema.prisma", "utf8");
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
   const sessionsRoute = readFileSync("src/app/api/external/automation/sessions/route.ts", "utf8");
   const sessionHistoryRoute = readFileSync("src/app/api/external/automation/sessions/history/route.ts", "utf8");
   const endRoute = readFileSync("src/app/api/external/automation/sessions/[id]/end/route.ts", "utf8");
@@ -522,6 +524,11 @@ test("Externe Automation-APIs liefern fachliche Labels und geschützte Bild-Link
   assert.match(serializers, /statusLabel: labelAutomationValue\("imageStatuses"/);
   assert.match(serializers, /typeLabel/);
   assert.match(serializers, /technicalDetails/);
+  assert.match(serializers, /idempotencyKey/);
+  assert.match(schema, /model AutomationEvent[\s\S]*idempotencyKey String\?/);
+  assert.match(schema, /@@unique\(\[tenantId, idempotencyKey\]\)/);
+  assert.match(service, /tenantId_idempotencyKey/);
+  assert.match(service, /PrismaClientKnownRequestError/);
   assert.match(sessionsRoute, /serializeAutomationSession\(request, session\)/);
   assert.match(sessionsRoute, /serializeAutomationSession\(request, result\.session\)/);
   assert.match(sessionHistoryRoute, /ownerScope\(auth\.user\)/);
@@ -536,7 +543,9 @@ test("Externe Automation-APIs liefern fachliche Labels und geschützte Bild-Link
   assert.match(actionsRoute, /items\.map\(serializeAutomationAction\)/);
   assert.match(eventsRoute, /items: events\.map\(serializeAutomationEvent\)/);
   assert.match(eventsRoute, /capability:\s*\{\s*include:\s*\{\s*device:/);
+  assert.match(eventsRoute, /Idempotency-Key/);
   assert.match(imageRequestsRoute, /serializeAutomationImageRequest\(request, item\)/);
   assert.match(imageRequestsRoute, /requester:\s*\{\s*include:\s*\{\s*profile:\s*true/);
+  assert.match(imageRequestsRoute, /Idempotency-Key/);
   assert.match(imageUploadRoute, /serializeAutomationImageRequest\(request, full\)/);
 });

@@ -44,7 +44,8 @@ export async function POST(request: NextRequest) {
       sessionId,
       deviceId: typeof body.deviceId === "string" ? body.deviceId : null,
       capabilityId: typeof body.capabilityId === "string" ? body.capabilityId : null,
-      reason: typeof body.reason === "string" ? body.reason : null
+      reason: typeof body.reason === "string" ? body.reason : null,
+      idempotencyKey: request.headers.get("Idempotency-Key") || (typeof body.idempotencyKey === "string" ? body.idempotencyKey : null)
     });
     const full = await prisma.automationImageRequest.findUnique({
       where: { id: item.id },

@@ -87,7 +87,8 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - `GET /api/external/automation/adapter/commands?limit=25` holt fällige Commands atomar ab und setzt sie auf `RUNNING`.
 - `POST /api/external/automation/adapter/commands/{id}/result` meldet Erfolg oder Fehler zurück, aktualisiert Device-/Capability-Zustände und schreibt Automation-Events.
 - `POST /api/external/automation/adapter/heartbeat` aktualisiert Bridge-Health, Heartbeat-Zeit und Metadaten.
-- `POST /api/external/automation/events` nimmt lokale Geräte-/Capability-Events aus ioBroker entgegen und protokolliert sie tenant-sicher.
+- `POST /api/external/automation/events` nimmt lokale Geräte-/Capability-Events aus ioBroker entgegen und protokolliert sie tenant-sicher. `Idempotency-Key` oder `idempotencyKey` verhindern doppelte Events bei Wiederholungen.
+- `POST /api/external/automation/image-requests` erzeugt geschützte Bildanforderungen auch idempotent und gibt bei Wiederholung dieselbe Request zurück.
 - Die offiziellen Automation-Capabilities listen diese Adapter-Endpunkte, damit API-Konsole, Agenten und spätere native Apps sie erkennen.
 - Der separate Adapter-Contract liegt unter `docs/12-iobroker-adapter-contract.md`.
 
