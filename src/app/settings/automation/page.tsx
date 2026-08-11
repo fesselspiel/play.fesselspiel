@@ -99,6 +99,36 @@ function capabilityKindTitle(kind: string) {
   return "Gerätefähigkeit";
 }
 
+function capabilityStateOptions(kind: string): Array<[string, string]> {
+  if (kind === "Switch") return [
+    ["UNKNOWN", "Nicht verbunden"],
+    ["ON", "Eingeschaltet"],
+    ["OFF", "Ausgeschaltet"],
+    ["SWITCHING", "Schaltet gerade"],
+    ["OFFLINE", "Nicht erreichbar"],
+    ["ERROR", "Fehler"]
+  ];
+  if (kind === "Voice") return [
+    ["UNKNOWN", "Nicht verbunden"],
+    ["ONLINE", "Verbunden"],
+    ["OFFLINE", "Nicht erreichbar"],
+    ["ERROR", "Fehler"]
+  ];
+  return [
+    ["UNKNOWN", "Nicht verbunden"],
+    ["ONLINE", "Verbunden"],
+    ["OFFLINE", "Nicht erreichbar"],
+    ["BOOTING", "Startet"],
+    ["ERROR", "Fehler"]
+  ];
+}
+
+function normalizeCapabilityState(kind: string, state: string | null | undefined) {
+  const options = capabilityStateOptions(kind);
+  const value = String(state || "").trim();
+  return options.some(([key]) => key === value) ? value : options[0][0];
+}
+
 function capabilityRoleText(kind: string) {
   if (kind === "Camera") {
     return {
@@ -284,7 +314,7 @@ async function saveDevice(formData: FormData) {
       key: capabilityKey,
       kind: capabilityKinds[index] || "Camera",
       title: capabilityTitles[index] || capabilityKey,
-      state: capabilityStates[index] || "UNKNOWN",
+      state: normalizeCapabilityState(capabilityKinds[index] || "Camera", capabilityStates[index]),
       actions: parseList(actionsLists[index] || null),
       events: parseList(eventsLists[index] || null),
       conditions: parseList(conditionsLists[index] || null),
@@ -356,7 +386,7 @@ async function updateCapability(formData: FormData) {
     where: { id: capability.id },
     data: {
       title: String(formData.get("title") || capability.title).trim() || capability.title,
-      state: String(formData.get("state") || capability.state),
+      state: normalizeCapabilityState(capability.kind, String(formData.get("state") || capability.state)),
       parametersJson: capabilityParametersFromForm(formData, capability.kind, jsonRecord(capability.parametersJson)) as never
     }
   });
@@ -749,11 +779,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                               <Field label="Name"><input name="title" className={inputClass} defaultValue={capability.title} /></Field>
                               <Field label="Zustand">
                                 <select name="state" className={inputClass} defaultValue={capability.state}>
-                                  <option value="UNKNOWN">Nicht verbunden</option>
-                                  <option value="ONLINE">Verbunden</option>
-                                  <option value="OFFLINE">Nicht erreichbar</option>
-                                  <option value="ERROR">Fehler</option>
-                                  <option value="BOOTING">Startet</option>
+                                  {capabilityStateOptions(capability.kind).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
                                 </select>
                               </Field>
                               <Field label="ioBroker-/MQTT-Datenpunkt">

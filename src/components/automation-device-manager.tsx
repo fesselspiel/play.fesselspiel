@@ -62,6 +62,11 @@ function defaultTitle(kind: CapabilityKind) {
   return "Ansage sprechen";
 }
 
+function defaultState(kind: CapabilityKind) {
+  if (kind === "Switch") return "OFF";
+  return "UNKNOWN";
+}
+
 function defaultCapability(kind: CapabilityKind, id: string): CapabilityDraft {
   return {
     id,
@@ -110,7 +115,7 @@ function CapabilityHiddenFields({ capability, index = 0 }: { capability: Capabil
       <input type="hidden" name="capabilityKey" value={capabilityKeyFor(capability, index)} />
       <input type="hidden" name="capabilityKind" value={capability.kind} />
       <input type="hidden" name="capabilityTitle" value={capability.title} />
-      <input type="hidden" name="capabilityState" value="UNKNOWN" />
+      <input type="hidden" name="capabilityState" value={defaultState(capability.kind)} />
       <input type="hidden" name="actionsList" value={preset.actions} />
       <input type="hidden" name="eventsList" value={preset.events} />
       <input type="hidden" name="conditionsList" value={preset.conditions} />

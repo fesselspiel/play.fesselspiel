@@ -286,6 +286,21 @@ test("Bestehende Automation-Geräte können geführte Fähigkeiten erhalten", ()
   assert.match(page, /Bedingungen:/);
 });
 
+test("Geräteverwaltung nutzt capability-spezifische Zustände ohne JSON-Konfiguration", () => {
+  const settings = readFileSync("src/app/settings/automation/page.tsx", "utf8");
+  const manager = readFileSync("src/components/automation-device-manager.tsx", "utf8");
+  assert.match(settings, /function capabilityStateOptions/);
+  assert.match(settings, /\["ON", "Eingeschaltet"\]/);
+  assert.match(settings, /\["OFF", "Ausgeschaltet"\]/);
+  assert.match(settings, /\["SWITCHING", "Schaltet gerade"\]/);
+  assert.match(settings, /normalizeCapabilityState\(capabilityKinds\[index\] \|\| "Camera", capabilityStates\[index\]\)/);
+  assert.match(settings, /normalizeCapabilityState\(capability\.kind, String\(formData\.get\("state"\)/);
+  assert.match(settings, /capabilityStateOptions\(capability\.kind\)\.map/);
+  assert.match(manager, /function defaultState/);
+  assert.match(manager, /if \(kind === "Switch"\) return "OFF"/);
+  assert.match(manager, /name="capabilityState" value=\{defaultState\(capability\.kind\)\}/);
+});
+
 test("Normale Automation-Oberflächen vermeiden englische Technikbegriffe", () => {
   const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
   const settingsPage = readFileSync("src/app/settings/automation/page.tsx", "utf8");
