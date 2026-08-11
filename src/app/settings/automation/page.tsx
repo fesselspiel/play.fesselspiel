@@ -549,20 +549,30 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
       <div className="space-y-4">
         <details open className="rounded-lg border border-line bg-surface p-4">
           <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><RadioTower className="h-4 w-4" /> Gerätebrücke</summary>
-          <form action={saveBridge} className="mt-4 grid gap-3 md:grid-cols-2">
-            <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="enabled" type="checkbox" defaultChecked={bridge?.enabled} /> Aktiv</label>
-            <Field label="Verbindungszustand">
-              <select name="health" className={inputClass} defaultValue={bridge?.health || "UNKNOWN"}>
-                <option value="UNKNOWN">Nicht verbunden</option>
-                <option value="ONLINE">Verbunden</option>
-                <option value="OFFLINE">Nicht erreichbar</option>
-                <option value="ERROR">Fehler</option>
-              </select>
-            </Field>
-            <Field label="MQTT-Themenbereich"><input name="mqttBaseTopic" className={inputClass} defaultValue={bridge?.mqttBaseTopic || "playplaner/v1"} /></Field>
-            <Field label="MQTT-Client"><input name="mqttClientId" className={inputClass} defaultValue={bridge?.mqttClientId || ""} /></Field>
-            <Field label="MQTT Benutzer"><input name="mqttUsername" className={inputClass} defaultValue={bridge?.mqttUsername || ""} /></Field>
-            <div className="flex items-end"><SubmitButton pendingLabel="Speichert...">Gerätebrücke speichern</SubmitButton></div>
+          <form action={saveBridge} className="mt-4 space-y-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="enabled" type="checkbox" defaultChecked={bridge?.enabled} /> Aktiv</label>
+              <Field label="Verbindungszustand">
+                <select name="health" className={inputClass} defaultValue={bridge?.health || "UNKNOWN"}>
+                  <option value="UNKNOWN">Nicht verbunden</option>
+                  <option value="ONLINE">Verbunden</option>
+                  <option value="OFFLINE">Nicht erreichbar</option>
+                  <option value="ERROR">Fehler</option>
+                </select>
+              </Field>
+            </div>
+            <details className="rounded-md border border-line bg-paper p-3">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Verbindungsdetails</summary>
+              <p className="mt-2 text-sm text-graphite">
+                Diese Werte braucht der lokale Adapter, damit er genau diese Seite erreicht. Im normalen Regelbetrieb musst du sie nicht ändern.
+              </p>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <Field label="Themenbereich"><input name="mqttBaseTopic" className={inputClass} defaultValue={bridge?.mqttBaseTopic || "playplaner/v1"} /></Field>
+                <Field label="Adapter-Client"><input name="mqttClientId" className={inputClass} defaultValue={bridge?.mqttClientId || ""} /></Field>
+                <Field label="Adapter-Benutzer"><input name="mqttUsername" className={inputClass} defaultValue={bridge?.mqttUsername || ""} /></Field>
+              </div>
+            </details>
+            <SubmitButton pendingLabel="Speichert...">Gerätebrücke speichern</SubmitButton>
           </form>
           <form action={rotateMqtt} className="mt-4 rounded-lg border border-line bg-paper p-4">
             <div className="text-sm font-semibold text-ink">MQTT-Zugang erzeugen oder rotieren</div>
