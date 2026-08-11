@@ -220,6 +220,10 @@ test("Bestehende Automation-Geräte können geführte Fähigkeiten erhalten", ()
   assert.match(component, /export function AutomationCapabilityManager/);
   assert.match(page, /addCapabilityToDevice/);
   assert.match(page, /Fähigkeit hinzufügen/);
+  assert.match(page, /capabilityRoleText/);
+  assert.match(page, /Aktionen:/);
+  assert.match(page, /Ereignisse:/);
+  assert.match(page, /Bedingungen:/);
 });
 
 test("Normale Automation-Oberflächen vermeiden englische Technikbegriffe", () => {

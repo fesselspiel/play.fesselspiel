@@ -93,6 +93,42 @@ function automationActionTitle(type: string) {
   return actionLabels[type as AutomationActionKey] || type;
 }
 
+function capabilityKindTitle(kind: string) {
+  if (kind === "Camera") return "Kamera";
+  if (kind === "Switch") return "Schalter";
+  if (kind === "Voice") return "Sprachausgabe";
+  return "Gerätefähigkeit";
+}
+
+function capabilityRoleText(kind: string) {
+  if (kind === "Camera") {
+    return {
+      actions: ["Bild anfordern", "Verbindung prüfen"],
+      events: ["Bild empfangen", "Kamera nicht erreichbar", "Kamera verbunden"],
+      conditions: ["Kamera ist verbunden", "Letztes Bild ist jünger als Vorgabe"]
+    };
+  }
+  if (kind === "Switch") {
+    return {
+      actions: ["Einschalten", "Ausschalten", "Umschalten"],
+      events: ["Wurde eingeschaltet", "Wurde ausgeschaltet", "Schaltfehler"],
+      conditions: ["Ist eingeschaltet", "Ist ausgeschaltet", "Ist seit einer Zeit ein oder aus"]
+    };
+  }
+  if (kind === "Voice") {
+    return {
+      actions: ["Text sprechen"],
+      events: ["Ansage gestartet", "Ansage beendet", "Sprachausgabe nicht erreichbar"],
+      conditions: ["Sprachausgabe ist verbunden"]
+    };
+  }
+  return {
+    actions: ["Keine bekannte Aktion"],
+    events: ["Kein bekanntes Ereignis"],
+    conditions: ["Keine bekannte Bedingung"]
+  };
+}
+
 function humanDetailValue(value: unknown) {
   if (value instanceof Date) return formatAutomationEventDate(value);
   if (typeof value === "string") {
@@ -642,7 +678,23 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                     <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">{device.name} · {labelAutomationValue("health", device.health)}</summary>
                     <div className="mt-2 space-y-1 text-sm text-graphite">
                       <p>{labelAutomationValue("integrations", device.integration)}</p>
-                      {device.capabilities.map((capability) => <p key={capability.id}>{capability.title} · {labelAutomationValue("health", capability.state)}</p>)}
+                      <div className="grid gap-2">
+                        {device.capabilities.map((capability) => {
+                          const roleText = capabilityRoleText(capability.kind);
+                          return (
+                            <div key={capability.id} className="rounded-md border border-line bg-surface p-3">
+                              <div className="font-semibold text-ink">
+                                {capability.title} · {capabilityKindTitle(capability.kind)} · {labelAutomationValue("health", capability.state)}
+                              </div>
+                              <div className="mt-2 grid gap-2 md:grid-cols-3">
+                                <div><span className="font-semibold text-ink">Aktionen:</span> {roleText.actions.join(", ")}</div>
+                                <div><span className="font-semibold text-ink">Ereignisse:</span> {roleText.events.join(", ")}</div>
+                                <div><span className="font-semibold text-ink">Bedingungen:</span> {roleText.conditions.join(", ")}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                       <details className="mt-3 rounded border border-line bg-surface p-3">
                         <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Gerät bearbeiten</summary>
                         <form action={updateDevice} className="mt-3 grid gap-3 sm:grid-cols-2">
