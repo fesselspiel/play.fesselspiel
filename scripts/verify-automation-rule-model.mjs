@@ -294,6 +294,9 @@ test("Kamera-spezifische Auslöser begrenzen Fähigkeitsbedingungen auf Kameras"
   const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
   assert.match(editor, /conditionCapabilityKind/);
   assert.match(editor, /conditionCapabilities/);
+  assert.match(editor, /capabilityKindLabel\(triggerCapabilityKind\)/);
+  assert.match(editor, /Der gewählte Auslöser kann nur mit passenden/);
+  assert.match(editor, /capabilityKindLabel\(conditionCapabilityKind\)/);
   assert.match(model, /Die gewählte Fähigkeitsbedingung passt nicht zum Auslöser/);
 });
 

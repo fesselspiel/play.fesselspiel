@@ -70,6 +70,20 @@ function stateOptionsForCapability(kind?: CapabilityKind) {
   ];
 }
 
+function capabilityKindLabel(kind?: CapabilityKind | null) {
+  if (kind === "Camera") return "Kameras";
+  if (kind === "Switch") return "Schalter";
+  if (kind === "Voice") return "Sprachausgaben";
+  return "Gerätefähigkeiten";
+}
+
+function emptyCapabilityText(kind?: CapabilityKind | null) {
+  if (kind === "Camera") return "Keine Kamera eingerichtet";
+  if (kind === "Switch") return "Kein Schalter eingerichtet";
+  if (kind === "Voice") return "Keine Sprachausgabe eingerichtet";
+  return "Keine Fähigkeit eingerichtet";
+}
+
 function parseInitial(value?: string) {
   if (!value) return defaultRuleFormValue();
   try {
@@ -314,10 +328,17 @@ export function AutomationRuleEditor({
           {triggerNeedsCapability(value.triggerType) ? (
             <label className="mt-3 block text-sm text-graphite">Auslöser-Fähigkeit
               <select className={`${inputClass} mt-1`} value={value.triggerCapabilityId} onChange={(event) => update({ triggerCapabilityId: event.target.value })}>
-                {triggerCapabilities.length ? triggerCapabilities.map((capability) => (
-                  <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
-                )) : <option value="">{triggerCapabilityKind === "Camera" ? "Keine Kamera eingerichtet" : "Keine Fähigkeit eingerichtet"}</option>}
+                {triggerCapabilities.length ? (
+                  <optgroup label={capabilityKindLabel(triggerCapabilityKind)}>
+                    {triggerCapabilities.map((capability) => (
+                      <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
+                    ))}
+                  </optgroup>
+                ) : <option value="">{emptyCapabilityText(triggerCapabilityKind)}</option>}
               </select>
+              <span className="mt-1 block text-xs leading-5 text-graphite">
+                Der gewählte Auslöser kann nur mit passenden {capabilityKindLabel(triggerCapabilityKind).toLowerCase()} verbunden werden.
+              </span>
             </label>
           ) : null}
         </section>
@@ -346,9 +367,13 @@ export function AutomationRuleEditor({
             <div className="mt-3 grid gap-2 text-sm text-graphite">
               <label>Fähigkeit
                 <select className={`${inputClass} mt-1`} value={value.conditionCapabilityId} onChange={(event) => update({ conditionCapabilityId: event.target.value })}>
-                  {conditionCapabilities.length ? conditionCapabilities.map((capability) => (
-                    <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
-                  )) : <option value="">{conditionCapabilityKind === "Camera" ? "Keine Kamera eingerichtet" : "Keine Fähigkeit eingerichtet"}</option>}
+                  {conditionCapabilities.length ? (
+                    <optgroup label={capabilityKindLabel(conditionCapabilityKind)}>
+                      {conditionCapabilities.map((capability) => (
+                        <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
+                      ))}
+                    </optgroup>
+                  ) : <option value="">{emptyCapabilityText(conditionCapabilityKind)}</option>}
                 </select>
               </label>
               <label>Erwarteter Zustand
