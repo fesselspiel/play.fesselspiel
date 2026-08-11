@@ -833,10 +833,11 @@ export function AutomationRuleEditor({
               key={`${minute}-${title}`}
               type="button"
               onClick={() => setScrubMinute(minute)}
-              className={`rounded-md border px-3 py-2 text-xs font-semibold ${simulation.scrubMinute === minute ? "border-redbrand bg-redbrand text-white" : "border-line bg-surface text-ink hover:border-redbrand hover:text-redbrand"}`}
+              className={`max-w-48 rounded-md border px-3 py-2 text-left text-xs font-semibold ${simulation.scrubMinute === minute ? "border-redbrand bg-redbrand text-white" : "border-line bg-surface text-ink hover:border-redbrand hover:text-redbrand"}`}
               title={title}
             >
-              Minute {minute}
+              <span className="block">Minute {minute}</span>
+              <span className="block truncate font-medium opacity-80">{title}</span>
             </button>
           ))}
         </div>

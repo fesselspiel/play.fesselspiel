@@ -77,6 +77,7 @@ test("Abnahmebeispiel: Controller-Abwesenheit plus Zufallsfenster", () => {
   assert.equal(simulate(rule, 30, 3, { controllerActionMinute: 19 }).due, false);
   assert.match(editor, /Prüfpunkte/);
   assert.match(editor, /simulation\.reviewMoments/);
+  assert.match(editor, /<span className="block truncate font-medium opacity-80">\{title\}<\/span>/);
   assert.match(model, /Kurz vor der Bedingung/);
   assert.match(model, /Kurz vor dem Zufallsfenster/);
   assert.match(model, /Mitten im Zufallsfenster/);
