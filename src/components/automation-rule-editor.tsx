@@ -720,6 +720,24 @@ export function AutomationRuleEditor({
         </div>
         <div className="mt-3 rounded-md border border-redbrand/20 bg-redbrand/5 p-3 text-sm font-medium text-ink">{simulation.explanation}</div>
         <div className="mt-3 rounded-md border border-line bg-surface p-3">
+          <div className="text-sm font-semibold text-ink">Prüfpunkte</div>
+          <p className="mt-1 text-xs leading-5 text-graphite">Diese Punkte helfen beim Abnehmen der Regel: vor der Bedingung, bei der Entscheidung, im Zeitfenster und nach der Fälligkeit.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {simulation.reviewMoments.map((moment) => (
+              <button
+                key={`${moment.minute}-${moment.label}`}
+                type="button"
+                onClick={() => setScrubMinute(moment.minute)}
+                className={`rounded-md border px-3 py-2 text-left text-xs font-semibold ${simulation.scrubMinute === moment.minute ? "border-redbrand bg-redbrand text-white" : "border-line bg-paper text-ink hover:border-redbrand hover:text-redbrand"}`}
+                title={moment.reason}
+              >
+                <span className="block">Minute {moment.minute}</span>
+                <span className="block font-medium opacity-80">{moment.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-3 rounded-md border border-line bg-surface p-3">
           <div className="text-sm font-semibold text-ink">Momentaufnahme bei Minute {simulation.currentMoment.minute}</div>
           <div className="mt-2 grid gap-2 md:grid-cols-3">
             <SimBox title="Jetzt" items={simulation.currentMoment.current.length ? simulation.currentMoment.current : [simulation.currentMoment.decision]} />

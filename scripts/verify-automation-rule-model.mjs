@@ -52,6 +52,8 @@ function simulate(rule, scrubMinute, randomSeed = 3, context = {}) {
 }
 
 test("Abnahmebeispiel: Controller-Abwesenheit plus Zufallsfenster", () => {
+  const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
+  const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
   const rule = buildRule({
     conditionType: "controller_absent",
     conditionMinutes: 20,
@@ -69,6 +71,12 @@ test("Abnahmebeispiel: Controller-Abwesenheit plus Zufallsfenster", () => {
   assert.equal(simulate(rule, 30).actionType, "camera_request_image");
   assert.equal(simulate(rule, 19, 3, { controllerActionMinute: 19 }).conditionPassed, false);
   assert.equal(simulate(rule, 30, 3, { controllerActionMinute: 19 }).due, false);
+  assert.match(editor, /Prüfpunkte/);
+  assert.match(editor, /simulation\.reviewMoments/);
+  assert.match(model, /Kurz vor der Bedingung/);
+  assert.match(model, /Mitten im Zufallsfenster/);
+  assert.match(model, /Spätester Zufallszeitpunkt/);
+  assert.match(model, /Nach der Fälligkeit/);
 });
 
 test("Doppelstart bleibt idempotent", () => {
@@ -296,6 +304,7 @@ test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben"
   assert.match(editor, /Momentaufnahme bei Minute/);
   assert.match(editor, /simulation\.currentMoment\.current/);
   assert.match(model, /currentMoment/);
+  assert.match(model, /reviewMoments/);
   assert.match(model, /Bereits passiert|upcomingTimelineItems/);
   assert.match(editor, /Gerätezustand für diese Simulation/);
   assert.match(editor, /Zustand der Fähigkeit für diese Simulation/);

@@ -666,13 +666,16 @@ export function simulateAutomationRuleTimeline(input: {
   const controllerActionBlocks = controllerActionMinute !== null && controllerActionMinute <= conditionMinutes;
   const conditionEvaluation = evaluateSimulationCondition(condition, context);
   const simulatedStateVariables = simulationStateVariables(condition, context);
+  const minDelay = timing.type === "random_delay" ? numberValue(timing.minMinutes, 0) : timing.type === "fixed_delay" ? numberValue(timing.minutes ?? timing.delayMinutes, 0) : 0;
+  const maxDelay = timing.type === "random_delay" ? numberValue(timing.maxMinutes, 0) : minDelay;
   const delay = timing.type === "random_delay"
-    ? numberValue(timing.minMinutes, 0) + ((input.randomSeed ?? 3) % (Math.max(0, numberValue(timing.maxMinutes, 0) - numberValue(timing.minMinutes, 0)) + 1))
+    ? minDelay + ((input.randomSeed ?? 3) % (Math.max(0, maxDelay - minDelay) + 1))
     : timing.type === "fixed_delay"
-      ? numberValue(timing.minutes ?? timing.delayMinutes, 0)
+      ? minDelay
       : 0;
   const dueMinute = conditionEvaluation.canBecomeTrue ? conditionMinutes + delay : null;
-  const scrubLimit = Math.max(1, (dueMinute ?? Math.max(conditionMinutes, delay)) + 5);
+  const latestPossibleDueMinute = conditionEvaluation.canBecomeTrue ? conditionMinutes + maxDelay : null;
+  const scrubLimit = Math.max(1, dueMinute ?? 0, latestPossibleDueMinute ?? 0, conditionMinutes, delay, maxDelay) + 5;
   const scrubMinute = Math.min(Math.max(0, input.scrubMinute ?? 0), scrubLimit);
   const ruleTitle = describeTrigger(input.triggerType, input.triggerJson, context);
   const controllerActionHasHappened = controllerActionMinute !== null && scrubMinute >= controllerActionMinute;
@@ -740,6 +743,14 @@ export function simulateAutomationRuleTimeline(input: {
   const currentTimelineItems = timeline.filter((item) => item.minute === scrubMinute);
   const completedTimelineItems = timeline.filter((item) => item.minute < scrubMinute);
   const upcomingTimelineItems = timeline.filter((item) => item.minute > scrubMinute);
+  const reviewMoments = simulationReviewMoments({
+    conditionType: condition.type as string | undefined,
+    conditionMinutes,
+    timingType: timing.type as string | undefined,
+    minDelay,
+    maxDelay,
+    dueMinute
+  }).filter((item) => item.minute >= 0 && item.minute <= scrubLimit);
   return {
     durationMinutes: scrubLimit,
     scrubMinute,
@@ -768,6 +779,7 @@ export function simulateAutomationRuleTimeline(input: {
       `Echte Ausführung: keine Aktionen in der Simulation`
     ],
     timeline,
+    reviewMoments,
     currentMoment: {
       minute: scrubMinute,
       title: `Minute ${scrubMinute}`,
@@ -845,6 +857,31 @@ function simulationStateVariables(condition: Record<string, unknown>, context: A
     return [`Simulierter Schaltzustand: ${title} ist ${labelAutomationValue("health", state)} seit ${age} Minuten`];
   }
   return [];
+}
+
+function simulationReviewMoments(input: { conditionType?: string; conditionMinutes: number; timingType?: string; minDelay: number; maxDelay: number; dueMinute: number | null }) {
+  const points = new Map<number, { minute: number; label: string; reason: string }>();
+  function add(minute: number, label: string, reason: string) {
+    const safeMinute = Math.max(0, Math.round(minute));
+    if (!points.has(safeMinute)) points.set(safeMinute, { minute: safeMinute, label, reason });
+  }
+  add(0, "Start", "Der Auslöser ist eingetreten und die Regel wird betrachtet.");
+  if (input.conditionType && input.conditionType !== "none") {
+    if (input.conditionMinutes > 0) add(input.conditionMinutes - 1, "Kurz vor der Bedingung", "Hier sollte die Regel noch warten.");
+    add(input.conditionMinutes, "Bedingung prüfen", "An diesem Punkt entscheidet die Engine, ob die Bedingung erfüllt ist.");
+  }
+  if (input.timingType === "fixed_delay" && input.dueMinute !== null) {
+    if (input.minDelay > 1) add(input.conditionMinutes + Math.floor(input.minDelay / 2), "Während der Wartezeit", "Die Bedingung ist erfüllt, die Aktion darf aber noch nicht fällig sein.");
+    add(input.dueMinute, "Aktion fällig", "Die feste Wartezeit ist abgelaufen.");
+  }
+  if (input.timingType === "random_delay" && input.dueMinute !== null) {
+    add(input.conditionMinutes + input.minDelay, "Frühester Zufallszeitpunkt", "Vor diesem Zeitpunkt darf die Aktion im Zufallsfenster nicht fällig sein.");
+    add(input.conditionMinutes + Math.floor((input.minDelay + input.maxDelay) / 2), "Mitten im Zufallsfenster", "Hier erkennt man, ob der gezogene Zufallswert bereits erreicht wurde.");
+    add(input.dueMinute, "Gezogener Zeitpunkt", "Der einmal bestimmte Zufallswert ist erreicht.");
+    add(input.conditionMinutes + input.maxDelay, "Spätester Zufallszeitpunkt", "Spätestens hier wäre die Aktion in diesem Zufallsfenster fällig.");
+  }
+  if (input.dueMinute !== null) add(input.dueMinute + 2, "Nach der Fälligkeit", "Hier muss sichtbar sein, dass die Aktion bereits fällig oder simuliert ist.");
+  return Array.from(points.values()).sort((left, right) => left.minute - right.minute);
 }
 
 function explainSimulationState(input: { scrubMinute: number; conditionType?: string; conditionMinutes: number; delay: number; dueMinute: number; actionType?: string; actionCount?: number; conditionBlocked?: boolean }) {
