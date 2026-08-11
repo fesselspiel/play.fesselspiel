@@ -754,38 +754,41 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
             <Panel>
               <h2 className="text-base font-semibold text-ink">Bestehende Regeln</h2>
               <div className="mt-3 space-y-2">
-                {rules.map((rule) => (
-                  <details key={rule.id} className="rounded-md border border-line bg-paper p-3">
-                    <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">{rule.name}</summary>
-                    <p className="mt-2 text-sm text-graphite">{rule.descriptionText || automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })}</p>
-                    <div className="mt-3 flex flex-col items-start gap-2">
-                      {automationRuleFlow(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions }).map((step, index) => (
-                        <div key={`${rule.id}-${step}-${index}`} className="rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink">{step}</div>
-                      ))}
-                    </div>
-                    <p className="mt-1 text-xs text-graphite">Version {rule.currentVersion} · {rule.active ? "aktiv" : "inaktiv"}</p>
-                    <details className="mt-3 rounded-md border border-line bg-surface p-3">
-                      <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Regel bearbeiten</summary>
-                      <form action={saveRule} className="mt-3 space-y-3">
-                        <Field label="Name"><input name="name" className={inputClass} required defaultValue={rule.name} /></Field>
-                        <Field label="Beschreibung"><input name="description" className={inputClass} defaultValue={rule.description || ""} /></Field>
-                        <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="active" type="checkbox" defaultChecked={rule.active} /> Aktiv</label>
-                        <AutomationRuleEditor ruleId={rule.id} capabilities={capabilities} devices={deviceOptions} trackers={trackerOptions} initial={JSON.stringify(ruleFormFromStored(rule))} />
-                        <SubmitButton pendingLabel="Speichert...">Änderungen speichern</SubmitButton>
-                      </form>
+                {rules.map((rule) => {
+                  const currentRuleText = automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions });
+                  return (
+                    <details key={rule.id} className="rounded-md border border-line bg-paper p-3">
+                      <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">{rule.name}</summary>
+                      <p className="mt-2 text-sm text-graphite">{currentRuleText}</p>
+                      <div className="mt-3 flex flex-col items-start gap-2">
+                        {automationRuleFlow(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions }).map((step, index) => (
+                          <div key={`${rule.id}-${step}-${index}`} className="rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink">{step}</div>
+                        ))}
+                      </div>
+                      <p className="mt-1 text-xs text-graphite">Version {rule.currentVersion} · {rule.active ? "aktiv" : "inaktiv"}</p>
+                      <details className="mt-3 rounded-md border border-line bg-surface p-3">
+                        <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Regel bearbeiten</summary>
+                        <form action={saveRule} className="mt-3 space-y-3">
+                          <Field label="Name"><input name="name" className={inputClass} required defaultValue={rule.name} /></Field>
+                          <Field label="Beschreibung"><input name="description" className={inputClass} defaultValue={rule.description || ""} /></Field>
+                          <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="active" type="checkbox" defaultChecked={rule.active} /> Aktiv</label>
+                          <AutomationRuleEditor ruleId={rule.id} capabilities={capabilities} devices={deviceOptions} trackers={trackerOptions} initial={JSON.stringify(ruleFormFromStored(rule))} />
+                          <SubmitButton pendingLabel="Speichert...">Änderungen speichern</SubmitButton>
+                        </form>
+                      </details>
+                      <details className="mt-2 rounded-md border border-redbrand/30 bg-redbrand/5 p-3">
+                        <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Regel löschen</summary>
+                        <p className="mt-2 text-sm text-graphite">
+                          Löscht die Regel für zukünftige Ausführungen. Bereits protokollierte Ereignisse und geplante Historie bleiben erhalten.
+                        </p>
+                        <form action={deleteRule} className="mt-3">
+                          <input type="hidden" name="ruleId" value={rule.id} />
+                          <SubmitButton pendingLabel="Löscht...">Regel löschen</SubmitButton>
+                        </form>
+                      </details>
                     </details>
-                    <details className="mt-2 rounded-md border border-redbrand/30 bg-redbrand/5 p-3">
-                      <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Regel löschen</summary>
-                      <p className="mt-2 text-sm text-graphite">
-                        Löscht die Regel für zukünftige Ausführungen. Bereits protokollierte Ereignisse und geplante Historie bleiben erhalten.
-                      </p>
-                      <form action={deleteRule} className="mt-3">
-                        <input type="hidden" name="ruleId" value={rule.id} />
-                        <SubmitButton pendingLabel="Löscht...">Regel löschen</SubmitButton>
-                      </form>
-                    </details>
-                  </details>
-                ))}
+                  );
+                })}
               </div>
             </Panel>
           </div>
@@ -798,7 +801,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
               <h2 className="text-base font-semibold text-ink">Simulation</h2>
               <p className="mt-2 text-sm text-graphite">Die Simulation findet direkt im Regel-Editor der jeweiligen Regel statt und erzeugt keine echten Aktionen.</p>
               <div className="mt-3 space-y-2">
-                {rules.slice(0, 5).map((rule) => <div key={rule.id} className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">{rule.name}: {rule.descriptionText || automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })}</div>)}
+                {rules.slice(0, 5).map((rule) => <div key={rule.id} className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">{rule.name}: {automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })}</div>)}
               </div>
             </Panel>
             <Panel>

@@ -142,11 +142,14 @@ test("Mehrere Aktionen bleiben in einer Regel erhalten", () => {
 
 test("Regelbeschreibung und Timeline benennen Zielgeräte fachlich", () => {
   const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  const settings = readFileSync("src/app/settings/automation/page.tsx", "utf8");
   assert.match(model, /function capabilityTargetLabel/);
   assert.match(model, /fordere ein Bild von \$\{target\} an/);
   assert.match(model, /actionTitleWithTarget\(action, context\)/);
   assert.match(model, /describeActions\(actions, context\)/);
   assert.match(model, /genericTitles = \["Bild anfordern", "Verbindung prüfen", "Strom schalten", "Ansage sprechen", "Text sprechen"\]/);
+  assert.match(settings, /const currentRuleText = automationRuleSummary\(rule,/);
+  assert.doesNotMatch(settings, /rule\.descriptionText \|\| automationRuleSummary\(rule/);
 });
 
 test("Zufallsfenster wird einmal bestimmt und bleibt stabil", () => {
