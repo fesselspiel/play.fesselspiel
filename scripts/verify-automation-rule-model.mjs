@@ -74,6 +74,7 @@ test("Abnahmebeispiel: Controller-Abwesenheit plus Zufallsfenster", () => {
   assert.match(editor, /Prüfpunkte/);
   assert.match(editor, /simulation\.reviewMoments/);
   assert.match(model, /Kurz vor der Bedingung/);
+  assert.match(model, /Kurz vor dem Zufallsfenster/);
   assert.match(model, /Mitten im Zufallsfenster/);
   assert.match(model, /Spätester Zufallszeitpunkt/);
   assert.match(model, /Nach der Fälligkeit/);

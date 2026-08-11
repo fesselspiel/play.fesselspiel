@@ -887,6 +887,7 @@ function simulationReviewMoments(input: { conditionType?: string; conditionMinut
     add(input.dueMinute, "Aktion fällig", "Die feste Wartezeit ist abgelaufen.");
   }
   if (input.timingType === "random_delay" && input.dueMinute !== null) {
+    if (input.minDelay > 0) add(input.conditionMinutes + input.minDelay - 1, "Kurz vor dem Zufallsfenster", "Die Bedingung ist erfüllt, aber vor dem frühesten Zufallszeitpunkt darf noch keine Aktion fällig sein.");
     add(input.conditionMinutes + input.minDelay, "Frühester Zufallszeitpunkt", "Vor diesem Zeitpunkt darf die Aktion im Zufallsfenster nicht fällig sein.");
     add(input.conditionMinutes + Math.floor((input.minDelay + input.maxDelay) / 2), "Mitten im Zufallsfenster", "Hier erkennt man, ob der gezogene Zufallswert bereits erreicht wurde.");
     add(input.dueMinute, "Gezogener Zeitpunkt", "Der einmal bestimmte Zufallswert ist erreicht.");
