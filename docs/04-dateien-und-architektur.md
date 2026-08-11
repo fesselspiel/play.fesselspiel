@@ -9,6 +9,7 @@
 - `docker-entrypoint.sh`: DB-Push, Seed und App-Start mit Logausgabe.
 - `mosquitto/`: eigener Mosquitto-Broker-Container für die Automation-/ioBroker-Bridge.
 - `mosquitto_config/`: Runtime-Dateien für MQTT-Passwörter und ACLs; wird vom Backend erzeugt und nicht als Secret-Quelle im Repository gepflegt.
+- `mosquitto_tls/`: optionaler Mount für MQTT-TLS-Zertifikate; ohne Zertifikate erzeugt der Mosquitto-Container ein selbstsigniertes Zertifikat.
 - `.env.example`: Beispielkonfiguration ohne echte Secrets.
 - `package.json`: Scripts und Dependencies.
 - `prisma/schema.prisma`: Datenmodell.

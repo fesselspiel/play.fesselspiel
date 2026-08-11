@@ -23,6 +23,8 @@ Service: mqtt
 Container: kink_social_mqtt
 Interner Port: 1883
 Host-Port: 127.0.0.1:18883
+TLS-Port im Container: 8883
+TLS-Host-Port: 127.0.0.1:18884
 ```
 
 Die MQTT-Credentials werden nicht in `.env` gespeichert. Admins erzeugen oder rotieren sie unter `Einstellungen > Automation > Bridge`. Das Portal speichert das Passwort verschlüsselt in `AutomationBridge.mqttPasswordEnc` und schreibt daraus Runtime-Dateien:
@@ -48,6 +50,7 @@ playplaner/v1/<tenant-id>/#
 ```
 
 Der Broker ist zunächst nur lokal gebunden. Für externe Adapter wird davor ein TLS-Terminator, VPN oder gesicherter Tunnel verwendet.
+Der Container stellt zusätzlich einen MQTT-over-TLS-Listener bereit. Er nutzt dieselben datenbankverwalteten Benutzer und ACLs wie der interne Listener. Wenn unter `mosquitto_tls/fullchain.pem` und `mosquitto_tls/privkey.pem` keine Zertifikate gemountet sind, erzeugt der Container ein selbstsigniertes Zertifikat. Für einen öffentlich erreichbaren Adapter kann der TLS-Port gezielt über `MQTT_TLS_BIND` und `MQTT_TLS_PORT` veröffentlicht oder über Tunnel/VPN erreichbar gemacht werden. Der Standard bleibt lokal, damit keine andere MQTT-Installation auf dem VPS überschrieben wird.
 
 ## Grundablauf
 

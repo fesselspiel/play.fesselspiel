@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
+
+function readOptional(path) {
+  return existsSync(path) ? readFileSync(path, "utf8") : "";
+}
 
 function buildRule({ triggerType = "session_started", conditionType = "none", conditionMinutes = 20, conditionDeviceId = null, conditionCapabilityId = null, conditionExpectedState = null, timingType = "immediate", delayMinutes = 0, minMinutes = 5, maxMinutes = 10, actionType = "session_finish", capabilityId = null, capabilityKind = null } = {}) {
   return {
@@ -284,6 +288,31 @@ test("Bridge-Reconnect stellt stale Kommandos erneut bereit", () => {
   assert.match(service, /status:\s*"RUNNING"[\s\S]*startedAt:\s*\{\s*lte:\s*staleBefore\s*\}/);
   assert.match(service, /status:\s*"READY",\s*startedAt:\s*null/);
   assert.match(service, /action_requeued_for_bridge/);
+});
+
+test("MQTT-Broker bietet TLS, Auth und ACLs ohne anonyme Verbindungen", () => {
+  const compose = readOptional("docker-compose.yml");
+  const dockerfile = readOptional("mosquitto/Dockerfile");
+  const entrypoint = readOptional("mosquitto/entrypoint.sh");
+  const config = readOptional("mosquitto/mosquitto.conf");
+  const docs = readOptional("docs/12-iobroker-adapter-contract.md") || readFileSync("public/docs/iobroker-adapter-contract.md", "utf8");
+  const localConfig = `${compose}\n${dockerfile}\n${entrypoint}\n${config}`;
+  if (localConfig.trim()) {
+    assert.match(localConfig, /apk add --no-cache openssl/);
+    assert.match(localConfig, /prepare_tls/);
+    assert.match(localConfig, /openssl req -x509/);
+    assert.match(localConfig, /per_listener_settings true/);
+    assert.match(localConfig, /listener 8883/);
+    assert.match(localConfig, /certfile \/mosquitto\/runtime\/tls\/server\.crt/);
+    assert.match(localConfig, /keyfile \/mosquitto\/runtime\/tls\/server\.key/);
+    assert.match(localConfig, /allow_anonymous false/);
+    assert.match(localConfig, /password_file \/mosquitto\/runtime\/passwords/);
+    assert.match(localConfig, /acl_file \/mosquitto\/runtime\/acl/);
+    assert.match(localConfig, /MQTT_TLS_PORT:-18884/);
+    assert.match(localConfig, /mosquitto_tls:\/playplaner-tls:ro/);
+  }
+  assert.match(docs, /MQTT-over-TLS/);
+  assert.match(docs, /18884/);
 });
 
 test("Bridge-Resultate werden terminal idempotent behandelt", () => {

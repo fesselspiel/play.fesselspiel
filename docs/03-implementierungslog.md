@@ -79,8 +79,9 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 ## Automation-Bridge fuer ioBroker
 
 - Das Portal stellt jetzt den vollstaendigen Adapter-Contract bereit, ohne den ioBroker-Adapter selbst im Portal-Repo zu bauen.
-- Docker Compose enthält jetzt einen eigenen Mosquitto-Service `mqtt` mit Container `kink_social_mqtt`, lokal gebunden auf `127.0.0.1:18883`.
+- Docker Compose enthält jetzt einen eigenen Mosquitto-Service `mqtt` mit Container `kink_social_mqtt`, lokal gebunden auf `127.0.0.1:18883` und zusätzlich mit MQTT-over-TLS auf `127.0.0.1:18884`.
 - MQTT-Credentials werden im Backend erzeugt/rotiert, verschlüsselt in der Datenbank gespeichert und als Mosquitto-Runtime-Dateien unter `mosquitto_config/` materialisiert.
+- Der Mosquitto-Container nutzt gemountete Zertifikate aus `mosquitto_tls/` oder erzeugt selbstsignierte TLS-Zertifikate, damit der TLS-Listener immer startfähig ist.
 - Die Adminseite `Einstellungen > Automation` kann MQTT-Zugänge rotieren und zeigt das neue Passwort einmalig an.
 - Mosquitto hasht die Runtime-Passwortdatei beim Containerstart mit `mosquitto_passwd -U`; es liegen keine MQTT-Betriebscredentials in `.env`.
 - Fällige Geräte- und Capability-Actions werden nicht mehr als erledigt markiert, sondern als Bridge-Commands im Status `READY` bereitgestellt.

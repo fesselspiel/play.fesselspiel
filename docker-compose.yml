@@ -100,9 +100,11 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:${MQTT_PORT:-18883}:1883"
+      - "${MQTT_TLS_BIND:-127.0.0.1}:${MQTT_TLS_PORT:-18884}:8883"
     volumes:
       - mqtt_data:/mosquitto/data
       - ./mosquitto_config:/mosquitto/runtime
+      - ./mosquitto_tls:/playplaner-tls:ro
 
   cron:
     image: alpine:3.20
