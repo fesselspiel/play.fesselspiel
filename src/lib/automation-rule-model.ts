@@ -304,9 +304,34 @@ export type RuleFormValue = {
   cameraTimeoutSeconds: number;
   cameraBootDelaySeconds: number;
   recoveryCapabilityId: string;
+  conditions: RuleConditionFormValue[];
   actions: RuleActionFormValue[];
   mode: "ONCE" | "REPEAT";
 };
+
+export type RuleConditionFormValue = {
+  conditionType: AutomationConditionKey;
+  conditionMinutes: number;
+  conditionDeviceId: string;
+  conditionCapabilityId: string;
+  conditionExpectedState: string;
+  conditionImageMaxAgeSeconds: number;
+  conditionStateAgeMinutes: number;
+  conditionTrackerTypeId: string;
+};
+
+export function defaultRuleConditionValue(type: AutomationConditionKey = "none"): RuleConditionFormValue {
+  return {
+    conditionType: type,
+    conditionMinutes: 20,
+    conditionDeviceId: "",
+    conditionCapabilityId: "",
+    conditionExpectedState: "ONLINE",
+    conditionImageMaxAgeSeconds: 300,
+    conditionStateAgeMinutes: 5,
+    conditionTrackerTypeId: ""
+  };
+}
 
 export function defaultRuleActionValue(): RuleActionFormValue {
   return {
@@ -347,6 +372,7 @@ export function defaultRuleFormValue(): RuleFormValue {
     cameraTimeoutSeconds: action.cameraTimeoutSeconds,
     cameraBootDelaySeconds: action.cameraBootDelaySeconds,
     recoveryCapabilityId: action.recoveryCapabilityId,
+    conditions: [defaultRuleConditionValue()],
     actions: [action],
     mode: "ONCE"
   };
@@ -359,6 +385,34 @@ function numberValue(value: unknown, fallback: number) {
 
 function asObject(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function conditionFormFromRecord(condition: Record<string, unknown>): RuleConditionFormValue {
+  const next = defaultRuleConditionValue();
+  if (condition.type && conditionLabels[condition.type as AutomationConditionKey]) next.conditionType = condition.type as AutomationConditionKey;
+  next.conditionMinutes = numberValue(condition.minutes, next.conditionMinutes);
+  next.conditionDeviceId = typeof condition.deviceId === "string" ? condition.deviceId : "";
+  next.conditionCapabilityId = typeof condition.capabilityId === "string" ? condition.capabilityId : "";
+  next.conditionExpectedState = typeof condition.state === "string" ? condition.state : next.conditionExpectedState;
+  next.conditionImageMaxAgeSeconds = numberValue(condition.maxAgeSeconds ?? condition.seconds, next.conditionImageMaxAgeSeconds);
+  next.conditionStateAgeMinutes = numberValue(condition.minutes ?? condition.stateAgeMinutes, next.conditionStateAgeMinutes);
+  next.conditionTrackerTypeId = typeof condition.trackerTypeId === "string" ? condition.trackerTypeId : "";
+  return next;
+}
+
+function syncFirstCondition(value: RuleFormValue): RuleFormValue {
+  const first = value.conditions[0] || defaultRuleConditionValue();
+  return {
+    ...value,
+    conditionType: first.conditionType,
+    conditionMinutes: first.conditionMinutes,
+    conditionDeviceId: first.conditionDeviceId,
+    conditionCapabilityId: first.conditionCapabilityId,
+    conditionExpectedState: first.conditionExpectedState,
+    conditionImageMaxAgeSeconds: first.conditionImageMaxAgeSeconds,
+    conditionStateAgeMinutes: first.conditionStateAgeMinutes,
+    conditionTrackerTypeId: first.conditionTrackerTypeId
+  };
 }
 
 export function ruleFormFromStored(rule?: {
@@ -375,15 +429,8 @@ export function ruleFormFromStored(rule?: {
   const trigger = asObject(rule.triggerJson);
   value.triggerDeviceId = typeof trigger.deviceId === "string" ? trigger.deviceId : "";
   value.triggerCapabilityId = typeof trigger.capabilityId === "string" ? trigger.capabilityId : "";
-  const condition = Array.isArray(rule.conditionJson) ? asObject(rule.conditionJson[0]) : {};
-  if (condition.type && conditionLabels[condition.type as AutomationConditionKey]) value.conditionType = condition.type as AutomationConditionKey;
-  value.conditionMinutes = numberValue(condition.minutes, value.conditionMinutes);
-  value.conditionDeviceId = typeof condition.deviceId === "string" ? condition.deviceId : "";
-  value.conditionCapabilityId = typeof condition.capabilityId === "string" ? condition.capabilityId : "";
-  value.conditionExpectedState = typeof condition.state === "string" ? condition.state : value.conditionExpectedState;
-  value.conditionImageMaxAgeSeconds = numberValue(condition.maxAgeSeconds ?? condition.seconds, value.conditionImageMaxAgeSeconds);
-  value.conditionStateAgeMinutes = numberValue(condition.minutes ?? condition.stateAgeMinutes, value.conditionStateAgeMinutes);
-  value.conditionTrackerTypeId = typeof condition.trackerTypeId === "string" ? condition.trackerTypeId : "";
+  const conditions = Array.isArray(rule.conditionJson) ? rule.conditionJson.map((item) => conditionFormFromRecord(asObject(item))).filter((condition) => condition.conditionType !== "none") : [];
+  value.conditions = conditions.length ? conditions : [defaultRuleConditionValue()];
   const timing = asObject(rule.timingJson);
   if (timing.type && timingLabels[timing.type as AutomationTimingKey]) value.timingType = timing.type as AutomationTimingKey;
   value.delayMinutes = numberValue(timing.minutes ?? timing.delayMinutes, value.delayMinutes);
@@ -413,7 +460,7 @@ export function ruleFormFromStored(rule?: {
   value.cameraBootDelaySeconds = first.cameraBootDelaySeconds;
   value.recoveryCapabilityId = first.recoveryCapabilityId;
   value.mode = rule.mode === "REPEAT" ? "REPEAT" : "ONCE";
-  return value;
+  return syncFirstCondition(value);
 }
 
 export function buildStoredRule(value: RuleFormValue) {
@@ -421,15 +468,16 @@ export function buildStoredRule(value: RuleFormValue) {
     deviceId: triggerNeedsDevice(value.triggerType) ? value.triggerDeviceId || null : null,
     capabilityId: triggerNeedsCapability(value.triggerType) ? value.triggerCapabilityId || null : null
   };
-  const conditions = value.conditionType === "none" ? [] : [{
-    type: value.conditionType,
-    minutes: value.conditionType === "controller_absent" ? value.conditionMinutes : value.conditionType === "switch_state_for" ? value.conditionStateAgeMinutes : 0,
-    deviceId: ["device_online", "device_offline"].includes(value.conditionType) ? value.conditionDeviceId || null : null,
-    capabilityId: ["capability_state", "last_image_younger_than", "switch_state_for"].includes(value.conditionType) ? value.conditionCapabilityId || null : null,
-    state: ["capability_state", "switch_state_for"].includes(value.conditionType) ? value.conditionExpectedState || null : null,
-    maxAgeSeconds: value.conditionType === "last_image_younger_than" ? Math.max(1, value.conditionImageMaxAgeSeconds) : null,
-    trackerTypeId: value.conditionType === "quota_remaining" ? value.conditionTrackerTypeId || null : null
-  }];
+  const formConditions = value.conditions?.length ? value.conditions : [defaultRuleConditionValue(value.conditionType)];
+  const conditions = formConditions.filter((condition) => condition.conditionType !== "none").map((condition) => ({
+    type: condition.conditionType,
+    minutes: condition.conditionType === "controller_absent" ? condition.conditionMinutes : condition.conditionType === "switch_state_for" ? condition.conditionStateAgeMinutes : 0,
+    deviceId: ["device_online", "device_offline"].includes(condition.conditionType) ? condition.conditionDeviceId || null : null,
+    capabilityId: ["capability_state", "last_image_younger_than", "switch_state_for"].includes(condition.conditionType) ? condition.conditionCapabilityId || null : null,
+    state: ["capability_state", "switch_state_for"].includes(condition.conditionType) ? condition.conditionExpectedState || null : null,
+    maxAgeSeconds: condition.conditionType === "last_image_younger_than" ? Math.max(1, condition.conditionImageMaxAgeSeconds) : null,
+    trackerTypeId: condition.conditionType === "quota_remaining" ? condition.conditionTrackerTypeId || null : null
+  }));
   const timing = value.timingType === "fixed_delay"
     ? { type: "fixed_delay", minutes: value.delayMinutes }
     : value.timingType === "random_delay"
@@ -499,54 +547,56 @@ export function validateAutomationRulePayload(input: {
   }
 
   const conditions = Array.isArray(input.conditionJson) ? input.conditionJson : [];
-  if (conditions.length > 1) errors.push("Bitte verwende in dieser Oberfläche genau eine Bedingung.");
-  const condition = conditions.length ? asObject(conditions[0]) : {};
-  const conditionType = (condition.type || "none") as AutomationConditionKey;
   const allowedConditions = conditionOptions[trigger] || [];
-  if (!conditionLabels[conditionType] || !allowedConditions.includes(conditionType)) {
-    errors.push("Die gewählte Bedingung passt nicht zu diesem Auslöser.");
-  }
-  if (conditionType === "controller_absent" && numberValue(condition.minutes, 0) < 1) {
-    errors.push("Der Zeitraum für Controller-Abwesenheit muss mindestens eine Minute betragen.");
-  }
-  if ((conditionType === "device_online" || conditionType === "device_offline")) {
-    const deviceId = typeof condition.deviceId === "string" ? condition.deviceId : "";
-    if (!deviceId) errors.push("Bitte wähle das Gerät für diese Bedingung.");
-    if (deviceId && !devices.some((device) => device.id === deviceId)) errors.push("Das gewählte Gerät ist auf dieser Seite nicht verfügbar.");
-  }
-  if (conditionType === "capability_state") {
-    const capabilityId = typeof condition.capabilityId === "string" ? condition.capabilityId : "";
-    const expectedState = typeof condition.state === "string" ? condition.state.trim() : "";
-    const requiredKind = triggerCapabilityFilter(trigger);
-    const capability = capabilityId ? capabilities.find((item) => item.id === capabilityId) : null;
-    if (!capabilityId) errors.push("Bitte wähle die Fähigkeit für diese Bedingung.");
-    if (capabilityId && !capability) errors.push("Die gewählte Fähigkeit ist auf dieser Seite nicht verfügbar.");
-    if (capability && requiredKind && capability.kind !== requiredKind) errors.push("Die gewählte Fähigkeitsbedingung passt nicht zum Auslöser.");
-    if (!expectedState) errors.push("Bitte wähle den erwarteten Zustand.");
-  }
-  if (conditionType === "last_image_younger_than") {
-    const capabilityId = typeof condition.capabilityId === "string" ? condition.capabilityId : "";
-    const capability = capabilityId ? capabilities.find((item) => item.id === capabilityId) : null;
-    if (!capabilityId) errors.push("Bitte wähle die Kamera für diese Bedingung.");
-    if (capabilityId && !capability) errors.push("Die gewählte Kamera ist auf dieser Seite nicht verfügbar.");
-    if (capability && capability.kind !== "Camera") errors.push("Für diese Bedingung muss eine Kamera-Fähigkeit gewählt werden.");
-    if (numberValue(condition.maxAgeSeconds ?? condition.seconds, 0) < 1) errors.push("Das maximale Bildalter muss mindestens eine Sekunde betragen.");
-  }
-  if (conditionType === "switch_state_for") {
-    const capabilityId = typeof condition.capabilityId === "string" ? condition.capabilityId : "";
-    const capability = capabilityId ? capabilities.find((item) => item.id === capabilityId) : null;
-    const expectedState = typeof condition.state === "string" ? condition.state.trim() : "";
-    if (!capabilityId) errors.push("Bitte wähle den Schalter für diese Bedingung.");
-    if (capabilityId && !capability) errors.push("Der gewählte Schalter ist auf dieser Seite nicht verfügbar.");
-    if (capability && capability.kind !== "Switch") errors.push("Für diese Bedingung muss eine Schaltfähigkeit gewählt werden.");
-    if (!["ON", "OFF"].includes(expectedState)) errors.push("Bitte wähle, ob der Schalter ein- oder ausgeschaltet sein soll.");
-    if (numberValue(condition.minutes ?? condition.stateAgeMinutes, 0) < 1) errors.push("Die Dauer des Schaltzustands muss mindestens eine Minute betragen.");
-  }
-  if (conditionType === "quota_remaining") {
-    const trackerTypeId = typeof condition.trackerTypeId === "string" ? condition.trackerTypeId : "";
-    if (!trackerTypeId) errors.push("Bitte wähle den Tracker für das Kontingent.");
-    if (trackerTypeId && !trackers.some((tracker) => tracker.id === trackerTypeId)) errors.push("Der gewählte Tracker ist auf dieser Seite nicht verfügbar.");
-  }
+  conditions.forEach((rawCondition, index) => {
+    const condition = asObject(rawCondition);
+    const prefix = conditions.length > 1 ? `Bedingung ${index + 1}: ` : "";
+    const conditionType = (condition.type || "none") as AutomationConditionKey;
+    if (!conditionLabels[conditionType] || !allowedConditions.includes(conditionType)) {
+      errors.push(`${prefix}Die gewählte Bedingung passt nicht zu diesem Auslöser.`);
+    }
+    if (conditionType === "controller_absent" && numberValue(condition.minutes, 0) < 1) {
+      errors.push(`${prefix}Der Zeitraum für Controller-Abwesenheit muss mindestens eine Minute betragen.`);
+    }
+    if ((conditionType === "device_online" || conditionType === "device_offline")) {
+      const deviceId = typeof condition.deviceId === "string" ? condition.deviceId : "";
+      if (!deviceId) errors.push(`${prefix}Bitte wähle das Gerät für diese Bedingung.`);
+      if (deviceId && !devices.some((device) => device.id === deviceId)) errors.push(`${prefix}Das gewählte Gerät ist auf dieser Seite nicht verfügbar.`);
+    }
+    if (conditionType === "capability_state") {
+      const capabilityId = typeof condition.capabilityId === "string" ? condition.capabilityId : "";
+      const expectedState = typeof condition.state === "string" ? condition.state.trim() : "";
+      const requiredKind = triggerCapabilityFilter(trigger);
+      const capability = capabilityId ? capabilities.find((item) => item.id === capabilityId) : null;
+      if (!capabilityId) errors.push(`${prefix}Bitte wähle die Fähigkeit für diese Bedingung.`);
+      if (capabilityId && !capability) errors.push(`${prefix}Die gewählte Fähigkeit ist auf dieser Seite nicht verfügbar.`);
+      if (capability && requiredKind && capability.kind !== requiredKind) errors.push(`${prefix}Die gewählte Fähigkeitsbedingung passt nicht zum Auslöser.`);
+      if (!expectedState) errors.push(`${prefix}Bitte wähle den erwarteten Zustand.`);
+    }
+    if (conditionType === "last_image_younger_than") {
+      const capabilityId = typeof condition.capabilityId === "string" ? condition.capabilityId : "";
+      const capability = capabilityId ? capabilities.find((item) => item.id === capabilityId) : null;
+      if (!capabilityId) errors.push(`${prefix}Bitte wähle die Kamera für diese Bedingung.`);
+      if (capabilityId && !capability) errors.push(`${prefix}Die gewählte Kamera ist auf dieser Seite nicht verfügbar.`);
+      if (capability && capability.kind !== "Camera") errors.push(`${prefix}Für diese Bedingung muss eine Kamera-Fähigkeit gewählt werden.`);
+      if (numberValue(condition.maxAgeSeconds ?? condition.seconds, 0) < 1) errors.push(`${prefix}Das maximale Bildalter muss mindestens eine Sekunde betragen.`);
+    }
+    if (conditionType === "switch_state_for") {
+      const capabilityId = typeof condition.capabilityId === "string" ? condition.capabilityId : "";
+      const capability = capabilityId ? capabilities.find((item) => item.id === capabilityId) : null;
+      const expectedState = typeof condition.state === "string" ? condition.state.trim() : "";
+      if (!capabilityId) errors.push(`${prefix}Bitte wähle den Schalter für diese Bedingung.`);
+      if (capabilityId && !capability) errors.push(`${prefix}Der gewählte Schalter ist auf dieser Seite nicht verfügbar.`);
+      if (capability && capability.kind !== "Switch") errors.push(`${prefix}Für diese Bedingung muss eine Schaltfähigkeit gewählt werden.`);
+      if (!["ON", "OFF"].includes(expectedState)) errors.push(`${prefix}Bitte wähle, ob der Schalter ein- oder ausgeschaltet sein soll.`);
+      if (numberValue(condition.minutes ?? condition.stateAgeMinutes, 0) < 1) errors.push(`${prefix}Die Dauer des Schaltzustands muss mindestens eine Minute betragen.`);
+    }
+    if (conditionType === "quota_remaining") {
+      const trackerTypeId = typeof condition.trackerTypeId === "string" ? condition.trackerTypeId : "";
+      if (!trackerTypeId) errors.push(`${prefix}Bitte wähle den Tracker für das Kontingent.`);
+      if (trackerTypeId && !trackers.some((tracker) => tracker.id === trackerTypeId)) errors.push(`${prefix}Der gewählte Tracker ist auf dieser Seite nicht verfügbar.`);
+    }
+  });
 
   const timing = asObject(input.timingJson);
   const timingType = (timing.type || "immediate") as AutomationTimingKey;
@@ -612,10 +662,10 @@ export function automationRuleSummary(input: {
   actionJson?: unknown;
 }, context: AutomationRuleContext = {}) {
   const trigger = describeTrigger(input.triggerType, input.triggerJson, context);
-  const condition = Array.isArray(input.conditionJson) ? asObject(input.conditionJson[0]) : {};
+  const conditions = Array.isArray(input.conditionJson) ? input.conditionJson.map((item) => asObject(item)).filter((condition) => condition.type && condition.type !== "none") : [];
   const timing = asObject(input.timingJson);
   const actions = Array.isArray(input.actionJson) ? input.actionJson.map((item) => asObject(item)) : [];
-  const conditionText = condition.type && condition.type !== "none" ? describeCondition(condition, context).toLowerCase() : "";
+  const conditionText = conditions.map((condition) => describeCondition(condition, context).toLowerCase()).join(" und ");
   const timingText = timing.type === "random_delay"
     ? `warte zufällig weitere ${numberValue(timing.minMinutes, 0)} bis ${numberValue(timing.maxMinutes, 0)} Minuten`
     : timing.type === "fixed_delay"
@@ -630,15 +680,13 @@ export function automationRuleSummary(input: {
 }
 
 export function automationRuleFlow(input: { triggerType: string; triggerJson?: unknown; conditionJson?: unknown; timingJson?: unknown; actionJson?: unknown }, context: AutomationRuleContext = {}) {
-  const condition = Array.isArray(input.conditionJson) ? asObject(input.conditionJson[0]) : {};
+  const conditions = Array.isArray(input.conditionJson) ? input.conditionJson.map((item) => asObject(item)).filter((condition) => condition.type && condition.type !== "none") : [];
   const timing = asObject(input.timingJson);
   const actions = Array.isArray(input.actionJson) ? input.actionJson.map((item) => asObject(item)) : [];
   const steps = [
     describeTrigger(input.triggerType, input.triggerJson, context)
   ];
-  if (condition.type && condition.type !== "none") {
-    steps.push(describeCondition(condition, context));
-  }
+  conditions.forEach((condition) => steps.push(describeCondition(condition, context)));
   if (timing.type === "fixed_delay") steps.push(`${numberValue(timing.minutes ?? timing.delayMinutes, 0)} Minuten warten`);
   if (timing.type === "random_delay") steps.push(`Zufallsfenster ${numberValue(timing.minMinutes, 0)}-${numberValue(timing.maxMinutes, 0)} Minuten`);
   actions.forEach((action, index) => {
@@ -666,18 +714,23 @@ export function simulateAutomationRuleTimeline(input: {
   randomSeed?: number;
   controllerActionMinute?: number | null;
 }, context: AutomationRuleContext = {}) {
-  const condition = Array.isArray(input.conditionJson) ? asObject(input.conditionJson[0]) : {};
+  const conditionRecords = Array.isArray(input.conditionJson) ? input.conditionJson.map((item) => asObject(item)).filter((condition) => condition.type && condition.type !== "none") : [];
   const timing = asObject(input.timingJson);
   const actions = Array.isArray(input.actionJson) ? input.actionJson.map((item) => asObject(item)).filter((item) => item.type) : [];
   const primaryAction = actions[0] || {};
-  const conditionType = condition.type as AutomationConditionKey | undefined;
-  const conditionMinutes = conditionType === "controller_absent" ? numberValue(condition.minutes, 0) : 0;
-  const controllerActionMinute = conditionType === "controller_absent" && input.controllerActionMinute !== null && input.controllerActionMinute !== undefined
+  const absenceCondition = conditionRecords.find((condition) => condition.type === "controller_absent");
+  const conditionMinutes = conditionRecords.reduce((max, condition) => Math.max(max, condition.type === "controller_absent" ? numberValue(condition.minutes, 0) : 0), 0);
+  const controllerActionMinute = absenceCondition && input.controllerActionMinute !== null && input.controllerActionMinute !== undefined
     ? numberValue(input.controllerActionMinute, 0)
     : null;
   const controllerActionBlocks = controllerActionMinute !== null && controllerActionMinute <= conditionMinutes;
-  const conditionEvaluation = evaluateSimulationCondition(condition, context);
-  const simulatedStateVariables = simulationStateVariables(condition, context);
+  const conditionEvaluations = conditionRecords.length ? conditionRecords.map((condition) => ({ condition, evaluation: evaluateSimulationCondition(condition, context) })) : [];
+  const conditionEvaluation = {
+    passed: conditionEvaluations.every((item) => item.evaluation.passed),
+    canBecomeTrue: conditionEvaluations.every((item) => item.evaluation.canBecomeTrue),
+    result: conditionEvaluations.map((item) => item.evaluation.result).filter(Boolean).join(" · ") || "Keine zusätzliche Bedingung"
+  };
+  const simulatedStateVariables = Object.assign({}, ...conditionRecords.map((condition) => simulationStateVariables(condition, context)));
   const minDelay = timing.type === "random_delay" ? numberValue(timing.minMinutes, 0) : timing.type === "fixed_delay" ? numberValue(timing.minutes ?? timing.delayMinutes, 0) : 0;
   const maxDelay = timing.type === "random_delay" ? numberValue(timing.maxMinutes, 0) : minDelay;
   const delay = timing.type === "random_delay"
@@ -694,31 +747,35 @@ export function simulateAutomationRuleTimeline(input: {
   const ruleTitle = describeTrigger(input.triggerType, input.triggerJson, context);
   const controllerActionHasHappened = controllerActionMinute !== null && scrubMinute >= controllerActionMinute;
   const controllerActionBlocksNow = controllerActionBlocks && controllerActionHasHappened;
-  const conditionStatus = controllerActionBlocksNow || !conditionEvaluation.canBecomeTrue
-    ? "blockiert"
-    : scrubMinute < conditionMinutes && condition.type === "controller_absent"
-      ? "wartet"
-      : conditionEvaluation.passed
-        ? "erfüllt"
-        : "nicht erfüllt";
+  const primaryCondition = absenceCondition || conditionRecords[0] || {};
+  const primaryConditionType = primaryCondition.type as string | undefined;
   const events = [
     { minute: 0, title: ruleTitle },
     ...(controllerActionMinute !== null ? [{ minute: controllerActionMinute, title: "Controller-Aktion simuliert" }] : [])
   ];
-  const conditions = condition.type && condition.type !== "none"
-    ? [{
-        minute: conditionMinutes,
-        title: describeCondition(condition, context),
-        status: conditionStatus,
-        passed: conditionEvaluation.passed && scrubMinute >= conditionMinutes && !controllerActionBlocksNow,
-        result: controllerActionBlocksNow
+  const conditions = conditionEvaluations.map(({ condition, evaluation }, index) => {
+    const itemMinutes = condition.type === "controller_absent" ? numberValue(condition.minutes, 0) : 0;
+    const itemBlocksNow = condition.type === "controller_absent" && controllerActionBlocksNow;
+    const itemStatus = itemBlocksNow || !evaluation.canBecomeTrue
+      ? "blockiert"
+      : scrubMinute < itemMinutes && condition.type === "controller_absent"
+        ? "wartet"
+        : evaluation.passed
+          ? "erfüllt"
+          : "nicht erfüllt";
+    return {
+        minute: itemMinutes,
+        title: conditionEvaluations.length > 1 ? `Bedingung ${index + 1}: ${describeCondition(condition, context)}` : describeCondition(condition, context),
+        status: itemStatus,
+        passed: evaluation.passed && scrubMinute >= itemMinutes && !itemBlocksNow,
+        result: itemBlocksNow
           ? `Bei Minute ${controllerActionMinute} wurde eine Controller-Aktion simuliert. Die Abwesenheitsbedingung ist damit nicht mehr erfüllt.`
-          : scrubMinute < conditionMinutes && condition.type === "controller_absent"
-            ? `Warte noch ${Math.max(0, conditionMinutes - scrubMinute)} Minuten auf mögliche Controller-Aktion`
-            : conditionEvaluation.result
-      }]
-    : [];
-  const conditionSatisfiedAtScrub = !condition.type || condition.type === "none" || (conditionEvaluation.passed && scrubMinute >= conditionMinutes && !controllerActionBlocksNow);
+          : scrubMinute < itemMinutes && condition.type === "controller_absent"
+            ? `Warte noch ${Math.max(0, itemMinutes - scrubMinute)} Minuten auf mögliche Controller-Aktion`
+            : evaluation.result
+      };
+    });
+  const conditionSatisfiedAtScrub = !conditionRecords.length || (conditionEvaluation.passed && scrubMinute >= conditionMinutes && !controllerActionBlocksNow);
   const actionsAreDue = dueMinute !== null && conditionSatisfiedAtScrub && scrubMinute >= dueMinute;
   const actionItems = actions.map((action, index) => {
     const minute = dueMinute ?? conditionMinutes;
@@ -752,7 +809,7 @@ export function simulateAutomationRuleTimeline(input: {
   const timeline = [
     { minute: 0, title: "Auslöser eingetreten", status: scrubMinute >= 0 ? "erledigt" : "wartet" },
     ...(controllerActionMinute !== null ? [{ minute: controllerActionMinute, title: "Controller-Aktion in der Simulation", status: controllerActionHasHappened ? (controllerActionBlocks ? "blockiert Bedingung" : "außerhalb des Fensters") : "steht noch aus" }] : []),
-    ...(condition.type && condition.type !== "none" ? [{ minute: conditionMinutes, title: describeCondition(condition, context), status: conditionEvaluation.passed && scrubMinute >= conditionMinutes && !controllerActionBlocksNow ? "erfüllt" : scrubMinute >= conditionMinutes || controllerActionBlocksNow ? "blockiert" : "wartet" }] : []),
+    ...conditions.map((condition) => ({ minute: condition.minute, title: condition.title, status: condition.status })),
     ...(delay && dueMinute !== null ? [{ minute: dueMinute, title: timing.type === "random_delay" ? `Zufällige Wartezeit endet nach ${delay} Minuten` : `Wartezeit endet nach ${delay} Minuten`, status: scrubMinute >= dueMinute ? "erledigt" : "wartet" }] : []),
     ...actionItems.map((item) => ({ ...item, status: blockedActions.length ? "blockiert" : actionsAreDue ? "fällig" : "wartet" })),
     ...recoveryPlan.map((item) => ({ ...item, status: scrubMinute >= item.minute ? "erledigt" : "wartet" }))
@@ -761,7 +818,7 @@ export function simulateAutomationRuleTimeline(input: {
   const completedTimelineItems = timeline.filter((item) => item.minute < scrubMinute);
   const upcomingTimelineItems = timeline.filter((item) => item.minute > scrubMinute);
   const reviewMoments = simulationReviewMoments({
-    conditionType: condition.type as string | undefined,
+    conditionType: primaryConditionType,
     conditionMinutes,
     timingType: timing.type as string | undefined,
     minDelay,
@@ -784,9 +841,9 @@ export function simulateAutomationRuleTimeline(input: {
     randomValues: timing.type === "random_delay" ? [{ label: "Gewählte Zufallswartezeit", value: `${delay} Minuten` }] : [],
     humanVariables: [
       `Auslöser: ${ruleTitle}`,
-      ...(condition.type && condition.type !== "none" ? [`Bedingung: ${describeCondition(condition, context)}`] : ["Bedingung: keine zusätzliche Bedingung"]),
-      `Bedingung aktuell: ${conditionSatisfiedAtScrub ? "erfüllt" : "nicht erfüllt"}`,
-      ...(conditionType === "controller_absent" ? [`Abwesenheitsfenster: ${conditionMinutes} Minuten`] : []),
+      ...(conditions.length ? conditions.map((condition) => `${condition.title}: ${condition.status}`) : ["Bedingung: keine zusätzliche Bedingung"]),
+      `Alle Bedingungen aktuell: ${conditionSatisfiedAtScrub ? "erfüllt" : "nicht erfüllt"}`,
+      ...(absenceCondition ? [`Abwesenheitsfenster: ${conditionMinutes} Minuten`] : []),
       ...(controllerActionMinute !== null ? [`Simulierte Controller-Aktion: Minute ${controllerActionMinute}`, `Auswirkung: ${controllerActionBlocksNow ? "Regel blockiert" : controllerActionBlocks ? "würde die Regel blockieren" : "außerhalb des Fensters, Regel bleibt möglich"}`] : []),
       ...(timing.type === "fixed_delay" ? [`Feste Wartezeit: ${delay} Minuten`] : []),
       ...(timing.type === "random_delay" ? [`Zufallsfenster: ${numberValue(timing.minMinutes, 0)} bis ${numberValue(timing.maxMinutes, 0)} Minuten`, `Gezogener Wert: ${delay} Minuten`] : []),
@@ -805,7 +862,7 @@ export function simulateAutomationRuleTimeline(input: {
       upcoming: upcomingTimelineItems.slice(0, 4).map((item) => `Minute ${item.minute}: ${item.title}: ${item.status}`),
       decision: explainSimulationState({
         scrubMinute,
-        conditionType: condition.type as string | undefined,
+        conditionType: primaryConditionType,
         conditionMinutes,
         delay,
         dueMinute: dueMinute ?? conditionMinutes,
@@ -816,7 +873,7 @@ export function simulateAutomationRuleTimeline(input: {
     },
     explanation: explainSimulationState({
       scrubMinute,
-      conditionType: condition.type as string | undefined,
+      conditionType: primaryConditionType,
       conditionMinutes,
       delay,
       dueMinute: dueMinute ?? conditionMinutes,

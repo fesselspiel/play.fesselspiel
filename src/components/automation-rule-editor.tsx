@@ -11,6 +11,7 @@ import {
   conditionLabels,
   conditionOptions,
   defaultRuleActionValue,
+  defaultRuleConditionValue,
   defaultRuleFormValue,
   labelAutomationValue,
   simulateAutomationRuleTimeline,
@@ -26,6 +27,7 @@ import {
   type AutomationTriggerKey,
   type CapabilityKind,
   type RuleActionFormValue,
+  type RuleConditionFormValue,
   type RuleFormValue
 } from "@/lib/automation-rule-model";
 import { inputClass } from "@/components/ui";
@@ -139,7 +141,16 @@ export function AutomationRuleEditor({
   const [simulatedCapabilityState, setSimulatedCapabilityState] = useState<Record<string, string>>({});
   const [simulatedLastImageAgeSeconds, setSimulatedLastImageAgeSeconds] = useState<Record<string, number>>({});
   const [simulatedCapabilityStateAgeMinutes, setSimulatedCapabilityStateAgeMinutes] = useState<Record<string, number>>({});
+  const activeConditions = value.conditions?.length ? value.conditions : [defaultRuleConditionValue(value.conditionType)];
   const availableConditions = conditionOptions[value.triggerType] || ["none"];
+  const hasControllerAbsenceCondition = activeConditions.some((condition) => condition.conditionType === "controller_absent");
+  const absenceCondition = activeConditions.find((condition) => condition.conditionType === "controller_absent");
+  const deviceCondition = activeConditions.find((condition) => condition.conditionType === "device_online" || condition.conditionType === "device_offline");
+  const capabilityCondition = activeConditions.find((condition) => condition.conditionType === "capability_state");
+  const lastImageCondition = activeConditions.find((condition) => condition.conditionType === "last_image_younger_than");
+  const switchCondition = activeConditions.find((condition) => condition.conditionType === "switch_state_for");
+  const simulationCapability = capabilities.find((capability) => capability.id === capabilityCondition?.conditionCapabilityId);
+  const switchSimulationCapability = capabilities.find((capability) => capability.id === switchCondition?.conditionCapabilityId);
   const recoveryCapabilities = capabilities.filter((capability) => capability.kind === "Switch");
   const stored = useMemo(() => buildStoredRule(value), [value]);
   const context = useMemo(() => ({
@@ -167,7 +178,7 @@ export function AutomationRuleEditor({
   const simulation = simulateAutomationRuleTimeline({
     ...stored,
     scrubMinute,
-    controllerActionMinute: value.conditionType === "controller_absent" && simulateControllerAction ? controllerActionMinute : null
+    controllerActionMinute: hasControllerAbsenceCondition && simulateControllerAction ? controllerActionMinute : null
   }, context);
   const simulationJumpPoints = useMemo(() => {
     const points = new Map<number, string>();
@@ -178,10 +189,6 @@ export function AutomationRuleEditor({
   }, [simulation.timeline]);
   const triggerCapabilityKind = triggerCapabilityFilter(value.triggerType);
   const triggerCapabilities = triggerCapabilityKind ? capabilities.filter((capability) => capability.kind === triggerCapabilityKind) : capabilities;
-  const conditionCapabilityKind = value.conditionType === "last_image_younger_than" ? "Camera" : value.conditionType === "switch_state_for" ? "Switch" : triggerCapabilityKind;
-  const conditionCapabilities = conditionCapabilityKind ? capabilities.filter((capability) => capability.kind === conditionCapabilityKind) : capabilities;
-  const conditionCapability = capabilities.find((capability) => capability.id === value.conditionCapabilityId);
-  const conditionStateOptions = stateOptionsForCapability(conditionCapability?.kind);
 
   useEffect(() => {
     setValue((current) => normalizeRuleForm(current));
@@ -219,6 +226,66 @@ export function AutomationRuleEditor({
       if (merged.maxMinutes < merged.minMinutes) merged.maxMinutes = merged.minMinutes;
       return normalizeRuleForm(merged);
     });
+  }
+
+  function conditionCapabilityKindFor(conditionType: AutomationConditionKey) {
+    if (conditionType === "last_image_younger_than") return "Camera";
+    if (conditionType === "switch_state_for") return "Switch";
+    return triggerCapabilityFilter(value.triggerType);
+  }
+
+  function normalizeCondition(condition: RuleConditionFormValue, triggerType = value.triggerType): RuleConditionFormValue {
+    const next = { ...condition };
+    const conditions = conditionOptions[triggerType] || ["none"];
+    if (!conditions.includes(next.conditionType)) next.conditionType = conditions[0];
+    if (["device_online", "device_offline"].includes(next.conditionType)) {
+      if (!devices.some((device) => device.id === next.conditionDeviceId)) next.conditionDeviceId = devices[0]?.id || "";
+    } else {
+      next.conditionDeviceId = "";
+    }
+    if (["capability_state", "last_image_younger_than", "switch_state_for"].includes(next.conditionType)) {
+      const requiredKind = next.conditionType === "last_image_younger_than" ? "Camera" : next.conditionType === "switch_state_for" ? "Switch" : triggerCapabilityFilter(triggerType);
+      const allowed = requiredKind ? capabilities.filter((capability) => capability.kind === requiredKind) : capabilities;
+      const currentCapability = allowed.find((capability) => capability.id === next.conditionCapabilityId);
+      if (!currentCapability) {
+        const first = allowed[0];
+        next.conditionCapabilityId = first?.id || "";
+        next.conditionExpectedState = first?.state || "ONLINE";
+      } else if (next.conditionType === "capability_state") {
+        const validStates = stateOptionsForCapability(currentCapability.kind).map(([key]) => key);
+        if (!validStates.includes(next.conditionExpectedState)) next.conditionExpectedState = validStates[0] || "ONLINE";
+      }
+      if (next.conditionType === "last_image_younger_than") next.conditionImageMaxAgeSeconds = Math.max(1, next.conditionImageMaxAgeSeconds || 300);
+      if (next.conditionType === "switch_state_for") {
+        if (!["ON", "OFF"].includes(next.conditionExpectedState)) next.conditionExpectedState = "ON";
+        next.conditionStateAgeMinutes = Math.max(1, next.conditionStateAgeMinutes || 5);
+      }
+    } else {
+      next.conditionCapabilityId = "";
+    }
+    if (next.conditionType === "quota_remaining") {
+      if (!trackers.some((tracker) => tracker.id === next.conditionTrackerTypeId)) next.conditionTrackerTypeId = trackers[0]?.id || "";
+    } else {
+      next.conditionTrackerTypeId = "";
+    }
+    return next;
+  }
+
+  function normalizeConditions(current: RuleFormValue): RuleFormValue {
+    const conditions = (current.conditions?.length ? current.conditions : [defaultRuleConditionValue(current.conditionType)]).map((condition) => normalizeCondition(condition, current.triggerType));
+    const first = conditions[0] || defaultRuleConditionValue();
+    return {
+      ...current,
+      conditions,
+      conditionType: first.conditionType,
+      conditionMinutes: first.conditionMinutes,
+      conditionDeviceId: first.conditionDeviceId,
+      conditionCapabilityId: first.conditionCapabilityId,
+      conditionExpectedState: first.conditionExpectedState,
+      conditionImageMaxAgeSeconds: first.conditionImageMaxAgeSeconds,
+      conditionStateAgeMinutes: first.conditionStateAgeMinutes,
+      conditionTrackerTypeId: first.conditionTrackerTypeId
+    };
   }
 
   function capabilitiesForAction(actionType: AutomationActionKey) {
@@ -262,8 +329,6 @@ export function AutomationRuleEditor({
 
   function normalizeRuleForm(current: RuleFormValue): RuleFormValue {
     const next = { ...current };
-    const conditions = conditionOptions[next.triggerType] || ["none"];
-    if (!conditions.includes(next.conditionType)) next.conditionType = conditions[0];
     const triggerCapKind = triggerCapabilityFilter(next.triggerType);
     const triggerCaps = triggerCapKind ? capabilities.filter((capability) => capability.kind === triggerCapKind) : capabilities;
     if (triggerNeedsDevice(next.triggerType)) {
@@ -276,37 +341,28 @@ export function AutomationRuleEditor({
     } else {
       next.triggerCapabilityId = "";
     }
-    if (["device_online", "device_offline"].includes(next.conditionType)) {
-      if (!devices.some((device) => device.id === next.conditionDeviceId)) next.conditionDeviceId = devices[0]?.id || "";
-    } else {
-      next.conditionDeviceId = "";
-    }
-    if (next.conditionType === "capability_state" || next.conditionType === "last_image_younger_than" || next.conditionType === "switch_state_for") {
-      const conditionCapKind = next.conditionType === "last_image_younger_than" ? "Camera" : next.conditionType === "switch_state_for" ? "Switch" : triggerCapabilityFilter(next.triggerType);
-      const allowedConditionCapabilities = conditionCapKind ? capabilities.filter((capability) => capability.kind === conditionCapKind) : capabilities;
-      const currentCapability = allowedConditionCapabilities.find((capability) => capability.id === next.conditionCapabilityId);
-      if (!currentCapability) {
-        const first = allowedConditionCapabilities[0];
-        next.conditionCapabilityId = first?.id || "";
-        next.conditionExpectedState = first?.state || "ONLINE";
-      } else if (next.conditionType === "capability_state") {
-        const validStates = stateOptionsForCapability(currentCapability.kind).map(([key]) => key);
-        if (!validStates.includes(next.conditionExpectedState)) next.conditionExpectedState = validStates[0] || "ONLINE";
-      }
-      if (next.conditionType === "last_image_younger_than") next.conditionImageMaxAgeSeconds = Math.max(1, next.conditionImageMaxAgeSeconds || 300);
-      if (next.conditionType === "switch_state_for") {
-        if (!["ON", "OFF"].includes(next.conditionExpectedState)) next.conditionExpectedState = "ON";
-        next.conditionStateAgeMinutes = Math.max(1, next.conditionStateAgeMinutes || 5);
-      }
-    } else {
-      next.conditionCapabilityId = "";
-    }
-    if (next.conditionType === "quota_remaining" && !trackers.some((tracker) => tracker.id === next.conditionTrackerTypeId)) {
-      next.conditionTrackerTypeId = trackers[0]?.id || "";
-    } else if (next.conditionType !== "quota_remaining") {
-      next.conditionTrackerTypeId = "";
-    }
-    return normalizeActions(next);
+    return normalizeActions(normalizeConditions(next));
+  }
+
+  function updateCondition(index: number, patch: Partial<RuleConditionFormValue>) {
+    setValue((current) => {
+      const source = current.conditions?.length ? current.conditions : [defaultRuleConditionValue(current.conditionType)];
+      const conditions = source.map((condition, conditionIndex) => (
+        conditionIndex === index ? normalizeCondition({ ...condition, ...patch }, current.triggerType) : normalizeCondition(condition, current.triggerType)
+      ));
+      return normalizeRuleForm({ ...current, conditions });
+    });
+  }
+
+  function addCondition() {
+    setValue((current) => normalizeRuleForm({ ...current, conditions: [...(current.conditions?.length ? current.conditions : [defaultRuleConditionValue(current.conditionType)]), defaultRuleConditionValue()] }));
+  }
+
+  function removeCondition(index: number) {
+    setValue((current) => {
+      const conditions = (current.conditions?.length ? current.conditions : [defaultRuleConditionValue(current.conditionType)]).filter((_, conditionIndex) => conditionIndex !== index);
+      return normalizeRuleForm({ ...current, conditions: conditions.length ? conditions : [defaultRuleConditionValue()] });
+    });
   }
 
   function updateAction(index: number, patch: Partial<RuleActionFormValue>) {
@@ -391,92 +447,117 @@ export function AutomationRuleEditor({
         </section>
 
         <section className="rounded-lg border border-line bg-paper p-4">
-          <div className="flex items-center gap-2 font-semibold text-ink"><CheckCircle2 className="h-4 w-4" /> Bedingungen</div>
-          <select className={`${inputClass} mt-3`} value={value.conditionType} onChange={(event) => update({ conditionType: event.target.value as AutomationConditionKey })}>
-            {availableConditions.map((key) => <option key={key} value={key}>{conditionLabels[key]}</option>)}
-          </select>
-          {value.conditionType === "controller_absent" ? (
-            <label className="mt-3 block text-sm text-graphite">Zeitraum
-              <div className="mt-1 flex items-center gap-2">
-                <input className={inputClass} type="number" min={1} value={value.conditionMinutes} onChange={(event) => update({ conditionMinutes: Number(event.target.value) })} />
-                <span>Minuten</span>
-              </div>
-            </label>
-          ) : null}
-          {value.conditionType === "device_online" || value.conditionType === "device_offline" ? (
-            <label className="mt-3 block text-sm text-graphite">Gerät
-              <select className={`${inputClass} mt-1`} value={value.conditionDeviceId} onChange={(event) => update({ conditionDeviceId: event.target.value })}>
-                {devices.length ? devices.map((device) => <option key={device.id} value={device.id}>{device.name}</option>) : <option value="">Kein Gerät eingerichtet</option>}
-              </select>
-            </label>
-          ) : null}
-          {value.conditionType === "capability_state" ? (
-            <div className="mt-3 grid gap-2 text-sm text-graphite">
-              <label>Fähigkeit
-                <select className={`${inputClass} mt-1`} value={value.conditionCapabilityId} onChange={(event) => update({ conditionCapabilityId: event.target.value })}>
-                  {conditionCapabilities.length ? (
-                    <optgroup label={capabilityKindLabel(conditionCapabilityKind)}>
-                      {conditionCapabilities.map((capability) => (
-                        <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
-                      ))}
-                    </optgroup>
-                  ) : <option value="">{emptyCapabilityText(conditionCapabilityKind)}</option>}
-                </select>
-              </label>
-              <label>Erwarteter Zustand
-                <select className={`${inputClass} mt-1`} value={value.conditionExpectedState} onChange={(event) => update({ conditionExpectedState: event.target.value })}>
-                  {conditionStateOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-                </select>
-              </label>
-            </div>
-          ) : null}
-          {value.conditionType === "last_image_younger_than" ? (
-            <div className="mt-3 grid gap-2 text-sm text-graphite">
-              <label>Kamera
-                <select className={`${inputClass} mt-1`} value={value.conditionCapabilityId} onChange={(event) => update({ conditionCapabilityId: event.target.value })}>
-                  {conditionCapabilities.length ? conditionCapabilities.map((capability) => (
-                    <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
-                  )) : <option value="">Keine Kamera eingerichtet</option>}
-                </select>
-              </label>
-              <label>Maximales Bildalter
-                <div className="mt-1 flex items-center gap-2">
-                  <input className={inputClass} type="number" min={1} value={value.conditionImageMaxAgeSeconds} onChange={(event) => update({ conditionImageMaxAgeSeconds: Number(event.target.value) })} />
-                  <span>Sek.</span>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 font-semibold text-ink"><CheckCircle2 className="h-4 w-4" /> Bedingungen</div>
+            <button type="button" onClick={addCondition} className="inline-flex min-h-10 items-center rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink hover:border-redbrand hover:text-redbrand">
+              <Plus className="mr-2 h-4 w-4" /> Bedingung hinzufügen
+            </button>
+          </div>
+          <div className="mt-3 space-y-3">
+            {activeConditions.map((condition, index) => {
+              const conditionCapabilityKind = conditionCapabilityKindFor(condition.conditionType);
+              const conditionCapabilities = conditionCapabilityKind ? capabilities.filter((capability) => capability.kind === conditionCapabilityKind) : capabilities;
+              const conditionCapability = capabilities.find((capability) => capability.id === condition.conditionCapabilityId);
+              const conditionStateOptions = stateOptionsForCapability(conditionCapability?.kind);
+              return (
+                <div key={`condition-${index}`} className="rounded-md border border-line bg-surface p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-sm font-semibold text-ink">{activeConditions.length > 1 ? `Bedingung ${index + 1}` : "Bedingung"}</div>
+                    {activeConditions.length > 1 ? (
+                      <button type="button" onClick={() => removeCondition(index)} className="inline-flex min-h-9 items-center rounded-md border border-line bg-paper px-3 py-1 text-xs font-semibold text-ink hover:border-redbrand hover:text-redbrand">
+                        <Trash2 className="mr-1 h-3 w-3" /> Entfernen
+                      </button>
+                    ) : null}
+                  </div>
+                  <select className={`${inputClass} mt-3`} value={condition.conditionType} onChange={(event) => updateCondition(index, { conditionType: event.target.value as AutomationConditionKey })}>
+                    {availableConditions.map((key) => <option key={key} value={key}>{conditionLabels[key]}</option>)}
+                  </select>
+                  {condition.conditionType === "controller_absent" ? (
+                    <label className="mt-3 block text-sm text-graphite">Zeitraum
+                      <div className="mt-1 flex items-center gap-2">
+                        <input className={inputClass} type="number" min={1} value={condition.conditionMinutes} onChange={(event) => updateCondition(index, { conditionMinutes: Number(event.target.value) })} />
+                        <span>Minuten</span>
+                      </div>
+                    </label>
+                  ) : null}
+                  {condition.conditionType === "device_online" || condition.conditionType === "device_offline" ? (
+                    <label className="mt-3 block text-sm text-graphite">Gerät
+                      <select className={`${inputClass} mt-1`} value={condition.conditionDeviceId} onChange={(event) => updateCondition(index, { conditionDeviceId: event.target.value })}>
+                        {devices.length ? devices.map((device) => <option key={device.id} value={device.id}>{device.name}</option>) : <option value="">Kein Gerät eingerichtet</option>}
+                      </select>
+                    </label>
+                  ) : null}
+                  {condition.conditionType === "capability_state" ? (
+                    <div className="mt-3 grid gap-2 text-sm text-graphite">
+                      <label>Fähigkeit
+                        <select className={`${inputClass} mt-1`} value={condition.conditionCapabilityId} onChange={(event) => updateCondition(index, { conditionCapabilityId: event.target.value })}>
+                          {conditionCapabilities.length ? (
+                            <optgroup label={capabilityKindLabel(conditionCapabilityKind)}>
+                              {conditionCapabilities.map((capability) => (
+                                <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
+                              ))}
+                            </optgroup>
+                          ) : <option value="">{emptyCapabilityText(conditionCapabilityKind)}</option>}
+                        </select>
+                      </label>
+                      <label>Erwarteter Zustand
+                        <select className={`${inputClass} mt-1`} value={condition.conditionExpectedState} onChange={(event) => updateCondition(index, { conditionExpectedState: event.target.value })}>
+                          {conditionStateOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                  ) : null}
+                  {condition.conditionType === "last_image_younger_than" ? (
+                    <div className="mt-3 grid gap-2 text-sm text-graphite">
+                      <label>Kamera
+                        <select className={`${inputClass} mt-1`} value={condition.conditionCapabilityId} onChange={(event) => updateCondition(index, { conditionCapabilityId: event.target.value })}>
+                          {conditionCapabilities.length ? conditionCapabilities.map((capability) => (
+                            <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
+                          )) : <option value="">Keine Kamera eingerichtet</option>}
+                        </select>
+                      </label>
+                      <label>Maximales Bildalter
+                        <div className="mt-1 flex items-center gap-2">
+                          <input className={inputClass} type="number" min={1} value={condition.conditionImageMaxAgeSeconds} onChange={(event) => updateCondition(index, { conditionImageMaxAgeSeconds: Number(event.target.value) })} />
+                          <span>Sek.</span>
+                        </div>
+                      </label>
+                    </div>
+                  ) : null}
+                  {condition.conditionType === "switch_state_for" ? (
+                    <div className="mt-3 grid gap-2 text-sm text-graphite">
+                      <label>Schalter
+                        <select className={`${inputClass} mt-1`} value={condition.conditionCapabilityId} onChange={(event) => updateCondition(index, { conditionCapabilityId: event.target.value })}>
+                          {conditionCapabilities.length ? conditionCapabilities.map((capability) => (
+                            <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
+                          )) : <option value="">Kein Schalter eingerichtet</option>}
+                        </select>
+                      </label>
+                      <label>Zustand
+                        <select className={`${inputClass} mt-1`} value={["ON", "OFF"].includes(condition.conditionExpectedState) ? condition.conditionExpectedState : "ON"} onChange={(event) => updateCondition(index, { conditionExpectedState: event.target.value })}>
+                          <option value="ON">Eingeschaltet</option>
+                          <option value="OFF">Ausgeschaltet</option>
+                        </select>
+                      </label>
+                      <label>Dauer
+                        <div className="mt-1 flex items-center gap-2">
+                          <input className={inputClass} type="number" min={1} value={condition.conditionStateAgeMinutes} onChange={(event) => updateCondition(index, { conditionStateAgeMinutes: Number(event.target.value) })} />
+                          <span>Minuten</span>
+                        </div>
+                      </label>
+                    </div>
+                  ) : null}
+                  {condition.conditionType === "quota_remaining" ? (
+                    <label className="mt-3 block text-sm text-graphite">Tracker
+                      <select className={`${inputClass} mt-1`} value={condition.conditionTrackerTypeId} onChange={(event) => updateCondition(index, { conditionTrackerTypeId: event.target.value })}>
+                        {trackers.length ? trackers.map((tracker) => <option key={tracker.id} value={tracker.id}>{tracker.title}</option>) : <option value="">Kein Tracker eingerichtet</option>}
+                      </select>
+                    </label>
+                  ) : null}
                 </div>
-              </label>
-            </div>
-          ) : null}
-          {value.conditionType === "switch_state_for" ? (
-            <div className="mt-3 grid gap-2 text-sm text-graphite">
-              <label>Schalter
-                <select className={`${inputClass} mt-1`} value={value.conditionCapabilityId} onChange={(event) => update({ conditionCapabilityId: event.target.value })}>
-                  {conditionCapabilities.length ? conditionCapabilities.map((capability) => (
-                    <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
-                  )) : <option value="">Kein Schalter eingerichtet</option>}
-                </select>
-              </label>
-              <label>Zustand
-                <select className={`${inputClass} mt-1`} value={["ON", "OFF"].includes(value.conditionExpectedState) ? value.conditionExpectedState : "ON"} onChange={(event) => update({ conditionExpectedState: event.target.value })}>
-                  <option value="ON">Eingeschaltet</option>
-                  <option value="OFF">Ausgeschaltet</option>
-                </select>
-              </label>
-              <label>Dauer
-                <div className="mt-1 flex items-center gap-2">
-                  <input className={inputClass} type="number" min={1} value={value.conditionStateAgeMinutes} onChange={(event) => update({ conditionStateAgeMinutes: Number(event.target.value) })} />
-                  <span>Minuten</span>
-                </div>
-              </label>
-            </div>
-          ) : null}
-          {value.conditionType === "quota_remaining" ? (
-            <label className="mt-3 block text-sm text-graphite">Tracker
-              <select className={`${inputClass} mt-1`} value={value.conditionTrackerTypeId} onChange={(event) => update({ conditionTrackerTypeId: event.target.value })}>
-                {trackers.length ? trackers.map((tracker) => <option key={tracker.id} value={tracker.id}>{tracker.title}</option>) : <option value="">Kein Tracker eingerichtet</option>}
-              </select>
-            </label>
-          ) : null}
+              );
+            })}
+          </div>
         </section>
 
         <section className="rounded-lg border border-line bg-paper p-4">
@@ -639,7 +720,7 @@ export function AutomationRuleEditor({
             {ruleVersion ? ` · Version ${ruleVersion}` : ""}
           </div>
         ) : null}
-        {value.conditionType === "controller_absent" ? (
+        {absenceCondition ? (
           <div className="mt-3 rounded-md border border-line bg-surface p-3 text-sm text-graphite">
             <label className="flex items-center gap-2 font-semibold text-ink">
               <input type="checkbox" checked={simulateControllerAction} onChange={(event) => setSimulateControllerAction(event.target.checked)} />
@@ -652,7 +733,7 @@ export function AutomationRuleEditor({
                     className={inputClass}
                     type="number"
                     min={0}
-                    max={Math.max(0, value.conditionMinutes)}
+                    max={Math.max(0, absenceCondition.conditionMinutes)}
                     value={controllerActionMinute}
                     onChange={(event) => setControllerActionMinute(Number(event.target.value))}
                   />
@@ -662,14 +743,14 @@ export function AutomationRuleEditor({
             ) : null}
           </div>
         ) : null}
-        {value.conditionType === "device_online" || value.conditionType === "device_offline" ? (
+        {deviceCondition ? (
           <div className="mt-3 rounded-md border border-line bg-surface p-3 text-sm text-graphite">
             <label className="block font-semibold text-ink">Gerätezustand für diese Simulation
               <select
                 className={`${inputClass} mt-2`}
-                value={simulatedDeviceHealth[value.conditionDeviceId] || devices.find((device) => device.id === value.conditionDeviceId)?.health || "UNKNOWN"}
-                onChange={(event) => setSimulatedDeviceHealth((current) => ({ ...current, [value.conditionDeviceId]: event.target.value }))}
-                disabled={!value.conditionDeviceId}
+                value={simulatedDeviceHealth[deviceCondition.conditionDeviceId] || devices.find((device) => device.id === deviceCondition.conditionDeviceId)?.health || "UNKNOWN"}
+                onChange={(event) => setSimulatedDeviceHealth((current) => ({ ...current, [deviceCondition.conditionDeviceId]: event.target.value }))}
+                disabled={!deviceCondition.conditionDeviceId}
               >
                 {stateOptionsForCapability().map(([key, label]) => <option key={key} value={key}>{label}</option>)}
               </select>
@@ -677,22 +758,22 @@ export function AutomationRuleEditor({
             <p className="mt-2 text-xs leading-5">Dieser Testzustand verändert kein Gerät. Er gilt nur für die Timeline und zeigt, ob die Bedingung dadurch erfüllt oder blockiert wird.</p>
           </div>
         ) : null}
-        {value.conditionType === "capability_state" ? (
+        {capabilityCondition ? (
           <div className="mt-3 rounded-md border border-line bg-surface p-3 text-sm text-graphite">
             <label className="block font-semibold text-ink">Zustand der Fähigkeit für diese Simulation
               <select
                 className={`${inputClass} mt-2`}
-                value={simulatedCapabilityState[value.conditionCapabilityId] || conditionCapability?.state || "UNKNOWN"}
-                onChange={(event) => setSimulatedCapabilityState((current) => ({ ...current, [value.conditionCapabilityId]: event.target.value }))}
-                disabled={!value.conditionCapabilityId}
+                value={simulatedCapabilityState[capabilityCondition.conditionCapabilityId] || simulationCapability?.state || "UNKNOWN"}
+                onChange={(event) => setSimulatedCapabilityState((current) => ({ ...current, [capabilityCondition.conditionCapabilityId]: event.target.value }))}
+                disabled={!capabilityCondition.conditionCapabilityId}
               >
-                {conditionStateOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                {stateOptionsForCapability(simulationCapability?.kind).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
               </select>
             </label>
             <p className="mt-2 text-xs leading-5">Dieser Zustand ist nur ein Simulationswert. Die gespeicherte Fähigkeit und die echte Gerätebrücke bleiben unverändert.</p>
           </div>
         ) : null}
-        {value.conditionType === "last_image_younger_than" ? (
+        {lastImageCondition ? (
           <div className="mt-3 rounded-md border border-line bg-surface p-3 text-sm text-graphite">
             <label className="block font-semibold text-ink">Letztes Kamerabild für diese Simulation
               <div className="mt-2 flex items-center gap-2">
@@ -700,9 +781,9 @@ export function AutomationRuleEditor({
                   className={inputClass}
                   type="number"
                   min={0}
-                  value={simulatedLastImageAgeSeconds[value.conditionCapabilityId] ?? value.conditionImageMaxAgeSeconds}
-                  onChange={(event) => setSimulatedLastImageAgeSeconds((current) => ({ ...current, [value.conditionCapabilityId]: Number(event.target.value) }))}
-                  disabled={!value.conditionCapabilityId}
+                  value={simulatedLastImageAgeSeconds[lastImageCondition.conditionCapabilityId] ?? lastImageCondition.conditionImageMaxAgeSeconds}
+                  onChange={(event) => setSimulatedLastImageAgeSeconds((current) => ({ ...current, [lastImageCondition.conditionCapabilityId]: Number(event.target.value) }))}
+                  disabled={!lastImageCondition.conditionCapabilityId}
                 />
                 <span>Sekunden alt</span>
               </div>
@@ -710,14 +791,14 @@ export function AutomationRuleEditor({
             <p className="mt-2 text-xs leading-5">Dieser Wert ist nur ein Simulationswert. Es wird kein echtes Bild gesucht oder gespeichert.</p>
           </div>
         ) : null}
-        {value.conditionType === "switch_state_for" ? (
+        {switchCondition ? (
           <div className="mt-3 rounded-md border border-line bg-surface p-3 text-sm text-graphite">
             <label className="block font-semibold text-ink">Schaltzustand für diese Simulation
               <select
                 className={`${inputClass} mt-2`}
-                value={simulatedCapabilityState[value.conditionCapabilityId] || conditionCapability?.state || value.conditionExpectedState || "ON"}
-                onChange={(event) => setSimulatedCapabilityState((current) => ({ ...current, [value.conditionCapabilityId]: event.target.value }))}
-                disabled={!value.conditionCapabilityId}
+                value={simulatedCapabilityState[switchCondition.conditionCapabilityId] || switchSimulationCapability?.state || switchCondition.conditionExpectedState || "ON"}
+                onChange={(event) => setSimulatedCapabilityState((current) => ({ ...current, [switchCondition.conditionCapabilityId]: event.target.value }))}
+                disabled={!switchCondition.conditionCapabilityId}
               >
                 <option value="ON">Eingeschaltet</option>
                 <option value="OFF">Ausgeschaltet</option>
@@ -731,9 +812,9 @@ export function AutomationRuleEditor({
                   className={inputClass}
                   type="number"
                   min={0}
-                  value={simulatedCapabilityStateAgeMinutes[value.conditionCapabilityId] ?? value.conditionStateAgeMinutes}
-                  onChange={(event) => setSimulatedCapabilityStateAgeMinutes((current) => ({ ...current, [value.conditionCapabilityId]: Number(event.target.value) }))}
-                  disabled={!value.conditionCapabilityId}
+                  value={simulatedCapabilityStateAgeMinutes[switchCondition.conditionCapabilityId] ?? switchCondition.conditionStateAgeMinutes}
+                  onChange={(event) => setSimulatedCapabilityStateAgeMinutes((current) => ({ ...current, [switchCondition.conditionCapabilityId]: Number(event.target.value) }))}
+                  disabled={!switchCondition.conditionCapabilityId}
                 />
                 <span>Minuten</span>
               </div>

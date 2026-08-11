@@ -200,11 +200,12 @@ function concreteDelayMinutes(timing: unknown, seed = "") {
 }
 
 function conditionDelayMinutes(conditions: unknown) {
-  const condition = firstArrayRecord(conditions);
-  const type = clean(condition.type);
-  if (!type || type === "none") return 0;
-  if (type === "controller_absent") return Math.max(0, Number(condition.minutes || 0));
-  return 0;
+  return jsonArray(conditions).reduce<number>((max, rawCondition) => {
+    const condition = asRecord(rawCondition);
+    const type = clean(condition.type);
+    if (type === "controller_absent") return Math.max(max, Math.max(0, Number(condition.minutes || 0)));
+    return max;
+  }, 0);
 }
 
 export function correlationId(prefix = "auto") {
@@ -1282,6 +1283,12 @@ function triggerTargetMatches(triggerJson: unknown, event: { deviceId?: string |
   return true;
 }
 
+type ConditionCheckResult = {
+  passed: boolean;
+  reason: string;
+  results?: ConditionCheckResult[];
+};
+
 async function conditionIsCurrentlyValid(input: {
   tenantId: string;
   sessionId?: string | null;
@@ -1290,8 +1297,32 @@ async function conditionIsCurrentlyValid(input: {
   conditionJson?: unknown;
   deviceId?: string | null;
   capabilityId?: string | null;
-}) {
-  const condition = firstArrayRecord(input.conditionJson);
+}): Promise<ConditionCheckResult> {
+  const conditionList = jsonArray(input.conditionJson).map((item) => asRecord(item)).filter((condition) => {
+    const type = clean(condition.type);
+    return type && type !== "none";
+  });
+  if (!conditionList.length) return { passed: true, reason: "Keine zusätzliche Bedingung" };
+  if (conditionList.length > 1) {
+    const results = [];
+    for (const condition of conditionList) {
+      const result = await conditionIsCurrentlyValid({ ...input, conditionJson: [condition] });
+      results.push(result);
+      if (!result.passed) {
+        return {
+          passed: false,
+          reason: `Bedingung blockiert: ${result.reason}`,
+          results
+        };
+      }
+    }
+    return {
+      passed: true,
+      reason: results.map((result) => result.reason).join(" · "),
+      results
+    };
+  }
+  const condition = conditionList[0];
   const type = clean(condition.type);
   if (!type || type === "none") return { passed: true, reason: "Keine zusätzliche Bedingung" };
   if (type === "controller_absent") {
@@ -1435,9 +1466,8 @@ async function processAutomationRulesForEvent(event: {
     if (!version) continue;
     const actions = jsonArray(version.actionJson);
     if (!actions.length) continue;
-    const condition = firstArrayRecord(version.conditionJson);
     const actionSpecs = actions.map((item) => asRecord(item));
-    const hasDelayedAbsence = clean(condition.type) === "controller_absent" && conditionDelayMinutes(version.conditionJson) > 0;
+    const hasDelayedAbsence = conditionDelayMinutes(version.conditionJson) > 0;
     if (!hasDelayedAbsence) {
       const actionSpec = actionSpecs[0];
       const conditionResult = await conditionIsCurrentlyValid({

@@ -135,13 +135,27 @@ test("Simulation blockiert Aktionen bei nicht erfüllter Gerätebedingung", () =
 test("Simulation benennt Bedingungsentscheidungen als warten, erfüllt oder blockiert", () => {
   const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
   const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
-  assert.match(model, /const conditionStatus =/);
+  assert.match(model, /const conditionEvaluations =/);
+  assert.match(model, /const itemStatus =/);
   assert.match(model, /\? "blockiert"/);
   assert.match(model, /\? "wartet"/);
   assert.match(model, /\? "erfüllt"/);
-  assert.match(model, /status:\s*conditionStatus/);
+  assert.match(model, /status:\s*itemStatus/);
   assert.match(editor, /item\.status/);
   assert.doesNotMatch(editor, /item\.passed \? "erfüllt" : "noch offen"/);
+});
+
+test("Rule-Editor und Runtime unterstützen mehrere Bedingungen ohne JSON-Oberfläche", () => {
+  const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
+  assert.match(model, /conditions: RuleConditionFormValue\[\]/);
+  assert.match(model, /conditionEvaluations\.every/);
+  assert.doesNotMatch(model, /Bitte verwende in dieser Oberfläche genau eine Bedingung/);
+  assert.match(editor, /Bedingung hinzufügen/);
+  assert.match(editor, /updateCondition/);
+  assert.match(service, /conditionList\.length > 1/);
+  assert.match(service, /Bedingung blockiert/);
 });
 
 test("Override darf Pending End ersetzen", () => {
