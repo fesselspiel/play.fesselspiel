@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Activity, ArrowDown, BookOpen, Cpu, FlaskConical, RadioTower } from "lucide-react";
+import { Activity, ArrowDown, BookOpen, CheckCircle2, Clock, Cpu, FlaskConical, RadioTower, Unplug } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { AutomationCapabilityManager, AutomationDeviceManager } from "@/components/automation-device-manager";
 import { AutomationRuleEditor } from "@/components/automation-rule-editor";
@@ -172,6 +172,74 @@ function humanDetailValue(value: unknown) {
   return JSON.stringify(value);
 }
 
+function bridgeStatusInfo(bridge: { enabled?: boolean | null; health?: string | null; heartbeatAt?: Date | null } | null) {
+  if (!bridge?.enabled) {
+    return {
+      label: "Nicht aktiv",
+      tone: "muted",
+      text: "Die Gerätebrücke ist ausgeschaltet. Es werden keine Gerätebefehle an einen Adapter bereitgestellt.",
+      icon: <Unplug className="h-5 w-5" />
+    };
+  }
+  if (!bridge.heartbeatAt) {
+    return {
+      label: "Wartet auf Adapter",
+      tone: "warn",
+      text: "Die Brücke ist vorbereitet, aber es wurde noch kein Heartbeat vom Adapter empfangen.",
+      icon: <Clock className="h-5 w-5" />
+    };
+  }
+  const ageMs = Date.now() - bridge.heartbeatAt.getTime();
+  const stale = ageMs > 2 * 60 * 1000;
+  if (!stale && bridge.health === "ONLINE") {
+    return {
+      label: "Verbunden",
+      tone: "ok",
+      text: "Der Adapter hat vor Kurzem einen Heartbeat gemeldet.",
+      icon: <CheckCircle2 className="h-5 w-5" />
+    };
+  }
+  return {
+    label: bridge.health === "ERROR" ? "Fehler gemeldet" : "Keine aktuelle Verbindung",
+    tone: "warn",
+    text: "Der letzte Heartbeat ist zu alt oder der Adapter hat keinen verbundenen Zustand gemeldet.",
+    icon: <Clock className="h-5 w-5" />
+  };
+}
+
+function statusToneClass(tone: string) {
+  if (tone === "ok") return "border-emerald-500/30 bg-emerald-500/10 text-ink";
+  if (tone === "warn") return "border-amber-500/30 bg-amber-500/10 text-ink";
+  return "border-line bg-paper text-graphite";
+}
+
+function formatOptionalDate(date?: Date | null) {
+  return date ? formatAutomationEventDate(date) : "noch nie";
+}
+
+function deviceOrigin(device: { metadataJson?: unknown; lastSeenAt?: Date | null; integration?: string | null }) {
+  const metadata = jsonRecord(device.metadataJson);
+  if (metadata.source === "adapter" || device.lastSeenAt) {
+    return {
+      label: "Vom Adapter gemeldet",
+      text: "Dieses Gerät wurde über die externe Geräte-API synchronisiert.",
+      tone: "ok"
+    };
+  }
+  if (device.integration === "MANUAL") {
+    return {
+      label: "Manuelles Testgerät",
+      text: "Dieses Gerät ist nur im Portal angelegt. Es wird erst echt, wenn ein Adapter denselben Datenpunkt bedient.",
+      tone: "muted"
+    };
+  }
+  return {
+    label: "Vorbereitet",
+    text: "Dieses Gerät ist im Portal vorbereitet, wurde aber noch nicht durch einen Adapter bestätigt.",
+    tone: "warn"
+  };
+}
+
 function humanAutomationDetailEntries(details: Record<string, unknown>) {
   const labels: Record<string, string> = {
     version: "Regelversion",
@@ -249,16 +317,14 @@ async function saveBridge(formData: FormData) {
       enabled: formData.get("enabled") === "on",
       mqttBaseTopic: String(formData.get("mqttBaseTopic") || "playplaner/v1"),
       mqttClientId: String(formData.get("mqttClientId") || "") || null,
-      mqttUsername: String(formData.get("mqttUsername") || "") || null,
-      health: String(formData.get("health") || "UNKNOWN")
+      mqttUsername: String(formData.get("mqttUsername") || "") || null
     },
     create: {
       tenantId: user.tenantId,
       enabled: formData.get("enabled") === "on",
       mqttBaseTopic: String(formData.get("mqttBaseTopic") || "playplaner/v1"),
       mqttClientId: String(formData.get("mqttClientId") || "") || null,
-      mqttUsername: String(formData.get("mqttUsername") || "") || null,
-      health: String(formData.get("health") || "UNKNOWN")
+      mqttUsername: String(formData.get("mqttUsername") || "") || null
     }
   });
   await writeMosquittoRuntimeFiles();
@@ -297,8 +363,9 @@ async function saveDevice(formData: FormData) {
     name: String(formData.get("name") || "").trim(),
     integration: String(formData.get("integration") || "IOBROKER"),
     health: String(formData.get("health") || "UNKNOWN"),
-    metadata: parseJson(formData.get("metadataJson"), {})
+    metadata: { ...jsonRecord(parseJson(formData.get("metadataJson"), {})), source: "manual" }
   });
+  await prisma.automationDevice.update({ where: { id: device.id }, data: { lastSeenAt: null } });
   const capabilityKeys = formData.getAll("capabilityKey").map((item) => String(item || "").trim()).filter(Boolean);
   const capabilityKinds = formData.getAll("capabilityKind").map((item) => String(item || "").trim());
   const capabilityTitles = formData.getAll("capabilityTitle").map((item) => String(item || "").trim());
@@ -616,6 +683,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
   })));
   const deviceOptions = devices.map((device) => ({ id: device.id, name: device.name, health: device.health }));
   const trackerOptions = trackerTypes.map((tracker) => ({ id: tracker.id, title: tracker.title, color: tracker.color }));
+  const bridgeStatus = bridgeStatusInfo(bridge);
 
   return (
     <AppShell>
@@ -627,38 +695,58 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
       <div className="space-y-4">
         <details open className="rounded-lg border border-line bg-surface p-4">
           <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><RadioTower className="h-4 w-4" /> Gerätebrücke</summary>
-          <form action={saveBridge} className="mt-4 space-y-3">
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="enabled" type="checkbox" defaultChecked={bridge?.enabled} /> Aktiv</label>
-              <Field label="Verbindungszustand">
-                <select name="health" className={inputClass} defaultValue={bridge?.health || "UNKNOWN"}>
-                  <option value="UNKNOWN">Nicht verbunden</option>
-                  <option value="ONLINE">Verbunden</option>
-                  <option value="OFFLINE">Nicht erreichbar</option>
-                  <option value="ERROR">Fehler</option>
-                </select>
-              </Field>
+          <div className={`mt-4 rounded-lg border p-4 ${statusToneClass(bridgeStatus.tone)}`}>
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5">{bridgeStatus.icon}</div>
+              <div>
+                <div className="text-base font-semibold text-ink">{bridgeStatus.label}</div>
+                <p className="mt-1 text-sm text-graphite">{bridgeStatus.text}</p>
+                <div className="mt-2 grid gap-1 text-sm text-graphite sm:grid-cols-2">
+                  <div>Letzter Heartbeat: <span className="font-semibold text-ink">{formatOptionalDate(bridge?.heartbeatAt)}</span></div>
+                  <div>Vom Adapter gemeldet: <span className="font-semibold text-ink">{labelAutomationValue("health", bridge?.health || "UNKNOWN")}</span></div>
+                </div>
+              </div>
             </div>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <SoftPanel>
+              <span className="font-semibold text-ink">1. Brücke aktivieren</span>
+              <span className="text-sm text-graphite">Damit erlaubt diese Seite, dass ein externer Adapter Geräte meldet und Befehle abholt.</span>
+            </SoftPanel>
+            <SoftPanel>
+              <span className="font-semibold text-ink">2. Adapter verbinden</span>
+              <span className="text-sm text-graphite">Der lokale ioBroker-Adapter ruft Heartbeat, Geräte-Sync und Befehle über die API auf.</span>
+            </SoftPanel>
+            <SoftPanel>
+              <span className="font-semibold text-ink">3. Geräte verwenden</span>
+              <span className="text-sm text-graphite">Erst vom Adapter gemeldete Geräte sind echte Geräte. Manuelle Geräte sind Platzhalter für Tests oder Vorbereitung.</span>
+            </SoftPanel>
+          </div>
+          <form action={saveBridge} className="mt-4 space-y-3">
+            <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="enabled" type="checkbox" defaultChecked={bridge?.enabled} /> Gerätebrücke für diese Seite aktivieren</label>
             <details className="rounded-md border border-line bg-paper p-3">
               <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Verbindungsdetails</summary>
               <p className="mt-2 text-sm text-graphite">
-                Diese Werte braucht der lokale Adapter, damit er genau diese Seite erreicht. Im normalen Regelbetrieb musst du sie nicht ändern.
+                Diese Werte sind keine Geräte. Sie beschreiben nur, unter welchem Namen der lokale Adapter diese Seite anspricht. Der echte Verbindungszustand entsteht erst, wenn der Adapter einen Heartbeat sendet.
               </p>
               <div className="mt-3 grid gap-3 md:grid-cols-3">
-                <Field label="Themenbereich"><input name="mqttBaseTopic" className={inputClass} defaultValue={bridge?.mqttBaseTopic || "playplaner/v1"} /></Field>
-                <Field label="Adapter-Client"><input name="mqttClientId" className={inputClass} defaultValue={bridge?.mqttClientId || ""} /></Field>
-                <Field label="Adapter-Benutzer"><input name="mqttUsername" className={inputClass} defaultValue={bridge?.mqttUsername || ""} /></Field>
+                <Field label="MQTT-Themenbereich"><input name="mqttBaseTopic" className={inputClass} defaultValue={bridge?.mqttBaseTopic || "playplaner/v1"} /></Field>
+                <Field label="Adapter-Client-ID"><input name="mqttClientId" className={inputClass} defaultValue={bridge?.mqttClientId || ""} placeholder="z.B. playplaner-iobroker" /></Field>
+                <Field label="MQTT-Benutzer"><input name="mqttUsername" className={inputClass} defaultValue={bridge?.mqttUsername || ""} placeholder="wird beim Rotieren erzeugt" /></Field>
               </div>
+              <p className="mt-2 text-xs text-graphite">Wenn du keinen besonderen Grund hast, lass den Themenbereich auf <code>playplaner/v1</code>. Client-ID und Benutzer werden vom Adapter beziehungsweise beim MQTT-Zugang verwendet.</p>
             </details>
             <SubmitButton pendingLabel="Speichert...">Gerätebrücke speichern</SubmitButton>
           </form>
           <form action={rotateMqtt} className="mt-4 rounded-lg border border-line bg-paper p-4">
-            <div className="text-sm font-semibold text-ink">MQTT-Zugang erzeugen oder rotieren</div>
-            <p className="mt-1 text-sm text-graphite">Das Passwort wird nur einmal angezeigt und danach verschlüsselt gespeichert. Mosquitto bekommt daraus beim Start eine eigene Passwortdatei.</p>
+            <div className="text-sm font-semibold text-ink">Neues Adapter-Passwort erzeugen</div>
+            <p className="mt-1 text-sm text-graphite">
+              Das brauchst du nur, wenn du den lokalen Adapter neu einrichtest oder ein altes Passwort ersetzen willst. Das Passwort wird nur einmal angezeigt und danach verschlüsselt gespeichert.
+            </p>
             <input type="hidden" name="mqttUsername" value={bridge?.mqttUsername || ""} />
             <input type="hidden" name="mqttBaseTopic" value={bridge?.mqttBaseTopic || ""} />
             <div className="mt-3 flex flex-wrap items-center gap-3">
-              <SubmitButton pendingLabel="Erzeuge...">MQTT-Zugang rotieren</SubmitButton>
+              <SubmitButton pendingLabel="Erzeuge...">Adapter-Passwort erzeugen</SubmitButton>
               {bridge?.mqttUsername ? <span className="text-sm text-graphite">Benutzer: <code>{bridge.mqttUsername}</code></span> : null}
             </div>
             {mqttPassword ? (
@@ -671,8 +759,22 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
           <div className="mt-4 rounded-lg border border-line bg-paper p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-ink"><BookOpen className="h-4 w-4" /> Adapter-Schnittstelle</div>
             <p className="mt-2 text-sm text-graphite">
-              Der spätere ioBroker-Adapter nutzt normale API-Tokens und ruft nur Portal-Endpunkte auf. Die Gerätebrücke bleibt dadurch mandantenfähig und vollständig protokolliert.
+              Der Adapter arbeitet in drei Schritten: Er meldet regelmäßig einen Heartbeat, synchronisiert seine bekannten Geräte und holt fällige Befehle ab. Nur dadurch weiß Playplaner, ob wirklich etwas verbunden ist.
             </p>
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              <div className="rounded-md border border-line bg-surface p-3 text-sm text-graphite">
+                <div className="font-semibold text-ink">Heartbeat</div>
+                <p className="mt-1">Sagt: Der Adapter läuft und erreicht diese Seite.</p>
+              </div>
+              <div className="rounded-md border border-line bg-surface p-3 text-sm text-graphite">
+                <div className="font-semibold text-ink">Geräte-Sync</div>
+                <p className="mt-1">Legt Kameras, Schalter und Sprachausgaben aus ioBroker hier an.</p>
+              </div>
+              <div className="rounded-md border border-line bg-surface p-3 text-sm text-graphite">
+                <div className="font-semibold text-ink">Befehle</div>
+                <p className="mt-1">Der Adapter holt fällige Aktionen ab und meldet Erfolg oder Fehler zurück.</p>
+              </div>
+            </div>
             <details className="mt-3 rounded-md border border-line bg-surface p-3">
               <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische API-Endpunkte</summary>
               <div className="mt-3 grid gap-2 text-xs text-graphite md:grid-cols-2">
@@ -695,6 +797,9 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <Panel>
               <h2 className="text-base font-semibold text-ink">Gerät hinzufügen</h2>
+              <p className="mt-2 text-sm text-graphite">
+                Der normale Weg ist der automatische Geräte-Sync durch den ioBroker-Adapter. Manuell angelegte Geräte sind sinnvoll, wenn du Regeln vorbereiten oder einen Datenpunkt vorab eintragen willst.
+              </p>
               <form action={saveDevice} className="mt-3">
                 <AutomationDeviceManager />
               </form>
@@ -702,19 +807,31 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
             <Panel>
               <h2 className="text-base font-semibold text-ink">Aktive Geräte</h2>
               <div className="mt-3 space-y-2">
-                {devices.map((device) => (
+                {devices.map((device) => {
+                  const origin = deviceOrigin(device);
+                  return (
                   <details key={device.id} className="rounded-md border border-line bg-paper p-3">
-                    <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">{device.name} · {labelAutomationValue("health", device.health)}</summary>
+                    <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">{device.name} · {origin.label}</summary>
                     <div className="mt-2 space-y-1 text-sm text-graphite">
-                      <p>{labelAutomationValue("integrations", device.integration)}</p>
+                      <div className={`rounded-md border p-3 ${statusToneClass(origin.tone)}`}>
+                        <div className="font-semibold text-ink">{origin.label}</div>
+                        <p className="mt-1">{origin.text}</p>
+                        <div className="mt-2 grid gap-1 sm:grid-cols-2">
+                          <div>Integration: <span className="font-semibold text-ink">{labelAutomationValue("integrations", device.integration)}</span></div>
+                          <div>Gerätezustand: <span className="font-semibold text-ink">{labelAutomationValue("health", device.health)}</span></div>
+                          <div>Zuletzt gesehen: <span className="font-semibold text-ink">{formatOptionalDate(device.lastSeenAt)}</span></div>
+                        </div>
+                      </div>
                       <div className="grid gap-2">
                         {device.capabilities.map((capability) => {
                           const roleText = capabilityRoleText(capability.kind);
+                          const parameters = jsonRecord(capability.parametersJson);
                           return (
                             <div key={capability.id} className="rounded-md border border-line bg-surface p-3">
                               <div className="font-semibold text-ink">
                                 {capability.title} · {capabilityKindTitle(capability.kind)} · {labelAutomationValue("health", capability.state)}
                               </div>
+                              {parameters.dataPoint ? <div className="mt-1 text-sm">Datenpunkt: <code>{String(parameters.dataPoint)}</code></div> : <div className="mt-1 text-sm">Noch kein Datenpunkt hinterlegt.</div>}
                               <div className="mt-2 grid gap-2 md:grid-cols-3">
                                 <div><span className="font-semibold text-ink">Aktionen:</span> {roleText.actions.join(", ")}</div>
                                 <div><span className="font-semibold text-ink">Ereignisse:</span> {roleText.events.join(", ")}</div>
@@ -736,15 +853,9 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                               <option value="MANUAL">Manuell</option>
                             </select>
                           </Field>
-                          <Field label="Verbindungszustand">
-                            <select name="health" className={inputClass} defaultValue={device.health}>
-                              <option value="UNKNOWN">Nicht verbunden</option>
-                              <option value="ONLINE">Verbunden</option>
-                              <option value="OFFLINE">Nicht erreichbar</option>
-                              <option value="ERROR">Fehler</option>
-                              <option value="BOOTING">Startet</option>
-                            </select>
-                          </Field>
+                          <div className="rounded-md border border-line bg-surface p-3 text-sm text-graphite sm:col-span-2">
+                            Verbindungszustand: <span className="font-semibold text-ink">{labelAutomationValue("health", device.health)}</span>. Dieser Wert wird vom Adapter gemeldet und hier nicht manuell gesetzt.
+                          </div>
                           <div className="flex items-end"><SubmitButton pendingLabel="Speichert...">Gerät speichern</SubmitButton></div>
                         </form>
                       </details>
@@ -777,11 +888,9 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                             <form action={updateCapability} className="mt-3 grid gap-3 sm:grid-cols-2">
                               <input type="hidden" name="capabilityId" value={capability.id} />
                               <Field label="Name"><input name="title" className={inputClass} defaultValue={capability.title} /></Field>
-                              <Field label="Zustand">
-                                <select name="state" className={inputClass} defaultValue={capability.state}>
-                                  {capabilityStateOptions(capability.kind).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-                                </select>
-                              </Field>
+                              <div className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">
+                                Gemeldeter Zustand: <span className="font-semibold text-ink">{labelAutomationValue("health", capability.state)}</span>. Der Adapter aktualisiert diesen Wert über Events oder Command-Ergebnisse.
+                              </div>
                               <Field label="ioBroker-/MQTT-Datenpunkt">
                                 <input name="dataPoint" className={inputClass} defaultValue={String(parameters.dataPoint || "")} placeholder="z.B. alias.0.schlafzimmer.kamera" />
                               </Field>
@@ -833,7 +942,14 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                       </details>
                     </div>
                   </details>
-                ))}
+                );
+                })}
+                {!devices.length ? (
+                  <SoftPanel>
+                    <span className="font-semibold text-ink">Noch keine Geräte</span>
+                    <span className="text-sm text-graphite">Sobald der Adapter Geräte synchronisiert, erscheinen sie hier. Alternativ kannst du oben ein Platzhaltergerät für die Regelplanung anlegen.</span>
+                  </SoftPanel>
+                ) : null}
               </div>
             </Panel>
           </div>

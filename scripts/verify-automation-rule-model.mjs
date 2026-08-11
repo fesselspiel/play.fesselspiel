@@ -357,7 +357,9 @@ test("Geräteverwaltung nutzt capability-spezifische Zustände ohne JSON-Konfigu
   assert.match(settings, /\["SWITCHING", "Schaltet gerade"\]/);
   assert.match(settings, /normalizeCapabilityState\(capabilityKinds\[index\] \|\| "Camera", capabilityStates\[index\]\)/);
   assert.match(settings, /normalizeCapabilityState\(capability\.kind, String\(formData\.get\("state"\)/);
-  assert.match(settings, /capabilityStateOptions\(capability\.kind\)\.map/);
+  assert.match(settings, /Gemeldeter Zustand:/);
+  assert.match(settings, /Der Adapter aktualisiert diesen Wert über Events oder Command-Ergebnisse/);
+  assert.doesNotMatch(settings, /<Field label="Zustand">[\s\S]*capabilityStateOptions\(capability\.kind\)\.map/);
   assert.match(manager, /function defaultState/);
   assert.match(manager, /if \(kind === "Switch"\) return "OFF"/);
   assert.match(manager, /name="capabilityState" value=\{defaultState\(capability\.kind\)\}/);
@@ -451,7 +453,7 @@ test("Automation-Protokoll zeigt Policy-Entscheidungen fachlich an", () => {
   assert.match(settings, /Technische API-Endpunkte/);
   assert.match(settings, /<summary[^>]*>Technische API-Endpunkte<\/summary>/);
   assert.match(settings, /<summary[^>]*>Verbindungsdetails<\/summary>/);
-  assert.match(settings, /Im normalen Regelbetrieb musst du sie nicht ändern/);
+  assert.match(settings, /Der echte Verbindungszustand entsteht erst, wenn der Adapter einen Heartbeat sendet/);
   assert.match(settings, /id=\{`automation-event-\$\{event\.id\}`\}/);
   assert.match(settings, /href=\{`#automation-event-\$\{event\.parentEvent\.id\}`\}/);
   assert.match(settings, /href=\{`#automation-event-\$\{child\.id\}`\}/);

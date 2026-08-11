@@ -35,7 +35,10 @@ export async function POST(request: NextRequest) {
     integration: typeof body.integration === "string" ? body.integration : "IOBROKER",
     health: typeof body.health === "string" ? body.health : "UNKNOWN",
     status: body.status,
-    metadata: body.metadata
+    metadata: {
+      ...(body.metadata && typeof body.metadata === "object" && !Array.isArray(body.metadata) ? body.metadata as Record<string, unknown> : {}),
+      source: "adapter"
+    }
   });
   const capabilities = Array.isArray(body.capabilities) ? body.capabilities : [];
   for (const item of capabilities) {

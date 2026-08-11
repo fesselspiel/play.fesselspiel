@@ -152,6 +152,9 @@ function CapabilityFields({
       <label className="mt-3 block font-medium">Name der Fähigkeit
         <input className={`${inputClass} mt-1`} required value={capability.title} onChange={(event) => onChange({ title: event.target.value })} />
       </label>
+      <div className="mt-3 rounded-md border border-line bg-paper p-3 text-xs leading-5 text-graphite">
+        Der Datenpunkt kommt aus deinem lokalen System, zum Beispiel aus ioBroker. Wenn du den Adapter später Geräte automatisch synchronisieren lässt, wird dieser Wert vom Adapter geliefert. Manuell trägst du ihn nur ein, wenn du ihn bereits kennst.
+      </div>
       <div className="mt-3 grid gap-2 md:grid-cols-2">
         <label className="block font-medium">ioBroker-/MQTT-Datenpunkt
           <input className={`${inputClass} mt-1`} value={capability.dataPoint} onChange={(event) => onChange({ dataPoint: event.target.value })} placeholder="z.B. alias.0.schlafzimmer.kamera" />
@@ -182,12 +185,14 @@ function CapabilityFields({
         ) : null}
         {capability.kind === "Switch" ? (
           <label className="block font-medium">Wert für ein
-            <input className={`${inputClass} mt-1`} value={capability.onValue} onChange={(event) => onChange({ onValue: event.target.value })} />
+            <input className={`${inputClass} mt-1`} value={capability.onValue} onChange={(event) => onChange({ onValue: event.target.value })} placeholder="meist true oder ON" />
+            <span className="mt-1 block text-xs font-normal text-graphite">Standard ist <code>true</code>. Ändere das nur, wenn dein ioBroker-Datenpunkt einen anderen Wert erwartet.</span>
           </label>
         ) : null}
         {capability.kind === "Switch" ? (
           <label className="block font-medium">Wert für aus
-            <input className={`${inputClass} mt-1`} value={capability.offValue} onChange={(event) => onChange({ offValue: event.target.value })} />
+            <input className={`${inputClass} mt-1`} value={capability.offValue} onChange={(event) => onChange({ offValue: event.target.value })} placeholder="meist false oder OFF" />
+            <span className="mt-1 block text-xs font-normal text-graphite">Standard ist <code>false</code>. Bei manchen Geräten heißt der Wert zum Beispiel <code>OFF</code> oder <code>0</code>.</span>
           </label>
         ) : null}
         {capability.kind === "Voice" ? (
@@ -261,6 +266,9 @@ export function AutomationDeviceManager() {
       <label className="block text-sm font-medium text-graphite">Gerätename
         <input name="name" className={`${inputClass} mt-1`} required value={name} onChange={(event) => setName(event.target.value)} placeholder="Kamera Schlafzimmer" />
       </label>
+      <p className="text-sm text-graphite">
+        Ein manuell angelegtes Gerät ist zunächst nur eine Zuordnung im Portal. Erst wenn der Adapter denselben Datenpunkt meldet oder Befehle erfolgreich ausführt, ist es wirklich verbunden.
+      </p>
       <label className="block text-sm font-medium text-graphite">Integration
         <select className={`${inputClass} mt-1`} value={integration} onChange={(event) => setIntegration(event.target.value)}>
           <option value="IOBROKER">ioBroker</option>
