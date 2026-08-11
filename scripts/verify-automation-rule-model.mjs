@@ -332,6 +332,10 @@ test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben"
   assert.match(model, /simulationOverrides/);
   assert.match(route, /simulationOverrides/);
   assert.match(route, /allowedStateOverrides/);
+  assert.match(editor, /emptyText/);
+  assert.match(editor, /Keine Aktion ist jetzt fällig/);
+  assert.match(editor, /Diese Regel nutzt keinen Zufallswert/);
+  assert.doesNotMatch(editor, /> nichts</);
 });
 
 test("Kamera-spezifische Auslöser begrenzen Fähigkeitsbedingungen auf Kameras", () => {

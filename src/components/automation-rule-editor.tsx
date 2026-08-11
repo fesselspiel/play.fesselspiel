@@ -740,9 +740,9 @@ export function AutomationRuleEditor({
         <div className="mt-3 rounded-md border border-line bg-surface p-3">
           <div className="text-sm font-semibold text-ink">Momentaufnahme bei Minute {simulation.currentMoment.minute}</div>
           <div className="mt-2 grid gap-2 md:grid-cols-3">
-            <SimBox title="Jetzt" items={simulation.currentMoment.current.length ? simulation.currentMoment.current : [simulation.currentMoment.decision]} />
-            <SimBox title="Bereits passiert" items={simulation.currentMoment.completed} />
-            <SimBox title="Als Nächstes" items={simulation.currentMoment.upcoming} />
+            <SimBox title="Jetzt" items={simulation.currentMoment.current.length ? simulation.currentMoment.current : [simulation.currentMoment.decision]} emptyText="Zu diesem Zeitpunkt liegt keine neue Entscheidung an." />
+            <SimBox title="Bereits passiert" items={simulation.currentMoment.completed} emptyText="Vor diesem Zeitpunkt ist noch nichts passiert." />
+            <SimBox title="Als Nächstes" items={simulation.currentMoment.upcoming} emptyText="Nach diesem Zeitpunkt ist nichts Weiteres geplant." />
           </div>
         </div>
         <div className="mt-4 overflow-x-auto">
@@ -758,17 +758,17 @@ export function AutomationRuleEditor({
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <SimBox title="Session-Zustand" items={[labelAutomationValue("states", simulation.sessionState)]} />
-          <SimBox title="Ereignisse" items={simulation.events.map((item) => `${item.minute} min · ${item.title}`)} />
-          <SimBox title="Bedingungen" items={simulation.conditions.map((item) => `${item.title}: ${item.passed ? "erfüllt" : "noch offen"} · ${item.result}`)} />
-          <SimBox title="Ausgelöste Regeln" items={simulation.triggeredRules} />
-          <SimBox title="Wartende Aktionen" items={simulation.waitingActions.map((item) => item.detail)} />
-          <SimBox title="Fällige Aktionen" items={simulation.dueActions.map((item) => item.detail)} />
-          <SimBox title="Simulierte Aktionen" items={simulation.completedActions.map((item) => item.detail)} />
-          <SimBox title="Blockierte Aktionen" items={simulation.blockedActions.map((item) => item.detail)} />
-          <SimBox title="Vorgemerktes Ende" items={simulation.pendingEnd.map((item) => `${item.state}: ${item.text}`)} />
-          <SimBox title="Wiederherstellung bei Fehler" items={simulation.recoveryActions.map((item) => `${item.minute} min · ${item.title}`)} />
-          <SimBox title="Zufallswerte" items={simulation.randomValues.map((item) => `${item.label}: ${item.value}`)} />
-          <SimBox title="Variablen" items={simulation.humanVariables} />
+          <SimBox title="Ereignisse" items={simulation.events.map((item) => `${item.minute} min · ${item.title}`)} emptyText="Bis zu dieser Minute ist kein Ereignis eingetreten." />
+          <SimBox title="Bedingungen" items={simulation.conditions.map((item) => `${item.title}: ${item.passed ? "erfüllt" : "noch offen"} · ${item.result}`)} emptyText="Für diese Regel gibt es keine zusätzliche Bedingung." />
+          <SimBox title="Ausgelöste Regeln" items={simulation.triggeredRules} emptyText="Noch keine Regel ausgelöst." />
+          <SimBox title="Wartende Aktionen" items={simulation.waitingActions.map((item) => item.detail)} emptyText="Keine Aktion wartet gerade." />
+          <SimBox title="Fällige Aktionen" items={simulation.dueActions.map((item) => item.detail)} emptyText="Keine Aktion ist jetzt fällig." />
+          <SimBox title="Simulierte Aktionen" items={simulation.completedActions.map((item) => item.detail)} emptyText="Noch keine Aktion wurde in der Simulation ausgeführt." />
+          <SimBox title="Blockierte Aktionen" items={simulation.blockedActions.map((item) => item.detail)} emptyText="Keine Aktion ist blockiert." />
+          <SimBox title="Vorgemerktes Ende" items={simulation.pendingEnd.map((item) => `${item.state}: ${item.text}`)} emptyText="Kein Ende ist vorgemerkt." />
+          <SimBox title="Wiederherstellung bei Fehler" items={simulation.recoveryActions.map((item) => `${item.minute} min · ${item.title}`)} emptyText="Keine Wiederherstellung geplant." />
+          <SimBox title="Zufallswerte" items={simulation.randomValues.map((item) => `${item.label}: ${item.value}`)} emptyText="Diese Regel nutzt keinen Zufallswert." />
+          <SimBox title="Variablen" items={simulation.humanVariables} emptyText="Keine zusätzlichen Variablen relevant." />
         </div>
         <details className="mt-3 rounded-md border border-line bg-surface p-3">
           <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische Simulationsvariablen</summary>
@@ -779,12 +779,12 @@ export function AutomationRuleEditor({
   );
 }
 
-function SimBox({ title, items }: { title: string; items: string[] }) {
+function SimBox({ title, items, emptyText = "Keine Einträge." }: { title: string; items: string[]; emptyText?: string }) {
   return (
     <div className="rounded-md border border-line bg-surface p-3">
       <div className="text-sm font-semibold text-ink">{title}</div>
       <div className="mt-2 space-y-1 text-sm text-graphite">
-        {items.length ? items.map((item) => <div key={item}>{item}</div>) : <div className="flex items-center gap-1"><XCircle className="h-3 w-3" /> nichts</div>}
+        {items.length ? items.map((item) => <div key={item}>{item}</div>) : <div className="flex items-center gap-1"><XCircle className="h-3 w-3" /> {emptyText}</div>}
       </div>
     </div>
   );
