@@ -140,6 +140,15 @@ test("Mehrere Aktionen bleiben in einer Regel erhalten", () => {
   assert.equal(simulate(rule, 3).due, true);
 });
 
+test("Regelbeschreibung und Timeline benennen Zielgeräte fachlich", () => {
+  const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  assert.match(model, /function capabilityTargetLabel/);
+  assert.match(model, /fordere ein Bild von \$\{target\} an/);
+  assert.match(model, /actionTitleWithTarget\(action, context\)/);
+  assert.match(model, /describeActions\(actions, context\)/);
+  assert.match(model, /genericTitles = \["Bild anfordern", "Verbindung prüfen", "Strom schalten", "Ansage sprechen", "Text sprechen"\]/);
+});
+
 test("Zufallsfenster wird einmal bestimmt und bleibt stabil", () => {
   const rule = buildRule({ timingType: "random_delay", minMinutes: 5, maxMinutes: 10 });
   assert.equal(simulate(rule, 0, 3).dueMinute, simulate(rule, 9, 3).dueMinute);

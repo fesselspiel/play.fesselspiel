@@ -608,8 +608,8 @@ export function automationRuleSummary(input: {
     ? `warte zufällig weitere ${numberValue(timing.minMinutes, 0)} bis ${numberValue(timing.maxMinutes, 0)} Minuten`
     : timing.type === "fixed_delay"
       ? `warte ${numberValue(timing.minutes ?? timing.delayMinutes, 0)} Minuten`
-      : "führe die Aktion sofort aus";
-  const actionText = describeActions(actions);
+      : "führe sofort aus";
+  const actionText = describeActions(actions, context);
   const recoveryText = actions.some((action) => action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0)
     ? " Bei Kamera-Fehlern wird die konfigurierte Wiederherstellung ausgeführt."
     : "";
@@ -630,7 +630,7 @@ export function automationRuleFlow(input: { triggerType: string; triggerJson?: u
   if (timing.type === "fixed_delay") steps.push(`${numberValue(timing.minutes ?? timing.delayMinutes, 0)} Minuten warten`);
   if (timing.type === "random_delay") steps.push(`Zufallsfenster ${numberValue(timing.minMinutes, 0)}-${numberValue(timing.maxMinutes, 0)} Minuten`);
   actions.forEach((action, index) => {
-    steps.push(actions.length > 1 ? `Aktion ${index + 1}: ${actionLabels[action.type as AutomationActionKey] || "Aktion ausführen"}` : actionLabels[action.type as AutomationActionKey] || "Aktion ausführen");
+    steps.push(actions.length > 1 ? `Aktion ${index + 1}: ${actionTitleWithTarget(action, context)}` : actionTitleWithTarget(action, context));
     if (action.type === "camera_request_image") {
       steps.push(numberValue(action.timeoutSeconds, 20) ? `Timeout ${numberValue(action.timeoutSeconds, 20)} Sekunden` : "Kamera-Antwort prüfen");
       if (numberValue(action.maxRetries, 0) > 0) {
@@ -697,7 +697,7 @@ export function simulateAutomationRuleTimeline(input: {
   const actionsAreDue = dueMinute !== null && conditionSatisfiedAtScrub && scrubMinute >= dueMinute;
   const actionItems = actions.map((action, index) => ({
     minute: dueMinute ?? conditionMinutes,
-    title: actions.length > 1 ? `Aktion ${index + 1}: ${actionLabels[action.type as AutomationActionKey] || "Aktion"}` : actionLabels[action.type as AutomationActionKey] || "Aktion"
+    title: actions.length > 1 ? `Aktion ${index + 1}: ${actionTitleWithTarget(action, context)}` : actionTitleWithTarget(action, context)
   }));
   const hasSessionFinish = actions.some((action) => action.type === "session_finish") && conditionEvaluation.canBecomeTrue && dueMinute !== null;
   const pendingEnd = hasSessionFinish && dueMinute > 0
@@ -942,9 +942,43 @@ function describeTrigger(triggerType: string, triggerJson?: unknown, context: Au
   return base;
 }
 
-function describeActions(actions: Record<string, unknown>[]) {
+function capabilityTargetLabel(action: Record<string, unknown>, context: AutomationRuleContext) {
+  const capabilityId = typeof action.capabilityId === "string" ? action.capabilityId : "";
+  const capability = capabilityId ? context.capabilities?.find((item) => item.id === capabilityId) : null;
+  if (!capability) {
+    if (action.type === "camera_request_image" || action.type === "camera_health_check") return "der gewählten Kamera";
+    if (action.type === "switch_on" || action.type === "switch_off" || action.type === "switch_toggle") return "den gewählten Schalter";
+    if (action.type === "voice_speak") return "die gewählte Sprachausgabe";
+    return "dem gewählten Ziel";
+  }
+  const title = capability.title || "";
+  const deviceName = capability.deviceName || "";
+  const genericTitles = ["Bild anfordern", "Verbindung prüfen", "Strom schalten", "Ansage sprechen", "Text sprechen"];
+  if (deviceName && (!title || genericTitles.includes(title))) return deviceName;
+  if (deviceName && title && title !== deviceName) return `${deviceName} · ${title}`;
+  return title || deviceName || "gewählte Fähigkeit";
+}
+
+function actionPhrase(action: Record<string, unknown>, context: AutomationRuleContext) {
+  const target = capabilityTargetLabel(action, context);
+  if (action.type === "camera_request_image") return `fordere ein Bild von ${target} an`;
+  if (action.type === "camera_health_check") return `prüfe die Verbindung von ${target}`;
+  if (action.type === "switch_on") return `schalte ${target} ein`;
+  if (action.type === "switch_off") return `schalte ${target} aus`;
+  if (action.type === "switch_toggle") return `schalte ${target} um`;
+  if (action.type === "voice_speak") return `lasse ${target} den Text sprechen`;
+  if (action.type === "session_finish") return "beende die Session";
+  return "führe die gewählte Aktion aus";
+}
+
+function actionTitleWithTarget(action: Record<string, unknown>, context: AutomationRuleContext) {
+  const phrase = actionPhrase(action, context);
+  return phrase.charAt(0).toUpperCase() + phrase.slice(1);
+}
+
+function describeActions(actions: Record<string, unknown>[], context: AutomationRuleContext) {
   if (!actions.length) return "führe die gewählte Aktion aus";
-  const labels = actions.map((action) => actionLabels[action.type as AutomationActionKey]?.toLowerCase() || "führe eine Aktion aus");
+  const labels = actions.map((action) => actionPhrase(action, context));
   if (labels.length === 1) return labels[0];
   if (labels.length === 2) return `${labels[0]} und danach ${labels[1]}`;
   return `${labels.slice(0, -1).join(", ")} und danach ${labels[labels.length - 1]}`;
