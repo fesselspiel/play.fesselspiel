@@ -19,6 +19,7 @@ import {
   triggerNeedsCapability,
   triggerNeedsDevice,
   triggerOptions,
+  validateAutomationRulePayload,
   type AutomationActionKey,
   type AutomationConditionKey,
   type AutomationTimingKey,
@@ -130,6 +131,15 @@ export function AutomationRuleEditor({
   }), [capabilities, devices, trackers, simulatedDeviceHealth, simulatedCapabilityState, simulatedLastImageAgeSeconds, simulatedCapabilityStateAgeMinutes]);
   const summary = automationRuleSummary(stored, context);
   const flow = automationRuleFlow(stored, context);
+  const validation = useMemo(() => validateAutomationRulePayload({
+    name: "Regel",
+    mode: stored.mode,
+    triggerType: stored.triggerType,
+    triggerJson: stored.triggerJson,
+    conditionJson: stored.conditionJson,
+    timingJson: stored.timingJson,
+    actionJson: stored.actionJson
+  }, capabilities, devices, trackers), [stored, capabilities, devices, trackers]);
   const simulation = simulateAutomationRuleTimeline({
     ...stored,
     scrubMinute,
@@ -309,6 +319,20 @@ export function AutomationRuleEditor({
       <div className="rounded-lg border border-line bg-paper p-4">
         <div className="text-sm font-semibold text-ink">Regel in normaler Sprache</div>
         <p className="mt-2 text-sm leading-6 text-graphite">{summary}</p>
+      </div>
+
+      <div className={`rounded-lg border p-4 ${validation.ok ? "border-line bg-paper" : "border-redbrand/30 bg-redbrand/10"}`}>
+        <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+          {validation.ok ? <CheckCircle2 className="h-4 w-4 text-redbrand" /> : <XCircle className="h-4 w-4 text-redbrand" />}
+          Regelprüfung
+        </div>
+        {validation.ok ? (
+          <p className="mt-2 text-sm leading-6 text-graphite">Diese Regel ist vollständig und kann gespeichert werden.</p>
+        ) : (
+          <ul className="mt-2 space-y-1 text-sm leading-6 text-graphite">
+            {validation.errors.map((error) => <li key={error}>{error}</li>)}
+          </ul>
+        )}
       </div>
 
       <div className="grid gap-3 lg:grid-cols-4">

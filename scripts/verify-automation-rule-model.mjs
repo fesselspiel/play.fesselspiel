@@ -412,4 +412,7 @@ test("Normale Automation-Oberflächen verwenden deutsche Fachsprache", () => {
   assert.match(visibleText, /Wiederherstellung bei Fehler/);
   assert.match(editor, /Session im Portal beenden/);
   assert.match(editor, /<optgroup label="Gerätefähigkeiten">/);
+  assert.match(editor, /validateAutomationRulePayload/);
+  assert.match(editor, /Regelprüfung/);
+  assert.match(editor, /Diese Regel ist vollständig und kann gespeichert werden/);
 });
