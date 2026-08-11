@@ -267,6 +267,14 @@ test("Automation-Session-Seiten verwenden fachliche Aktionssprache", () => {
   assert.doesNotMatch(detail, /actionLabels\[action\.type as keyof typeof actionLabels\]/);
 });
 
+test("Session-Start erinnert an unabhängige Sicherheitsfreigabe", () => {
+  const overview = readFileSync("src/app/automation/page.tsx", "utf8");
+  assert.match(overview, /Unabhängige Sicherheit prüfen/);
+  assert.match(overview, /physische Not- oder Sicherheitsfreigabe/);
+  assert.match(overview, /safetyConfirmed/);
+  assert.match(overview, /safety_required/);
+});
+
 test("Automation-Session-Aktionen nutzen zentrale Rollen-Policy statt Besitzer-Sonderlogik", () => {
   const service = readFileSync("src/lib/session-automation.ts", "utf8");
   const detail = readFileSync("src/app/automation/sessions/[id]/page.tsx", "utf8");
