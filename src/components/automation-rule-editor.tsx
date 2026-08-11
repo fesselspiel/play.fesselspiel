@@ -719,6 +719,14 @@ export function AutomationRuleEditor({
           ))}
         </div>
         <div className="mt-3 rounded-md border border-redbrand/20 bg-redbrand/5 p-3 text-sm font-medium text-ink">{simulation.explanation}</div>
+        <div className="mt-3 rounded-md border border-line bg-surface p-3">
+          <div className="text-sm font-semibold text-ink">Momentaufnahme bei Minute {simulation.currentMoment.minute}</div>
+          <div className="mt-2 grid gap-2 md:grid-cols-3">
+            <SimBox title="Jetzt" items={simulation.currentMoment.current.length ? simulation.currentMoment.current : [simulation.currentMoment.decision]} />
+            <SimBox title="Bereits passiert" items={simulation.currentMoment.completed} />
+            <SimBox title="Als Nächstes" items={simulation.currentMoment.upcoming} />
+          </div>
+        </div>
         <div className="mt-4 overflow-x-auto">
           <div className="flex min-w-max items-stretch gap-2">
             {simulation.timeline.map((item) => (

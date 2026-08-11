@@ -729,6 +729,17 @@ export function simulateAutomationRuleTimeline(input: {
         ]
       : [])
     : [];
+  const timeline = [
+    { minute: 0, title: "Auslöser eingetreten", status: scrubMinute >= 0 ? "erledigt" : "wartet" },
+    ...(controllerActionMinute !== null ? [{ minute: controllerActionMinute, title: "Controller-Aktion in der Simulation", status: controllerActionHasHappened ? (controllerActionBlocks ? "blockiert Bedingung" : "außerhalb des Fensters") : "steht noch aus" }] : []),
+    ...(condition.type && condition.type !== "none" ? [{ minute: conditionMinutes, title: describeCondition(condition, context), status: conditionEvaluation.passed && scrubMinute >= conditionMinutes && !controllerActionBlocksNow ? "erfüllt" : scrubMinute >= conditionMinutes || controllerActionBlocksNow ? "blockiert" : "wartet" }] : []),
+    ...(delay && dueMinute !== null ? [{ minute: dueMinute, title: timing.type === "random_delay" ? `Zufällige Wartezeit endet nach ${delay} Minuten` : `Wartezeit endet nach ${delay} Minuten`, status: scrubMinute >= dueMinute ? "erledigt" : "wartet" }] : []),
+    ...actionItems.map((item) => ({ ...item, status: blockedActions.length ? "blockiert" : actionsAreDue ? "fällig" : "wartet" })),
+    ...(actions.some((action) => action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0) ? [{ minute: failureMinute, title: "Falls ein Bild nicht ankommt: Wiederherstellung starten", status: scrubMinute >= failureMinute ? "bereit" : "wartet" }] : [])
+  ].sort((left, right) => left.minute - right.minute);
+  const currentTimelineItems = timeline.filter((item) => item.minute === scrubMinute);
+  const completedTimelineItems = timeline.filter((item) => item.minute < scrubMinute);
+  const upcomingTimelineItems = timeline.filter((item) => item.minute > scrubMinute);
   return {
     durationMinutes: scrubLimit,
     scrubMinute,
@@ -756,14 +767,24 @@ export function simulateAutomationRuleTimeline(input: {
       ...actionItems.map((item) => item.detail),
       `Echte Ausführung: keine Aktionen in der Simulation`
     ],
-    timeline: [
-      { minute: 0, title: "Auslöser eingetreten", status: scrubMinute >= 0 ? "erledigt" : "wartet" },
-      ...(controllerActionMinute !== null ? [{ minute: controllerActionMinute, title: "Controller-Aktion in der Simulation", status: controllerActionHasHappened ? (controllerActionBlocks ? "blockiert Bedingung" : "außerhalb des Fensters") : "steht noch aus" }] : []),
-      ...(condition.type && condition.type !== "none" ? [{ minute: conditionMinutes, title: describeCondition(condition, context), status: conditionEvaluation.passed && scrubMinute >= conditionMinutes && !controllerActionBlocksNow ? "erfüllt" : scrubMinute >= conditionMinutes || controllerActionBlocksNow ? "blockiert" : "wartet" }] : []),
-      ...(delay && dueMinute !== null ? [{ minute: dueMinute, title: timing.type === "random_delay" ? `Zufällige Wartezeit endet nach ${delay} Minuten` : `Wartezeit endet nach ${delay} Minuten`, status: scrubMinute >= dueMinute ? "erledigt" : "wartet" }] : []),
-      ...actionItems.map((item) => ({ ...item, status: blockedActions.length ? "blockiert" : actionsAreDue ? "fällig" : "wartet" })),
-      ...(actions.some((action) => action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0) ? [{ minute: failureMinute, title: "Falls ein Bild nicht ankommt: Wiederherstellung starten", status: scrubMinute >= failureMinute ? "bereit" : "wartet" }] : [])
-    ],
+    timeline,
+    currentMoment: {
+      minute: scrubMinute,
+      title: `Minute ${scrubMinute}`,
+      current: currentTimelineItems.map((item) => `${item.title}: ${item.status}`),
+      completed: completedTimelineItems.slice(-4).map((item) => `Minute ${item.minute}: ${item.title}: ${item.status}`),
+      upcoming: upcomingTimelineItems.slice(0, 4).map((item) => `Minute ${item.minute}: ${item.title}: ${item.status}`),
+      decision: explainSimulationState({
+        scrubMinute,
+        conditionType: condition.type as string | undefined,
+        conditionMinutes,
+        delay,
+        dueMinute: dueMinute ?? conditionMinutes,
+        actionType: primaryAction.type as string | undefined,
+        actionCount: actions.length,
+        conditionBlocked: !conditionEvaluation.canBecomeTrue || controllerActionBlocksNow
+      })
+    },
     explanation: explainSimulationState({
       scrubMinute,
       conditionType: condition.type as string | undefined,

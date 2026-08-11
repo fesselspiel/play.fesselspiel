@@ -289,6 +289,10 @@ test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben"
   assert.match(editor, /simulationJumpPoints/);
   assert.match(editor, /Minute \{minute\}/);
   assert.match(editor, /setScrubMinute\(minute\)/);
+  assert.match(editor, /Momentaufnahme bei Minute/);
+  assert.match(editor, /simulation\.currentMoment\.current/);
+  assert.match(model, /currentMoment/);
+  assert.match(model, /Bereits passiert|upcomingTimelineItems/);
   assert.match(editor, /Gerätezustand für diese Simulation/);
   assert.match(editor, /Zustand der Fähigkeit für diese Simulation/);
   assert.match(model, /AutomationSimulationOverrides/);
