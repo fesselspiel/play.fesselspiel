@@ -5,7 +5,7 @@ import { AutomationCapabilityManager, AutomationDeviceManager } from "@/componen
 import { AutomationRuleEditor } from "@/components/automation-rule-editor";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
-import { actionLabels, automationRuleFlow, automationRuleSummary, labelAutomationValue, ruleFormFromStored, validateAutomationRulePayload, type AutomationActionKey } from "@/lib/automation-rule-model";
+import { actionLabels, automationRuleFlow, automationRuleSummary, knownAutomationLabel, labelAutomationValue, ruleFormFromStored, validateAutomationRulePayload, type AutomationActionKey } from "@/lib/automation-rule-model";
 import { currentUser } from "@/lib/auth";
 import { requireFeature } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
@@ -85,8 +85,7 @@ function formatAutomationEventDate(date: Date) {
 }
 
 function automationEventTitle(event: { type: string; title: string }) {
-  const label = labelAutomationValue("eventTypes", event.type);
-  return label === event.type ? event.title : label;
+  return knownAutomationLabel("eventTypes", event.type) || event.title || "Unbekanntes Ereignis";
 }
 
 function automationActionTitle(type: string) {

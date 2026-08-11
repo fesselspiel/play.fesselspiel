@@ -4,7 +4,7 @@ import { ArrowLeft, Camera, CircleStop, Clock, Cpu, ShieldCheck, Timer } from "l
 import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, inputClass, PageHeader, Panel, SoftPanel } from "@/components/ui";
-import { actionTitleWithTarget, labelAutomationValue } from "@/lib/automation-rule-model";
+import { actionTitleWithTarget, knownAutomationLabel, labelAutomationValue } from "@/lib/automation-rule-model";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime, minutesBetween } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
@@ -20,8 +20,7 @@ function displayUserName(user?: { profile?: { displayName?: string | null } | nu
 }
 
 function eventLabel(event: { type: string; title: string }) {
-  const label = labelAutomationValue("eventTypes", event.type);
-  return label === event.type ? event.title : label;
+  return knownAutomationLabel("eventTypes", event.type) || event.title || "Unbekanntes Ereignis";
 }
 
 function timeModelLabel(timing: Record<string, unknown>) {

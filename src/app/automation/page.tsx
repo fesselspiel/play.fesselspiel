@@ -4,7 +4,7 @@ import { Camera, CircleStop, Play, ShieldCheck, Timer } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
-import { actionLabels, labelAutomationValue } from "@/lib/automation-rule-model";
+import { actionLabels, knownAutomationLabel, labelAutomationValue } from "@/lib/automation-rule-model";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime, minutesBetween } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
@@ -16,8 +16,7 @@ function detailsObject(value: unknown) {
 }
 
 function automationEventLabel(event: { type: string; title: string }) {
-  const label = labelAutomationValue("eventTypes", event.type);
-  return label === event.type ? event.title : label;
+  return knownAutomationLabel("eventTypes", event.type) || event.title || "Unbekanntes Ereignis";
 }
 
 function actorLabel(actor?: { profile?: { displayName?: string | null } | null; name?: string | null; username?: string | null; email?: string | null } | null) {
@@ -347,7 +346,7 @@ export default async function AutomationPage(props: { searchParams?: Promise<Rec
             {events.map((event) => (
               <details key={event.id} className="rounded-md border border-line bg-paper p-3">
                 <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
-                  {formatDateTime(event.createdAt)} · {labelAutomationValue("eventTypes", event.type) === event.type ? event.title : labelAutomationValue("eventTypes", event.type)}
+                  {formatDateTime(event.createdAt)} · {automationEventLabel(event)}
                 </summary>
                 <div className="mt-2 space-y-1 text-sm text-graphite">
                   <div>Quelle: {labelAutomationValue("sources", event.source)}</div>

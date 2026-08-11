@@ -1123,7 +1123,11 @@ function describeCondition(condition: Record<string, unknown>, context: Automati
 }
 
 export function labelAutomationValue(kind: keyof typeof automationLabels, value?: string | null) {
+  return knownAutomationLabel(kind, value) || automationFallbackLabels[kind] || "Unbekannter Wert";
+}
+
+export function knownAutomationLabel(kind: keyof typeof automationLabels, value?: string | null) {
   if (!value) return "Nicht gesetzt";
   const map = automationLabels[kind] as Record<string, string>;
-  return map[value] || automationFallbackLabels[kind] || "Unbekannter Wert";
+  return map[value] || null;
 }
