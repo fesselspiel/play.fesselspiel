@@ -615,6 +615,7 @@ export const capabilities: readonly Capability[] = [
           { method: "POST", path: "/api/external/automation/devices", description: "Gerät und Capabilities aus ioBroker synchronisieren." },
           { method: "GET", path: "/api/external/automation/bridge", description: "Bridge-Health und MQTT-Konfiguration lesen." },
           { method: "PATCH", path: "/api/external/automation/bridge", description: "Bridge-Health, Heartbeat und MQTT-Metadaten aktualisieren." },
+          { method: "GET", path: "/api/external/automation/actions?sessionId=...&status=...", description: "Persistierte Automation-Actions mit fachlichen Labels für Debugging, App-Timeline und Worker lesen." },
           { method: "POST", path: "/api/external/automation/actions/run-due", description: "Fällige persistierte Automation-Actions ausführen. Für Cron/Worker." },
           { method: "POST", path: "/api/external/automation/adapter/heartbeat", description: "Adapter-Heartbeat senden und Bridge-Status aktualisieren." },
           { method: "GET", path: "/api/external/automation/adapter/commands?limit=25", description: "Fällige Geräte-/Capability-Commands atomar für den Adapter abholen." },

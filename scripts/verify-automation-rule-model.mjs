@@ -510,6 +510,7 @@ test("Externe Automation-APIs liefern fachliche Labels und geschützte Bild-Link
   const sessionsRoute = readFileSync("src/app/api/external/automation/sessions/route.ts", "utf8");
   const sessionHistoryRoute = readFileSync("src/app/api/external/automation/sessions/history/route.ts", "utf8");
   const endRoute = readFileSync("src/app/api/external/automation/sessions/[id]/end/route.ts", "utf8");
+  const actionsRoute = readFileSync("src/app/api/external/automation/actions/route.ts", "utf8");
   const eventsRoute = readFileSync("src/app/api/external/automation/events/route.ts", "utf8");
   const imageRequestsRoute = readFileSync("src/app/api/external/automation/image-requests/route.ts", "utf8");
   const imageUploadRoute = readFileSync("src/app/api/external/automation/image-requests/[requestId]/upload/route.ts", "utf8");
@@ -528,6 +529,11 @@ test("Externe Automation-APIs liefern fachliche Labels und geschützte Bild-Link
   assert.match(sessionHistoryRoute, /items\.map\(\(item\) => serializeAutomationSession\(request, item\)\)/);
   assert.match(endRoute, /serializeAutomationAction\(result\.action\)/);
   assert.match(endRoute, /serializeAutomationSession\(request, result\.session\)/);
+  assert.match(actionsRoute, /serializeAutomationAction/);
+  assert.match(actionsRoute, /sessionId/);
+  assert.match(actionsRoute, /status/);
+  assert.match(actionsRoute, /type/);
+  assert.match(actionsRoute, /items\.map\(serializeAutomationAction\)/);
   assert.match(eventsRoute, /items: events\.map\(serializeAutomationEvent\)/);
   assert.match(eventsRoute, /capability:\s*\{\s*include:\s*\{\s*device:/);
   assert.match(imageRequestsRoute, /serializeAutomationImageRequest\(request, item\)/);
