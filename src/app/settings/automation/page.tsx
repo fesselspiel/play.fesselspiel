@@ -848,7 +848,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                   const policyEntries = humanAutomationPolicyEntries(policy);
                   const timing = jsonRecord(event.context?.timingJson);
                   return (
-                    <details key={event.id} className="rounded-md border border-line bg-paper p-3">
+                    <details id={`automation-event-${event.id}`} key={event.id} className="scroll-mt-24 rounded-md border border-line bg-paper p-3">
                       <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
                         {formatAutomationEventTime(event.createdAt)} · {automationEventTitle(event)}
                       </summary>
@@ -908,8 +908,16 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                         {event.parentEvent || event.childEvents.length ? (
                           <div className="rounded-md border border-line bg-surface p-3">
                             <div className="text-xs uppercase text-graphite">Ursache und Folge</div>
-                            {event.parentEvent ? <div className="mt-1">Ausgelöst durch: {formatAutomationEventTime(event.parentEvent.createdAt)} · {automationEventTitle(event.parentEvent)}</div> : null}
-                            {event.childEvents.map((child) => <div key={child.id}>Folge: {formatAutomationEventTime(child.createdAt)} · {automationEventTitle(child)}</div>)}
+                            {event.parentEvent ? (
+                              <a className="mt-1 block font-medium text-redbrand hover:underline" href={`#automation-event-${event.parentEvent.id}`}>
+                                Ausgelöst durch: {formatAutomationEventTime(event.parentEvent.createdAt)} · {automationEventTitle(event.parentEvent)}
+                              </a>
+                            ) : null}
+                            {event.childEvents.map((child) => (
+                              <a key={child.id} className="block font-medium text-redbrand hover:underline" href={`#automation-event-${child.id}`}>
+                                Folge: {formatAutomationEventTime(child.createdAt)} · {automationEventTitle(child)}
+                              </a>
+                            ))}
                           </div>
                         ) : null}
                         {policyEntries.length || event.context ? (

@@ -277,6 +277,9 @@ test("Automation-Protokoll zeigt Policy-Entscheidungen fachlich an", () => {
   assert.match(settings, /<summary[^>]*>Technische API-Endpunkte<\/summary>/);
   assert.match(settings, /<summary[^>]*>Verbindungsdetails<\/summary>/);
   assert.match(settings, /Im normalen Regelbetrieb musst du sie nicht ändern/);
+  assert.match(settings, /id=\{`automation-event-\$\{event\.id\}`\}/);
+  assert.match(settings, /href=\{`#automation-event-\$\{event\.parentEvent\.id\}`\}/);
+  assert.match(settings, /href=\{`#automation-event-\$\{child\.id\}`\}/);
 });
 
 test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben", () => {
