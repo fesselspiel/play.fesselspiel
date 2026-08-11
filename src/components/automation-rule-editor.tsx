@@ -804,7 +804,7 @@ export function AutomationRuleEditor({
           <SimBox title="Simulierte Aktionen" items={simulation.completedActions.map((item) => item.detail)} emptyText="Noch keine Aktion wurde in der Simulation ausgeführt." />
           <SimBox title="Blockierte Aktionen" items={simulation.blockedActions.map((item) => item.detail)} emptyText="Keine Aktion ist blockiert." />
           <SimBox title="Vorgemerktes Ende" items={simulation.pendingEnd.map((item) => `${item.state}: ${item.text}`)} emptyText="Kein Ende ist vorgemerkt." />
-          <SimBox title="Wiederherstellung bei Fehler" items={simulation.recoveryActions.map((item) => `${item.minute} min · ${item.title}`)} emptyText="Keine Wiederherstellung geplant." />
+          <SimBox title="Wiederherstellung bei Fehler" items={simulation.recoveryActions.map((item) => `${item.minute} min · ${item.title}: ${item.status} · ${item.detail}`)} emptyText="Keine Wiederherstellung geplant." />
           <SimBox title="Zufallswerte" items={simulation.randomValues.map((item) => `${item.label}: ${item.value}`)} emptyText="Diese Regel nutzt keinen Zufallswert." />
           <SimBox title="Variablen" items={simulation.humanVariables} emptyText="Keine zusätzlichen Variablen relevant." />
         </div>

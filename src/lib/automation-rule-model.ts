@@ -687,7 +687,9 @@ export function simulateAutomationRuleTimeline(input: {
       : 0;
   const dueMinute = conditionEvaluation.canBecomeTrue ? conditionMinutes + delay : null;
   const latestPossibleDueMinute = conditionEvaluation.canBecomeTrue ? conditionMinutes + maxDelay : null;
-  const scrubLimit = Math.max(1, dueMinute ?? 0, latestPossibleDueMinute ?? 0, conditionMinutes, delay, maxDelay) + 5;
+  const recoveryPlan = actions.flatMap((action, index) => cameraRecoveryPlan(action, context, dueMinute ?? conditionMinutes, actions.length > 1 ? index + 1 : null));
+  const recoveryMaxMinute = recoveryPlan.reduce((max, item) => Math.max(max, item.minute), 0);
+  const scrubLimit = Math.max(1, dueMinute ?? 0, latestPossibleDueMinute ?? 0, conditionMinutes, delay, maxDelay, recoveryMaxMinute) + 5;
   const scrubMinute = Math.min(Math.max(0, input.scrubMinute ?? 0), scrubLimit);
   const ruleTitle = describeTrigger(input.triggerType, input.triggerJson, context);
   const controllerActionHasHappened = controllerActionMinute !== null && scrubMinute >= controllerActionMinute;
@@ -743,14 +745,9 @@ export function simulateAutomationRuleTimeline(input: {
   const waitingActions = conditionEvaluation.canBecomeTrue && !controllerActionBlocksNow && !actionsAreDue ? actionItems : [];
   const dueActions = actionsAreDue ? actionItems : [];
   const blockedActions = conditionEvaluation.canBecomeTrue && !controllerActionBlocksNow ? [] : actionItems;
-  const failureMinute = (dueMinute ?? conditionMinutes) + 1;
-  const recoveryActions = scrubMinute >= failureMinute
-    ? actions.flatMap((action, index) => actionsAreDue && action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0
-      ? [
-          ...(action.recoveryCapabilityId ? [{ minute: failureMinute, title: actions.length > 1 ? `Aktion ${index + 1}: Kamera-Strom neu schalten` : "Kamera-Strom neu schalten" }] : []),
-          { minute: failureMinute + Math.ceil(numberValue(action.bootDelaySeconds, 20) / 60), title: actions.length > 1 ? `Aktion ${index + 1}: Bild erneut anfordern` : "Bild erneut anfordern" }
-        ]
-      : [])
+  const firstRecoveryMinute = recoveryPlan.length ? Math.min(...recoveryPlan.map((item) => item.minute)) : null;
+  const recoveryActions = actionsAreDue && firstRecoveryMinute !== null && scrubMinute >= firstRecoveryMinute
+    ? recoveryPlan.map((item) => ({ ...item, status: scrubMinute >= item.minute ? "erledigt" : "wartet" }))
     : [];
   const timeline = [
     { minute: 0, title: "Auslöser eingetreten", status: scrubMinute >= 0 ? "erledigt" : "wartet" },
@@ -758,7 +755,7 @@ export function simulateAutomationRuleTimeline(input: {
     ...(condition.type && condition.type !== "none" ? [{ minute: conditionMinutes, title: describeCondition(condition, context), status: conditionEvaluation.passed && scrubMinute >= conditionMinutes && !controllerActionBlocksNow ? "erfüllt" : scrubMinute >= conditionMinutes || controllerActionBlocksNow ? "blockiert" : "wartet" }] : []),
     ...(delay && dueMinute !== null ? [{ minute: dueMinute, title: timing.type === "random_delay" ? `Zufällige Wartezeit endet nach ${delay} Minuten` : `Wartezeit endet nach ${delay} Minuten`, status: scrubMinute >= dueMinute ? "erledigt" : "wartet" }] : []),
     ...actionItems.map((item) => ({ ...item, status: blockedActions.length ? "blockiert" : actionsAreDue ? "fällig" : "wartet" })),
-    ...(actions.some((action) => action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0) ? [{ minute: failureMinute, title: "Falls ein Bild nicht ankommt: Wiederherstellung starten", status: scrubMinute >= failureMinute ? "bereit" : "wartet" }] : [])
+    ...recoveryPlan.map((item) => ({ ...item, status: scrubMinute >= item.minute ? "erledigt" : "wartet" }))
   ].sort((left, right) => left.minute - right.minute);
   const currentTimelineItems = timeline.filter((item) => item.minute === scrubMinute);
   const completedTimelineItems = timeline.filter((item) => item.minute < scrubMinute);
@@ -949,6 +946,48 @@ function simulationActionDetail(action: Record<string, unknown>, context: Automa
     details.push("setzt die Session in der echten Ausführung auf beendet");
   }
   return details.join(" · ");
+}
+
+function cameraRecoveryPlan(action: Record<string, unknown>, context: AutomationRuleContext, dueMinute: number, index: number | null) {
+  if (action.type !== "camera_request_image") return [];
+  const maxRetries = numberValue(action.maxRetries, 0);
+  if (maxRetries <= 0) return [];
+  const timeoutMinutes = Math.max(1, Math.ceil(numberValue(action.timeoutSeconds, 20) / 60));
+  const bootDelayMinutes = Math.max(0, Math.ceil(numberValue(action.bootDelaySeconds, 20) / 60));
+  const prefix = index ? `Aktion ${index}: ` : "";
+  const retryLabel = (retry: number) => `Versuch ${retry} von ${maxRetries}`;
+  const target = capabilityTargetLabel(action, context);
+  const recoveryTarget = action.recoveryCapabilityId
+    ? capabilityTargetLabel({ type: "switch_toggle", capabilityId: action.recoveryCapabilityId }, context)
+    : "";
+  const items: Array<{ minute: number; title: string; detail: string }> = [];
+  for (let retry = 1; retry <= maxRetries; retry += 1) {
+    const failedAt = dueMinute + retry * timeoutMinutes + (retry - 1) * bootDelayMinutes;
+    items.push({
+      minute: failedAt,
+      title: `${prefix}${retryLabel(retry)}: Bild kam nicht rechtzeitig an`,
+      detail: `${prefix}${retryLabel(retry)}: ${target} hat innerhalb von ${numberValue(action.timeoutSeconds, 20)} Sekunden kein gültiges Bild geliefert.`
+    });
+    if (action.recoveryCapabilityId) {
+      items.push({
+        minute: failedAt,
+        title: `${prefix}${retryLabel(retry)}: Kamera-Strom neu schalten`,
+        detail: `${prefix}${retryLabel(retry)}: Wiederherstellung über ${recoveryTarget}.`
+      });
+    }
+    items.push({
+      minute: failedAt + bootDelayMinutes,
+      title: `${prefix}${retryLabel(retry)}: Bild erneut anfordern`,
+      detail: `${prefix}${retryLabel(retry)}: Nach ${numberValue(action.bootDelaySeconds, 20)} Sekunden Boot-Wartezeit wird erneut ein Bild von ${target} angefordert.`
+    });
+  }
+  const exhaustedAt = dueMinute + (maxRetries + 1) * timeoutMinutes + maxRetries * bootDelayMinutes;
+  items.push({
+    minute: exhaustedAt,
+    title: `${prefix}Kamera-Wiederherstellung beendet`,
+    detail: `${prefix}Nach ${maxRetries} Wiederholung(en) ist keine weitere automatische Wiederholung offen.`
+  });
+  return items.sort((left, right) => left.minute - right.minute);
 }
 
 function effectiveDeviceHealth(device: AutomationDeviceReference | null | undefined, context: AutomationRuleContext) {

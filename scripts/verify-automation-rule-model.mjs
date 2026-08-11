@@ -509,6 +509,22 @@ test("Kamera-Fähigkeiten bieten Bildanforderung und Verbindungsprüfung ohne JS
   assert.match(service, /camera_health_check:\s*"Verbindung prüfen"/);
 });
 
+test("Kamera-Recovery wird als vollständige Retry-Kette simuliert", () => {
+  const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
+  assert.match(model, /function cameraRecoveryPlan/);
+  assert.match(model, /for \(let retry = 1; retry <= maxRetries; retry \+= 1\)/);
+  assert.match(model, /Bild kam nicht rechtzeitig an/);
+  assert.match(model, /Kamera-Strom neu schalten/);
+  assert.match(model, /Bild erneut anfordern/);
+  assert.match(model, /Kamera-Wiederherstellung beendet/);
+  assert.match(model, /bootDelayMinutes/);
+  assert.match(model, /recoveryMaxMinute/);
+  assert.match(model, /scrubLimit = Math\.max\([\s\S]*recoveryMaxMinute/);
+  assert.match(editor, /item\.status/);
+  assert.match(editor, /item\.detail/);
+});
+
 test("Kamera-Bedingung letztes Bild ist jünger wird zentral unterstützt", () => {
   const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
   const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
