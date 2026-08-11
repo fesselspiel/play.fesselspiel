@@ -209,15 +209,6 @@ export function AutomationRuleEditor({
       if (merged.conditionType === "quota_remaining" && !merged.conditionTrackerTypeId) {
         merged.conditionTrackerTypeId = trackers[0]?.id || "";
       }
-      const cap = capabilities.find((item) => item.id === merged.capabilityId);
-      if (cap) {
-        merged.capabilityKind = cap.kind;
-        const actions = actionOptionsByCapability[cap.kind];
-        if (!actions.includes(merged.actionType)) merged.actionType = actions[0];
-      } else {
-        merged.capabilityKind = "";
-        merged.actionType = "session_finish";
-      }
       if (merged.timingType === "immediate") {
         merged.delayMinutes = 0;
       }

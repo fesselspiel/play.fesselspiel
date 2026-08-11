@@ -168,6 +168,8 @@ test("Rule-Editor filtert Aktionsziele abhängig von der fachlichen Aktion", () 
   assert.match(editor, /Für „\{actionLabels\[action\.actionType\]\}“ sind nur/);
   assert.match(editor, /targetCapabilities\.map/);
   assert.doesNotMatch(editor, /<optgroup label="Gerätefähigkeiten">/);
+  assert.doesNotMatch(editor, /const cap = capabilities\.find\(\(item\) => item\.id === merged\.capabilityId\)/);
+  assert.doesNotMatch(editor, /merged\.actionType = actions\[0\]/);
 });
 
 test("Regelbeschreibung und Timeline benennen Zielgeräte fachlich", () => {
