@@ -268,6 +268,8 @@ test("Automation-Protokoll zeigt Policy-Entscheidungen fachlich an", () => {
   assert.match(settings, /Session-Zustand/);
   assert.match(settings, /details\.policy/);
   assert.match(settings, /Begründung/);
+  assert.match(settings, /Technische API-Endpunkte/);
+  assert.match(settings, /<summary[^>]*>Technische API-Endpunkte<\/summary>/);
 });
 
 test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben", () => {

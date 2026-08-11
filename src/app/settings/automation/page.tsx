@@ -585,14 +585,17 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
             <p className="mt-2 text-sm text-graphite">
               Der spätere ioBroker-Adapter nutzt normale API-Tokens und ruft nur Portal-Endpunkte auf. Die Gerätebrücke bleibt dadurch mandantenfähig und vollständig protokolliert.
             </p>
-            <div className="mt-3 grid gap-2 text-xs text-graphite md:grid-cols-2">
-              <code className="rounded border border-line bg-surface p-2">POST /api/external/automation/adapter/heartbeat</code>
-              <code className="rounded border border-line bg-surface p-2">GET /api/external/automation/adapter/commands</code>
-              <code className="rounded border border-line bg-surface p-2">POST /api/external/automation/adapter/commands/{"{id}"}/result</code>
-              <code className="rounded border border-line bg-surface p-2">POST /api/external/automation/events</code>
-              <code className="rounded border border-line bg-surface p-2">POST /api/external/automation/devices</code>
-              <code className="rounded border border-line bg-surface p-2">POST /api/external/automation/image-requests/{"{requestId}"}/upload</code>
-            </div>
+            <details className="mt-3 rounded-md border border-line bg-surface p-3">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische API-Endpunkte</summary>
+              <div className="mt-3 grid gap-2 text-xs text-graphite md:grid-cols-2">
+                <code className="rounded border border-line bg-paper p-2">POST /api/external/automation/adapter/heartbeat</code>
+                <code className="rounded border border-line bg-paper p-2">GET /api/external/automation/adapter/commands</code>
+                <code className="rounded border border-line bg-paper p-2">POST /api/external/automation/adapter/commands/{"{id}"}/result</code>
+                <code className="rounded border border-line bg-paper p-2">POST /api/external/automation/events</code>
+                <code className="rounded border border-line bg-paper p-2">POST /api/external/automation/devices</code>
+                <code className="rounded border border-line bg-paper p-2">POST /api/external/automation/image-requests/{"{requestId}"}/upload</code>
+              </div>
+            </details>
             <a className="mt-3 inline-flex text-sm font-semibold text-redbrand hover:underline" href="/docs/iobroker-adapter-contract.md">
               Schnittstellen-Dokument öffnen
             </a>
