@@ -53,6 +53,16 @@ type TrackerOption = {
   color: string;
 };
 
+type AutomationRuleEditorProps = {
+  initial?: string;
+  capabilities: CapabilityOption[];
+  devices: DeviceOption[];
+  trackers: TrackerOption[];
+  ruleId?: string;
+  ruleName?: string;
+  ruleVersion?: number;
+};
+
 function stateOptionsForCapability(kind?: CapabilityKind) {
   if (kind === "Switch") return [
     ["ON", "Eingeschaltet"],
@@ -116,7 +126,25 @@ function parseInitial(value?: string) {
   }
 }
 
-export function AutomationRuleEditor({
+export function AutomationRuleEditor(props: AutomationRuleEditorProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="rounded-lg border border-line bg-surface p-4 text-sm text-graphite">
+        Der Regel-Editor wird vorbereitet. Danach kannst du Auslöser, Bedingungen, Zeitlogik, Aktionen und Simulation bearbeiten.
+      </div>
+    );
+  }
+
+  return <AutomationRuleEditorClient {...props} />;
+}
+
+function AutomationRuleEditorClient({
   initial,
   capabilities,
   devices,
@@ -124,15 +152,7 @@ export function AutomationRuleEditor({
   ruleId,
   ruleName,
   ruleVersion
-}: {
-  initial?: string;
-  capabilities: CapabilityOption[];
-  devices: DeviceOption[];
-  trackers: TrackerOption[];
-  ruleId?: string;
-  ruleName?: string;
-  ruleVersion?: number;
-}) {
+}: AutomationRuleEditorProps) {
   const [value, setValue] = useState<RuleFormValue>(() => parseInitial(initial));
   const [scrubMinute, setScrubMinute] = useState(0);
   const [simulateControllerAction, setSimulateControllerAction] = useState(false);
