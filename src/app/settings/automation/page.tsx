@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { AutomationCapabilityManager, AutomationDeviceManager } from "@/components/automation-device-manager";
 import { AutomationRuleEditor } from "@/components/automation-rule-editor";
 import { SubmitButton } from "@/components/submit-button";
-import { Field, inputClass, PageGuide, PageHeader, Panel } from "@/components/ui";
+import { Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { actionLabels, automationRuleFlow, automationRuleSummary, labelAutomationValue, ruleFormFromStored, validateAutomationRulePayload, type AutomationActionKey } from "@/lib/automation-rule-model";
 import { currentUser } from "@/lib/auth";
 import { requireFeature } from "@/lib/features";
@@ -835,7 +835,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                 {rules.map((rule) => {
                   const currentRuleText = automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions });
                   return (
-                    <details key={rule.id} className="rounded-md border border-line bg-paper p-3">
+                    <details id={`automation-rule-${rule.id}`} key={rule.id} className="scroll-mt-24 rounded-md border border-line bg-paper p-3">
                       <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">{rule.name}</summary>
                       <p className="mt-2 text-sm text-graphite">{currentRuleText}</p>
                       <div className="mt-3">
@@ -875,17 +875,24 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <Panel>
               <h2 className="text-base font-semibold text-ink">Simulation</h2>
-              <p className="mt-2 text-sm text-graphite">Die Simulation findet direkt im Regel-Editor der jeweiligen Regel statt und erzeugt keine echten Aktionen.</p>
+              <p className="mt-2 text-sm text-graphite">Jede gespeicherte Regel kann hier mit derselben Zeitleiste wie im Editor geprüft werden. Die Simulation erzeugt keine echten Gerätebefehle, Bildanforderungen oder Benachrichtigungen.</p>
               <div className="mt-3 space-y-2">
-                {rules.slice(0, 5).map((rule) => (
-                  <div key={rule.id} className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">
-                    <div className="font-semibold text-ink">{rule.name}</div>
-                    <p className="mt-1">{automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })}</p>
+                {rules.map((rule) => (
+                  <details key={`${rule.id}-simulation`} className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">
+                    <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">{rule.name} simulieren</summary>
+                    <p className="mt-2">{automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })}</p>
                     <div className="mt-3">
                       <RuleFlowPreview steps={automationRuleFlow(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })} />
                     </div>
-                  </div>
+                    <div className="mt-3 rounded-md border border-line bg-surface p-3">
+                      <AutomationRuleEditor ruleId={rule.id} capabilities={capabilities} devices={deviceOptions} trackers={trackerOptions} initial={JSON.stringify(ruleFormFromStored(rule))} />
+                    </div>
+                    <a className="mt-3 inline-flex text-sm font-semibold text-redbrand hover:underline" href={`#automation-rule-${rule.id}`}>
+                      Regel bearbeiten
+                    </a>
+                  </details>
                 ))}
+                {!rules.length ? <SoftPanel><Activity className="h-5 w-5 text-redbrand" /> Noch keine Regel zum Simulieren angelegt.</SoftPanel> : null}
               </div>
             </Panel>
             <Panel>

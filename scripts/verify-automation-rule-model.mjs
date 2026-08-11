@@ -335,6 +335,7 @@ test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben"
   const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
   const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
   const route = readFileSync("src/app/api/external/automation/rules/simulate/route.ts", "utf8");
+  const settings = readFileSync("src/app/settings/automation/page.tsx", "utf8");
   assert.match(editor, /simulationJumpPoints/);
   assert.match(editor, /Minute \{minute\}/);
   assert.match(editor, /setScrubMinute\(minute\)/);
@@ -355,6 +356,10 @@ test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben"
   assert.match(editor, /Keine Aktion ist jetzt fällig/);
   assert.match(editor, /Diese Regel nutzt keinen Zufallswert/);
   assert.doesNotMatch(editor, /> nichts</);
+  assert.match(settings, /Jede gespeicherte Regel kann hier mit derselben Zeitleiste wie im Editor geprüft werden/);
+  assert.match(settings, /rules\.map\(\(rule\) => \(/);
+  assert.match(settings, /initial=\{JSON\.stringify\(ruleFormFromStored\(rule\)\)\}/);
+  assert.doesNotMatch(settings, /rules\.slice\(0,\s*5\)/);
 });
 
 test("Kamera-spezifische Auslöser begrenzen Fähigkeitsbedingungen auf Kameras", () => {
