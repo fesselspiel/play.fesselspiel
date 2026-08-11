@@ -286,6 +286,9 @@ test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben"
   const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
   const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
   const route = readFileSync("src/app/api/external/automation/rules/simulate/route.ts", "utf8");
+  assert.match(editor, /simulationJumpPoints/);
+  assert.match(editor, /Minute \{minute\}/);
+  assert.match(editor, /setScrubMinute\(minute\)/);
   assert.match(editor, /Gerätezustand für diese Simulation/);
   assert.match(editor, /Zustand der Fähigkeit für diese Simulation/);
   assert.match(model, /AutomationSimulationOverrides/);

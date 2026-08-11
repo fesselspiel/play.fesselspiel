@@ -145,6 +145,13 @@ export function AutomationRuleEditor({
     scrubMinute,
     controllerActionMinute: value.conditionType === "controller_absent" && simulateControllerAction ? controllerActionMinute : null
   }, context);
+  const simulationJumpPoints = useMemo(() => {
+    const points = new Map<number, string>();
+    simulation.timeline.forEach((item) => {
+      if (!points.has(item.minute)) points.set(item.minute, item.title);
+    });
+    return Array.from(points.entries()).sort(([left], [right]) => left - right);
+  }, [simulation.timeline]);
   const triggerCapabilityKind = triggerCapabilityFilter(value.triggerType);
   const triggerCapabilities = triggerCapabilityKind ? capabilities.filter((capability) => capability.kind === triggerCapabilityKind) : capabilities;
   const conditionCapabilityKind = value.conditionType === "last_image_younger_than" ? "Camera" : value.conditionType === "switch_state_for" ? "Switch" : triggerCapabilityKind;
@@ -698,6 +705,19 @@ export function AutomationRuleEditor({
         ) : null}
         <input className="mt-4 w-full accent-redbrand" type="range" min={0} max={simulation.durationMinutes} value={scrubMinute} onChange={(event) => setScrubMinute(Number(event.target.value))} />
         <div className="mt-2 text-sm text-graphite">Simulationszeitpunkt: Minute {simulation.scrubMinute} von {simulation.durationMinutes}</div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {simulationJumpPoints.map(([minute, title]) => (
+            <button
+              key={`${minute}-${title}`}
+              type="button"
+              onClick={() => setScrubMinute(minute)}
+              className={`rounded-md border px-3 py-2 text-xs font-semibold ${simulation.scrubMinute === minute ? "border-redbrand bg-redbrand text-white" : "border-line bg-surface text-ink hover:border-redbrand hover:text-redbrand"}`}
+              title={title}
+            >
+              Minute {minute}
+            </button>
+          ))}
+        </div>
         <div className="mt-3 rounded-md border border-redbrand/20 bg-redbrand/5 p-3 text-sm font-medium text-ink">{simulation.explanation}</div>
         <div className="mt-4 overflow-x-auto">
           <div className="flex min-w-max items-stretch gap-2">
