@@ -131,6 +131,8 @@ test("Feste Verzögerung berechnet fällige Minute", () => {
 
 test("Mehrere Aktionen bleiben in einer Regel erhalten", () => {
   const rule = buildRule({ timingType: "fixed_delay", delayMinutes: 3 });
+  const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
   rule.actionJson = [
     { type: "camera_request_image", capabilityId: "cam-1", capabilityKind: "Camera" },
     { type: "voice_speak", capabilityId: "voice-1", capabilityKind: "Voice", text: "Bitte Status prüfen." }
@@ -138,6 +140,10 @@ test("Mehrere Aktionen bleiben in einer Regel erhalten", () => {
   assert.equal(rule.actionJson.length, 2);
   assert.deepEqual(rule.actionJson.map((action) => action.type), ["camera_request_image", "voice_speak"]);
   assert.equal(simulate(rule, 3).due, true);
+  assert.match(model, /function simulationActionDetail/);
+  assert.match(model, /Wiederholungen \$\{numberValue\(action\.maxRetries, 0\)\}/);
+  assert.match(model, /Ansagetext: \$\{text\}/);
+  assert.match(editor, /simulation\.waitingActions\.map\(\(item\) => item\.detail\)/);
 });
 
 test("Regelbeschreibung und Timeline benennen Zielgeräte fachlich", () => {

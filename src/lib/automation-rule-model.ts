@@ -695,10 +695,15 @@ export function simulateAutomationRuleTimeline(input: {
     : [];
   const conditionSatisfiedAtScrub = !condition.type || condition.type === "none" || (conditionEvaluation.passed && scrubMinute >= conditionMinutes && !controllerActionBlocksNow);
   const actionsAreDue = dueMinute !== null && conditionSatisfiedAtScrub && scrubMinute >= dueMinute;
-  const actionItems = actions.map((action, index) => ({
-    minute: dueMinute ?? conditionMinutes,
-    title: actions.length > 1 ? `Aktion ${index + 1}: ${actionTitleWithTarget(action, context)}` : actionTitleWithTarget(action, context)
-  }));
+  const actionItems = actions.map((action, index) => {
+    const minute = dueMinute ?? conditionMinutes;
+    const title = actions.length > 1 ? `Aktion ${index + 1}: ${actionTitleWithTarget(action, context)}` : actionTitleWithTarget(action, context);
+    return {
+      minute,
+      title,
+      detail: simulationActionDetail(action, context, minute, actions.length > 1 ? index + 1 : null)
+    };
+  });
   const hasSessionFinish = actions.some((action) => action.type === "session_finish") && conditionEvaluation.canBecomeTrue && dueMinute !== null;
   const pendingEnd = hasSessionFinish && dueMinute > 0
     ? [{
@@ -748,6 +753,7 @@ export function simulateAutomationRuleTimeline(input: {
       ...(timing.type === "random_delay" ? [`Zufallsfenster: ${numberValue(timing.minMinutes, 0)} bis ${numberValue(timing.maxMinutes, 0)} Minuten`, `Gezogener Wert: ${delay} Minuten`] : []),
       ...simulatedStateVariables,
       `Fälligkeit: ${dueMinute === null ? "keine Fälligkeit, weil die Bedingung blockiert" : controllerActionBlocksNow ? `durch simulierte Controller-Aktion blockiert, sonst Minute ${dueMinute}` : `Minute ${dueMinute}`}`,
+      ...actionItems.map((item) => item.detail),
       `Echte Ausführung: keine Aktionen in der Simulation`
     ],
     timeline: [
@@ -837,6 +843,33 @@ function explainSimulationState(input: { scrubMinute: number; conditionType?: st
   if (input.actionType === "camera_health_check") return "Die Verbindungsprüfung ist fällig. In der echten Ausführung würde die Bridge die Kamera prüfen und den Zustand zurückmelden.";
   if (input.actionType === "session_finish") return "Die Session-Ende-Aktion ist fällig. In der echten Ausführung würde der Zustand entsprechend gesetzt.";
   return "Die Aktion ist fällig. Die Simulation führt weiterhin nichts echt aus.";
+}
+
+function simulationActionDetail(action: Record<string, unknown>, context: AutomationRuleContext, minute: number, index: number | null) {
+  const prefix = index ? `Aktion ${index}` : "Aktion";
+  const title = actionTitleWithTarget(action, context);
+  const details: string[] = [`${prefix}: ${title}`, `fällig ab Minute ${minute}`];
+  if (action.type === "camera_request_image") {
+    details.push(`Timeout ${numberValue(action.timeoutSeconds, 20)} Sekunden`);
+    details.push(`Wiederholungen ${numberValue(action.maxRetries, 0)}`);
+    details.push(`Boot-Wartezeit ${numberValue(action.bootDelaySeconds, 20)} Sekunden`);
+    if (action.recoveryCapabilityId) {
+      details.push(`Wiederherstellung über ${capabilityTargetLabel({ type: "switch_toggle", capabilityId: action.recoveryCapabilityId }, context)}`);
+    } else {
+      details.push("keine automatische Strom-Wiederherstellung");
+    }
+  }
+  if (action.type === "camera_health_check") {
+    details.push(`Verbindungsprüfung mit ${numberValue(action.timeoutSeconds, 20)} Sekunden Timeout`);
+  }
+  if (action.type === "voice_speak") {
+    const text = typeof action.text === "string" && action.text.trim() ? action.text.trim() : "kein Text hinterlegt";
+    details.push(`Ansagetext: ${text}`);
+  }
+  if (action.type === "session_finish") {
+    details.push("setzt die Session in der echten Ausführung auf beendet");
+  }
+  return details.join(" · ");
 }
 
 function effectiveDeviceHealth(device: AutomationDeviceReference | null | undefined, context: AutomationRuleContext) {
