@@ -733,7 +733,7 @@ export function simulateAutomationRuleTimeline(input: {
     canBecomeTrue: conditionEvaluations.every((item) => item.evaluation.canBecomeTrue),
     result: conditionEvaluations.map((item) => item.evaluation.result).filter(Boolean).join(" · ") || "Keine zusätzliche Bedingung"
   };
-  const simulatedStateVariables = Object.assign({}, ...conditionRecords.map((condition) => simulationStateVariables(condition, context)));
+  const simulatedStateVariables = conditionRecords.flatMap((condition) => simulationStateVariables(condition, context));
   const minDelay = timing.type === "random_delay" ? numberValue(timing.minMinutes, 0) : timing.type === "fixed_delay" ? numberValue(timing.minutes ?? timing.delayMinutes, 0) : 0;
   const maxDelay = timing.type === "random_delay" ? numberValue(timing.maxMinutes, 0) : minDelay;
   const delay = timing.type === "random_delay"

@@ -83,6 +83,8 @@ test("Abnahmebeispiel: Controller-Abwesenheit plus Zufallsfenster", () => {
   assert.match(model, /const unscheduledActions = conditionsCanStillPass && !conditionSatisfiedAtScrub/);
   assert.match(model, /waitingActions = conditionsCanStillPass && conditionSatisfiedAtScrub && !actionsAreDue/);
   assert.match(model, /noch nicht geplant/);
+  assert.match(model, /const simulatedStateVariables = conditionRecords\.flatMap/);
+  assert.doesNotMatch(model, /Object\.assign\(\{\}, \.\.\.conditionRecords\.map\(\(condition\) => simulationStateVariables/);
   assert.match(model, /Kurz vor der Bedingung/);
   assert.match(model, /Kurz vor dem Zufallsfenster/);
   assert.match(model, /Mitten im Zufallsfenster/);
