@@ -269,6 +269,19 @@ test("Externe Automation-Rule-API liefert fachliche Summary, Flow und gespeicher
   assert.match(simulationRoute, /rule_not_found/);
   assert.match(simulationRoute, /summary:\s*automationRuleSummary/);
   assert.match(simulationRoute, /flow:\s*automationRuleFlow/);
+  assert.match(simulationRoute, /version:\s*storedRule\.currentVersion/);
+  assert.match(simulationRoute, /description:\s*storedRule\.description/);
+});
+
+test("Regel-Simulation zeigt gespeicherten Regelkontext mit Version", () => {
+  const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
+  const settings = readFileSync("src/app/settings/automation/page.tsx", "utf8");
+  assert.match(editor, /ruleName/);
+  assert.match(editor, /ruleVersion/);
+  assert.match(editor, /Simulationskontext:/);
+  assert.match(editor, /Version \$\{ruleVersion\}/);
+  assert.match(settings, /ruleName=\{rule\.name\}/);
+  assert.match(settings, /ruleVersion=\{rule\.currentVersion\}/);
 });
 
 test("Bestehende Automation-Geräte können geführte Fähigkeiten erhalten", () => {

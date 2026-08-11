@@ -110,7 +110,14 @@ export async function POST(request: NextRequest) {
   }, context);
   return NextResponse.json({
     ok: true,
-    rule: storedRule ? { id: storedRule.id, name: storedRule.name, active: storedRule.active, currentVersion: storedRule.currentVersion } : null,
+    rule: storedRule ? {
+      id: storedRule.id,
+      name: storedRule.name,
+      active: storedRule.active,
+      version: storedRule.currentVersion,
+      currentVersion: storedRule.currentVersion,
+      description: storedRule.description || null
+    } : null,
     summary: automationRuleSummary(rule, context),
     flow: automationRuleFlow(rule, context),
     simulation: result

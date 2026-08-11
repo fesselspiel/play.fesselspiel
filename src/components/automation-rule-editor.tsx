@@ -119,13 +119,17 @@ export function AutomationRuleEditor({
   capabilities,
   devices,
   trackers,
-  ruleId
+  ruleId,
+  ruleName,
+  ruleVersion
 }: {
   initial?: string;
   capabilities: CapabilityOption[];
   devices: DeviceOption[];
   trackers: TrackerOption[];
   ruleId?: string;
+  ruleName?: string;
+  ruleVersion?: number;
 }) {
   const [value, setValue] = useState<RuleFormValue>(() => parseInitial(initial));
   const [scrubMinute, setScrubMinute] = useState(0);
@@ -628,6 +632,13 @@ export function AutomationRuleEditor({
 
       <div className="rounded-lg border border-line bg-paper p-4">
         <div className="flex items-center gap-2 font-semibold text-ink"><Shuffle className="h-4 w-4" /> Simulation</div>
+        {ruleId ? (
+          <div className="mt-3 rounded-md border border-line bg-surface p-3 text-sm text-graphite">
+            <span className="font-semibold text-ink">Simulationskontext:</span>{" "}
+            {ruleName ? `Regel „${ruleName}“` : "Gespeicherte Regel"}
+            {ruleVersion ? ` · Version ${ruleVersion}` : ""}
+          </div>
+        ) : null}
         {value.conditionType === "controller_absent" ? (
           <div className="mt-3 rounded-md border border-line bg-surface p-3 text-sm text-graphite">
             <label className="flex items-center gap-2 font-semibold text-ink">

@@ -873,7 +873,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                           <Field label="Name"><input name="name" className={inputClass} required defaultValue={rule.name} /></Field>
                           <Field label="Beschreibung"><input name="description" className={inputClass} defaultValue={rule.description || ""} /></Field>
                           <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="active" type="checkbox" defaultChecked={rule.active} /> Aktiv</label>
-                          <AutomationRuleEditor ruleId={rule.id} capabilities={capabilities} devices={deviceOptions} trackers={trackerOptions} initial={JSON.stringify(ruleFormFromStored(rule))} />
+                          <AutomationRuleEditor ruleId={rule.id} ruleName={rule.name} ruleVersion={rule.currentVersion} capabilities={capabilities} devices={deviceOptions} trackers={trackerOptions} initial={JSON.stringify(ruleFormFromStored(rule))} />
                           <SubmitButton pendingLabel="Speichert...">Änderungen speichern</SubmitButton>
                         </form>
                       </details>
@@ -910,7 +910,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                       <RuleFlowPreview steps={automationRuleFlow(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })} />
                     </div>
                     <div className="mt-3 rounded-md border border-line bg-surface p-3">
-                      <AutomationRuleEditor ruleId={rule.id} capabilities={capabilities} devices={deviceOptions} trackers={trackerOptions} initial={JSON.stringify(ruleFormFromStored(rule))} />
+                      <AutomationRuleEditor ruleId={rule.id} ruleName={rule.name} ruleVersion={rule.currentVersion} capabilities={capabilities} devices={deviceOptions} trackers={trackerOptions} initial={JSON.stringify(ruleFormFromStored(rule))} />
                     </div>
                     <a className="mt-3 inline-flex text-sm font-semibold text-redbrand hover:underline" href={`#automation-rule-${rule.id}`}>
                       Regel bearbeiten
