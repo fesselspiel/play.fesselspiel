@@ -271,25 +271,28 @@ export function AutomationDeviceManager() {
         ))}
       </div>
       <div className="space-y-2">
-        {capabilities.map((capability, index) => {
-          const capabilityKey = capabilityKeyFor(capability, index);
-          return (
-            <div key={capability.id}>
-              <CapabilityFields
-                capability={capability}
-                onChange={(next) => updateCapability(capability.id, next)}
-                onRemove={() => removeCapability(capability.id)}
-                canRemove={capabilities.length > 1}
-              />
-              <details className="mt-2">
-                <summary className="cursor-pointer font-semibold text-ink">Technische Details</summary>
-                <div className="mt-1">Logische ID: <code>{logicalId}</code></div>
-                <div>Capability-Key: <code>{capabilityKey}</code></div>
-              </details>
-            </div>
-          );
-        })}
+        {capabilities.map((capability) => (
+          <CapabilityFields
+            key={capability.id}
+            capability={capability}
+            onChange={(next) => updateCapability(capability.id, next)}
+            onRemove={() => removeCapability(capability.id)}
+            canRemove={capabilities.length > 1}
+          />
+        ))}
       </div>
+      <details className="rounded-md border border-line bg-surface p-3">
+        <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische Details</summary>
+        <p className="mt-2 text-sm text-graphite">
+          Diese Werte erzeugt Playplaner automatisch für Adapter und API. Im normalen Regelbetrieb musst du sie nicht bearbeiten.
+        </p>
+        <div className="mt-2 space-y-1 text-sm text-graphite">
+          <div>Logische ID: <code>{logicalId}</code></div>
+          {capabilities.map((capability, index) => (
+            <div key={`${capability.id}-technical`}>Fähigkeit {index + 1}: <code>{capabilityKeyFor(capability, index)}</code></div>
+          ))}
+        </div>
+      </details>
       <button className="inline-flex min-h-11 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-redbrand/90" type="submit">
         <Plus className="mr-2 h-4 w-4" /> Gerät speichern
       </button>

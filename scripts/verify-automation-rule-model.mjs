@@ -226,6 +226,9 @@ test("Bestehende Automation-Geräte können geführte Fähigkeiten erhalten", ()
   const component = readFileSync("src/components/automation-device-manager.tsx", "utf8");
   const page = readFileSync("src/app/settings/automation/page.tsx", "utf8");
   assert.match(component, /export function AutomationCapabilityManager/);
+  assert.match(component, /Diese Werte erzeugt Playplaner automatisch für Adapter und API/);
+  assert.match(component, /capabilities\.map\(\(capability, index\) => \(/);
+  assert.equal((component.match(/Logische ID:/g) || []).length, 1);
   assert.match(page, /addCapabilityToDevice/);
   assert.match(page, /Fähigkeit hinzufügen/);
   assert.match(page, /capabilityRoleText/);
