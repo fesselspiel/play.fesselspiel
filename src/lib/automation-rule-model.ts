@@ -1131,8 +1131,8 @@ function describeActions(actions: Record<string, unknown>[], context: Automation
   if (!actions.length) return "führe die gewählte Aktion aus";
   const labels = actions.map((action) => actionPhrase(action, context));
   if (labels.length === 1) return labels[0];
-  if (labels.length === 2) return `${labels[0]} und danach ${labels[1]}`;
-  return `${labels.slice(0, -1).join(", ")} und danach ${labels[labels.length - 1]}`;
+  if (labels.length === 2) return `${labels[0]} und ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")} und ${labels[labels.length - 1]}`;
 }
 
 function nameById<T extends { id: string }>(items: T[] | undefined, id: unknown, fallback: string, label: (item: T) => string) {

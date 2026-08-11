@@ -191,6 +191,7 @@ test("Regelbeschreibung und Timeline benennen Zielgeräte fachlich", () => {
   assert.match(model, /fordere ein Bild von \$\{target\} an/);
   assert.match(model, /actionTitleWithTarget\(action, context\)/);
   assert.match(model, /describeActions\(actions, context\)/);
+  assert.doesNotMatch(model, /und danach \$\{labels/);
   assert.match(model, /genericTitles = \["Bild anfordern", "Verbindung prüfen", "Strom schalten", "Ansage sprechen", "Text sprechen"\]/);
   assert.match(settings, /const currentRuleText = automationRuleSummary\(rule,/);
   assert.doesNotMatch(settings, /rule\.descriptionText \|\| automationRuleSummary\(rule/);
