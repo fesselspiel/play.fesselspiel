@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFeatureGate, requireApiUser } from "@/lib/external-api";
-import { validateAutomationRulePayload } from "@/lib/automation-rule-model";
+import { automationRuleFlow, automationRuleSummary, validateAutomationRulePayload } from "@/lib/automation-rule-model";
 import { prisma } from "@/lib/prisma";
 import { simulateAutomationRule } from "@/lib/session-automation";
 
@@ -69,23 +69,37 @@ export async function POST(request: NextRequest) {
       capabilityStateAgeMinutes: allowedNumberOverrides(asRecord(body.simulationOverrides).capabilityStateAgeMinutes, capabilities.filter((capability) => capability.kind === "Switch").map((capability) => capability.id))
     }
   };
-  const triggerType = typeof body.triggerType === "string" ? body.triggerType : "session_started";
+  const ruleId = typeof body.ruleId === "string" ? body.ruleId.trim() : "";
+  const storedRule = ruleId ? await prisma.automationRule.findFirst({ where: { id: ruleId, tenantId: auth.user.tenantId } }) : null;
+  if (ruleId && !storedRule) return NextResponse.json({ ok: false, error: "rule_not_found" }, { status: 404 });
+  const triggerType = storedRule?.triggerType || (typeof body.triggerType === "string" ? body.triggerType : "session_started");
+  const triggerJson = storedRule?.triggerJson ?? body.trigger;
+  const conditionJson = storedRule?.conditionJson ?? body.conditions;
+  const timingJson = storedRule?.timingJson ?? body.timing;
+  const actionJson = storedRule?.actionJson ?? body.actions;
   const validation = validateAutomationRulePayload({
-    name: typeof body.name === "string" ? body.name : "Simulation",
-    mode: typeof body.mode === "string" ? body.mode : "ONCE",
+    name: storedRule?.name || (typeof body.name === "string" ? body.name : "Simulation"),
+    mode: storedRule?.mode || (typeof body.mode === "string" ? body.mode : "ONCE"),
     triggerType,
-    triggerJson: body.trigger,
-    conditionJson: body.conditions,
-    timingJson: body.timing,
-    actionJson: body.actions
+    triggerJson,
+    conditionJson,
+    timingJson,
+    actionJson
   }, context.capabilities, context.devices, context.trackers);
   if (!validation.ok) return NextResponse.json({ ok: false, error: "validation_failed", messages: validation.errors }, { status: 422 });
+  const rule = {
+    triggerType,
+    triggerJson,
+    conditionJson,
+    timingJson,
+    actionJson
+  };
   const result = simulateAutomationRule({
     triggerType,
-    triggerJson: body.trigger,
-    conditionJson: body.conditions,
-    timingJson: body.timing,
-    actionJson: body.actions,
+    triggerJson,
+    conditionJson,
+    timingJson,
+    actionJson,
     startAt: typeof body.startAt === "string" ? new Date(body.startAt) : undefined,
     scrubMinute: Number.isFinite(Number(body.scrubMinute)) ? Number(body.scrubMinute) : undefined,
     controllerActionMinute: body.controllerActionMinute === null
@@ -94,5 +108,11 @@ export async function POST(request: NextRequest) {
         ? Number(body.controllerActionMinute)
         : undefined
   }, context);
-  return NextResponse.json({ ok: true, simulation: result });
+  return NextResponse.json({
+    ok: true,
+    rule: storedRule ? { id: storedRule.id, name: storedRule.name, active: storedRule.active, currentVersion: storedRule.currentVersion } : null,
+    summary: automationRuleSummary(rule, context),
+    flow: automationRuleFlow(rule, context),
+    simulation: result
+  });
 }

@@ -238,6 +238,21 @@ test("Externe Automation-Simulation kann Controller-Gegenereignisse simulieren",
   assert.match(service, /controllerActionMinute\?: number \| null/);
 });
 
+test("Externe Automation-Rule-API liefert fachliche Summary, Flow und gespeicherte Simulation", () => {
+  const listRoute = readFileSync("src/app/api/external/automation/rules/route.ts", "utf8");
+  const detailRoute = readFileSync("src/app/api/external/automation/rules/[id]/route.ts", "utf8");
+  const simulationRoute = readFileSync("src/app/api/external/automation/rules/simulate/route.ts", "utf8");
+  assert.match(listRoute, /automationRuleFlow/);
+  assert.match(listRoute, /summary:\s*automationRuleSummary/);
+  assert.match(listRoute, /flow:\s*automationRuleFlow/);
+  assert.match(detailRoute, /decorateRule\(rule,\s*context\)/);
+  assert.match(simulationRoute, /ruleId/);
+  assert.match(simulationRoute, /automationRule\.findFirst/);
+  assert.match(simulationRoute, /rule_not_found/);
+  assert.match(simulationRoute, /summary:\s*automationRuleSummary/);
+  assert.match(simulationRoute, /flow:\s*automationRuleFlow/);
+});
+
 test("Bestehende Automation-Geräte können geführte Fähigkeiten erhalten", () => {
   const component = readFileSync("src/components/automation-device-manager.tsx", "utf8");
   const page = readFileSync("src/app/settings/automation/page.tsx", "utf8");
