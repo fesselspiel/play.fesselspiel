@@ -387,6 +387,18 @@ test("Automation-Protokoll zeigt Policy-Entscheidungen fachlich an", () => {
   assert.match(sessionDetail, /Geplante Ausführung/);
 });
 
+test("Automation-Übersicht zeigt Ereignisse mit fachlichem Kontext statt Kurz-Rohansicht", () => {
+  const overview = readFileSync("src/app/automation/page.tsx", "utf8");
+  assert.match(overview, /session:\s*\{\s*select:\s*\{\s*id:\s*true,\s*title:\s*true,\s*state:\s*true/);
+  assert.match(overview, /ruleVersion:\s*\{\s*select:\s*\{\s*version:\s*true,\s*descriptionText:\s*true/);
+  assert.match(overview, /action:\s*\{\s*select:\s*\{\s*id:\s*true,\s*type:\s*true,\s*status:\s*true/);
+  assert.match(overview, /parentEvent:\s*\{\s*select:\s*\{\s*id:\s*true,\s*type:\s*true,\s*title:\s*true/);
+  assert.match(overview, /function humanEventDetails/);
+  assert.match(overview, /Ursache und Folge/);
+  assert.match(overview, /href=\{`#automation-overview-event-\$\{event\.parentEvent\.id\}`\}/);
+  assert.match(overview, /href=\{`\/automation\/sessions\/\$\{event\.session\.id\}`\}/);
+});
+
 test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben", () => {
   const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
   const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");

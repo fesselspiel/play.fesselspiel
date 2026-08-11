@@ -30,6 +30,37 @@ function timeModelLabel(timing: Record<string, unknown>) {
   return "Sofort";
 }
 
+function humanDetailValue(value: unknown) {
+  if (value instanceof Date) return formatDateTime(value);
+  if (typeof value === "string") {
+    const date = new Date(value);
+    if (/^\d{4}-\d{2}-\d{2}T/.test(value) && !Number.isNaN(date.getTime())) return formatDateTime(date);
+    return value;
+  }
+  if (typeof value === "number") return String(value);
+  if (typeof value === "boolean") return value ? "Ja" : "Nein";
+  if (value === null || value === undefined || value === "") return "Nicht gespeichert";
+  return JSON.stringify(value);
+}
+
+function humanEventDetails(details: Record<string, unknown>) {
+  const labels: Record<string, string> = {
+    reason: "Anlass",
+    error: "Fehler",
+    timeoutSeconds: "Timeout",
+    maxRetries: "Wiederholungen",
+    bootDelaySeconds: "Boot-Wartezeit",
+    dueAt: "Geplant für",
+    requestedAt: "Angefordert",
+    source: "Quelle",
+    role: "Rolle",
+    status: "Status"
+  };
+  return Object.entries(details)
+    .filter(([key, value]) => labels[key] && value !== null && value !== undefined && value !== "")
+    .map(([key, value]) => [labels[key], humanDetailValue(value)] as const);
+}
+
 async function startAutomation(formData: FormData) {
   "use server";
   const user = await currentUser();
@@ -109,7 +140,22 @@ export default async function AutomationPage(props: { searchParams?: Promise<Rec
       take: 20
     }),
     prisma.automationDevice.findMany({ where: { tenantId }, include: { capabilities: true }, orderBy: { name: "asc" } }),
-    prisma.automationEvent.findMany({ where: { tenantId }, include: { actor: { include: { profile: true } }, device: true, capability: true }, orderBy: { createdAt: "desc" }, take: 80 }),
+    prisma.automationEvent.findMany({
+      where: { tenantId },
+      include: {
+        actor: { include: { profile: true } },
+        session: { select: { id: true, title: true, state: true } },
+        rule: { select: { id: true, name: true } },
+        ruleVersion: { select: { version: true, descriptionText: true } },
+        action: { select: { id: true, type: true, status: true, dueAt: true, error: true } },
+        device: true,
+        capability: true,
+        parentEvent: { select: { id: true, type: true, title: true, createdAt: true } },
+        childEvents: { select: { id: true, type: true, title: true, createdAt: true }, orderBy: { createdAt: "asc" }, take: 3 }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 80
+    }),
     prisma.user.findMany({
       where: { OR: [{ tenantId }, { memberships: { some: { tenantId, active: true } } }] },
       include: { profile: true },
@@ -343,24 +389,90 @@ export default async function AutomationPage(props: { searchParams?: Promise<Rec
         <Panel>
           <h2 className="text-lg font-semibold text-ink">Ereignisverlauf</h2>
           <div className="mt-3 space-y-2">
-            {events.map((event) => (
-              <details key={event.id} className="rounded-md border border-line bg-paper p-3">
-                <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
-                  {formatDateTime(event.createdAt)} · {automationEventLabel(event)}
-                </summary>
-                <div className="mt-2 space-y-1 text-sm text-graphite">
-                  <div>Quelle: {labelAutomationValue("sources", event.source)}</div>
-                  <div>Rolle: {labelAutomationValue("roles", event.role)}</div>
-                  {event.actor ? <div>Ausgelöst von: {actorLabel(event.actor)}</div> : null}
-                  {event.device ? <div>Gerät: {event.device.name}</div> : null}
-                  {event.capability ? <div>Aktion/Fähigkeit: {actionLabels[event.type as keyof typeof actionLabels] || event.capability.title}</div> : null}
-                </div>
-                <details className="mt-2 rounded bg-surface p-2">
-                  <summary className="cursor-pointer list-none text-xs font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische Details</summary>
-                  <pre className="mt-2 max-h-52 overflow-auto text-xs text-graphite">{JSON.stringify({ type: event.type, source: event.source, role: event.role, correlationId: event.correlationId, sessionId: event.sessionId, ruleId: event.ruleId, ruleVersionId: event.ruleVersionId, actionId: event.actionId, deviceId: event.deviceId, capabilityId: event.capabilityId, details: event.detailsJson, raw: event.rawJson }, null, 2)}</pre>
+            {events.map((event) => {
+              const details = detailsObject(event.detailsJson);
+              const detailEntries = humanEventDetails(details);
+              return (
+                <details id={`automation-overview-event-${event.id}`} key={event.id} className="scroll-mt-24 rounded-md border border-line bg-paper p-3">
+                  <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
+                    {formatDateTime(event.createdAt)} · {automationEventLabel(event)}
+                  </summary>
+                  <div className="mt-3 space-y-2 text-sm text-graphite">
+                    <div className="rounded-md border border-line bg-surface p-3">
+                      <div className="font-semibold text-ink">{event.title}</div>
+                      <div className="mt-1">Ausgelöst von: {actorLabel(event.actor)} · Quelle: {labelAutomationValue("sources", event.source)} · Rolle: {labelAutomationValue("roles", event.role)}</div>
+                    </div>
+                    {event.session || event.rule || event.action || event.device || event.capability ? (
+                      <div className="grid gap-2">
+                        {event.session ? (
+                          <Link href={`/automation/sessions/${event.session.id}`} className="rounded-md border border-line bg-surface p-3 hover:border-redbrand">
+                            <div className="text-xs uppercase text-graphite">Session</div>
+                            <div className="mt-1 font-semibold text-ink">{event.session.title}</div>
+                            <div>Status: {labelAutomationValue("states", event.session.state)}</div>
+                          </Link>
+                        ) : null}
+                        {event.rule ? (
+                          <div className="rounded-md border border-line bg-surface p-3">
+                            <div className="text-xs uppercase text-graphite">Regel</div>
+                            <div className="mt-1 font-semibold text-ink">{event.rule.name}</div>
+                            {event.ruleVersion ? <div>Version {event.ruleVersion.version}</div> : null}
+                            {event.ruleVersion?.descriptionText ? <div className="mt-1">{event.ruleVersion.descriptionText}</div> : null}
+                          </div>
+                        ) : null}
+                        {event.action ? (
+                          <div className="rounded-md border border-line bg-surface p-3">
+                            <div className="text-xs uppercase text-graphite">Aktion</div>
+                            <div className="mt-1 font-semibold text-ink">{actionLabels[event.action.type as keyof typeof actionLabels] || "Automation-Aktion"}</div>
+                            <div>Status: {labelAutomationValue("actionStatuses", event.action.status)}</div>
+                            {event.action.dueAt ? <div>Fällig: {formatDateTime(event.action.dueAt)}</div> : null}
+                            {event.action.error ? <div>Fehler: {event.action.error}</div> : null}
+                          </div>
+                        ) : null}
+                        {event.device || event.capability ? (
+                          <div className="rounded-md border border-line bg-surface p-3">
+                            <div className="text-xs uppercase text-graphite">Gerät</div>
+                            {event.device ? <div className="mt-1 font-semibold text-ink">{event.device.name}</div> : null}
+                            {event.capability ? <div>{event.capability.title} · {labelAutomationValue("capabilityKinds", event.capability.kind)} · {labelAutomationValue("health", event.capability.state)}</div> : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {detailEntries.length ? (
+                      <div className="rounded-md border border-line bg-surface p-3">
+                        <div className="text-xs uppercase text-graphite">Details</div>
+                        <div className="mt-2 grid gap-1">
+                          {detailEntries.slice(0, 5).map(([label, value]) => (
+                            <div key={label} className="grid gap-1 sm:grid-cols-[140px_1fr]">
+                              <span className="font-medium text-ink">{label}</span>
+                              <span>{value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {event.parentEvent || event.childEvents.length ? (
+                      <div className="rounded-md border border-line bg-surface p-3">
+                        <div className="text-xs uppercase text-graphite">Ursache und Folge</div>
+                        {event.parentEvent ? (
+                          <a className="mt-1 block font-medium text-redbrand hover:underline" href={`#automation-overview-event-${event.parentEvent.id}`}>
+                            Ausgelöst durch: {formatDateTime(event.parentEvent.createdAt)} · {automationEventLabel(event.parentEvent)}
+                          </a>
+                        ) : null}
+                        {event.childEvents.map((child) => (
+                          <a key={child.id} className="block font-medium text-redbrand hover:underline" href={`#automation-overview-event-${child.id}`}>
+                            Folge: {formatDateTime(child.createdAt)} · {automationEventLabel(child)}
+                          </a>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <details className="mt-2 rounded bg-surface p-2">
+                    <summary className="cursor-pointer list-none text-xs font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische Details</summary>
+                    <pre className="mt-2 max-h-52 overflow-auto text-xs text-graphite">{JSON.stringify({ type: event.type, source: event.source, role: event.role, correlationId: event.correlationId, sessionId: event.sessionId, ruleId: event.ruleId, ruleVersionId: event.ruleVersionId, actionId: event.actionId, deviceId: event.deviceId, capabilityId: event.capabilityId, details: event.detailsJson, raw: event.rawJson }, null, 2)}</pre>
+                  </details>
                 </details>
-              </details>
-            ))}
+              );
+            })}
           </div>
           <Link href="/settings/automation" className="mt-4 inline-flex text-sm font-semibold text-redbrand">Regeln konfigurieren</Link>
         </Panel>
