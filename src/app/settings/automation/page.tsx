@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Activity, BookOpen, Cpu, FlaskConical, RadioTower } from "lucide-react";
+import { Activity, ArrowDown, BookOpen, Cpu, FlaskConical, RadioTower } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { AutomationCapabilityManager, AutomationDeviceManager } from "@/components/automation-device-manager";
 import { AutomationRuleEditor } from "@/components/automation-rule-editor";
@@ -156,6 +156,19 @@ function humanAutomationPolicyEntries(policy: Record<string, unknown>) {
   if (decision) entries.push(["Policy", humanDetailValue(decision)]);
   if (reason) entries.push(["Begründung", humanDetailValue(reason)]);
   return entries;
+}
+
+function RuleFlowPreview({ steps }: { steps: string[] }) {
+  return (
+    <div className="flex flex-col items-start gap-2 md:flex-row md:flex-wrap md:items-center">
+      {steps.map((step, index) => (
+        <div key={`${step}-${index}`} className="flex items-center gap-2">
+          {index ? <ArrowDown className="h-4 w-4 text-redbrand md:-rotate-90" /> : null}
+          <div className="rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink">{step}</div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 async function saveBridge(formData: FormData) {
@@ -773,10 +786,8 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                     <details key={rule.id} className="rounded-md border border-line bg-paper p-3">
                       <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">{rule.name}</summary>
                       <p className="mt-2 text-sm text-graphite">{currentRuleText}</p>
-                      <div className="mt-3 flex flex-col items-start gap-2">
-                        {automationRuleFlow(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions }).map((step, index) => (
-                          <div key={`${rule.id}-${step}-${index}`} className="rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink">{step}</div>
-                        ))}
+                      <div className="mt-3">
+                        <RuleFlowPreview steps={automationRuleFlow(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })} />
                       </div>
                       <p className="mt-1 text-xs text-graphite">Version {rule.currentVersion} · {rule.active ? "aktiv" : "inaktiv"}</p>
                       <details className="mt-3 rounded-md border border-line bg-surface p-3">
@@ -814,7 +825,15 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
               <h2 className="text-base font-semibold text-ink">Simulation</h2>
               <p className="mt-2 text-sm text-graphite">Die Simulation findet direkt im Regel-Editor der jeweiligen Regel statt und erzeugt keine echten Aktionen.</p>
               <div className="mt-3 space-y-2">
-                {rules.slice(0, 5).map((rule) => <div key={rule.id} className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">{rule.name}: {automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })}</div>)}
+                {rules.slice(0, 5).map((rule) => (
+                  <div key={rule.id} className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">
+                    <div className="font-semibold text-ink">{rule.name}</div>
+                    <p className="mt-1">{automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })}</p>
+                    <div className="mt-3">
+                      <RuleFlowPreview steps={automationRuleFlow(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })} />
+                    </div>
+                  </div>
+                ))}
               </div>
             </Panel>
             <Panel>

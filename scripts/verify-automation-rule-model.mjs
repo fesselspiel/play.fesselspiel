@@ -156,6 +156,8 @@ test("Regelbeschreibung und Timeline benennen Zielgeräte fachlich", () => {
   assert.match(model, /genericTitles = \["Bild anfordern", "Verbindung prüfen", "Strom schalten", "Ansage sprechen", "Text sprechen"\]/);
   assert.match(settings, /const currentRuleText = automationRuleSummary\(rule,/);
   assert.doesNotMatch(settings, /rule\.descriptionText \|\| automationRuleSummary\(rule/);
+  assert.match(settings, /function RuleFlowPreview/);
+  assert.match(settings, /<ArrowDown className="h-4 w-4 text-redbrand md:-rotate-90"/);
 });
 
 test("Zufallsfenster wird einmal bestimmt und bleibt stabil", () => {
