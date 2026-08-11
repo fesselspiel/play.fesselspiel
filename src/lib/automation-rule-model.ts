@@ -692,6 +692,13 @@ export function simulateAutomationRuleTimeline(input: {
   const ruleTitle = describeTrigger(input.triggerType, input.triggerJson, context);
   const controllerActionHasHappened = controllerActionMinute !== null && scrubMinute >= controllerActionMinute;
   const controllerActionBlocksNow = controllerActionBlocks && controllerActionHasHappened;
+  const conditionStatus = controllerActionBlocksNow || !conditionEvaluation.canBecomeTrue
+    ? "blockiert"
+    : scrubMinute < conditionMinutes && condition.type === "controller_absent"
+      ? "wartet"
+      : conditionEvaluation.passed
+        ? "erfüllt"
+        : "nicht erfüllt";
   const events = [
     { minute: 0, title: ruleTitle },
     ...(controllerActionMinute !== null ? [{ minute: controllerActionMinute, title: "Controller-Aktion simuliert" }] : [])
@@ -700,6 +707,7 @@ export function simulateAutomationRuleTimeline(input: {
     ? [{
         minute: conditionMinutes,
         title: describeCondition(condition, context),
+        status: conditionStatus,
         passed: conditionEvaluation.passed && scrubMinute >= conditionMinutes && !controllerActionBlocksNow,
         result: controllerActionBlocksNow
           ? `Bei Minute ${controllerActionMinute} wurde eine Controller-Aktion simuliert. Die Abwesenheitsbedingung ist damit nicht mehr erfüllt.`

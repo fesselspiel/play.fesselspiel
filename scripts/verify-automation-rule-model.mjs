@@ -132,6 +132,18 @@ test("Simulation blockiert Aktionen bei nicht erfüllter Gerätebedingung", () =
   assert.equal(simulate(rule, 30, 3, context).due, false);
 });
 
+test("Simulation benennt Bedingungsentscheidungen als warten, erfüllt oder blockiert", () => {
+  const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
+  assert.match(model, /const conditionStatus =/);
+  assert.match(model, /\? "blockiert"/);
+  assert.match(model, /\? "wartet"/);
+  assert.match(model, /\? "erfüllt"/);
+  assert.match(model, /status:\s*conditionStatus/);
+  assert.match(editor, /item\.status/);
+  assert.doesNotMatch(editor, /item\.passed \? "erfüllt" : "noch offen"/);
+});
+
 test("Override darf Pending End ersetzen", () => {
   assert.equal({ state: "PENDING_END" }.state === "PENDING_END" && true, true);
 });

@@ -797,7 +797,7 @@ export function AutomationRuleEditor({
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <SimBox title="Session-Zustand" items={[labelAutomationValue("states", simulation.sessionState)]} />
           <SimBox title="Ereignisse" items={simulation.events.map((item) => `${item.minute} min · ${item.title}`)} emptyText="Bis zu dieser Minute ist kein Ereignis eingetreten." />
-          <SimBox title="Bedingungen" items={simulation.conditions.map((item) => `${item.title}: ${item.passed ? "erfüllt" : "noch offen"} · ${item.result}`)} emptyText="Für diese Regel gibt es keine zusätzliche Bedingung." />
+          <SimBox title="Bedingungen" items={simulation.conditions.map((item) => `${item.title}: ${item.status} · ${item.result}`)} emptyText="Für diese Regel gibt es keine zusätzliche Bedingung." />
           <SimBox title="Ausgelöste Regeln" items={simulation.triggeredRules} emptyText="Noch keine Regel ausgelöst." />
           <SimBox title="Wartende Aktionen" items={simulation.waitingActions.map((item) => item.detail)} emptyText="Keine Aktion wartet gerade." />
           <SimBox title="Fällige Aktionen" items={simulation.dueActions.map((item) => item.detail)} emptyText="Keine Aktion ist jetzt fällig." />
