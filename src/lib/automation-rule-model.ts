@@ -802,9 +802,11 @@ export function simulateAutomationRuleTimeline(input: {
             : `Das vorgemerkte Ende ist seit Minute ${dueMinute} fällig.`
       }]
     : [];
-  const waitingActions = conditionEvaluation.canBecomeTrue && !controllerActionBlocksNow && !actionsAreDue ? actionItems : [];
+  const conditionsCanStillPass = conditionEvaluation.canBecomeTrue && !controllerActionBlocksNow;
+  const unscheduledActions = conditionsCanStillPass && !conditionSatisfiedAtScrub ? actionItems : [];
+  const waitingActions = conditionsCanStillPass && conditionSatisfiedAtScrub && !actionsAreDue ? actionItems : [];
   const dueActions = actionsAreDue ? actionItems : [];
-  const blockedActions = conditionEvaluation.canBecomeTrue && !controllerActionBlocksNow ? [] : actionItems;
+  const blockedActions = conditionsCanStillPass ? [] : actionItems;
   const firstRecoveryMinute = recoveryPlan.length ? Math.min(...recoveryPlan.map((item) => item.minute)) : null;
   const recoveryActions = actionsAreDue && firstRecoveryMinute !== null && scrubMinute >= firstRecoveryMinute
     ? recoveryPlan.map((item) => ({ ...item, status: scrubMinute >= item.minute ? "erledigt" : "wartet" }))
@@ -814,7 +816,7 @@ export function simulateAutomationRuleTimeline(input: {
     ...(controllerActionMinute !== null ? [{ minute: controllerActionMinute, title: "Controller-Aktion in der Simulation", status: controllerActionHasHappened ? (controllerActionBlocks ? "blockiert Bedingung" : "außerhalb des Fensters") : "steht noch aus" }] : []),
     ...conditions.map((condition) => ({ minute: condition.minute, title: condition.title, status: condition.status })),
     ...(delay && dueMinute !== null ? [{ minute: dueMinute, title: timing.type === "random_delay" ? `Zufällige Wartezeit endet nach ${delay} Minuten` : `Wartezeit endet nach ${delay} Minuten`, status: scrubMinute >= dueMinute ? "erledigt" : "wartet" }] : []),
-    ...actionItems.map((item) => ({ ...item, status: blockedActions.length ? "blockiert" : actionsAreDue ? "fällig" : "wartet" })),
+    ...actionItems.map((item) => ({ ...item, status: blockedActions.length ? "blockiert" : actionsAreDue ? "fällig" : waitingActions.length ? "wartet" : "noch nicht geplant" })),
     ...recoveryPlan.map((item) => ({ ...item, status: scrubMinute >= item.minute ? "erledigt" : "wartet" }))
   ].sort((left, right) => left.minute - right.minute);
   const currentTimelineItems = timeline.filter((item) => item.minute === scrubMinute);
@@ -835,6 +837,7 @@ export function simulateAutomationRuleTimeline(input: {
     events: events.filter((event) => event.minute <= scrubMinute),
     conditions,
     triggeredRules: scrubMinute >= 0 ? [ruleTitle] : [],
+    unscheduledActions,
     waitingActions,
     dueActions,
     completedActions: dueMinute !== null && scrubMinute > dueMinute ? actionItems : [],

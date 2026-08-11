@@ -78,6 +78,11 @@ test("Abnahmebeispiel: Controller-Abwesenheit plus Zufallsfenster", () => {
   assert.match(editor, /Prüfpunkte/);
   assert.match(editor, /simulation\.reviewMoments/);
   assert.match(editor, /<span className="block truncate font-medium opacity-80">\{title\}<\/span>/);
+  assert.match(editor, /Noch nicht freigegebene Aktionen/);
+  assert.match(editor, /simulation\.unscheduledActions\.map/);
+  assert.match(model, /const unscheduledActions = conditionsCanStillPass && !conditionSatisfiedAtScrub/);
+  assert.match(model, /waitingActions = conditionsCanStillPass && conditionSatisfiedAtScrub && !actionsAreDue/);
+  assert.match(model, /noch nicht geplant/);
   assert.match(model, /Kurz vor der Bedingung/);
   assert.match(model, /Kurz vor dem Zufallsfenster/);
   assert.match(model, /Mitten im Zufallsfenster/);

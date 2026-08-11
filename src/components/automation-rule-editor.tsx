@@ -884,6 +884,7 @@ export function AutomationRuleEditor({
           <SimBox title="Ereignisse" items={simulation.events.map((item) => `${item.minute} min · ${item.title}`)} emptyText="Bis zu dieser Minute ist kein Ereignis eingetreten." />
           <SimBox title="Bedingungen" items={simulation.conditions.map((item) => `${item.title}: ${item.status} · ${item.result}`)} emptyText="Für diese Regel gibt es keine zusätzliche Bedingung." />
           <SimBox title="Ausgelöste Regeln" items={simulation.triggeredRules} emptyText="Noch keine Regel ausgelöst." />
+          <SimBox title="Noch nicht freigegebene Aktionen" items={simulation.unscheduledActions.map((item) => item.detail)} emptyText="Alle Voraussetzungen sind erfüllt oder es gibt keine spätere Aktion." />
           <SimBox title="Wartende Aktionen" items={simulation.waitingActions.map((item) => item.detail)} emptyText="Keine Aktion wartet gerade." />
           <SimBox title="Fällige Aktionen" items={simulation.dueActions.map((item) => item.detail)} emptyText="Keine Aktion ist jetzt fällig." />
           <SimBox title="Simulierte Aktionen" items={simulation.completedActions.map((item) => item.detail)} emptyText="Noch keine Aktion wurde in der Simulation ausgeführt." />
