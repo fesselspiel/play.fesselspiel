@@ -686,7 +686,10 @@ export function automationRuleFlow(input: { triggerType: string; triggerJson?: u
   const steps = [
     describeTrigger(input.triggerType, input.triggerJson, context)
   ];
-  conditions.forEach((condition) => steps.push(describeCondition(condition, context)));
+  conditions.forEach((condition, index) => {
+    steps.push(conditions.length > 1 ? `Bedingung ${index + 1}: ${describeCondition(condition, context)}` : describeCondition(condition, context));
+  });
+  if (conditions.length > 1) steps.push("Alle Bedingungen müssen erfüllt sein");
   if (timing.type === "fixed_delay") steps.push(`${numberValue(timing.minutes ?? timing.delayMinutes, 0)} Minuten warten`);
   if (timing.type === "random_delay") steps.push(`Zufallsfenster ${numberValue(timing.minMinutes, 0)}-${numberValue(timing.maxMinutes, 0)} Minuten`);
   actions.forEach((action, index) => {

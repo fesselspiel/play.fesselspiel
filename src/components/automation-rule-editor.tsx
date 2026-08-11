@@ -453,6 +453,9 @@ export function AutomationRuleEditor({
               <Plus className="mr-2 h-4 w-4" /> Bedingung hinzufügen
             </button>
           </div>
+          <p className="mt-2 text-xs leading-5 text-graphite">
+            Mehrere Bedingungen werden als UND-Kette geprüft: Die Aktion wird erst geplant, wenn jede einzelne Bedingung erfüllt ist.
+          </p>
           <div className="mt-3 space-y-3">
             {activeConditions.map((condition, index) => {
               const conditionCapabilityKind = conditionCapabilityKindFor(condition.conditionType);

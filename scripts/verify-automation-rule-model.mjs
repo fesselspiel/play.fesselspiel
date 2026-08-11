@@ -151,8 +151,10 @@ test("Rule-Editor und Runtime unterstützen mehrere Bedingungen ohne JSON-Oberfl
   const service = readFileSync("src/lib/session-automation.ts", "utf8");
   assert.match(model, /conditions: RuleConditionFormValue\[\]/);
   assert.match(model, /conditionEvaluations\.every/);
+  assert.match(model, /Alle Bedingungen müssen erfüllt sein/);
   assert.doesNotMatch(model, /Bitte verwende in dieser Oberfläche genau eine Bedingung/);
   assert.match(editor, /Bedingung hinzufügen/);
+  assert.match(editor, /Mehrere Bedingungen werden als UND-Kette geprüft/);
   assert.match(editor, /updateCondition/);
   assert.match(service, /conditionList\.length > 1/);
   assert.match(service, /Bedingung blockiert/);
