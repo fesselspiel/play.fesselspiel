@@ -584,6 +584,7 @@ export const capabilities: readonly Capability[] = [
         description: "Startet, liest und beendet serverseitige Automation-Sessions mit Tracker-Kopplung.",
         apiEndpoints: [
           { method: "GET", path: "/api/external/automation/sessions", description: "Aktuelle laufende oder wartende Automation-Session lesen. Optional `trackerTypeId`." },
+          { method: "GET", path: "/api/external/automation/sessions/history?limit=25", description: "Beendete Automation-Sessions als Historie lesen. Optional `trackerTypeId`, `state` oder `includeActive=true`." },
           { method: "POST", path: "/api/external/automation/sessions", description: "Automation-Session starten. JSON: trackerTypeId oder tracker/trackerKeyOrTitle, title?, notes?, metadata?." },
           { method: "POST", path: "/api/external/automation/sessions/{id}/end", description: "Session sofort oder verzögert beenden. JSON: timing `{type: immediate|fixed_delay|random_delay,...}`, reason?, override?." }
         ],

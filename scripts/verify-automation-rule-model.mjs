@@ -508,6 +508,7 @@ test("Normale Automation-Oberflächen verwenden deutsche Fachsprache", () => {
 test("Externe Automation-APIs liefern fachliche Labels und geschützte Bild-Links", () => {
   const serializers = readFileSync("src/lib/external-automation-serializers.ts", "utf8");
   const sessionsRoute = readFileSync("src/app/api/external/automation/sessions/route.ts", "utf8");
+  const sessionHistoryRoute = readFileSync("src/app/api/external/automation/sessions/history/route.ts", "utf8");
   const endRoute = readFileSync("src/app/api/external/automation/sessions/[id]/end/route.ts", "utf8");
   const eventsRoute = readFileSync("src/app/api/external/automation/events/route.ts", "utf8");
   const imageRequestsRoute = readFileSync("src/app/api/external/automation/image-requests/route.ts", "utf8");
@@ -522,6 +523,9 @@ test("Externe Automation-APIs liefern fachliche Labels und geschützte Bild-Link
   assert.match(serializers, /technicalDetails/);
   assert.match(sessionsRoute, /serializeAutomationSession\(request, session\)/);
   assert.match(sessionsRoute, /serializeAutomationSession\(request, result\.session\)/);
+  assert.match(sessionHistoryRoute, /ownerScope\(auth\.user\)/);
+  assert.match(sessionHistoryRoute, /state:\s*\{\s*notIn:\s*\["RUNNING", "PENDING_END"\]/);
+  assert.match(sessionHistoryRoute, /items\.map\(\(item\) => serializeAutomationSession\(request, item\)\)/);
   assert.match(endRoute, /serializeAutomationAction\(result\.action\)/);
   assert.match(endRoute, /serializeAutomationSession\(request, result\.session\)/);
   assert.match(eventsRoute, /items: events\.map\(serializeAutomationEvent\)/);
