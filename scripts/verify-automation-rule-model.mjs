@@ -248,6 +248,9 @@ test("Automation-Session-Seiten verwenden fachliche Aktionssprache", () => {
   assert.doesNotMatch(`${overview}\n${detail}`, /Override-Grund|Noch keine geplanten Actions|>Actions</);
   assert.match(detail, /Geplante Aktionen/);
   assert.match(detail, /Grund für sofortiges Beenden/);
+  assert.match(detail, /actionTitleWithTarget/);
+  assert.match(detail, /function automationActionTitle/);
+  assert.doesNotMatch(detail, /actionLabels\[action\.type as keyof typeof actionLabels\]/);
 });
 
 test("Automation-Session-Aktionen nutzen zentrale Rollen-Policy statt Besitzer-Sonderlogik", () => {

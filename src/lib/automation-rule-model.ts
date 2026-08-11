@@ -1004,7 +1004,7 @@ function actionPhrase(action: Record<string, unknown>, context: AutomationRuleCo
   return "führe die gewählte Aktion aus";
 }
 
-function actionTitleWithTarget(action: Record<string, unknown>, context: AutomationRuleContext) {
+export function actionTitleWithTarget(action: Record<string, unknown>, context: AutomationRuleContext) {
   const phrase = actionPhrase(action, context);
   return phrase.charAt(0).toUpperCase() + phrase.slice(1);
 }

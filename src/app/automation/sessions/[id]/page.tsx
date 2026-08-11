@@ -4,7 +4,7 @@ import { ArrowLeft, Camera, CircleStop, Clock, Cpu, ShieldCheck, Timer } from "l
 import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, inputClass, PageHeader, Panel, SoftPanel } from "@/components/ui";
-import { actionLabels, labelAutomationValue } from "@/lib/automation-rule-model";
+import { actionTitleWithTarget, labelAutomationValue } from "@/lib/automation-rule-model";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime, minutesBetween } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
@@ -58,6 +58,26 @@ function humanDetailEntries(details: Record<string, unknown>) {
     trackerEntryId: "Tracker-Eintrag"
   };
   return Object.entries(details).filter(([key]) => labels[key]).map(([key, value]) => [labels[key], humanJsonValue(value) || String(value || "")] as const);
+}
+
+function automationActionTitle(action: {
+  type: string;
+  capabilityId?: string | null;
+  device?: { id: string; name: string } | null;
+  capability?: { id: string; kind: string; title: string } | null;
+}) {
+  return actionTitleWithTarget(
+    { type: action.type, capabilityId: action.capabilityId || action.capability?.id || null },
+    {
+      capabilities: action.capability ? [{
+        id: action.capability.id,
+        kind: action.capability.kind as never,
+        title: action.capability.title,
+        deviceName: action.device?.name || undefined,
+        deviceId: action.device?.id
+      }] : []
+    }
+  );
 }
 
 async function endAutomation(formData: FormData) {
@@ -286,7 +306,7 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
               {session.actions.length ? session.actions.map((action) => (
                 <details key={action.id} className="rounded-md border border-line bg-paper p-3">
                   <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">
-                    {actionLabels[action.type as keyof typeof actionLabels] || "Aktion"} · {labelAutomationValue("actionStatuses", action.status)}
+                    {automationActionTitle(action)} · {labelAutomationValue("actionStatuses", action.status)}
                   </summary>
                   <div className="mt-2 grid gap-1 text-sm text-graphite sm:grid-cols-2">
                     <div>Quelle: {labelAutomationValue("sources", action.source)}</div>
@@ -322,7 +342,7 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
                   <div className="mt-2 space-y-2 text-sm text-graphite">
                     <div>Ausgelöst von: {displayUserName(event.actor)} · Quelle: {labelAutomationValue("sources", event.source)} · Rolle: {labelAutomationValue("roles", event.role)}</div>
                     {event.rule ? <div>Regel: <span className="font-semibold text-ink">{event.rule.name}</span>{event.ruleVersion ? ` · Version ${event.ruleVersion.version}` : ""}</div> : null}
-                    {event.action ? <div>Aktion: <span className="font-semibold text-ink">{actionLabels[event.action.type as keyof typeof actionLabels] || event.action.type}</span> · {labelAutomationValue("actionStatuses", event.action.status)}</div> : null}
+                    {event.action ? <div>Aktion: <span className="font-semibold text-ink">{automationActionTitle({ ...event.action, device: event.device, capability: event.capability })}</span> · {labelAutomationValue("actionStatuses", event.action.status)}</div> : null}
                     {event.device || event.capability ? <div>Gerät: {[event.device?.name, event.capability?.title].filter(Boolean).join(" · ")}</div> : null}
                     {humanDetails.length ? (
                       <div className="rounded-md border border-line bg-surface p-2">
