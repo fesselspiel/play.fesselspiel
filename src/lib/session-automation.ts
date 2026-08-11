@@ -177,14 +177,24 @@ function isRetryableAutomationStartError(error: unknown) {
   return /could not serialize|deadlock detected|serialization failure/i.test(message);
 }
 
-function concreteDelayMinutes(timing: unknown) {
+function stablePositiveHash(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function concreteDelayMinutes(timing: unknown, seed = "") {
   const data = asRecord(timing);
   const type = clean(data.type || data.mode) || "immediate";
   if (type === "fixed_delay") return Math.max(0, Number(data.minutes || data.delayMinutes || 0));
   if (type === "random_delay") {
     const min = Math.max(0, Number(data.minMinutes || 0));
     const max = Math.max(min, Number(data.maxMinutes || min));
-    return min + Math.floor(Math.random() * (max - min + 1));
+    const span = max - min + 1;
+    return min + (stablePositiveHash(seed || JSON.stringify(data)) % span);
   }
   return 0;
 }
@@ -511,8 +521,8 @@ export async function startAutomationSession(input: {
   return { session, created: true };
 }
 
-function dueAtFromTiming(timing: unknown, now = new Date()) {
-  const minutes = concreteDelayMinutes(timing);
+function dueAtFromTiming(timing: unknown, now = new Date(), seed = "") {
+  const minutes = concreteDelayMinutes(timing, seed);
   return new Date(now.getTime() + minutes * 60_000);
 }
 
@@ -554,7 +564,8 @@ export async function requestAutomationEnd(input: {
     return { session, action: null, changed: false };
   }
   const now = new Date();
-  const dueAt = dueAtFromTiming(input.timing, now);
+  const timingSeed = `session-end:${tenantId}:${session.id}:${input.user.id}:${input.source || "SYSTEM"}:${now.toISOString()}`;
+  const dueAt = dueAtFromTiming(input.timing, now, timingSeed);
   const delayMinutes = Math.max(0, Math.round((dueAt.getTime() - now.getTime()) / 60_000));
   const immediate = dueAt.getTime() <= now.getTime() + 1000;
   if (immediate) {
@@ -585,8 +596,8 @@ export async function requestAutomationEnd(input: {
         source: input.source || "SYSTEM",
         role: effectiveRole,
         status: "WAITING",
-        timingJson: jsonObject(input.timing),
-        payloadJson: { reason: input.reason || null, policy: lockedPolicy },
+        timingJson: { ...jsonObject(input.timing), resolvedDelayMinutes: delayMinutes, randomSeed: timingSeed },
+        payloadJson: { reason: input.reason || null, policy: lockedPolicy, randomSeed: timingSeed },
         dueAt,
         correlationId: lockedSession.correlationId
       }
@@ -599,7 +610,7 @@ export async function requestAutomationEnd(input: {
         stateJson: {
           pendingEndRequestedAt: now.toISOString(),
           pendingEndRequestedBy: input.user.id,
-          pendingEndTiming: { ...jsonObject(input.timing), resolvedDelayMinutes: delayMinutes },
+          pendingEndTiming: { ...jsonObject(input.timing), resolvedDelayMinutes: delayMinutes, randomSeed: timingSeed },
           pendingEndDueAt: dueAt.toISOString(),
           pendingEndReason: input.reason || null
         }
@@ -1457,13 +1468,15 @@ async function processAutomationRulesForEvent(event: {
         continue;
       }
     }
-    const delay = concreteDelayMinutes(version.timingJson);
+    const timingSeed = `rule:${rule.id}:${version.id}:event:${event.id}`;
+    const delay = concreteDelayMinutes(version.timingJson, timingSeed);
     const conditionDelay = conditionDelayMinutes(version.conditionJson);
     const dueAt = new Date(event.createdAt.getTime() + (conditionDelay + delay) * 60_000);
     const resolvedTiming = {
       ...asRecord(version.timingJson),
       conditionDelayMinutes: conditionDelay,
       resolvedDelayMinutes: delay,
+      randomSeed: timingSeed,
       dueAt: dueAt.toISOString()
     };
     const context = await createAutomationContext({
@@ -1474,7 +1487,7 @@ async function processAutomationRulesForEvent(event: {
       role: "SYSTEM",
       ruleId: rule.id,
       ruleVersionId: version.id,
-      variables: { sourceEventId: event.id, sourceEventType: event.type, dueAt: dueAt.toISOString() },
+      variables: { sourceEventId: event.id, sourceEventType: event.type, dueAt: dueAt.toISOString(), resolvedDelayMinutes: delay, randomSeed: timingSeed },
       conditions: jsonArray(version.conditionJson),
       policy: { decision: "allow", reason: "rule_triggered" },
       timing: resolvedTiming,

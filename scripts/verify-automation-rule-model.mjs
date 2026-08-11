@@ -191,6 +191,18 @@ test("Zufallsfenster wird einmal bestimmt und bleibt stabil", () => {
   assert.equal(simulate(rule, 0, 3).dueMinute, simulate(rule, 9, 3).dueMinute);
 });
 
+test("Runtime-Zufallsfenster wird aus Kontext deterministisch bestimmt und persistiert", () => {
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
+  const concreteDelay = service.slice(service.indexOf("function concreteDelayMinutes"), service.indexOf("function conditionDelayMinutes"));
+  assert.match(service, /function stablePositiveHash/);
+  assert.doesNotMatch(concreteDelay, /Math\.random/);
+  assert.match(service, /const timingSeed = `rule:\$\{rule\.id\}:\$\{version\.id\}:event:\$\{event\.id\}`/);
+  assert.match(service, /resolvedDelayMinutes:\s*delay/);
+  assert.match(service, /randomSeed:\s*timingSeed/);
+  assert.match(service, /variables:\s*\{ sourceEventId: event\.id, sourceEventType: event\.type, dueAt: dueAt\.toISOString\(\), resolvedDelayMinutes: delay, randomSeed: timingSeed \}/);
+  assert.match(service, /pendingEndTiming:\s*\{ \.\.\.jsonObject\(input\.timing\), resolvedDelayMinutes: delayMinutes, randomSeed: timingSeed \}/);
+});
+
 test("Event-Abwesenheit ist modellierbar", () => {
   const rule = buildRule({ triggerType: "event_absent", conditionType: "controller_absent", conditionMinutes: 20 });
   assert.equal(rule.triggerType, "event_absent");
