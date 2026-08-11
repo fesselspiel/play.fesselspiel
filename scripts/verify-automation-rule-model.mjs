@@ -159,6 +159,17 @@ test("Mehrere Aktionen bleiben in einer Regel erhalten", () => {
   assert.match(editor, /simulation\.waitingActions\.map\(\(item\) => item\.detail\)/);
 });
 
+test("Rule-Editor filtert Aktionsziele abhängig von der fachlichen Aktion", () => {
+  const editor = readFileSync("src/components/automation-rule-editor.tsx", "utf8");
+  assert.match(editor, /function actionCapabilityKind/);
+  assert.match(editor, /function capabilitiesForAction/);
+  assert.match(editor, /Was soll passieren\?/);
+  assert.match(editor, /Passendes Ziel/);
+  assert.match(editor, /Für „\{actionLabels\[action\.actionType\]\}“ sind nur/);
+  assert.match(editor, /targetCapabilities\.map/);
+  assert.doesNotMatch(editor, /<optgroup label="Gerätefähigkeiten">/);
+});
+
 test("Regelbeschreibung und Timeline benennen Zielgeräte fachlich", () => {
   const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
   const settings = readFileSync("src/app/settings/automation/page.tsx", "utf8");
@@ -521,8 +532,9 @@ test("Normale Automation-Oberflächen verwenden deutsche Fachsprache", () => {
   assert.match(visibleText, /Auslöser/);
   assert.match(visibleText, /Gerätebrücke/);
   assert.match(visibleText, /Wiederherstellung bei Fehler/);
-  assert.match(editor, /Session im Portal beenden/);
-  assert.match(editor, /<optgroup label="Gerätefähigkeiten">/);
+  assert.match(editor, /Was soll passieren\?/);
+  assert.match(editor, /Kein Gerät nötig/);
+  assert.match(editor, /Passendes Ziel/);
   assert.match(editor, /validateAutomationRulePayload/);
   assert.match(editor, /Regelprüfung/);
   assert.match(editor, /Diese Regel ist vollständig und kann gespeichert werden/);

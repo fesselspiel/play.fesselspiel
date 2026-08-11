@@ -85,6 +85,26 @@ function emptyCapabilityText(kind?: CapabilityKind | null) {
   return "Keine Fähigkeit eingerichtet";
 }
 
+function actionCapabilityKind(actionType: AutomationActionKey): CapabilityKind | "" {
+  if (actionType === "camera_request_image" || actionType === "camera_health_check") return "Camera";
+  if (actionType === "switch_on" || actionType === "switch_off" || actionType === "switch_toggle") return "Switch";
+  if (actionType === "voice_speak") return "Voice";
+  return "";
+}
+
+function actionTypeOptions(capabilities: CapabilityOption[]) {
+  const availableKinds = new Set(capabilities.map((capability) => capability.kind));
+  return [
+    { key: "session_finish" as AutomationActionKey, label: actionLabels.session_finish, helper: "Portal-Aktion, kein Gerät nötig", disabled: false },
+    { key: "camera_request_image" as AutomationActionKey, label: actionLabels.camera_request_image, helper: "Kamera", disabled: !availableKinds.has("Camera") },
+    { key: "camera_health_check" as AutomationActionKey, label: actionLabels.camera_health_check, helper: "Kamera", disabled: !availableKinds.has("Camera") },
+    { key: "switch_on" as AutomationActionKey, label: actionLabels.switch_on, helper: "Schalter", disabled: !availableKinds.has("Switch") },
+    { key: "switch_off" as AutomationActionKey, label: actionLabels.switch_off, helper: "Schalter", disabled: !availableKinds.has("Switch") },
+    { key: "switch_toggle" as AutomationActionKey, label: actionLabels.switch_toggle, helper: "Schalter", disabled: !availableKinds.has("Switch") },
+    { key: "voice_speak" as AutomationActionKey, label: actionLabels.voice_speak, helper: "Sprachausgabe", disabled: !availableKinds.has("Voice") }
+  ];
+}
+
 function parseInitial(value?: string) {
   if (!value) return defaultRuleFormValue();
   try {
@@ -206,23 +226,24 @@ export function AutomationRuleEditor({
     });
   }
 
-  function actionsForCapability(action: RuleActionFormValue): AutomationActionKey[] {
-    const capability = capabilities.find((item) => item.id === action.capabilityId);
-    if (!capability) return ["session_finish"];
-    return actionOptionsByCapability[capability.kind] || ["session_finish"];
+  function capabilitiesForAction(actionType: AutomationActionKey) {
+    const kind = actionCapabilityKind(actionType);
+    return kind ? capabilities.filter((capability) => capability.kind === kind) : [];
   }
 
   function normalizeAction(action: RuleActionFormValue): RuleActionFormValue {
     const capability = capabilities.find((item) => item.id === action.capabilityId);
     const next = { ...action };
-    if (capability) {
-      next.capabilityKind = capability.kind;
-      const actions = actionOptionsByCapability[capability.kind] || ["session_finish"];
-      if (!actions.includes(next.actionType)) next.actionType = actions[0];
-    } else {
+    const requiredKind = actionCapabilityKind(next.actionType);
+    if (!requiredKind) {
       next.capabilityId = "";
       next.capabilityKind = "";
-      if (next.actionType !== "session_finish") next.actionType = "session_finish";
+    } else if (capability && capability.kind === requiredKind) {
+      next.capabilityKind = capability.kind;
+    } else {
+      const first = capabilities.find((item) => item.kind === requiredKind);
+      next.capabilityId = first?.id || "";
+      next.capabilityKind = first?.kind || "";
     }
     return next;
   }
@@ -492,13 +513,15 @@ export function AutomationRuleEditor({
           <div className="flex items-center gap-2 font-semibold text-ink"><Cpu className="h-4 w-4" /> Aktion</div>
           <div className="mt-3 space-y-3">
             {value.actions.map((action, index) => {
-              const availableActions = actionsForCapability(action);
+              const availableActionTypes = actionTypeOptions(capabilities);
+              const requiredActionKind = actionCapabilityKind(action.actionType);
+              const targetCapabilities = capabilitiesForAction(action.actionType);
               return (
                 <div key={index} className="rounded-md border border-line bg-surface p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold text-ink">Aktion {index + 1}</div>
-                      <div className="text-xs text-graphite">Wird zur fälligen Zeit dieser Regel ausgeführt.</div>
+                      <div className="text-xs text-graphite">Wähle zuerst, was passieren soll. Danach zeigt Playplaner nur passende Ziele.</div>
                     </div>
                     {value.actions.length > 1 ? (
                       <button type="button" onClick={() => removeAction(index)} className="inline-flex items-center gap-1 rounded-md border border-line bg-paper px-2 py-1 text-xs font-semibold text-graphite hover:border-redbrand hover:text-redbrand">
@@ -507,26 +530,39 @@ export function AutomationRuleEditor({
                     ) : null}
                   </div>
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
-                    <label className="text-sm text-graphite">Ziel
-                      <select className={`${inputClass} mt-1`} value={action.capabilityId} onChange={(event) => updateAction(index, { capabilityId: event.target.value })}>
-                        <option value="">Session im Portal beenden</option>
-                        {capabilities.length ? (
-                          <optgroup label="Gerätefähigkeiten">
-                            {capabilities.map((capability) => (
-                              <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
-                            ))}
-                          </optgroup>
-                        ) : null}
+                    <label className="text-sm text-graphite">Was soll passieren?
+                      <select className={`${inputClass} mt-1`} value={action.actionType} onChange={(event) => updateAction(index, { actionType: event.target.value as AutomationActionKey })}>
+                        {availableActionTypes.map((option) => (
+                          <option key={option.key} value={option.key} disabled={option.disabled}>
+                            {option.label} {option.helper ? `· ${option.helper}` : ""}
+                          </option>
+                        ))}
                       </select>
                       <span className="mt-1 block text-xs leading-5 text-graphite">
-                        Ohne Gerätefähigkeit ist nur die Portal-Aktion „Session beenden“ möglich.
+                        Aktionen ohne eingerichtetes Ziel bleiben ausgegraut, bis ein passendes Gerät vorhanden ist.
                       </span>
                     </label>
-                    <label className="text-sm text-graphite">Aktion
-                      <select className={`${inputClass} mt-1`} value={action.actionType} onChange={(event) => updateAction(index, { actionType: event.target.value as AutomationActionKey })}>
-                        {availableActions.map((key) => <option key={key} value={key}>{actionLabels[key]}</option>)}
-                      </select>
-                    </label>
+                    {requiredActionKind ? (
+                      <label className="text-sm text-graphite">Passendes Ziel
+                        <select className={`${inputClass} mt-1`} value={action.capabilityId} onChange={(event) => updateAction(index, { capabilityId: event.target.value })}>
+                          {targetCapabilities.length ? (
+                            <optgroup label={capabilityKindLabel(requiredActionKind)}>
+                              {targetCapabilities.map((capability) => (
+                                <option key={capability.id} value={capability.id}>{capability.deviceName} · {capability.title}</option>
+                              ))}
+                            </optgroup>
+                          ) : <option value="">{emptyCapabilityText(requiredActionKind)}</option>}
+                        </select>
+                        <span className="mt-1 block text-xs leading-5 text-graphite">
+                          Für „{actionLabels[action.actionType]}“ sind nur {capabilityKindLabel(requiredActionKind).toLowerCase()} auswählbar.
+                        </span>
+                      </label>
+                    ) : (
+                      <div className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">
+                        <div className="font-semibold text-ink">Kein Gerät nötig</div>
+                        <p className="mt-1 text-xs leading-5">Diese Aktion passiert direkt im Portal und benötigt keine Kamera, keinen Schalter und keine Sprachausgabe.</p>
+                      </div>
+                    )}
                   </div>
                   {action.actionType === "voice_speak" ? (
                     <textarea className={`${inputClass} mt-2`} value={action.voiceText} onChange={(event) => updateAction(index, { voiceText: event.target.value })} rows={2} placeholder="Text, den ioBroker sprechen soll" />
