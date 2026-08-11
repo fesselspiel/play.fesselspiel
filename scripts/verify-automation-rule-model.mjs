@@ -288,6 +288,7 @@ test("Automation-Session-Aktionen nutzen zentrale Rollen-Policy statt Besitzer-S
 
 test("Automation-Protokoll zeigt Policy-Entscheidungen fachlich an", () => {
   const settings = readFileSync("src/app/settings/automation/page.tsx", "utf8");
+  const sessionDetail = readFileSync("src/app/automation/sessions/[id]/page.tsx", "utf8");
   assert.match(settings, /function humanAutomationPolicyEntries/);
   assert.match(settings, /Erlaubte Aktion/);
   assert.match(settings, /Session-Zustand/);
@@ -300,6 +301,15 @@ test("Automation-Protokoll zeigt Policy-Entscheidungen fachlich an", () => {
   assert.match(settings, /id=\{`automation-event-\$\{event\.id\}`\}/);
   assert.match(settings, /href=\{`#automation-event-\$\{event\.parentEvent\.id\}`\}/);
   assert.match(settings, /href=\{`#automation-event-\$\{child\.id\}`\}/);
+  assert.match(sessionDetail, /function humanPolicyEntries/);
+  assert.match(sessionDetail, /Erlaubte Aktion/);
+  assert.match(sessionDetail, /Session-Zustand/);
+  assert.match(sessionDetail, /Begründung/);
+  assert.match(sessionDetail, /Entscheidung/);
+  assert.match(sessionDetail, /id=\{`automation-session-event-\$\{event\.id\}`\}/);
+  assert.match(sessionDetail, /href=\{`#automation-session-event-\$\{event\.parentEvent\.id\}`\}/);
+  assert.match(sessionDetail, /href=\{`#automation-session-event-\$\{child\.id\}`\}/);
+  assert.match(sessionDetail, /Geplante Ausführung/);
 });
 
 test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben", () => {

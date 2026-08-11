@@ -60,6 +60,22 @@ function humanDetailEntries(details: Record<string, unknown>) {
   return Object.entries(details).filter(([key]) => labels[key]).map(([key, value]) => [labels[key], humanJsonValue(value) || String(value || "")] as const);
 }
 
+function humanPolicyEntries(policy: Record<string, unknown>) {
+  const entries: Array<[string, string]> = [];
+  const role = typeof policy.role === "string" ? labelAutomationValue("roles", policy.role) : "";
+  const action = typeof policy.action === "string" ? actionTitleWithTarget({ type: policy.action }, { capabilities: [] }) : "";
+  const state = typeof policy.state === "string" ? labelAutomationValue("states", policy.state) : "";
+  const decision = typeof policy.decision === "string" ? humanJsonValue(policy.decision) : "";
+  const reason = typeof policy.reason === "string" ? humanJsonValue(policy.reason) : "";
+  if (role) entries.push(["Rolle", role]);
+  if (action) entries.push(["Erlaubte Aktion", action]);
+  if (state) entries.push(["Session-Zustand", state]);
+  if (typeof policy.allowed === "boolean") entries.push(["Entscheidung", policy.allowed ? "erlaubt" : "nicht erlaubt"]);
+  if (decision) entries.push(["Policy", decision]);
+  if (reason) entries.push(["Begründung", reason]);
+  return entries;
+}
+
 function automationActionTitle(action: {
   type: string;
   capabilityId?: string | null;
@@ -334,8 +350,13 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
             {session.events.length ? session.events.map((event) => {
               const details = detailsObject(event.detailsJson);
               const humanDetails = humanDetailEntries(details);
+              const detailPolicy = detailsObject(details.policy);
+              const contextPolicy = detailsObject(event.context?.policyJson);
+              const policy = Object.keys(contextPolicy).length ? contextPolicy : detailPolicy;
+              const policyEntries = humanPolicyEntries(policy);
+              const timing = detailsObject(event.context?.timingJson);
               return (
-                <details key={event.id} className="rounded-md border border-line bg-paper p-3">
+                <details id={`automation-session-event-${event.id}`} key={event.id} className="scroll-mt-24 rounded-md border border-line bg-paper p-3">
                   <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
                     {formatDateTime(event.createdAt)} · {eventLabel(event)}
                   </summary>
@@ -351,8 +372,36 @@ export default async function AutomationSessionDetailPage(props: { params: Promi
                     ) : null}
                     {event.parentEvent || event.childEvents.length ? (
                       <div className="rounded-md border border-line bg-surface p-2">
-                        {event.parentEvent ? <div>Ausgelöst durch: {formatDateTime(event.parentEvent.createdAt)} · {eventLabel(event.parentEvent)}</div> : null}
-                        {event.childEvents.map((child) => <div key={child.id}>Folge: {formatDateTime(child.createdAt)} · {eventLabel(child)}</div>)}
+                        <div className="text-xs uppercase text-graphite">Ursache und Folge</div>
+                        {event.parentEvent ? (
+                          <a className="mt-1 block font-medium text-redbrand hover:underline" href={`#automation-session-event-${event.parentEvent.id}`}>
+                            Ausgelöst durch: {formatDateTime(event.parentEvent.createdAt)} · {eventLabel(event.parentEvent)}
+                          </a>
+                        ) : null}
+                        {event.childEvents.map((child) => (
+                          <a key={child.id} className="block font-medium text-redbrand hover:underline" href={`#automation-session-event-${child.id}`}>
+                            Folge: {formatDateTime(child.createdAt)} · {eventLabel(child)}
+                          </a>
+                        ))}
+                      </div>
+                    ) : null}
+                    {policyEntries.length || timing.dueAt ? (
+                      <div className="rounded-md border border-line bg-surface p-2">
+                        <div className="text-xs uppercase text-graphite">Entscheidung</div>
+                        <div className="mt-2 grid gap-1">
+                          {policyEntries.map(([label, value]) => (
+                            <div key={label} className="grid gap-1 sm:grid-cols-[160px_1fr]">
+                              <span className="font-medium text-ink">{label}</span>
+                              <span>{value}</span>
+                            </div>
+                          ))}
+                          {timing.dueAt ? (
+                            <div className="grid gap-1 sm:grid-cols-[160px_1fr]">
+                              <span className="font-medium text-ink">Geplante Ausführung</span>
+                              <span>{humanJsonValue(timing.dueAt)}</span>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     ) : null}
                   </div>
