@@ -709,54 +709,48 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
             </div>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <SoftPanel>
-              <span className="font-semibold text-ink">1. Brücke aktivieren</span>
-              <span className="text-sm text-graphite">Damit erlaubt diese Seite, dass ein externer Adapter Geräte meldet und Befehle abholt.</span>
+            <SoftPanel className="space-y-2">
+              <div className="font-semibold text-ink">1. Playplaner verbinden</div>
+              <p className="text-sm leading-6 text-graphite">Öffne den Playplaner-Adapter in ioBroker, trage diese Domain ein und bestätige die Verbindung hier.</p>
             </SoftPanel>
-            <SoftPanel>
-              <span className="font-semibold text-ink">2. Adapter verbinden</span>
-              <span className="text-sm text-graphite">Der lokale ioBroker-Adapter ruft Heartbeat, Geräte-Sync und Befehle über die API auf.</span>
+            <SoftPanel className="space-y-2">
+              <div className="font-semibold text-ink">2. Verbindung prüfen</div>
+              <p className="text-sm leading-6 text-graphite">Ein grüner Status oben bestätigt, dass der ioBroker-Adapter diese Seite aktuell erreicht.</p>
             </SoftPanel>
-            <SoftPanel>
-              <span className="font-semibold text-ink">3. Geräte verwenden</span>
-              <span className="text-sm text-graphite">Erst vom Adapter gemeldete Geräte sind echte Geräte. Manuelle Geräte sind Platzhalter für Tests oder Vorbereitung.</span>
+            <SoftPanel className="space-y-2">
+              <div className="font-semibold text-ink">3. Geräte verwenden</div>
+              <p className="text-sm leading-6 text-graphite">In ioBroker verknüpfte Kameras, Schalter und Sprachausgaben erscheinen anschließend automatisch.</p>
             </SoftPanel>
           </div>
-          <form action={saveBridge} className="mt-4 space-y-3">
-            <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="enabled" type="checkbox" defaultChecked={bridge?.enabled} /> Gerätebrücke für diese Seite aktivieren</label>
-            <details className="rounded-md border border-line bg-paper p-3">
-              <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Verbindungsdetails</summary>
+          <details className="mt-6 rounded-md border border-line bg-paper p-3">
+            <summary className="cursor-pointer list-none text-sm font-semibold text-graphite [&::-webkit-details-marker]:hidden">Technische Einstellungen (nur für Experten)</summary>
+            <form action={saveBridge} className="mt-4 space-y-3">
+              <label className="flex items-center gap-2 rounded-md border border-line bg-surface p-3 text-sm"><input name="enabled" type="checkbox" defaultChecked={bridge?.enabled} /> Externe Geräteanbindung aktivieren</label>
               <p className="mt-2 text-sm text-graphite">
-                Diese Werte sind keine Geräte. Sie beschreiben nur, unter welchem Namen der lokale Adapter diese Seite anspricht. Der echte Verbindungszustand entsteht erst, wenn der Adapter einen Heartbeat sendet.
+                Diese Werte werden bei der normalen Verbindung automatisch eingerichtet. Ändere sie nur bei einer eigenen MQTT-Installation oder zur Fehlerdiagnose.
               </p>
               <div className="mt-3 grid gap-3 md:grid-cols-3">
                 <Field label="MQTT-Themenbereich"><input name="mqttBaseTopic" className={inputClass} defaultValue={bridge?.mqttBaseTopic || "playplaner/v1"} /></Field>
                 <Field label="Adapter-Client-ID"><input name="mqttClientId" className={inputClass} defaultValue={bridge?.mqttClientId || ""} placeholder="z.B. playplaner-iobroker" /></Field>
                 <Field label="MQTT-Benutzer"><input name="mqttUsername" className={inputClass} defaultValue={bridge?.mqttUsername || ""} placeholder="wird beim Rotieren erzeugt" /></Field>
               </div>
-              <p className="mt-2 text-xs text-graphite">Wenn du keinen besonderen Grund hast, lass den Themenbereich auf <code>playplaner/v1</code>. Client-ID und Benutzer werden vom Adapter beziehungsweise beim MQTT-Zugang verwendet.</p>
-            </details>
-            <SubmitButton pendingLabel="Speichert...">Gerätebrücke speichern</SubmitButton>
-          </form>
-          <form action={rotateMqtt} className="mt-4 rounded-lg border border-line bg-paper p-4">
-            <div className="text-sm font-semibold text-ink">Neues Adapter-Passwort erzeugen</div>
-            <p className="mt-1 text-sm text-graphite">
-              Das brauchst du nur, wenn du den lokalen Adapter neu einrichtest oder ein altes Passwort ersetzen willst. Das Passwort wird nur einmal angezeigt und danach verschlüsselt gespeichert.
-            </p>
-            <input type="hidden" name="mqttUsername" value={bridge?.mqttUsername || ""} />
-            <input type="hidden" name="mqttBaseTopic" value={bridge?.mqttBaseTopic || ""} />
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <SubmitButton pendingLabel="Erzeuge...">Adapter-Passwort erzeugen</SubmitButton>
-              {bridge?.mqttUsername ? <span className="text-sm text-graphite">Benutzer: <code>{bridge.mqttUsername}</code></span> : null}
-            </div>
-            {mqttPassword ? (
-              <div className="mt-3 rounded-md border border-redbrand/30 bg-redbrand/10 p-3 text-sm text-ink">
-                <div className="font-semibold">Einmaliges MQTT-Passwort für {mqttUser || "den Adapter"}</div>
-                <code className="mt-2 block overflow-auto rounded bg-surface p-2">{mqttPassword}</code>
+              <SubmitButton pendingLabel="Speichert...">Technische Einstellungen speichern</SubmitButton>
+            </form>
+            <form action={rotateMqtt} className="mt-4 rounded-lg border border-line bg-surface p-4">
+              <div className="text-sm font-semibold text-ink">MQTT-Zugang erneuern</div>
+              <p className="mt-1 text-sm text-graphite">Nur für eine manuell konfigurierte MQTT-Verbindung. Die normale ioBroker-Verbindung über HTTPS benötigt diesen Schritt nicht.</p>
+              <input type="hidden" name="mqttUsername" value={bridge?.mqttUsername || ""} />
+              <input type="hidden" name="mqttBaseTopic" value={bridge?.mqttBaseTopic || ""} />
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <SubmitButton pendingLabel="Erzeuge...">MQTT-Passwort erneuern</SubmitButton>
+                {bridge?.mqttUsername ? <span className="text-sm text-graphite">Benutzer: <code>{bridge.mqttUsername}</code></span> : null}
               </div>
-            ) : null}
-          </form>
-          <div className="mt-4 rounded-lg border border-line bg-paper p-4">
+              {mqttPassword ? <div className="mt-3 rounded-md border border-redbrand/30 bg-redbrand/10 p-3 text-sm text-ink"><div className="font-semibold">Einmaliges MQTT-Passwort für {mqttUser || "den Adapter"}</div><code className="mt-2 block overflow-auto rounded bg-surface p-2">{mqttPassword}</code></div> : null}
+            </form>
+          </details>
+          <details className="mt-4 rounded-lg border border-line bg-paper p-4">
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-graphite [&::-webkit-details-marker]:hidden"><BookOpen className="h-4 w-4" /> Technische Schnittstellenbeschreibung</summary>
+            <div className="mt-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-ink"><BookOpen className="h-4 w-4" /> Adapter-Schnittstelle</div>
             <p className="mt-2 text-sm text-graphite">
               Der Adapter arbeitet in drei Schritten: Er meldet regelmäßig einen Heartbeat, synchronisiert seine bekannten Geräte und holt fällige Befehle ab. Nur dadurch weiß Playplaner, ob wirklich etwas verbunden ist.
@@ -789,12 +783,13 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
             <a className="mt-3 inline-flex text-sm font-semibold text-redbrand hover:underline" href="/docs/iobroker-adapter-contract.md">
               Schnittstellen-Dokument öffnen
             </a>
-          </div>
+            </div>
+          </details>
         </details>
 
         <details className="rounded-lg border border-line bg-surface p-4">
           <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><Cpu className="h-4 w-4" /> Geräte und Fähigkeiten</summary>
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="mt-4 space-y-4">
             <Panel>
               <h2 className="text-base font-semibold text-ink">Gerät hinzufügen</h2>
               <p className="mt-2 text-sm text-graphite">
@@ -957,7 +952,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
 
         <details open className="rounded-lg border border-line bg-surface p-4">
           <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><Activity className="h-4 w-4" /> Regeln</summary>
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="mt-4 space-y-4">
             <Panel>
               <h2 className="text-base font-semibold text-ink">Regel anlegen</h2>
               <form action={saveRule} className="mt-3 space-y-3">

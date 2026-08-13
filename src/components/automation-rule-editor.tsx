@@ -434,7 +434,7 @@ function AutomationRuleEditorClient({
         )}
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-4">
+      <div className="space-y-3">
         <section className="rounded-lg border border-line bg-paper p-4">
           <div className="flex items-center gap-2 font-semibold text-ink"><RadioTower className="h-4 w-4" /> Auslöser</div>
           <select className={`${inputClass} mt-3`} value={value.triggerType} onChange={(event) => update({ triggerType: event.target.value as AutomationTriggerKey })}>
@@ -608,7 +608,7 @@ function AutomationRuleEditorClient({
           ) : null}
         </section>
 
-        <section className="rounded-lg border border-line bg-paper p-4 lg:col-span-4">
+        <section className="rounded-lg border border-line bg-paper p-4">
           <div className="flex items-center gap-2 font-semibold text-ink"><Cpu className="h-4 w-4" /> Aktion</div>
           <div className="mt-3 space-y-3">
             {value.actions.map((action, index) => {

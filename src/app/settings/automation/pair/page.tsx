@@ -11,6 +11,7 @@ import { trackerVisibleToUser } from "@/lib/external-tracker-types";
 import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
 import { Panel, PageHeader, selectClass } from "@/components/ui";
+import { ClosePairingWindow } from "./close-pairing-window";
 
 function pairingError(code: string): never {
   redirect(`/settings/automation/pair?error=${encodeURIComponent(code)}`);
@@ -106,9 +107,10 @@ export default async function AutomationPairPage(props: { searchParams?: Promise
         <Panel>
           {connected ? (
             <div className="text-center">
+              <ClosePairingWindow />
               <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600" />
               <h2 className="mt-3 text-xl font-semibold text-ink">ioBroker ist verbunden</h2>
-              <p className="mt-2 text-sm text-graphite">Du kannst dieses Fenster schließen. Der Adapter übernimmt Zugang und Einstellungen automatisch.</p>
+              <p className="mt-2 text-sm text-graphite">Du wirst zur offenen ioBroker-Konfiguration zurückgebracht. Dort erscheint gleich der grüne Verbindungsstatus.</p>
             </div>
           ) : !allowed ? (
             <div><h2 className="text-lg font-semibold text-ink">Keine Berechtigung</h2><p className="mt-2 text-sm text-graphite">Nur Administratoren dieser Seite und Superadmins dürfen eine Gerätebridge verbinden.</p></div>
