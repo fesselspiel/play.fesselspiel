@@ -673,7 +673,11 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
   const mqttPassword = typeof searchParams?.mqttPassword === "string" ? searchParams.mqttPassword : "";
   const mqttUser = typeof searchParams?.mqttUser === "string" ? searchParams.mqttUser : "";
   const error = typeof searchParams?.error === "string" ? searchParams.error : "";
-  const capabilities = devices.flatMap((device) => device.capabilities.map((capability) => ({
+  const adapterDevices = devices.filter((device) => {
+    const metadata = jsonRecord(device.metadataJson);
+    return metadata.source === "adapter" || Boolean(device.lastSeenAt);
+  });
+  const capabilities = adapterDevices.flatMap((device) => device.capabilities.map((capability) => ({
     id: capability.id,
     kind: capability.kind as "Camera" | "Switch" | "Voice",
     title: capability.title,
@@ -681,7 +685,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
     deviceName: device.name,
     state: capability.state
   })));
-  const deviceOptions = devices.map((device) => ({ id: device.id, name: device.name, health: device.health }));
+  const deviceOptions = adapterDevices.map((device) => ({ id: device.id, name: device.name, health: device.health }));
   const trackerOptions = trackerTypes.map((tracker) => ({ id: tracker.id, title: tracker.title, color: tracker.color }));
   const bridgeStatus = bridgeStatusInfo(bridge);
 
@@ -788,9 +792,9 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
         </details>
 
         <details className="rounded-lg border border-line bg-surface p-4">
-          <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><Cpu className="h-4 w-4" /> Geräte und Fähigkeiten</summary>
+          <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><Cpu className="h-4 w-4" /> Geräte</summary>
           <div className="mt-4 space-y-4">
-            <Panel>
+            <Panel className="hidden">
               <h2 className="text-base font-semibold text-ink">Gerät hinzufügen</h2>
               <p className="mt-2 text-sm text-graphite">
                 Der normale Weg ist der automatische Geräte-Sync durch den ioBroker-Adapter. Manuell angelegte Geräte sind sinnvoll, wenn du Regeln vorbereiten oder einen Datenpunkt vorab eintragen willst.
@@ -800,9 +804,12 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
               </form>
             </Panel>
             <Panel>
-              <h2 className="text-base font-semibold text-ink">Aktive Geräte</h2>
+              <h2 className="text-base font-semibold text-ink">Mit ioBroker verbundene Geräte</h2>
+              <p className="mt-2 text-sm text-graphite">
+                Geräte richtest du ausschließlich im ioBroker-Adapter unter <span className="font-semibold text-ink">Geräte</span> ein. Dort wählst du den vorhandenen Datenpunkt und – falls nötig – das erwartete Werteformat aus. Nach dem Speichern werden die Geräte automatisch hier angezeigt. Auf dieser Seite musst du keine Datenpunkte, Wahr-/Falsch-Werte oder MQTT-Themen eintragen.
+              </p>
               <div className="mt-3 space-y-2">
-                {devices.map((device) => {
+                {adapterDevices.map((device) => {
                   const origin = deviceOrigin(device);
                   return (
                   <details key={device.id} className="rounded-md border border-line bg-paper p-3">
@@ -820,13 +827,12 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                       <div className="grid gap-2">
                         {device.capabilities.map((capability) => {
                           const roleText = capabilityRoleText(capability.kind);
-                          const parameters = jsonRecord(capability.parametersJson);
                           return (
                             <div key={capability.id} className="rounded-md border border-line bg-surface p-3">
                               <div className="font-semibold text-ink">
                                 {capability.title} · {capabilityKindTitle(capability.kind)} · {labelAutomationValue("health", capability.state)}
                               </div>
-                              {parameters.dataPoint ? <div className="mt-1 text-sm">Datenpunkt: <code>{String(parameters.dataPoint)}</code></div> : <div className="mt-1 text-sm">Noch kein Datenpunkt hinterlegt.</div>}
+                              <div className="mt-1 text-sm">Vom ioBroker-Adapter synchronisiert. Der lokale Datenpunkt bleibt im Heimnetz und wird im ioBroker verwaltet.</div>
                               <div className="mt-2 grid gap-2 md:grid-cols-3">
                                 <div><span className="font-semibold text-ink">Aktionen:</span> {roleText.actions.join(", ")}</div>
                                 <div><span className="font-semibold text-ink">Ereignisse:</span> {roleText.events.join(", ")}</div>
@@ -836,7 +842,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                           );
                         })}
                       </div>
-                      <details className="mt-3 rounded border border-line bg-surface p-3">
+                      <details className="hidden">
                         <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Gerät bearbeiten</summary>
                         <form action={updateDevice} className="mt-3 grid gap-3 sm:grid-cols-2">
                           <input type="hidden" name="deviceId" value={device.id} />
@@ -854,7 +860,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                           <div className="flex items-end"><SubmitButton pendingLabel="Speichert...">Gerät speichern</SubmitButton></div>
                         </form>
                       </details>
-                      <details className="mt-2 rounded border border-redbrand/30 bg-redbrand/5 p-3">
+                      <details className="hidden">
                         <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Gerät entfernen</summary>
                         <p className="mt-2 text-sm text-graphite">
                           Entfernt das Gerät und seine Fähigkeiten aus der Automation. Historische Protokolleinträge bleiben nachvollziehbar erhalten.
@@ -864,7 +870,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                           <SubmitButton pendingLabel="Löscht...">Gerät löschen</SubmitButton>
                         </form>
                       </details>
-                      <details className="mt-2 rounded border border-line bg-surface p-3">
+                      <details className="hidden">
                         <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Fähigkeit hinzufügen</summary>
                         <p className="mt-2 text-sm text-graphite">
                           Ergänzt dieses Gerät um eine weitere fachliche Fähigkeit. Die passenden Aktionen, Ereignisse und Bedingungen erscheinen danach automatisch im Regel-Editor.
@@ -878,7 +884,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                       {device.capabilities.map((capability) => {
                         const parameters = jsonRecord(capability.parametersJson);
                         return (
-                          <details key={`${capability.id}-edit`} className="mt-2 rounded border border-line bg-surface p-3">
+                          <details key={`${capability.id}-edit`} className="hidden">
                             <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Fähigkeit bearbeiten: {capability.title}</summary>
                             <form action={updateCapability} className="mt-3 grid gap-3 sm:grid-cols-2">
                               <input type="hidden" name="capabilityId" value={capability.id} />
@@ -931,7 +937,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                           </details>
                         );
                       })}
-                      <details className="mt-2 rounded border border-line bg-surface p-2">
+                      <details className="hidden">
                         <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">Technische Details</summary>
                         <pre className="mt-2 overflow-auto text-xs">{JSON.stringify({ logicalId: device.logicalId, integration: device.integration, capabilities: device.capabilities.map((capability) => ({ key: capability.key, kind: capability.kind, state: capability.state })) }, null, 2)}</pre>
                       </details>
@@ -939,10 +945,10 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                   </details>
                 );
                 })}
-                {!devices.length ? (
+                {!adapterDevices.length ? (
                   <SoftPanel>
-                    <span className="font-semibold text-ink">Noch keine Geräte</span>
-                    <span className="text-sm text-graphite">Sobald der Adapter Geräte synchronisiert, erscheinen sie hier. Alternativ kannst du oben ein Platzhaltergerät für die Regelplanung anlegen.</span>
+                    <span className="font-semibold text-ink">Noch kein Gerät aus ioBroker gemeldet</span>
+                    <span className="text-sm text-graphite">Öffne in ioBroker den Adapter Playplaner, gehe zu „Geräte“, füge dort Schalter, Kamera oder Sprachausgabe hinzu und speichere. Danach erscheint das Gerät automatisch hier.</span>
                   </SoftPanel>
                 ) : null}
               </div>
