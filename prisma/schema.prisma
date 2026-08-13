@@ -192,6 +192,7 @@ model Tenant {
   automationCapabilities      AutomationCapability[]
   automationImageRequests     AutomationImageRequest[]
   automationBridge            AutomationBridge?
+  automationBridgePairings    AutomationBridgePairing[]
   shareDeliveries             ShareDelivery[]
   playReadyLikes              PlayReadyLike[]
   activityLikes               ActivityLike[]
@@ -274,6 +275,7 @@ model User {
   receivedMessages              Message[]                    @relation("MessageRecipient")
   telegramChatTargets           TelegramChat[]               @relation("TelegramChatTargetUser")
   apiTokens                     ApiToken[]
+  automationBridgePairings      AutomationBridgePairing[] @relation("AutomationBridgePairingApprover")
   scheduledRules                ScheduledRule[]
   automationSessions            AutomationSession[]
   automationRules               AutomationRule[]
@@ -528,6 +530,7 @@ model ApiToken {
   updatedAt    DateTime  @updatedAt
   tenant       Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  automationBridgePairing AutomationBridgePairing?
 
   @@index([tenantId, active])
   @@index([userId, active])
@@ -936,6 +939,35 @@ model AutomationBridge {
   tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([enabled, health])
+}
+
+model AutomationBridgePairing {
+  id                   String    @id @default(cuid())
+  tenantId             String?
+  approvedById         String?
+  apiTokenId           String?   @unique
+  installationId       String
+  installationName     String?
+  requestedHostname    String
+  requestedOrigin      String
+  pollSecretHash       String    @unique
+  status               String    @default("PENDING")
+  trackerTypeId        String?
+  credentialEnc        String?
+  mqttPasswordEnc      String?
+  expiresAt            DateTime
+  approvedAt           DateTime?
+  consumedAt           DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  tenant               Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  approvedBy           User?     @relation("AutomationBridgePairingApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  apiToken             ApiToken? @relation(fields: [apiTokenId], references: [id], onDelete: SetNull)
+  trackerType          TrackerType? @relation(fields: [trackerTypeId], references: [id], onDelete: SetNull)
+
+  @@index([status, expiresAt])
+  @@index([tenantId, createdAt])
+  @@index([installationId, createdAt])
 }
 
 model LegalDocument {
@@ -1860,6 +1892,7 @@ model TrackerType {
   tenant               Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   entries              TrackerEntry[]
   automationSessions   AutomationSession[]
+  automationBridgePairings AutomationBridgePairing[]
 
   @@unique([tenantId, key])
   @@index([tenantId, enabled])
