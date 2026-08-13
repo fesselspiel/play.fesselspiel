@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     where: {
       tenantId: auth.user.tenantId || "",
       ...(sessionId ? { sessionId } : {}),
-      ...(type ? { type } : {})
+      ...(type ? { type } : { type: { not: "bridge_heartbeat" } })
     },
     include: {
       actor: { select: { id: true, name: true, username: true, profile: { select: { displayName: true } } } },

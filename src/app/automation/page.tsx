@@ -141,7 +141,7 @@ export default async function AutomationPage(props: { searchParams?: Promise<Rec
     }),
     prisma.automationDevice.findMany({ where: { tenantId }, include: { capabilities: true }, orderBy: { name: "asc" } }),
     prisma.automationEvent.findMany({
-      where: { tenantId },
+      where: { tenantId, type: { not: "bridge_heartbeat" } },
       include: {
         actor: { include: { profile: true } },
         session: { select: { id: true, title: true, state: true } },

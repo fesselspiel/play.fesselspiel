@@ -621,7 +621,7 @@ export const capabilities: readonly Capability[] = [
           { method: "GET", path: "/api/external/automation/adapter/commands?limit=25", description: "Fällige Geräte-/Capability-Commands atomar für den Adapter abholen." },
           { method: "POST", path: "/api/external/automation/adapter/commands/{id}/result", description: "Ausführungsergebnis eines Adapter-Commands zurückmelden." }
         ],
-        auditActions: ["automation_device_synced", "automation_bridge_updated", "automation_bridge_heartbeat", "automation_action_created", "automation_action_ready_for_bridge", "automation_action_claimed_by_bridge", "automation_action_succeeded", "automation_action_failed"]
+        auditActions: ["automation_device_synced", "automation_bridge_updated", "automation_action_created", "automation_action_ready_for_bridge", "automation_action_claimed_by_bridge", "automation_action_succeeded", "automation_action_failed"]
       },
       {
         key: "images",
