@@ -452,8 +452,6 @@ test("Automation-Protokoll zeigt Policy-Entscheidungen fachlich an", () => {
   assert.match(settings, /Begründung/);
   assert.match(settings, /Technische API-Endpunkte/);
   assert.match(settings, /<summary[^>]*>Technische API-Endpunkte<\/summary>/);
-  assert.match(settings, /<summary[^>]*>Verbindungsdetails<\/summary>/);
-  assert.match(settings, /Der echte Verbindungszustand entsteht erst, wenn der Adapter einen Heartbeat sendet/);
   assert.match(settings, /id=\{`automation-event-\$\{event\.id\}`\}/);
   assert.match(settings, /href=\{`#automation-event-\$\{event\.parentEvent\.id\}`\}/);
   assert.match(settings, /href=\{`#automation-event-\$\{child\.id\}`\}/);
@@ -466,6 +464,25 @@ test("Automation-Protokoll zeigt Policy-Entscheidungen fachlich an", () => {
   assert.match(sessionDetail, /href=\{`#automation-session-event-\$\{event\.parentEvent\.id\}`\}/);
   assert.match(sessionDetail, /href=\{`#automation-session-event-\$\{child\.id\}`\}/);
   assert.match(sessionDetail, /Geplante Ausführung/);
+});
+
+test("Regeln sind sortierbar und die gesamte Session ist gemeinsam simulierbar", () => {
+  const settings = readFileSync("src/app/settings/automation/page.tsx", "utf8");
+  const order = readFileSync("src/components/automation-rule-order.tsx", "utf8");
+  const sessionSimulator = readFileSync("src/components/automation-session-simulator.tsx", "utf8");
+  const model = readFileSync("src/lib/automation-rule-model.ts", "utf8");
+  const schema = readFileSync("prisma/schema.prisma", "utf8");
+  assert.match(schema, /sortOrder\s+Int\s+@default\(0\)/);
+  assert.match(settings, /reorderRules/);
+  assert.match(settings, /orderBy: \[\{ sortOrder: "asc" \}/);
+  assert.match(order, /draggable/);
+  assert.match(order, /requestSubmit/);
+  assert.match(settings, /AutomationSessionSimulator/);
+  assert.match(sessionSimulator, /Gesamte Session simulieren/);
+  assert.match(sessionSimulator, /Bereits passiert[\s\S]*Jetzt[\s\S]*Als Nächstes/);
+  assert.match(model, /simulateAutomationSessionTimeline/);
+  assert.match(model, /session_finished/);
+  assert.match(model, /finalCapabilityState/);
 });
 
 test("Automation-Übersicht zeigt Ereignisse mit fachlichem Kontext statt Kurz-Rohansicht", () => {
@@ -505,7 +522,7 @@ test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben"
   assert.match(editor, /Keine Aktion ist jetzt fällig/);
   assert.match(editor, /Diese Regel nutzt keinen Zufallswert/);
   assert.doesNotMatch(editor, /> nichts</);
-  assert.match(settings, /Jede gespeicherte Regel kann hier mit derselben Zeitleiste wie im Editor geprüft werden/);
+  assert.match(settings, /Für die Fehlersuche kannst du zusätzlich eine einzelne Regel isoliert untersuchen/);
   assert.match(settings, /rules\.map\(\(rule\) => \(/);
   assert.match(settings, /initial=\{JSON\.stringify\(ruleFormFromStored\(rule\)\)\}/);
   assert.doesNotMatch(settings, /rules\.slice\(0,\s*5\)/);

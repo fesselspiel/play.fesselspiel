@@ -3,6 +3,8 @@ import { Activity, ArrowDown, BookOpen, CheckCircle2, Clock, Cpu, FlaskConical, 
 import { AppShell } from "@/components/app-shell";
 import { AutomationCapabilityManager, AutomationDeviceManager } from "@/components/automation-device-manager";
 import { AutomationRuleEditor } from "@/components/automation-rule-editor";
+import { AutomationRuleOrder } from "@/components/automation-rule-order";
+import { AutomationSessionSimulator } from "@/components/automation-session-simulator";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { actionLabels, automationRuleFlow, automationRuleSummary, knownAutomationLabel, labelAutomationValue, ruleFormFromStored, validateAutomationRulePayload, type AutomationActionKey } from "@/lib/automation-rule-model";
@@ -612,9 +614,27 @@ async function saveRule(formData: FormData) {
     });
     await recordAutomationEvent({ tenantId: user.tenantId, ruleId, actorId: user.id, type: "rule_updated", title: `Regel geändert: ${next.name}`, source: "WEB", role: "OWNER", details: { version, descriptionText } });
   } else {
-    await createAutomationRule({ user, ...next, descriptionText: automationRuleSummary(next, ruleContext) });
+    const highestOrder = await prisma.automationRule.aggregate({ where: { tenantId: user.tenantId }, _max: { sortOrder: true } });
+    const created = await createAutomationRule({ user, ...next, descriptionText: automationRuleSummary(next, ruleContext) });
+    await prisma.automationRule.update({ where: { id: created.id }, data: { sortOrder: (highestOrder._max.sortOrder ?? -1) + 1 } });
   }
   redirect("/settings/automation?saved=rule");
+}
+
+async function reorderRules(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  requireAdmin(user);
+  await requireFeature("automation");
+  if (!user.tenantId) redirect("/settings/automation?error=tenant");
+  const requested = parseJson(formData.get("ruleOrder"), []);
+  const ids = Array.isArray(requested) ? requested.filter((id): id is string => typeof id === "string") : [];
+  const existing = await prisma.automationRule.findMany({ where: { tenantId: user.tenantId }, select: { id: true } });
+  const allowed = new Set(existing.map((rule) => rule.id));
+  const ordered = [...ids.filter((id) => allowed.has(id)), ...existing.map((rule) => rule.id).filter((id) => !ids.includes(id))];
+  await prisma.$transaction(ordered.map((id, sortOrder) => prisma.automationRule.update({ where: { id }, data: { sortOrder } })));
+  redirect("/settings/automation?saved=rule-order");
 }
 
 async function deleteRule(formData: FormData) {
@@ -651,7 +671,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
     prisma.automationBridge.findUnique({ where: { tenantId: user.tenantId } }),
     prisma.automationDevice.findMany({ where: { tenantId: user.tenantId }, include: { capabilities: true }, orderBy: { name: "asc" } }),
     prisma.trackerType.findMany({ where: { tenantId: user.tenantId, enabled: true }, orderBy: { title: "asc" } }),
-    prisma.automationRule.findMany({ where: { tenantId: user.tenantId }, include: { versions: { orderBy: { version: "desc" }, take: 3 } }, orderBy: { updatedAt: "desc" } }),
+    prisma.automationRule.findMany({ where: { tenantId: user.tenantId }, include: { versions: { orderBy: { version: "desc" }, take: 3 } }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
     prisma.automationEvent.findMany({
       where: { tenantId: user.tenantId, type: { not: "bridge_heartbeat" } },
       include: {
@@ -973,6 +993,14 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
             </Panel>
             <Panel>
               <h2 className="text-base font-semibold text-ink">Bestehende Regeln</h2>
+              <p className="mt-2 text-sm text-graphite">Die Sortierung macht den Ablauf lesbar. Wann eine Regel wirklich läuft, bestimmen weiterhin Auslöser, Bedingungen und Zeitlogik.</p>
+              <div className="mt-3">
+                <AutomationRuleOrder
+                  rules={rules.map((rule) => ({ id: rule.id, name: rule.name, summary: automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions }) }))}
+                  reorderAction={reorderRules}
+                />
+              </div>
+              <h3 className="mt-5 text-sm font-semibold text-ink">Regeln ansehen und bearbeiten</h3>
               <div className="mt-3 space-y-2">
                 {rules.map((rule) => {
                   const currentRuleText = automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions });
@@ -1014,10 +1042,16 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
 
         <details className="rounded-lg border border-line bg-surface p-4">
           <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><FlaskConical className="h-4 w-4" /> Simulation und Protokoll</summary>
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="mt-4 space-y-4">
+            <AutomationSessionSimulator
+              rules={rules.map((rule) => ({ id: rule.id, name: rule.name, active: rule.active, mode: rule.mode, triggerType: rule.triggerType, triggerJson: rule.triggerJson, conditionJson: rule.conditionJson, timingJson: rule.timingJson, actionJson: rule.actionJson }))}
+              capabilities={capabilities}
+              devices={deviceOptions}
+            />
+            <div className="grid gap-4 lg:grid-cols-2">
             <Panel>
-              <h2 className="text-base font-semibold text-ink">Simulation</h2>
-              <p className="mt-2 text-sm text-graphite">Jede gespeicherte Regel kann hier mit derselben Zeitleiste wie im Editor geprüft werden. Die Simulation erzeugt keine echten Gerätebefehle, Bildanforderungen oder Benachrichtigungen.</p>
+              <h2 className="text-base font-semibold text-ink">Einzelne Regel prüfen</h2>
+              <p className="mt-2 text-sm text-graphite">Für die Fehlersuche kannst du zusätzlich eine einzelne Regel isoliert untersuchen.</p>
               <div className="mt-3 space-y-2">
                 {rules.map((rule) => (
                   <details key={`${rule.id}-simulation`} className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">
@@ -1168,6 +1202,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                 })}
               </div>
             </Panel>
+            </div>
           </div>
         </details>
       </div>

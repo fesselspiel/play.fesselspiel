@@ -224,7 +224,7 @@ export default async function AutomationPage(props: { searchParams?: Promise<Rec
               {running.length ? running.map((session) => (
                 <details key={session.id} open className="rounded-lg border border-line bg-paper p-4">
                   <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">
-                    {session.title} · {labelAutomationValue("states", session.state)}
+                    {session.title} · gestartet {formatDateTime(session.startedAt)} · {labelAutomationValue("states", session.state)}
                   </summary>
                   <div className="mt-3 space-y-3 text-sm text-graphite">
                     <Link href={`/automation/sessions/${session.id}`} className="inline-flex min-h-10 items-center rounded-md bg-redbrand px-3 py-2 text-sm font-semibold text-white shadow-soft hover:bg-redbrand/90">
@@ -356,7 +356,7 @@ export default async function AutomationPage(props: { searchParams?: Promise<Rec
               {history.length ? history.map((session) => (
                 <details key={session.id} className="rounded-lg border border-line bg-paper p-4">
                   <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">
-                    {session.title} · {labelAutomationValue("states", session.state)}
+                    {session.title} · gestartet {formatDateTime(session.startedAt)} · {labelAutomationValue("states", session.state)}
                   </summary>
                   <div className="mt-3 space-y-3">
                     <Link href={`/automation/sessions/${session.id}`} className="inline-flex min-h-10 items-center rounded-md bg-redbrand px-3 py-2 text-sm font-semibold text-white shadow-soft hover:bg-redbrand/90">

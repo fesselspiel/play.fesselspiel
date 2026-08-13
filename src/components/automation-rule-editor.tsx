@@ -883,8 +883,8 @@ function AutomationRuleEditorClient({
         <div className="mt-3 rounded-md border border-line bg-surface p-3">
           <div className="text-sm font-semibold text-ink">Momentaufnahme bei Minute {simulation.currentMoment.minute}</div>
           <div className="mt-2 grid gap-2 md:grid-cols-3">
-            <SimBox title="Jetzt" items={simulation.currentMoment.current.length ? simulation.currentMoment.current : [simulation.currentMoment.decision]} emptyText="Zu diesem Zeitpunkt liegt keine neue Entscheidung an." />
             <SimBox title="Bereits passiert" items={simulation.currentMoment.completed} emptyText="Vor diesem Zeitpunkt ist noch nichts passiert." />
+            <SimBox title="Jetzt" items={simulation.currentMoment.current.length ? simulation.currentMoment.current : [simulation.currentMoment.decision]} emptyText="Zu diesem Zeitpunkt liegt keine neue Entscheidung an." />
             <SimBox title="Als Nächstes" items={simulation.currentMoment.upcoming} emptyText="Nach diesem Zeitpunkt ist nichts Weiteres geplant." />
           </div>
         </div>

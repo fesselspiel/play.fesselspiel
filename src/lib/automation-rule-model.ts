@@ -908,6 +908,115 @@ export function simulateAutomationRuleTimeline(input: {
   };
 }
 
+export type AutomationSessionSimulationRule = {
+  id: string;
+  name: string;
+  active?: boolean;
+  mode?: string;
+  triggerType: string;
+  triggerJson?: unknown;
+  conditionJson?: unknown;
+  timingJson?: unknown;
+  actionJson?: unknown;
+};
+
+export type AutomationSessionTimelineItem = {
+  minute: number;
+  kind: "event" | "rule" | "wait" | "action" | "blocked";
+  title: string;
+  detail?: string;
+};
+
+export function simulateAutomationSessionTimeline(
+  rules: AutomationSessionSimulationRule[],
+  context: AutomationRuleContext = {},
+  randomSeed = 3
+) {
+  type QueuedEvent = { queueKind: "event"; minute: number; sequence: number; type: string; title: string; deviceId?: string; capabilityId?: string };
+  type QueuedAction = { queueKind: "action"; minute: number; sequence: number; rule: AutomationSessionSimulationRule; action: Record<string, unknown>; title: string };
+  type QueuedItem = QueuedEvent | QueuedAction;
+  const timeline: AutomationSessionTimelineItem[] = [];
+  const randomValues: Array<{ rule: string; value: string }> = [];
+  const capabilityState: Record<string, string> = Object.fromEntries((context.capabilities || []).map((item) => [item.id, item.state || "UNKNOWN"]));
+  const executedOnce = new Set<string>();
+  const handledEvents = new Set<string>();
+  let sequence = 0;
+  const queue: QueuedItem[] = [{ queueKind: "event", minute: 0, sequence: sequence++, type: "session_started", title: "Session wurde gestartet" }];
+
+  function queueEvent(minute: number, type: string, title: string, capabilityId?: string) {
+    queue.push({ queueKind: "event", minute, sequence: sequence++, type, title, capabilityId });
+  }
+
+  for (let guard = 0; queue.length && guard < 300; guard += 1) {
+    queue.sort((left, right) => left.minute - right.minute || left.sequence - right.sequence);
+    const item = queue.shift()!;
+    if (item.queueKind === "action") {
+      timeline.push({ minute: item.minute, kind: "action", title: item.title, detail: `Regel: ${item.rule.name}` });
+      const actionType = String(item.action.type || "");
+      const capabilityId = typeof item.action.capabilityId === "string" ? item.action.capabilityId : undefined;
+      if (capabilityId && actionType === "switch_on") capabilityState[capabilityId] = "ON";
+      if (capabilityId && actionType === "switch_off") capabilityState[capabilityId] = "OFF";
+      if (capabilityId && actionType === "switch_toggle") capabilityState[capabilityId] = capabilityState[capabilityId] === "ON" ? "OFF" : "ON";
+      if (actionType === "session_finish") queueEvent(item.minute, "session_finished", "Session wurde beendet");
+      if (actionType === "switch_on") queueEvent(item.minute, "switched_on", "Schalter wurde eingeschaltet", capabilityId);
+      if (actionType === "switch_off") queueEvent(item.minute, "switched_off", "Schalter wurde ausgeschaltet", capabilityId);
+      if (actionType === "voice_speak") queueEvent(item.minute, "speech_finished", "Sprachausgabe wurde beendet", capabilityId);
+      if (actionType === "camera_request_image") queueEvent(item.minute, "image_uploaded", "Kamerabild wurde empfangen", capabilityId);
+      if (actionType === "camera_health_check") queueEvent(item.minute, "camera_online", "Kamera ist verbunden", capabilityId);
+      queueEvent(item.minute, "action_succeeded", "Aktion war erfolgreich", capabilityId);
+      continue;
+    }
+
+    timeline.push({ minute: item.minute, kind: "event", title: item.title });
+    for (const rule of rules.filter((candidate) => candidate.active !== false && candidate.triggerType === item.type)) {
+      const trigger = asObject(rule.triggerJson);
+      if (trigger.deviceId && trigger.deviceId !== item.deviceId) continue;
+      if (trigger.capabilityId && trigger.capabilityId !== item.capabilityId) continue;
+      const eventKey = `${rule.id}:${item.type}:${item.minute}:${item.sequence}`;
+      if (handledEvents.has(eventKey)) continue;
+      handledEvents.add(eventKey);
+      if (rule.mode !== "REPEAT" && executedOnce.has(rule.id)) continue;
+      executedOnce.add(rule.id);
+      const seed = Math.abs(randomSeed + rule.id.split("").reduce((sum, character) => sum + character.charCodeAt(0), 0) + item.sequence);
+      const dynamicContext: AutomationRuleContext = {
+        ...context,
+        simulationOverrides: {
+          ...context.simulationOverrides,
+          capabilityState: { ...context.simulationOverrides?.capabilityState, ...capabilityState }
+        }
+      };
+      const simulation = simulateAutomationRuleTimeline({ ...rule, scrubMinute: 100000, randomSeed: seed }, dynamicContext);
+      timeline.push({ minute: item.minute, kind: "rule", title: rule.name, detail: automationRuleSummary(rule, dynamicContext) });
+      if (simulation.blockedActions.length) {
+        timeline.push({ minute: item.minute, kind: "blocked", title: `${rule.name} wird nicht ausgeführt`, detail: simulation.explanation });
+        continue;
+      }
+      if (simulation.randomValues.length) randomValues.push({ rule: rule.name, value: simulation.randomValues[0].value });
+      const actionRecords = Array.isArray(rule.actionJson) ? rule.actionJson.map((action) => asObject(action)) : [];
+      const simulatedActions = simulation.completedActions.length ? simulation.completedActions : simulation.dueActions;
+      actionRecords.forEach((action, index) => {
+        const simulatedAction = simulatedActions[index];
+        if (!simulatedAction) return;
+        const dueMinute = item.minute + simulatedAction.minute;
+        if (simulatedAction.minute > 0) {
+          timeline.push({ minute: item.minute, kind: "wait", title: `${rule.name} wartet`, detail: `Ausführung bei Minute ${dueMinute}` });
+        }
+        queue.push({ queueKind: "action", minute: dueMinute, sequence: sequence++, rule, action, title: simulatedAction.title });
+      });
+    }
+  }
+
+  const orderedTimeline = timeline.sort((left, right) => left.minute - right.minute || ["event", "rule", "wait", "action", "blocked"].indexOf(left.kind) - ["event", "rule", "wait", "action", "blocked"].indexOf(right.kind));
+  return {
+    durationMinutes: Math.max(5, ...orderedTimeline.map((item) => item.minute + 5)),
+    timeline: orderedTimeline,
+    randomValues,
+    finalSessionState: orderedTimeline.some((item) => item.kind === "event" && item.title === "Session wurde beendet") ? "FINISHED" : "RUNNING",
+    finalCapabilityState: capabilityState,
+    truncated: queue.length > 0
+  };
+}
+
 function simulationStateVariables(condition: Record<string, unknown>, context: AutomationRuleContext) {
   const type = condition.type as AutomationConditionKey | undefined;
   if (type === "device_online" || type === "device_offline") {
