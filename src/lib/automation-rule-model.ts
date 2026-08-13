@@ -1006,7 +1006,7 @@ export function simulateAutomationSessionTimeline(
     }
   }
 
-  const orderedTimeline = timeline.sort((left, right) => left.minute - right.minute || ["event", "rule", "wait", "action", "blocked"].indexOf(left.kind) - ["event", "rule", "wait", "action", "blocked"].indexOf(right.kind));
+  const orderedTimeline = timeline.sort((left, right) => left.minute - right.minute);
   return {
     durationMinutes: Math.max(5, ...orderedTimeline.map((item) => item.minute + 5)),
     timeline: orderedTimeline,

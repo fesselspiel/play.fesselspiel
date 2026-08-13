@@ -24,11 +24,14 @@ export function AutomationRuleOrder({
   function moveBefore(targetId: string) {
     if (!draggedId || draggedId === targetId) return;
     setItems((current) => {
+      const draggedIndex = current.findIndex((item) => item.id === draggedId);
+      const originalTargetIndex = current.findIndex((item) => item.id === targetId);
       const next = current.filter((item) => item.id !== draggedId);
       const moved = current.find((item) => item.id === draggedId);
       const targetIndex = next.findIndex((item) => item.id === targetId);
       if (!moved || targetIndex < 0) return current;
-      next.splice(targetIndex, 0, moved);
+      const insertIndex = draggedIndex < originalTargetIndex ? targetIndex + 1 : targetIndex;
+      next.splice(insertIndex, 0, moved);
       if (orderRef.current) orderRef.current.value = JSON.stringify(next.map((item) => item.id));
       window.setTimeout(() => formRef.current?.requestSubmit(), 0);
       return next;
