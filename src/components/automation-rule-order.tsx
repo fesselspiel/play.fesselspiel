@@ -11,10 +11,12 @@ type RuleOrderItem = {
 
 export function AutomationRuleOrder({
   rules,
-  reorderAction
+  reorderAction,
+  templateId
 }: {
   rules: RuleOrderItem[];
   reorderAction: (formData: FormData) => void | Promise<void>;
+  templateId?: string;
 }) {
   const [items, setItems] = useState(rules);
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -40,6 +42,7 @@ export function AutomationRuleOrder({
 
   return (
     <form ref={formRef} action={reorderAction} className="space-y-2">
+      {templateId ? <input type="hidden" name="templateId" value={templateId} /> : null}
       <input ref={orderRef} type="hidden" name="ruleOrder" value={JSON.stringify(items.map((item) => item.id))} readOnly />
       {items.map((item, index) => (
         <div

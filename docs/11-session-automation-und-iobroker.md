@@ -38,6 +38,22 @@ diesen Tracker stoppen. Kein separates Quoten-System bauen. Vorhandene
 Tracker-Quoten verwenden, zum Beispiel 120 Minuten pro Woche.
 Bildanforderungen verbrauchen keine Quote.
 
+### Session-Vorlagen
+
+Wiederverwendbare Abläufe werden als `AutomationSessionTemplate`
+gespeichert. Eine Vorlage hat einen Namen, eine Beschreibung, einen
+voreingestellten `TrackerType` und ihre eigenen Regeln. Geräte und
+Capabilities bleiben mandantenweit und können von mehreren Vorlagen
+verwendet werden.
+
+Beim Start wird zuerst die Vorlage gewählt. Ihr Tracker ist
+voreingestellt, darf aber für diese einzelne Ausführung geändert werden.
+Jeder Start erzeugt eine eigenständige `AutomationSession`, die ihre
+Vorlage und die zu diesem Zeitpunkt aktiven Regelversionen speichert.
+Spätere Änderungen oder Deaktivierungen an der Vorlage verändern damit
+keinen laufenden Ablauf. Regeln einer laufenden Session dürfen nicht
+gelöscht werden.
+
 ## Stop und Pending End
 
 Ein Stop kann sofort oder über die Zeitlogik erfolgen. Bei Verzögerung

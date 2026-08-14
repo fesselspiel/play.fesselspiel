@@ -385,6 +385,7 @@ export async function currentAutomationSession(user: AutomationUser, trackerType
 
 export async function startAutomationSession(input: {
   user: AutomationUser;
+  templateId?: string | null;
   trackerTypeId?: string | null;
   trackerKeyOrTitle?: string | null;
   title?: string | null;
@@ -395,12 +396,19 @@ export async function startAutomationSession(input: {
   metadata?: unknown;
 }) {
   if (!input.user.tenantId) throw new Error("tenant_required");
-  const tracker = input.trackerTypeId
-    ? await findTrackerTypeByIdForUser(input.trackerTypeId, input.user)
+  const template = input.templateId ? await prisma.automationSessionTemplate.findFirst({
+    where: { id: input.templateId, tenantId: input.user.tenantId, active: true },
+    include: { rules: { where: { active: true }, select: { id: true, currentVersion: true } } }
+  }) : null;
+  if (input.templateId && !template) throw new Error("template_not_found");
+  const selectedTrackerTypeId = input.trackerTypeId || template?.defaultTrackerTypeId || null;
+  const tracker = selectedTrackerTypeId
+    ? await findTrackerTypeByIdForUser(selectedTrackerTypeId, input.user)
     : await findTrackerTypeByTextForUser(input.trackerKeyOrTitle || "", input.user);
   if (!tracker) throw new Error("tracker_not_found");
   const corr = input.idempotencyKey || correlationId("session");
-  const title = input.title || tracker.title;
+  const title = input.title || template?.name || tracker.title;
+  const ruleVersions = Object.fromEntries((template?.rules || []).map((rule) => [rule.id, rule.currentVersion]));
   const lockKey = `automation-start:${input.user.tenantId}:${input.user.id}:${tracker.id}`;
   let result: {
     session: Awaited<ReturnType<typeof currentAutomationSession>>;
@@ -454,6 +462,7 @@ export async function startAutomationSession(input: {
           data: {
             tenantId: input.user.tenantId!,
             ownerId: input.user.id,
+            templateId: template?.id || null,
             trackerTypeId: tracker.id,
             trackerEntryId: trackerEntry.id,
             slug: await uniqueAutomationSlug(input.user.tenantId!, title, startTime),
@@ -464,7 +473,11 @@ export async function startAutomationSession(input: {
             correlationId: corr,
             startedAt: startTime,
             notes: input.notes || null,
-            metadataJson: jsonObject(input.metadata)
+            metadataJson: {
+              ...jsonObject(input.metadata),
+              templateName: template?.name || null,
+              templateRuleVersions: ruleVersions
+            }
           },
           include: {
             trackerType: true,
@@ -516,7 +529,7 @@ export async function startAutomationSession(input: {
     title: `${tracker.title} gestartet`,
     source: input.source || "SYSTEM",
     role: input.role || "OWNER",
-    details: { trackerTypeId: tracker.id, trackerEntryId: result.trackerEntryId },
+    details: { trackerTypeId: tracker.id, trackerEntryId: result.trackerEntryId, templateId: template?.id || null, templateName: template?.name || null },
     correlationId: corr
   });
   return { session, created: true };
@@ -1457,12 +1470,31 @@ async function processAutomationRulesForEvent(event: {
   createdAt: Date;
 }) {
   if (event.type.startsWith("rule_") || event.type === "action_created" || event.type === "action_ready_for_bridge" || event.type === "rule_processing_failed") return;
+  const session = event.sessionId ? await prisma.automationSession.findFirst({
+    where: { id: event.sessionId, tenantId: event.tenantId },
+    select: { templateId: true, metadataJson: true }
+  }) : null;
+  const metadata = jsonObject(session?.metadataJson);
+  const snapshottedVersions = jsonObject(metadata.templateRuleVersions);
+  const hasTemplateSnapshot = Boolean(session?.templateId) && Object.prototype.hasOwnProperty.call(metadata, "templateRuleVersions");
+  const snapshottedRuleIds = Object.keys(snapshottedVersions);
   const rules = await prisma.automationRule.findMany({
-    where: { tenantId: event.tenantId, active: true },
-    include: { versions: { orderBy: { version: "desc" }, take: 1 } }
+    where: hasTemplateSnapshot ? {
+      tenantId: event.tenantId,
+      templateId: session?.templateId,
+      id: { in: snapshottedRuleIds }
+    } : {
+      tenantId: event.tenantId,
+      active: true,
+      templateId: session?.templateId || null
+    },
+    include: { versions: { orderBy: { version: "desc" } } }
   });
   for (const rule of rules.filter((item) => triggerMatches(item.triggerType, event.type) && triggerTargetMatches(item.triggerJson, event))) {
-    const version = rule.versions[0];
+    const snapshottedVersion = Number(snapshottedVersions[rule.id]);
+    const version = Number.isInteger(snapshottedVersion) && snapshottedVersion > 0
+      ? rule.versions.find((item) => item.version === snapshottedVersion)
+      : rule.versions[0];
     if (!version) continue;
     const actions = jsonArray(version.actionJson);
     if (!actions.length) continue;
@@ -1633,6 +1665,7 @@ export function describeAutomationRule(input: {
 
 export async function createAutomationRule(input: {
   user: AutomationUser;
+  templateId?: string | null;
   name: string;
   description?: string | null;
   active?: boolean;
@@ -1650,6 +1683,7 @@ export async function createAutomationRule(input: {
     data: {
       tenantId: input.user.tenantId,
       ownerId: input.user.id,
+      templateId: input.templateId || null,
       name: input.name,
       description: input.description || null,
       active: input.active !== false,

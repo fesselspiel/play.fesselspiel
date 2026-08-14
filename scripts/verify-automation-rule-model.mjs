@@ -425,10 +425,23 @@ test("Automation-Session-Seiten verwenden fachliche Aktionssprache", () => {
 
 test("Session-Start erinnert an unabhängige Sicherheitsfreigabe", () => {
   const overview = readFileSync("src/app/automation/page.tsx", "utf8");
-  assert.match(overview, /Unabhängige Sicherheit prüfen/);
-  assert.match(overview, /physische Not- oder Sicherheitsfreigabe/);
-  assert.match(overview, /safetyConfirmed/);
+  const startForm = readFileSync("src/components/automation-session-start-form.tsx", "utf8");
+  assert.match(startForm, /Unabhängige Sicherheit prüfen/);
+  assert.match(startForm, /physische Not- oder Sicherheitsfreigabe/);
+  assert.match(`${overview}\n${startForm}`, /safetyConfirmed/);
   assert.match(overview, /safety_required/);
+});
+
+test("Session-Vorlagen kapseln Regeln und frieren deren Version beim Start ein", () => {
+  const schema = readFileSync("prisma/schema.prisma", "utf8");
+  const service = readFileSync("src/lib/session-automation.ts", "utf8");
+  const startForm = readFileSync("src/components/automation-session-start-form.tsx", "utf8");
+  assert.match(schema, /model AutomationSessionTemplate/);
+  assert.match(schema, /templateId\s+String\?/);
+  assert.match(service, /templateRuleVersions/);
+  assert.match(service, /snapshottedVersions/);
+  assert.match(service, /hasTemplateSnapshot/);
+  assert.match(startForm, /Der Tracker ist von der Vorlage voreingestellt/);
 });
 
 test("Automation-Session-Aktionen nutzen zentrale Rollen-Policy statt Besitzer-Sonderlogik", () => {

@@ -183,6 +183,7 @@ model Tenant {
   scheduledRules              ScheduledRule[]
   scheduledRuleRuns           ScheduledRuleRun[]
   automationSessions          AutomationSession[]
+  automationSessionTemplates AutomationSessionTemplate[]
   automationRules             AutomationRule[]
   automationRuleVersions      AutomationRuleVersion[]
   automationActions           AutomationAction[]
@@ -278,6 +279,7 @@ model User {
   automationBridgePairings      AutomationBridgePairing[] @relation("AutomationBridgePairingApprover")
   scheduledRules                ScheduledRule[]
   automationSessions            AutomationSession[]
+  automationSessionTemplates    AutomationSessionTemplate[]
   automationRules               AutomationRule[]
   automationActions             AutomationAction[]           @relation("AutomationActionActor")
   automationEvents              AutomationEvent[]            @relation("AutomationEventActor")
@@ -629,10 +631,34 @@ model TrackerReminderJob {
   @@index([tenantId, createdAt])
 }
 
+model AutomationSessionTemplate {
+  id                   String              @id @default(cuid())
+  tenantId             String
+  ownerId              String
+  defaultTrackerTypeId String?
+  name                 String
+  description          String?
+  active               Boolean             @default(true)
+  sortOrder            Int                 @default(0)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  tenant               Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner                User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  defaultTrackerType   TrackerType?        @relation(fields: [defaultTrackerTypeId], references: [id], onDelete: SetNull)
+  rules                AutomationRule[]
+  sessions             AutomationSession[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, active, sortOrder])
+  @@index([ownerId])
+  @@index([defaultTrackerTypeId])
+}
+
 model AutomationSession {
   id                    String                       @id @default(cuid())
   tenantId              String
   ownerId               String
+  templateId            String?
   trackerTypeId         String?
   trackerEntryId        String?
   slug                  String?
@@ -652,6 +678,7 @@ model AutomationSession {
   updatedAt             DateTime                     @updatedAt
   tenant                Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   owner                 User                         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  template              AutomationSessionTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
   trackerType           TrackerType?                 @relation(fields: [trackerTypeId], references: [id], onDelete: SetNull)
   trackerEntry          TrackerEntry?                @relation(fields: [trackerEntryId], references: [id], onDelete: SetNull)
   actions               AutomationAction[]
@@ -662,6 +689,7 @@ model AutomationSession {
   @@unique([tenantId, slug])
   @@index([tenantId, state])
   @@index([ownerId, state])
+  @@index([templateId, state])
   @@index([trackerEntryId])
   @@index([correlationId])
 }
@@ -670,6 +698,7 @@ model AutomationRule {
   id          String                  @id @default(cuid())
   tenantId    String
   ownerId     String
+  templateId  String?
   name        String
   description String?
   active      Boolean                 @default(true)
@@ -686,6 +715,7 @@ model AutomationRule {
   updatedAt   DateTime                @updatedAt
   tenant      Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   owner       User                    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  template    AutomationSessionTemplate? @relation(fields: [templateId], references: [id], onDelete: Cascade)
   versions    AutomationRuleVersion[]
   actions     AutomationAction[]
   events      AutomationEvent[]
@@ -693,6 +723,7 @@ model AutomationRule {
 
   @@index([tenantId, active, triggerType])
   @@index([tenantId, sortOrder])
+  @@index([templateId, sortOrder])
   @@index([ownerId, active])
 }
 
@@ -1894,6 +1925,7 @@ model TrackerType {
   tenant               Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   entries              TrackerEntry[]
   automationSessions   AutomationSession[]
+  automationSessionTemplates AutomationSessionTemplate[]
   automationBridgePairings AutomationBridgePairing[]
 
   @@unique([tenantId, key])

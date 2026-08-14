@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Camera, CircleStop, Play, ShieldCheck, Timer } from "lucide-react";
+import { Camera, CircleStop, Timer } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { AutomationSessionStartForm } from "@/components/automation-session-start-form";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
 import { actionLabels, knownAutomationLabel, labelAutomationValue } from "@/lib/automation-rule-model";
@@ -69,6 +70,7 @@ async function startAutomation(formData: FormData) {
   if (formData.get("safetyConfirmed") !== "on") redirect("/automation?error=safety_required");
   await startAutomationSession({
     user,
+    templateId: String(formData.get("templateId") || "") || null,
     trackerTypeId: String(formData.get("trackerTypeId") || "") || null,
     title: String(formData.get("title") || "") || null,
     notes: String(formData.get("notes") || "") || null,
@@ -119,10 +121,15 @@ export default async function AutomationPage(props: { searchParams?: Promise<Rec
   const searchParams = props.searchParams ? await props.searchParams : {};
   const error = typeof searchParams.error === "string" ? searchParams.error : "";
   const tenantId = user.tenantId || "";
-  const [trackers, sessions, devices, events, tenantUsers] = await Promise.all([
+  const [trackers, templates, sessions, devices, events, tenantUsers] = await Promise.all([
     prisma.trackerType.findMany({
       where: { enabled: true, allowOpenSession: true, ...(tenantId ? { OR: [{ tenantId }, { tenantId: null }] } : { tenantId: null }) },
       orderBy: { title: "asc" }
+    }),
+    prisma.automationSessionTemplate.findMany({
+      where: { tenantId, active: true },
+      select: { id: true, name: true, description: true, defaultTrackerTypeId: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
     }),
     prisma.automationSession.findMany({
       where: { tenantId, ownerId: user.id },
@@ -180,42 +187,11 @@ export default async function AutomationPage(props: { searchParams?: Promise<Rec
         <div className="space-y-4">
           <Panel>
             <h2 className="text-lg font-semibold text-ink">Session starten</h2>
-            {error === "safety_required" ? (
-              <div className="mt-3 rounded-md border border-redbrand/30 bg-redbrand/10 p-3 text-sm font-semibold text-ink">
-                Bitte bestätige vor dem Start, dass die unabhängige Sicherheitsfreigabe eingerichtet und geprüft ist.
-              </div>
-            ) : null}
-            <form action={startAutomation} className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-redbrand/30 bg-redbrand/10 p-4 sm:col-span-2">
-                <div className="flex items-start gap-3">
-                  <ShieldCheck className="mt-0.5 h-5 w-5 text-redbrand" />
-                  <div>
-                    <div className="font-semibold text-ink">Unabhängige Sicherheit prüfen</div>
-                    <p className="mt-1 text-sm leading-6 text-graphite">
-                      Playplaner steuert Zeitlogik, Regeln, Geräte und Benachrichtigungen. Eine physische Not- oder Sicherheitsfreigabe muss unabhängig von Portal, Internet, MQTT, ioBroker und Stromversorgung funktionieren.
-                    </p>
-                    <label className="mt-3 flex items-start gap-2 text-sm font-semibold text-ink">
-                      <input name="safetyConfirmed" type="checkbox" required className="mt-1" />
-                      Sicherheitsfreigabe ist eingerichtet und geprüft.
-                    </label>
-                  </div>
-                </div>
-              </div>
-              <Field label="Tracker">
-                <select name="trackerTypeId" className={inputClass} required>
-                  {trackers.map((tracker) => <option key={tracker.id} value={tracker.id}>{tracker.title}</option>)}
-                </select>
-              </Field>
-              <Field label="Titel">
-                <input name="title" className={inputClass} placeholder="Optional" />
-              </Field>
-              <Field label="Notiz">
-                <input name="notes" className={inputClass} placeholder="Optional" />
-              </Field>
-              <div className="flex items-end">
-                <SubmitButton pendingLabel="Startet..."><Play className="h-4 w-4" /> Starten</SubmitButton>
-              </div>
-            </form>
+            {templates.length ? (
+              <AutomationSessionStartForm action={startAutomation} templates={templates} trackers={trackers} safetyError={error === "safety_required"} />
+            ) : (
+              <SoftPanel className="mt-4">Noch keine Session-Vorlage eingerichtet. Ein Administrator kann unter „Session-Vorlagen“ den ersten Ablauf anlegen.</SoftPanel>
+            )}
           </Panel>
 
           <Panel>

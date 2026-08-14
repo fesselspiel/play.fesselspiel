@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Activity, ArrowDown, BookOpen, CheckCircle2, Clock, Cpu, FlaskConical, RadioTower, Unplug } from "lucide-react";
+import { Activity, ArrowDown, BookOpen, CheckCircle2, Clock, Cpu, FlaskConical, FolderKanban, RadioTower, Unplug } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { AutomationCapabilityManager, AutomationDeviceManager } from "@/components/automation-device-manager";
 import { AutomationRuleEditor } from "@/components/automation-rule-editor";
@@ -536,6 +537,7 @@ async function saveRule(formData: FormData) {
   requireAdmin(user);
   await requireFeature("automation");
   const ruleId = String(formData.get("ruleId") || "");
+  const templateId = String(formData.get("templateId") || "");
   const next = {
     name: String(formData.get("name") || "").trim(),
     description: String(formData.get("description") || "").trim() || null,
@@ -548,6 +550,8 @@ async function saveRule(formData: FormData) {
     actionJson: parseJson(formData.get("actionJson"), [])
   };
   if (!user.tenantId) redirect("/settings/automation?error=tenant");
+  const template = await prisma.automationSessionTemplate.findFirst({ where: { id: templateId, tenantId: user.tenantId } });
+  if (!template) redirect("/settings/automation?error=Vorlage nicht gefunden");
   const [capabilities, devices, trackerTypes] = await Promise.all([
     prisma.automationCapability.findMany({
       where: { tenantId: user.tenantId },
@@ -586,7 +590,7 @@ async function saveRule(formData: FormData) {
     trackers: trackerTypes
   };
   if (ruleId) {
-    const current = await prisma.automationRule.findFirst({ where: { id: ruleId, tenantId: user.tenantId } });
+    const current = await prisma.automationRule.findFirst({ where: { id: ruleId, tenantId: user.tenantId, templateId } });
     if (!current) redirect("/settings/automation?error=rule");
     const version = current.currentVersion + 1;
     const descriptionText = automationRuleSummary(next, ruleContext);
@@ -614,11 +618,40 @@ async function saveRule(formData: FormData) {
     });
     await recordAutomationEvent({ tenantId: user.tenantId, ruleId, actorId: user.id, type: "rule_updated", title: `Regel geändert: ${next.name}`, source: "WEB", role: "OWNER", details: { version, descriptionText } });
   } else {
-    const highestOrder = await prisma.automationRule.aggregate({ where: { tenantId: user.tenantId }, _max: { sortOrder: true } });
-    const created = await createAutomationRule({ user, ...next, descriptionText: automationRuleSummary(next, ruleContext) });
+    const highestOrder = await prisma.automationRule.aggregate({ where: { tenantId: user.tenantId, templateId }, _max: { sortOrder: true } });
+    const created = await createAutomationRule({ user, templateId, ...next, descriptionText: automationRuleSummary(next, ruleContext) });
     await prisma.automationRule.update({ where: { id: created.id }, data: { sortOrder: (highestOrder._max.sortOrder ?? -1) + 1 } });
   }
-  redirect("/settings/automation?saved=rule");
+  redirect(`/settings/automation?templateId=${templateId}&saved=rule`);
+}
+
+async function saveTemplate(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  requireAdmin(user);
+  await requireFeature("automation");
+  if (!user.tenantId) redirect("/");
+  const templateId = String(formData.get("templateId") || "");
+  const name = String(formData.get("name") || "").trim();
+  const description = String(formData.get("description") || "").trim() || null;
+  const defaultTrackerTypeId = String(formData.get("defaultTrackerTypeId") || "") || null;
+  if (!name) redirect("/settings/automation?error=Die Vorlage braucht einen Namen");
+  if (defaultTrackerTypeId) {
+    const tracker = await prisma.trackerType.findFirst({ where: { id: defaultTrackerTypeId, enabled: true, OR: [{ tenantId: user.tenantId }, { tenantId: null }] } });
+    if (!tracker) redirect("/settings/automation?error=Tracker nicht gefunden");
+  }
+  if (templateId) {
+    const current = await prisma.automationSessionTemplate.findFirst({ where: { id: templateId, tenantId: user.tenantId } });
+    if (!current) redirect("/settings/automation?error=Vorlage nicht gefunden");
+    await prisma.automationSessionTemplate.update({ where: { id: templateId }, data: { name, description, defaultTrackerTypeId, active: formData.get("active") === "on" } });
+    redirect(`/settings/automation?templateId=${templateId}&saved=template`);
+  }
+  const highest = await prisma.automationSessionTemplate.aggregate({ where: { tenantId: user.tenantId }, _max: { sortOrder: true } });
+  const created = await prisma.automationSessionTemplate.create({
+    data: { tenantId: user.tenantId, ownerId: user.id, name, description, defaultTrackerTypeId, active: true, sortOrder: (highest._max.sortOrder ?? -1) + 1 }
+  });
+  redirect(`/settings/automation?templateId=${created.id}&saved=template`);
 }
 
 async function reorderRules(formData: FormData) {
@@ -629,12 +662,13 @@ async function reorderRules(formData: FormData) {
   await requireFeature("automation");
   if (!user.tenantId) redirect("/settings/automation?error=tenant");
   const requested = parseJson(formData.get("ruleOrder"), []);
+  const templateId = String(formData.get("templateId") || "");
   const ids = Array.isArray(requested) ? requested.filter((id): id is string => typeof id === "string") : [];
-  const existing = await prisma.automationRule.findMany({ where: { tenantId: user.tenantId }, select: { id: true } });
+  const existing = await prisma.automationRule.findMany({ where: { tenantId: user.tenantId, templateId }, select: { id: true } });
   const allowed = new Set(existing.map((rule) => rule.id));
   const ordered = [...ids.filter((id) => allowed.has(id)), ...existing.map((rule) => rule.id).filter((id) => !ids.includes(id))];
   await prisma.$transaction(ordered.map((id, sortOrder) => prisma.automationRule.update({ where: { id }, data: { sortOrder } })));
-  redirect("/settings/automation?saved=rule-order");
+  redirect(`/settings/automation?templateId=${templateId}&saved=rule-order`);
 }
 
 async function deleteRule(formData: FormData) {
@@ -645,8 +679,14 @@ async function deleteRule(formData: FormData) {
   await requireFeature("automation");
   if (!user.tenantId) redirect("/settings/automation?error=tenant");
   const ruleId = String(formData.get("ruleId") || "");
+  const templateId = String(formData.get("templateId") || "");
   const rule = await prisma.automationRule.findFirst({ where: { id: ruleId, tenantId: user.tenantId } });
   if (!rule) redirect("/settings/automation?error=Regel nicht gefunden");
+  const runningSession = rule.templateId ? await prisma.automationSession.findFirst({
+    where: { templateId: rule.templateId, state: { in: ["RUNNING", "PENDING_END"] } },
+    select: { id: true }
+  }) : null;
+  if (runningSession) redirect(`/settings/automation?templateId=${templateId}&error=${encodeURIComponent("Diese Regel gehört zu einer laufenden Session und kann erst danach gelöscht werden.")}`);
   await prisma.automationRule.delete({ where: { id: rule.id } });
   await recordAutomationEvent({
     tenantId: user.tenantId,
@@ -657,7 +697,7 @@ async function deleteRule(formData: FormData) {
     role: "OWNER",
     details: { ruleId: rule.id, name: rule.name, version: rule.currentVersion }
   });
-  redirect("/settings/automation?saved=rule-deleted");
+  redirect(`/settings/automation?templateId=${templateId}&saved=rule-deleted`);
 }
 
 export default async function AutomationSettingsPage(props: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
@@ -667,10 +707,11 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
   if (!user) redirect("/login");
   requireAdmin(user);
   if (!user.tenantId) redirect("/");
-  const [bridge, devices, trackerTypes, rules, events] = await Promise.all([
+  const [bridge, devices, trackerTypes, templates, allRules, events] = await Promise.all([
     prisma.automationBridge.findUnique({ where: { tenantId: user.tenantId } }),
     prisma.automationDevice.findMany({ where: { tenantId: user.tenantId }, include: { capabilities: true }, orderBy: { name: "asc" } }),
     prisma.trackerType.findMany({ where: { tenantId: user.tenantId, enabled: true }, orderBy: { title: "asc" } }),
+    prisma.automationSessionTemplate.findMany({ where: { tenantId: user.tenantId }, include: { defaultTrackerType: true, _count: { select: { rules: true, sessions: true } } }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
     prisma.automationRule.findMany({ where: { tenantId: user.tenantId }, include: { versions: { orderBy: { version: "desc" }, take: 3 } }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
     prisma.automationEvent.findMany({
       where: { tenantId: user.tenantId, type: { not: "bridge_heartbeat" } },
@@ -690,6 +731,9 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
       take: 60
     })
   ]);
+  const requestedTemplateId = typeof searchParams?.templateId === "string" ? searchParams.templateId : "";
+  const selectedTemplate = templates.find((template) => template.id === requestedTemplateId) || templates[0] || null;
+  const rules = allRules.filter((rule) => rule.templateId === selectedTemplate?.id);
   const mqttPassword = typeof searchParams?.mqttPassword === "string" ? searchParams.mqttPassword : "";
   const mqttUser = typeof searchParams?.mqttUser === "string" ? searchParams.mqttUser : "";
   const error = typeof searchParams?.error === "string" ? searchParams.error : "";
@@ -708,16 +752,54 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
   const deviceOptions = adapterDevices.map((device) => ({ id: device.id, name: device.name, health: device.health }));
   const trackerOptions = trackerTypes.map((tracker) => ({ id: tracker.id, title: tracker.title, color: tracker.color }));
   const bridgeStatus = bridgeStatusInfo(bridge);
+  const devicesView = searchParams?.view === "devices";
 
   return (
     <AppShell>
-      <PageHeader title="Automation" />
-      <PageGuide title="Regeln, Geräte und ioBroker">
-        Hier verwaltest du die serverseitige Automatisierung. Das Portal bleibt die Quelle für Zeitlogik, Regeln, Tracker-Kopplung und Protokoll; ioBroker und MQTT sind nur die Gerätebrücke.
+      <PageHeader title={devicesView ? "Geräte" : "Session-Vorlagen"} action={<Link href={devicesView ? "/settings/automation" : "/settings/automation?view=devices"} className="focus-ring inline-flex min-h-11 items-center rounded-md border border-line bg-paper px-4 py-2 text-sm font-semibold text-ink hover:bg-surface">{devicesView ? "Zu den Vorlagen" : "Zu den Geräten"}</Link>} />
+      <PageGuide title={devicesView ? "Gemeinsame Geräte" : "Vorgefertigte Session-Abläufe"}>
+        {devicesView ? "Diese Geräte kommen aus der ioBroker-Brücke und können in allen Session-Vorlagen verwendet werden." : "Jede Vorlage bündelt ihre eigenen Regeln und einen voreingestellten Tracker. Beim Start kann der Tracker für diese einzelne Session noch geändert werden. Geräte stehen allen Vorlagen gemeinsam zur Verfügung."}
       </PageGuide>
       {error ? <div className="mb-4 rounded-lg border border-redbrand/30 bg-redbrand/10 p-3 text-sm font-semibold text-ink">{error}</div> : null}
       <div className="space-y-4">
-        <details open className="rounded-lg border border-line bg-surface p-4">
+        <Panel className={devicesView ? "hidden" : ""}>
+          <div className="flex items-center gap-2"><FolderKanban className="h-5 w-5 text-redbrand" /><h2 className="text-lg font-semibold text-ink">Session-Vorlagen</h2></div>
+          <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
+            <div className="space-y-2">
+              {templates.map((template) => (
+                <Link key={template.id} href={`/settings/automation?templateId=${template.id}`} className={`block rounded-md border p-3 ${selectedTemplate?.id === template.id ? "border-redbrand bg-redbrand/10" : "border-line bg-paper hover:bg-surface"}`}>
+                  <div className="font-semibold text-ink">{template.name}</div>
+                  <div className="mt-1 text-xs text-graphite">{template.defaultTrackerType?.title || "Kein Tracker"} · {template._count.rules} Regeln</div>
+                </Link>
+              ))}
+              <details className="rounded-md border border-dashed border-line bg-paper p-3">
+                <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">+ Neue Vorlage</summary>
+                <form action={saveTemplate} className="mt-3 space-y-3">
+                  <Field label="Name"><input name="name" className={inputClass} required placeholder="z. B. Segufix" /></Field>
+                  <Field label="Voreingestellter Tracker"><select name="defaultTrackerTypeId" className={inputClass} required><option value="">Bitte wählen</option>{trackerTypes.map((tracker) => <option key={tracker.id} value={tracker.id}>{tracker.title}</option>)}</select></Field>
+                  <Field label="Beschreibung"><input name="description" className={inputClass} /></Field>
+                  <SubmitButton pendingLabel="Legt an...">Vorlage anlegen</SubmitButton>
+                </form>
+              </details>
+            </div>
+            {selectedTemplate ? (
+              <div className="rounded-lg border border-line bg-paper p-4">
+                <h3 className="font-semibold text-ink">{selectedTemplate.name}</h3>
+                <p className="mt-1 text-sm text-graphite">Diese Einstellungen gelten als Vorgabe. Beim Start bleibt der Tracker änderbar.</p>
+                <form action={saveTemplate} className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <input type="hidden" name="templateId" value={selectedTemplate.id} />
+                  <Field label="Name"><input name="name" className={inputClass} required defaultValue={selectedTemplate.name} /></Field>
+                  <Field label="Voreingestellter Tracker"><select name="defaultTrackerTypeId" className={inputClass} required defaultValue={selectedTemplate.defaultTrackerTypeId || ""}><option value="">Bitte wählen</option>{trackerTypes.map((tracker) => <option key={tracker.id} value={tracker.id}>{tracker.title}</option>)}</select></Field>
+                  <Field label="Beschreibung"><input name="description" className={inputClass} defaultValue={selectedTemplate.description || ""} /></Field>
+                  <label className="flex items-center gap-2 rounded-md border border-line bg-surface p-3 text-sm"><input name="active" type="checkbox" defaultChecked={selectedTemplate.active} /> Beim Start auswählbar</label>
+                  <div className="sm:col-span-2"><SubmitButton pendingLabel="Speichert...">Vorlage speichern</SubmitButton></div>
+                </form>
+              </div>
+            ) : <SoftPanel>Lege zuerst eine Session-Vorlage an. Danach kannst du ihr Regeln zuordnen.</SoftPanel>}
+          </div>
+        </Panel>
+
+        <details id="automation-devices" open={devicesView} className={`${devicesView ? "" : "hidden"} scroll-mt-24 rounded-lg border border-line bg-surface p-4`}>
           <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><RadioTower className="h-4 w-4" /> Gerätebrücke</summary>
           <div className={`mt-4 rounded-lg border p-4 ${statusToneClass(bridgeStatus.tone)}`}>
             <div className="flex items-start gap-3">
@@ -976,12 +1058,13 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
           </div>
         </details>
 
-        <details open className="rounded-lg border border-line bg-surface p-4">
+        <details open className={`${devicesView ? "hidden" : ""} rounded-lg border border-line bg-surface p-4`}>
           <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><Activity className="h-4 w-4" /> Regeln</summary>
           <div className="mt-4 space-y-4">
             <Panel>
               <h2 className="text-base font-semibold text-ink">Regel anlegen</h2>
               <form action={saveRule} className="mt-3 space-y-3">
+                <input type="hidden" name="templateId" value={selectedTemplate?.id || ""} />
                 <Field label="Name"><input name="name" className={inputClass} required /></Field>
                 <Field label="Beschreibung"><input name="description" className={inputClass} /></Field>
                 <div className="grid gap-3 sm:grid-cols-3">
@@ -998,6 +1081,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                 <AutomationRuleOrder
                   rules={rules.map((rule) => ({ id: rule.id, name: rule.name, summary: automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions }) }))}
                   reorderAction={reorderRules}
+                  templateId={selectedTemplate?.id}
                 />
               </div>
               <h3 className="mt-5 text-sm font-semibold text-ink">Regeln ansehen und bearbeiten</h3>
@@ -1015,6 +1099,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                       <details className="mt-3 rounded-md border border-line bg-surface p-3">
                         <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Regel bearbeiten</summary>
                         <form action={saveRule} className="mt-3 space-y-3">
+                          <input type="hidden" name="templateId" value={selectedTemplate?.id || ""} />
                           <Field label="Name"><input name="name" className={inputClass} required defaultValue={rule.name} /></Field>
                           <Field label="Beschreibung"><input name="description" className={inputClass} defaultValue={rule.description || ""} /></Field>
                           <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="active" type="checkbox" defaultChecked={rule.active} /> Aktiv</label>
@@ -1029,6 +1114,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                         </p>
                         <form action={deleteRule} className="mt-3">
                           <input type="hidden" name="ruleId" value={rule.id} />
+                          <input type="hidden" name="templateId" value={selectedTemplate?.id || ""} />
                           <SubmitButton pendingLabel="Löscht...">Regel löschen</SubmitButton>
                         </form>
                       </details>
@@ -1040,7 +1126,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
           </div>
         </details>
 
-        <details className="rounded-lg border border-line bg-surface p-4">
+        <details className={`${devicesView ? "hidden" : ""} rounded-lg border border-line bg-surface p-4`}>
           <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><FlaskConical className="h-4 w-4" /> Simulation und Protokoll</summary>
           <div className="mt-4 space-y-4">
             <AutomationSessionSimulator
