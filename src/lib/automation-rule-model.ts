@@ -50,6 +50,7 @@ export type AutomationCapabilityReference = {
   deviceName?: string;
   deviceId?: string;
   state?: string;
+  semantic?: string;
 };
 
 export type AutomationDeviceReference = {
@@ -1284,11 +1285,13 @@ function capabilityTargetLabel(action: Record<string, unknown>, context: Automat
 
 function actionPhrase(action: Record<string, unknown>, context: AutomationRuleContext) {
   const target = capabilityTargetLabel(action, context);
+  const capabilityId = typeof action.capabilityId === "string" ? action.capabilityId : "";
+  const semantic = context.capabilities?.find((item) => item.id === capabilityId)?.semantic;
   if (action.type === "camera_request_image") return `fordere ein Bild von ${target} an`;
   if (action.type === "camera_health_check") return `prüfe die Verbindung von ${target}`;
-  if (action.type === "switch_on") return `schalte ${target} ein`;
-  if (action.type === "switch_off") return `schalte ${target} aus`;
-  if (action.type === "switch_toggle") return `schalte ${target} um`;
+  if (action.type === "switch_on") return semantic === "open_close" ? `schließe ${target}` : `schalte ${target} ein`;
+  if (action.type === "switch_off") return semantic === "open_close" ? `öffne ${target}` : `schalte ${target} aus`;
+  if (action.type === "switch_toggle") return semantic === "open_close" ? `ändere die Richtung von ${target}` : `schalte ${target} um`;
   if (action.type === "voice_speak") return `lasse ${target} den Text sprechen`;
   if (action.type === "session_finish") return "beende die Session";
   return "führe die gewählte Aktion aus";

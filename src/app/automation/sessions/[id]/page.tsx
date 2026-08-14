@@ -79,7 +79,7 @@ function automationActionTitle(action: {
   type: string;
   capabilityId?: string | null;
   device?: { id: string; name: string } | null;
-  capability?: { id: string; kind: string; title: string } | null;
+  capability?: { id: string; kind: string; title: string; parametersJson?: unknown } | null;
 }) {
   return actionTitleWithTarget(
     { type: action.type, capabilityId: action.capabilityId || action.capability?.id || null },
@@ -89,7 +89,8 @@ function automationActionTitle(action: {
         kind: action.capability.kind as never,
         title: action.capability.title,
         deviceName: action.device?.name || undefined,
-        deviceId: action.device?.id
+        deviceId: action.device?.id,
+        semantic: String(detailsObject(action.capability.parametersJson).semantic || "") || undefined
       }] : []
     }
   );

@@ -2,11 +2,13 @@
 
 import { useRef, useState } from "react";
 import { GripVertical } from "lucide-react";
+import Link from "next/link";
 
 type RuleOrderItem = {
   id: string;
   name: string;
   summary: string;
+  editHref?: string;
 };
 
 export function AutomationRuleOrder({
@@ -61,6 +63,7 @@ export function AutomationRuleOrder({
           <div className="min-w-0 flex-1">
             <div className="font-semibold text-ink"><span className="mr-2 text-graphite">{index + 1}.</span>{item.name}</div>
             <div className="mt-1 text-sm text-graphite">{item.summary}</div>
+            {item.editHref ? <Link href={item.editHref} className="mt-2 inline-flex text-sm font-semibold text-redbrand hover:underline">Bearbeiten</Link> : null}
           </div>
         </div>
       ))}

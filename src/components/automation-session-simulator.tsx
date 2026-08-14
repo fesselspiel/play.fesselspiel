@@ -15,6 +15,7 @@ type CapabilityOption = {
   deviceName: string;
   deviceId: string;
   state: string;
+  semantic?: string;
 };
 
 type DeviceOption = { id: string; name: string; health: string };

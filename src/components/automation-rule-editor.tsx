@@ -39,6 +39,7 @@ type CapabilityOption = {
   deviceName: string;
   deviceId: string;
   state: string;
+  semantic?: string;
 };
 
 type DeviceOption = {
@@ -63,7 +64,13 @@ type AutomationRuleEditorProps = {
   ruleVersion?: number;
 };
 
-function stateOptionsForCapability(kind?: CapabilityKind) {
+function stateOptionsForCapability(kind?: CapabilityKind, semantic?: string) {
+  if (kind === "Switch" && semantic === "open_close") return [
+    ["ON", "Geschlossen"],
+    ["OFF", "Geöffnet"],
+    ["ERROR", "Fehler"],
+    ["OFFLINE", "Nicht erreichbar"]
+  ];
   if (kind === "Switch") return [
     ["ON", "Eingeschaltet"],
     ["OFF", "Ausgeschaltet"],
@@ -106,15 +113,22 @@ function actionCapabilityKind(actionType: AutomationActionKey): CapabilityKind |
 
 function actionTypeOptions(capabilities: CapabilityOption[]) {
   const availableKinds = new Set(capabilities.map((capability) => capability.kind));
+  const switches = capabilities.filter((capability) => capability.kind === "Switch");
+  const hasActuator = switches.some((capability) => capability.semantic === "open_close");
+  const hasRegularSwitch = switches.some((capability) => capability.semantic !== "open_close");
   return [
     { key: "session_finish" as AutomationActionKey, label: actionLabels.session_finish, helper: "Portal-Aktion, kein Gerät nötig", disabled: false },
     { key: "camera_request_image" as AutomationActionKey, label: actionLabels.camera_request_image, helper: "Kamera", disabled: !availableKinds.has("Camera") },
     { key: "camera_health_check" as AutomationActionKey, label: actionLabels.camera_health_check, helper: "Kamera", disabled: !availableKinds.has("Camera") },
-    { key: "switch_on" as AutomationActionKey, label: actionLabels.switch_on, helper: "Schalter", disabled: !availableKinds.has("Switch") },
-    { key: "switch_off" as AutomationActionKey, label: actionLabels.switch_off, helper: "Schalter", disabled: !availableKinds.has("Switch") },
-    { key: "switch_toggle" as AutomationActionKey, label: actionLabels.switch_toggle, helper: "Schalter", disabled: !availableKinds.has("Switch") },
+    { key: "switch_on" as AutomationActionKey, label: hasActuator && !hasRegularSwitch ? "Schließen" : hasActuator ? "Einschalten / Schließen" : actionLabels.switch_on, helper: hasActuator && !hasRegularSwitch ? "Linearantrieb" : "Schalter", disabled: !availableKinds.has("Switch") },
+    { key: "switch_off" as AutomationActionKey, label: hasActuator && !hasRegularSwitch ? "Öffnen" : hasActuator ? "Ausschalten / Öffnen" : actionLabels.switch_off, helper: hasActuator && !hasRegularSwitch ? "Linearantrieb" : "Schalter", disabled: !availableKinds.has("Switch") },
+    ...(hasRegularSwitch ? [{ key: "switch_toggle" as AutomationActionKey, label: actionLabels.switch_toggle, helper: "Schalter", disabled: false }] : []),
     { key: "voice_speak" as AutomationActionKey, label: actionLabels.voice_speak, helper: "Sprachausgabe", disabled: !availableKinds.has("Voice") }
   ];
+}
+
+function actionTypeLabel(actionType: AutomationActionKey, capabilities: CapabilityOption[]) {
+  return actionTypeOptions(capabilities).find((option) => option.key === actionType)?.label || actionLabels[actionType];
 }
 
 function parseInitial(value?: string) {
@@ -272,7 +286,7 @@ function AutomationRuleEditorClient({
         next.conditionCapabilityId = first?.id || "";
         next.conditionExpectedState = first?.state || "ONLINE";
       } else if (next.conditionType === "capability_state") {
-        const validStates = stateOptionsForCapability(currentCapability.kind).map(([key]) => key);
+        const validStates = stateOptionsForCapability(currentCapability.kind, currentCapability.semantic).map(([key]) => key);
         if (!validStates.includes(next.conditionExpectedState)) next.conditionExpectedState = validStates[0] || "ONLINE";
       }
       if (next.conditionType === "last_image_younger_than") next.conditionImageMaxAgeSeconds = Math.max(1, next.conditionImageMaxAgeSeconds || 300);
@@ -310,7 +324,7 @@ function AutomationRuleEditorClient({
 
   function capabilitiesForAction(actionType: AutomationActionKey) {
     const kind = actionCapabilityKind(actionType);
-    return kind ? capabilities.filter((capability) => capability.kind === kind) : [];
+    return kind ? capabilities.filter((capability) => capability.kind === kind && (actionType !== "switch_toggle" || capability.semantic !== "open_close")) : [];
   }
 
   function normalizeAction(action: RuleActionFormValue): RuleActionFormValue {
@@ -481,7 +495,7 @@ function AutomationRuleEditorClient({
               const conditionCapabilityKind = conditionCapabilityKindFor(condition.conditionType);
               const conditionCapabilities = conditionCapabilityKind ? capabilities.filter((capability) => capability.kind === conditionCapabilityKind) : capabilities;
               const conditionCapability = capabilities.find((capability) => capability.id === condition.conditionCapabilityId);
-              const conditionStateOptions = stateOptionsForCapability(conditionCapability?.kind);
+              const conditionStateOptions = stateOptionsForCapability(conditionCapability?.kind, conditionCapability?.semantic);
               return (
                 <div key={`condition-${index}`} className="rounded-md border border-line bg-surface p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -653,7 +667,7 @@ function AutomationRuleEditorClient({
                           ) : <option value="">{emptyCapabilityText(requiredActionKind)}</option>}
                         </select>
                         <span className="mt-1 block text-xs leading-5 text-graphite">
-                          Für „{actionLabels[action.actionType]}“ sind nur {capabilityKindLabel(requiredActionKind).toLowerCase()} auswählbar.
+                          Für „{actionTypeLabel(action.actionType, capabilities)}“ sind nur {capabilityKindLabel(requiredActionKind).toLowerCase()} auswählbar.
                         </span>
                       </label>
                     ) : (
@@ -790,7 +804,7 @@ function AutomationRuleEditorClient({
                 onChange={(event) => setSimulatedCapabilityState((current) => ({ ...current, [capabilityCondition.conditionCapabilityId]: event.target.value }))}
                 disabled={!capabilityCondition.conditionCapabilityId}
               >
-                {stateOptionsForCapability(simulationCapability?.kind).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                {stateOptionsForCapability(simulationCapability?.kind, simulationCapability?.semantic).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
               </select>
             </label>
             <p className="mt-2 text-xs leading-5">Dieser Zustand ist nur ein Simulationswert. Die gespeicherte Fähigkeit und die echte Gerätebrücke bleiben unverändert.</p>

@@ -638,6 +638,7 @@ model AutomationSessionTemplate {
   defaultTrackerTypeId String?
   name                 String
   description          String?
+  workflowJson         Json                @default("{}")
   active               Boolean             @default(true)
   sortOrder            Int                 @default(0)
   createdAt            DateTime            @default(now())

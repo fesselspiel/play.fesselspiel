@@ -50,6 +50,7 @@ export function AutomationSessionStartForm(props: {
           {props.templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
         </select>
       </Field>
+      <p className="text-xs leading-5 text-graphite sm:col-span-2">Die Vorlage ist dein gespeicherter Ablauf mit festem Tracker-Vorschlag und zugehörigen Regeln. Du wählst sie bei jedem Start nur aus; sie wird dadurch nicht verändert.</p>
       <Field label="Tracker">
         <select name="trackerTypeId" className={inputClass} value={trackerTypeId} onChange={(event) => setTrackerTypeId(event.target.value)} required>
           {props.trackers.map((tracker) => <option key={tracker.id} value={tracker.id}>{tracker.title}</option>)}
@@ -57,7 +58,7 @@ export function AutomationSessionStartForm(props: {
       </Field>
       {selected?.description ? <p className="text-sm text-graphite sm:col-span-2">{selected.description}</p> : null}
       <p className="text-xs text-graphite sm:col-span-2">Der Tracker ist von der Vorlage voreingestellt. Du kannst ihn für diesen einen Start ändern; die Vorlage selbst bleibt unverändert.</p>
-      <Field label="Titel (optional)"><input name="title" className={inputClass} placeholder={selected?.name || "Vorlagenname wird verwendet"} /></Field>
+      <Field label="Titel nur für diese Session (optional)"><input name="title" className={inputClass} placeholder={selected?.name || "Vorlagenname wird verwendet"} /></Field>
       <Field label="Notiz (optional)"><input name="notes" className={inputClass} /></Field>
       <div className="flex items-end sm:col-span-2"><SubmitButton pendingLabel="Startet..."><Play className="h-4 w-4" /> Session starten</SubmitButton></div>
     </form>

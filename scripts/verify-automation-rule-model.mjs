@@ -201,7 +201,7 @@ test("Rule-Editor filtert Aktionsziele abhängig von der fachlichen Aktion", () 
   assert.match(editor, /function capabilitiesForAction/);
   assert.match(editor, /Was soll passieren\?/);
   assert.match(editor, /Passendes Ziel/);
-  assert.match(editor, /Für „\{actionLabels\[action\.actionType\]\}“ sind nur/);
+  assert.match(editor, /Für „\{actionTypeLabel\(action\.actionType, capabilities\)\}“ sind nur/);
   assert.match(editor, /targetCapabilities\.map/);
   assert.doesNotMatch(editor, /<optgroup label="Gerätefähigkeiten">/);
   assert.doesNotMatch(editor, /const cap = capabilities\.find\(\(item\) => item\.id === merged\.capabilityId\)/);
@@ -217,7 +217,7 @@ test("Regelbeschreibung und Timeline benennen Zielgeräte fachlich", () => {
   assert.match(model, /describeActions\(actions, context\)/);
   assert.doesNotMatch(model, /und danach \$\{labels/);
   assert.match(model, /genericTitles = \["Bild anfordern", "Verbindung prüfen", "Strom schalten", "Ansage sprechen", "Text sprechen"\]/);
-  assert.match(settings, /const currentRuleText = automationRuleSummary\(rule,/);
+  assert.match(settings, /summary: automationRuleSummary\(rule,/);
   assert.doesNotMatch(settings, /rule\.descriptionText \|\| automationRuleSummary\(rule/);
   assert.match(settings, /function RuleFlowPreview/);
   assert.match(settings, /<ArrowDown className="h-4 w-4 text-redbrand md:-rotate-90"/);
@@ -329,8 +329,8 @@ test("Regel-Simulation zeigt gespeicherten Regelkontext mit Version", () => {
   assert.match(editor, /ruleVersion/);
   assert.match(editor, /Simulationskontext:/);
   assert.match(editor, /Version \$\{ruleVersion\}/);
-  assert.match(settings, /ruleName=\{rule\.name\}/);
-  assert.match(settings, /ruleVersion=\{rule\.currentVersion\}/);
+  assert.match(settings, /ruleName=\{selectedRule\.name\}/);
+  assert.match(settings, /ruleVersion=\{selectedRule\.currentVersion\}/);
 });
 
 test("Bestehende Automation-Geräte können geführte Fähigkeiten erhalten", () => {
@@ -536,9 +536,9 @@ test("Simulation kann Geräte- und Fähigkeitszustände fachlich überschreiben"
   assert.match(editor, /Keine Aktion ist jetzt fällig/);
   assert.match(editor, /Diese Regel nutzt keinen Zufallswert/);
   assert.doesNotMatch(editor, /> nichts</);
-  assert.match(settings, /Für die Fehlersuche kannst du zusätzlich eine einzelne Regel isoliert untersuchen/);
-  assert.match(settings, /rules\.map\(\(rule\) => \(/);
-  assert.match(settings, /initial=\{JSON\.stringify\(ruleFormFromStored\(rule\)\)\}/);
+  assert.match(settings, /Gesamte Session simulieren und Protokoll ansehen/);
+  assert.match(settings, /selectedRule \? \(/);
+  assert.match(settings, /initial=\{JSON\.stringify\(ruleFormFromStored\(selectedRule\)\)\}/);
   assert.doesNotMatch(settings, /rules\.slice\(0,\s*5\)/);
 });
 

@@ -49,6 +49,16 @@ function stringField(formData: FormData, name: string, fallback = "") {
   return String(formData.get(name) || fallback).trim();
 }
 
+function templateWorkflowFromForm(formData: FormData, current: unknown = {}) {
+  const previous = jsonRecord(current);
+  return {
+    preparation: stringField(formData, "preparation", String(previous.preparation || "")) || null,
+    start: stringField(formData, "startTrigger", String(previous.start || "")) || null,
+    remoteRelease: stringField(formData, "remoteRelease", String(previous.remoteRelease || "")) || null,
+    emergencyRelease: stringField(formData, "emergencyRelease", String(previous.emergencyRelease || "")) || null
+  };
+}
+
 function capabilityParametersFromForm(formData: FormData, kind: string, current: Record<string, unknown> = {}) {
   if (kind === "Camera") {
     return {
@@ -132,7 +142,7 @@ function normalizeCapabilityState(kind: string, state: string | null | undefined
   return options.some(([key]) => key === value) ? value : options[0][0];
 }
 
-function capabilityRoleText(kind: string) {
+function capabilityRoleText(kind: string, semantic?: string) {
   if (kind === "Camera") {
     return {
       actions: ["Bild anfordern", "Verbindung prüfen"],
@@ -141,6 +151,13 @@ function capabilityRoleText(kind: string) {
     };
   }
   if (kind === "Switch") {
+    if (semantic === "open_close") {
+      return {
+        actions: ["Schließen", "Öffnen"],
+        events: ["Wurde geschlossen", "Wurde geöffnet", "Antriebsfehler"],
+        conditions: ["Ist geschlossen", "Ist geöffnet"]
+      };
+    }
     return {
       actions: ["Einschalten", "Ausschalten", "Umschalten"],
       events: ["Wurde eingeschaltet", "Wurde ausgeschaltet", "Schaltfehler"],
@@ -159,6 +176,14 @@ function capabilityRoleText(kind: string) {
     events: ["Kein bekanntes Ereignis"],
     conditions: ["Keine bekannte Bedingung"]
   };
+}
+
+function capabilityStateText(state: string, semantic?: string) {
+  if (semantic === "open_close") {
+    if (state === "ON") return "Geschlossen";
+    if (state === "OFF") return "Geöffnet";
+  }
+  return labelAutomationValue("health", state);
 }
 
 function humanDetailValue(value: unknown) {
@@ -555,7 +580,7 @@ async function saveRule(formData: FormData) {
   const [capabilities, devices, trackerTypes] = await Promise.all([
     prisma.automationCapability.findMany({
       where: { tenantId: user.tenantId },
-      select: { id: true, kind: true, title: true, state: true, deviceId: true, device: { select: { name: true } } }
+      select: { id: true, kind: true, title: true, state: true, parametersJson: true, deviceId: true, device: { select: { name: true } } }
     }),
     prisma.automationDevice.findMany({
       where: { tenantId: user.tenantId },
@@ -572,7 +597,8 @@ async function saveRule(formData: FormData) {
     title: capability.title,
     deviceName: capability.device.name,
     deviceId: capability.deviceId,
-    state: capability.state
+    state: capability.state,
+    semantic: String(jsonRecord(capability.parametersJson).semantic || "") || undefined
   })), devices, trackerTypes);
   if (!validation.ok) {
     redirect(`/settings/automation?error=${encodeURIComponent(validation.errors[0] || "Regel ist ungültig")}`);
@@ -584,7 +610,8 @@ async function saveRule(formData: FormData) {
       title: capability.title,
       deviceName: capability.device.name,
       deviceId: capability.deviceId,
-      state: capability.state
+      state: capability.state,
+      semantic: String(jsonRecord(capability.parametersJson).semantic || "") || undefined
     })),
     devices,
     trackers: trackerTypes
@@ -622,7 +649,7 @@ async function saveRule(formData: FormData) {
     const created = await createAutomationRule({ user, templateId, ...next, descriptionText: automationRuleSummary(next, ruleContext) });
     await prisma.automationRule.update({ where: { id: created.id }, data: { sortOrder: (highestOrder._max.sortOrder ?? -1) + 1 } });
   }
-  redirect(`/settings/automation?templateId=${templateId}&saved=rule`);
+  redirect(`/settings/automation?view=rules&templateId=${templateId}&saved=rule`);
 }
 
 async function saveTemplate(formData: FormData) {
@@ -644,14 +671,14 @@ async function saveTemplate(formData: FormData) {
   if (templateId) {
     const current = await prisma.automationSessionTemplate.findFirst({ where: { id: templateId, tenantId: user.tenantId } });
     if (!current) redirect("/settings/automation?error=Vorlage nicht gefunden");
-    await prisma.automationSessionTemplate.update({ where: { id: templateId }, data: { name, description, defaultTrackerTypeId, active: formData.get("active") === "on" } });
-    redirect(`/settings/automation?templateId=${templateId}&saved=template`);
+    await prisma.automationSessionTemplate.update({ where: { id: templateId }, data: { name, description, defaultTrackerTypeId, workflowJson: templateWorkflowFromForm(formData, current.workflowJson), active: formData.get("active") === "on" } });
+    redirect(`/settings/automation?view=templates&templateId=${templateId}&saved=template`);
   }
   const highest = await prisma.automationSessionTemplate.aggregate({ where: { tenantId: user.tenantId }, _max: { sortOrder: true } });
   const created = await prisma.automationSessionTemplate.create({
-    data: { tenantId: user.tenantId, ownerId: user.id, name, description, defaultTrackerTypeId, active: true, sortOrder: (highest._max.sortOrder ?? -1) + 1 }
+    data: { tenantId: user.tenantId, ownerId: user.id, name, description, defaultTrackerTypeId, workflowJson: templateWorkflowFromForm(formData), active: true, sortOrder: (highest._max.sortOrder ?? -1) + 1 }
   });
-  redirect(`/settings/automation?templateId=${created.id}&saved=template`);
+  redirect(`/settings/automation?view=templates&templateId=${created.id}&saved=template`);
 }
 
 async function reorderRules(formData: FormData) {
@@ -668,7 +695,7 @@ async function reorderRules(formData: FormData) {
   const allowed = new Set(existing.map((rule) => rule.id));
   const ordered = [...ids.filter((id) => allowed.has(id)), ...existing.map((rule) => rule.id).filter((id) => !ids.includes(id))];
   await prisma.$transaction(ordered.map((id, sortOrder) => prisma.automationRule.update({ where: { id }, data: { sortOrder } })));
-  redirect(`/settings/automation?templateId=${templateId}&saved=rule-order`);
+  redirect(`/settings/automation?view=rules&templateId=${templateId}&saved=rule-order`);
 }
 
 async function deleteRule(formData: FormData) {
@@ -697,7 +724,7 @@ async function deleteRule(formData: FormData) {
     role: "OWNER",
     details: { ruleId: rule.id, name: rule.name, version: rule.currentVersion }
   });
-  redirect(`/settings/automation?templateId=${templateId}&saved=rule-deleted`);
+  redirect(`/settings/automation?view=rules&templateId=${templateId}&saved=rule-deleted`);
 }
 
 export default async function AutomationSettingsPage(props: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
@@ -733,7 +760,10 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
   ]);
   const requestedTemplateId = typeof searchParams?.templateId === "string" ? searchParams.templateId : "";
   const selectedTemplate = templates.find((template) => template.id === requestedTemplateId) || templates[0] || null;
+  const selectedWorkflow = jsonRecord(selectedTemplate?.workflowJson);
   const rules = allRules.filter((rule) => rule.templateId === selectedTemplate?.id);
+  const requestedRuleId = typeof searchParams?.ruleId === "string" ? searchParams.ruleId : "";
+  const selectedRule = rules.find((rule) => rule.id === requestedRuleId) || null;
   const mqttPassword = typeof searchParams?.mqttPassword === "string" ? searchParams.mqttPassword : "";
   const mqttUser = typeof searchParams?.mqttUser === "string" ? searchParams.mqttUser : "";
   const error = typeof searchParams?.error === "string" ? searchParams.error : "";
@@ -747,27 +777,42 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
     title: capability.title,
     deviceId: device.id,
     deviceName: device.name,
-    state: capability.state
+    state: capability.state,
+    semantic: String(jsonRecord(capability.parametersJson).semantic || "") || undefined
   })));
   const deviceOptions = adapterDevices.map((device) => ({ id: device.id, name: device.name, health: device.health }));
   const trackerOptions = trackerTypes.map((tracker) => ({ id: tracker.id, title: tracker.title, color: tracker.color }));
   const bridgeStatus = bridgeStatusInfo(bridge);
-  const devicesView = searchParams?.view === "devices";
+  const requestedView = typeof searchParams?.view === "string" ? searchParams.view : "rules";
+  const devicesView = requestedView === "devices";
+  const templatesView = requestedView === "templates";
+  const rulesView = !devicesView && !templatesView;
+  const selectedTemplateQuery = selectedTemplate?.id ? `&templateId=${encodeURIComponent(selectedTemplate.id)}` : "";
 
   return (
     <AppShell>
-      <PageHeader title={devicesView ? "Geräte" : "Session-Vorlagen"} action={<Link href={devicesView ? "/settings/automation" : "/settings/automation?view=devices"} className="focus-ring inline-flex min-h-11 items-center rounded-md border border-line bg-paper px-4 py-2 text-sm font-semibold text-ink hover:bg-surface">{devicesView ? "Zu den Vorlagen" : "Zu den Geräten"}</Link>} />
-      <PageGuide title={devicesView ? "Gemeinsame Geräte" : "Vorgefertigte Session-Abläufe"}>
-        {devicesView ? "Diese Geräte kommen aus der ioBroker-Brücke und können in allen Session-Vorlagen verwendet werden." : "Jede Vorlage bündelt ihre eigenen Regeln und einen voreingestellten Tracker. Beim Start kann der Tracker für diese einzelne Session noch geändert werden. Geräte stehen allen Vorlagen gemeinsam zur Verfügung."}
+      <PageHeader title={devicesView ? "Geräte" : templatesView ? "Session-Vorlagen" : "Regeln"} action={
+        <nav aria-label="Automation verwalten" className="flex flex-wrap gap-2">
+          <Link href={`/settings/automation?view=templates${selectedTemplateQuery}`} className={`focus-ring inline-flex min-h-11 items-center rounded-md border px-4 py-2 text-sm font-semibold ${templatesView ? "border-redbrand bg-redbrand text-white" : "border-line bg-paper text-ink hover:bg-surface"}`}>Vorlagen</Link>
+          <Link href={`/settings/automation?view=rules${selectedTemplateQuery}`} className={`focus-ring inline-flex min-h-11 items-center rounded-md border px-4 py-2 text-sm font-semibold ${rulesView ? "border-redbrand bg-redbrand text-white" : "border-line bg-paper text-ink hover:bg-surface"}`}>Regeln</Link>
+          <Link href="/settings/automation?view=devices" className={`focus-ring inline-flex min-h-11 items-center rounded-md border px-4 py-2 text-sm font-semibold ${devicesView ? "border-redbrand bg-redbrand text-white" : "border-line bg-paper text-ink hover:bg-surface"}`}>Geräte</Link>
+        </nav>
+      } />
+      <PageGuide title={devicesView ? "Gemeinsame Geräte" : templatesView ? "Was ist eine Session-Vorlage?" : "Regeln einer Session-Vorlage"}>
+        {devicesView
+          ? "Diese Geräte kommen aus der ioBroker-Brücke und können in allen Session-Vorlagen verwendet werden. Technische Shelly-Zuordnungen bleiben in ioBroker."
+          : templatesView
+            ? "Eine Vorlage ist ein wiederverwendbarer Session-Typ: Sie hat einen Namen, einen voreingestellten Tracker und ihre eigenen Regeln. Der optionale Titel beim Start benennt nur diese eine konkrete Session und verändert die Vorlage nicht."
+            : "Wähle zuerst die Session-Vorlage. Danach siehst und bearbeitest du ausschließlich deren Regeln; Geräte werden unabhängig davon im Reiter Geräte verwaltet."}
       </PageGuide>
       {error ? <div className="mb-4 rounded-lg border border-redbrand/30 bg-redbrand/10 p-3 text-sm font-semibold text-ink">{error}</div> : null}
       <div className="space-y-4">
-        <Panel className={devicesView ? "hidden" : ""}>
+        <Panel className={templatesView ? "" : "hidden"}>
           <div className="flex items-center gap-2"><FolderKanban className="h-5 w-5 text-redbrand" /><h2 className="text-lg font-semibold text-ink">Session-Vorlagen</h2></div>
           <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
             <div className="space-y-2">
               {templates.map((template) => (
-                <Link key={template.id} href={`/settings/automation?templateId=${template.id}`} className={`block rounded-md border p-3 ${selectedTemplate?.id === template.id ? "border-redbrand bg-redbrand/10" : "border-line bg-paper hover:bg-surface"}`}>
+                <Link key={template.id} href={`/settings/automation?view=templates&templateId=${template.id}`} className={`block rounded-md border p-3 ${selectedTemplate?.id === template.id ? "border-redbrand bg-redbrand/10" : "border-line bg-paper hover:bg-surface"}`}>
                   <div className="font-semibold text-ink">{template.name}</div>
                   <div className="mt-1 text-xs text-graphite">{template.defaultTrackerType?.title || "Kein Tracker"} · {template._count.rules} Regeln</div>
                 </Link>
@@ -778,6 +823,10 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                   <Field label="Name"><input name="name" className={inputClass} required placeholder="z. B. Segufix" /></Field>
                   <Field label="Voreingestellter Tracker"><select name="defaultTrackerTypeId" className={inputClass} required><option value="">Bitte wählen</option>{trackerTypes.map((tracker) => <option key={tracker.id} value={tracker.id}>{tracker.title}</option>)}</select></Field>
                   <Field label="Beschreibung"><input name="description" className={inputClass} /></Field>
+                  <Field label="Vorbereitung vor dem Start"><input name="preparation" className={inputClass} placeholder="z. B. Alexa: Segufix vorbereiten → öffnen" /></Field>
+                  <Field label="Session starten"><input name="startTrigger" className={inputClass} placeholder="z. B. Alexa: Segufix Session" /></Field>
+                  <Field label="Vorzeitiges Öffnen"><input name="remoteRelease" className={inputClass} placeholder="z. B. Telegram: Öffnen" /></Field>
+                  <Field label="Unabhängige Notöffnung"><input name="emergencyRelease" className={inputClass} placeholder="z. B. physische Notfreigabe" /></Field>
                   <SubmitButton pendingLabel="Legt an...">Vorlage anlegen</SubmitButton>
                 </form>
               </details>
@@ -792,6 +841,16 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                   <Field label="Voreingestellter Tracker"><select name="defaultTrackerTypeId" className={inputClass} required defaultValue={selectedTemplate.defaultTrackerTypeId || ""}><option value="">Bitte wählen</option>{trackerTypes.map((tracker) => <option key={tracker.id} value={tracker.id}>{tracker.title}</option>)}</select></Field>
                   <Field label="Beschreibung"><input name="description" className={inputClass} defaultValue={selectedTemplate.description || ""} /></Field>
                   <label className="flex items-center gap-2 rounded-md border border-line bg-surface p-3 text-sm"><input name="active" type="checkbox" defaultChecked={selectedTemplate.active} /> Beim Start auswählbar</label>
+                  <div className="rounded-md border border-line bg-surface p-3 sm:col-span-2">
+                    <div className="font-semibold text-ink">Bedienung rund um die Session</div>
+                    <p className="mt-1 text-sm text-graphite">Diese Angaben machen sichtbar, wie Vorbereitung, Start und Freigabe ausgelöst werden. Die eigentliche Zeit- und Geräteausführung bleibt in den Regeln beziehungsweise im ioBroker-Adapter.</p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <Field label="Vorbereitung vor dem Start"><input name="preparation" className={inputClass} defaultValue={String(selectedWorkflow.preparation || "")} /></Field>
+                      <Field label="Session starten"><input name="startTrigger" className={inputClass} defaultValue={String(selectedWorkflow.start || "")} /></Field>
+                      <Field label="Vorzeitiges Öffnen"><input name="remoteRelease" className={inputClass} defaultValue={String(selectedWorkflow.remoteRelease || "")} /></Field>
+                      <Field label="Unabhängige Notöffnung"><input name="emergencyRelease" className={inputClass} defaultValue={String(selectedWorkflow.emergencyRelease || "")} /></Field>
+                    </div>
+                  </div>
                   <div className="sm:col-span-2"><SubmitButton pendingLabel="Speichert...">Vorlage speichern</SubmitButton></div>
                 </form>
               </div>
@@ -893,7 +952,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
           </details>
         </details>
 
-        <details className="rounded-lg border border-line bg-surface p-4">
+        <details open={devicesView} className={`${devicesView ? "" : "hidden"} rounded-lg border border-line bg-surface p-4`}>
           <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><Cpu className="h-4 w-4" /> Geräte</summary>
           <div className="mt-4 space-y-4">
             <Panel className="hidden">
@@ -928,11 +987,12 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                       </div>
                       <div className="grid gap-2">
                         {device.capabilities.map((capability) => {
-                          const roleText = capabilityRoleText(capability.kind);
+                          const semantic = String(jsonRecord(capability.parametersJson).semantic || "") || undefined;
+                          const roleText = capabilityRoleText(capability.kind, semantic);
                           return (
                             <div key={capability.id} className="rounded-md border border-line bg-surface p-3">
                               <div className="font-semibold text-ink">
-                                {capability.title} · {capabilityKindTitle(capability.kind)} · {labelAutomationValue("health", capability.state)}
+                                {capability.title} · {semantic === "open_close" ? "Linearantrieb" : capabilityKindTitle(capability.kind)} · {capabilityStateText(capability.state, semantic)}
                               </div>
                               <div className="mt-1 text-sm">Vom ioBroker-Adapter synchronisiert. Der lokale Datenpunkt bleibt im Heimnetz und wird im ioBroker verwaltet.</div>
                               <div className="mt-2 grid gap-2 md:grid-cols-3">
@@ -992,7 +1052,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                               <input type="hidden" name="capabilityId" value={capability.id} />
                               <Field label="Name"><input name="title" className={inputClass} defaultValue={capability.title} /></Field>
                               <div className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">
-                                Gemeldeter Zustand: <span className="font-semibold text-ink">{labelAutomationValue("health", capability.state)}</span>. Der Adapter aktualisiert diesen Wert über Events oder Command-Ergebnisse.
+                                Gemeldeter Zustand: <span className="font-semibold text-ink">{capabilityStateText(capability.state, String(parameters.semantic || "") || undefined)}</span>. Der Adapter aktualisiert diesen Wert über Events oder Command-Ergebnisse.
                               </div>
                               <Field label="ioBroker-/MQTT-Datenpunkt">
                                 <input name="dataPoint" className={inputClass} defaultValue={String(parameters.dataPoint || "")} placeholder="z.B. alias.0.schlafzimmer.kamera" />
@@ -1058,12 +1118,48 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
           </div>
         </details>
 
-        <details open className={`${devicesView ? "hidden" : ""} rounded-lg border border-line bg-surface p-4`}>
+        <Panel className={rulesView ? "" : "hidden"}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-ink">Session-Vorlage auswählen</h2>
+              <p className="mt-1 text-sm text-graphite">Regeln gehören immer genau zu einer Vorlage.</p>
+            </div>
+            <Link href={`/settings/automation?view=templates${selectedTemplateQuery}`} className="text-sm font-semibold text-redbrand hover:underline">Vorlage bearbeiten</Link>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {templates.map((template) => (
+              <Link key={`${template.id}-rules`} href={`/settings/automation?view=rules&templateId=${template.id}`} className={`rounded-md border px-3 py-2 text-sm font-semibold ${template.id === selectedTemplate?.id ? "border-redbrand bg-redbrand/10 text-ink" : "border-line bg-paper text-graphite hover:border-redbrand"}`}>
+                {template.name} · {template._count.rules} Regeln
+              </Link>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel className={rulesView ? "" : "hidden"}>
+          <h2 className="text-base font-semibold text-ink">Sichtbarer Ablauf: {selectedTemplate?.name || "Keine Vorlage"}</h2>
+          <p className="mt-1 text-sm text-graphite">Diese Schritte gehören zur Bedienung der Vorlage. Die Regeln darunter übernehmen anschließend den eigentlichen Sessionablauf.</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {[
+              ["1. Vorbereiten", selectedWorkflow.preparation, "Noch kein Vorbereitungsbefehl eingetragen."],
+              ["2. Session starten", selectedWorkflow.start, "Noch kein Startbefehl eingetragen."],
+              ["3. Vorzeitig freigeben", selectedWorkflow.remoteRelease, "Noch kein Trainer-/Telegram-Befehl eingetragen."],
+              ["4. Notöffnung", selectedWorkflow.emergencyRelease, "Unabhängige Notfreigabe vor Ort festlegen."]
+            ].map(([title, value, fallback]) => (
+              <div key={String(title)} className="rounded-md border border-line bg-paper p-3">
+                <div className="font-semibold text-ink">{String(title)}</div>
+                <p className="mt-1 text-sm leading-6 text-graphite">{String(value || fallback)}</p>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <details open className={`${rulesView ? "" : "hidden"} rounded-lg border border-line bg-surface p-4`}>
           <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><Activity className="h-4 w-4" /> Regeln</summary>
           <div className="mt-4 space-y-4">
-            <Panel>
-              <h2 className="text-base font-semibold text-ink">Regel anlegen</h2>
-              <form action={saveRule} className="mt-3 space-y-3">
+            <details className="rounded-lg border border-line bg-paper p-4">
+              <summary className="cursor-pointer list-none text-base font-semibold text-ink [&::-webkit-details-marker]:hidden">+ Neue Regel anlegen</summary>
+              <p className="mt-2 text-sm text-graphite">Erstellt eine weitere Regel ausschließlich für die gewählte Vorlage.</p>
+              <form action={saveRule} className="mt-4 space-y-3">
                 <input type="hidden" name="templateId" value={selectedTemplate?.id || ""} />
                 <Field label="Name"><input name="name" className={inputClass} required /></Field>
                 <Field label="Beschreibung"><input name="description" className={inputClass} /></Field>
@@ -1073,90 +1169,64 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                 <AutomationRuleEditor capabilities={capabilities} devices={deviceOptions} trackers={trackerOptions} />
                 <SubmitButton pendingLabel="Speichert...">Regel speichern</SubmitButton>
               </form>
-            </Panel>
-            <Panel>
-              <h2 className="text-base font-semibold text-ink">Bestehende Regeln</h2>
-              <p className="mt-2 text-sm text-graphite">Die Sortierung macht den Ablauf lesbar. Wann eine Regel wirklich läuft, bestimmen weiterhin Auslöser, Bedingungen und Zeitlogik.</p>
+            </details>
+            <details open className="rounded-lg border border-line bg-paper p-4">
+              <summary className="cursor-pointer list-none text-base font-semibold text-ink [&::-webkit-details-marker]:hidden">Bestehende Regeln ({rules.length})</summary>
+              <p className="mt-2 text-sm text-graphite">Hier stehen alle Regeln dieser Vorlage genau einmal. Ziehen ändert nur die übersichtliche Reihenfolge; Auslöser und Zeitlogik bestimmen weiterhin die tatsächliche Ausführung.</p>
               <div className="mt-3">
                 <AutomationRuleOrder
-                  rules={rules.map((rule) => ({ id: rule.id, name: rule.name, summary: automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions }) }))}
+                  rules={rules.map((rule) => ({
+                    id: rule.id,
+                    name: rule.name,
+                    summary: automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions }),
+                    editHref: `/settings/automation?view=rules&templateId=${selectedTemplate?.id || ""}&ruleId=${rule.id}#rule-editor`
+                  }))}
                   reorderAction={reorderRules}
                   templateId={selectedTemplate?.id}
                 />
               </div>
-              <h3 className="mt-5 text-sm font-semibold text-ink">Regeln ansehen und bearbeiten</h3>
-              <div className="mt-3 space-y-2">
-                {rules.map((rule) => {
-                  const currentRuleText = automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions });
-                  return (
-                    <details id={`automation-rule-${rule.id}`} key={rule.id} className="scroll-mt-24 rounded-md border border-line bg-paper p-3">
-                      <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">{rule.name}</summary>
-                      <p className="mt-2 text-sm text-graphite">{currentRuleText}</p>
-                      <div className="mt-3">
-                        <RuleFlowPreview steps={automationRuleFlow(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })} />
-                      </div>
-                      <p className="mt-1 text-xs text-graphite">Version {rule.currentVersion} · {rule.active ? "aktiv" : "inaktiv"}</p>
-                      <details className="mt-3 rounded-md border border-line bg-surface p-3">
-                        <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Regel bearbeiten</summary>
-                        <form action={saveRule} className="mt-3 space-y-3">
-                          <input type="hidden" name="templateId" value={selectedTemplate?.id || ""} />
-                          <Field label="Name"><input name="name" className={inputClass} required defaultValue={rule.name} /></Field>
-                          <Field label="Beschreibung"><input name="description" className={inputClass} defaultValue={rule.description || ""} /></Field>
-                          <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="active" type="checkbox" defaultChecked={rule.active} /> Aktiv</label>
-                          <AutomationRuleEditor ruleId={rule.id} ruleName={rule.name} ruleVersion={rule.currentVersion} capabilities={capabilities} devices={deviceOptions} trackers={trackerOptions} initial={JSON.stringify(ruleFormFromStored(rule))} />
-                          <SubmitButton pendingLabel="Speichert...">Änderungen speichern</SubmitButton>
-                        </form>
-                      </details>
-                      <details className="mt-2 rounded-md border border-redbrand/30 bg-redbrand/5 p-3">
-                        <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Regel löschen</summary>
-                        <p className="mt-2 text-sm text-graphite">
-                          Löscht die Regel für zukünftige Ausführungen. Bereits protokollierte Ereignisse und geplante Historie bleiben erhalten.
-                        </p>
-                        <form action={deleteRule} className="mt-3">
-                          <input type="hidden" name="ruleId" value={rule.id} />
-                          <input type="hidden" name="templateId" value={selectedTemplate?.id || ""} />
-                          <SubmitButton pendingLabel="Löscht...">Regel löschen</SubmitButton>
-                        </form>
-                      </details>
-                    </details>
-                  );
-                })}
-              </div>
-            </Panel>
+              {!rules.length ? <SoftPanel className="mt-3">Für diese Vorlage gibt es noch keine Regel.</SoftPanel> : null}
+            </details>
+            {selectedRule ? (
+              <Panel id="rule-editor" className="scroll-mt-24">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold text-ink">Regel bearbeiten: {selectedRule.name}</h2>
+                    <p className="mt-1 text-sm text-graphite">Version {selectedRule.currentVersion} · {selectedRule.active ? "aktiv" : "inaktiv"}</p>
+                  </div>
+                  <Link href={`/settings/automation?view=rules&templateId=${selectedTemplate?.id || ""}`} className="text-sm font-semibold text-redbrand hover:underline">Editor schließen</Link>
+                </div>
+                <div className="mt-3"><RuleFlowPreview steps={automationRuleFlow(selectedRule, { capabilities, devices: deviceOptions, trackers: trackerOptions })} /></div>
+                <form action={saveRule} className="mt-4 space-y-3">
+                  <input type="hidden" name="templateId" value={selectedTemplate?.id || ""} />
+                  <Field label="Name"><input name="name" className={inputClass} required defaultValue={selectedRule.name} /></Field>
+                  <Field label="Beschreibung"><input name="description" className={inputClass} defaultValue={selectedRule.description || ""} /></Field>
+                  <label className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-sm"><input name="active" type="checkbox" defaultChecked={selectedRule.active} /> Aktiv</label>
+                  <AutomationRuleEditor ruleId={selectedRule.id} ruleName={selectedRule.name} ruleVersion={selectedRule.currentVersion} capabilities={capabilities} devices={deviceOptions} trackers={trackerOptions} initial={JSON.stringify(ruleFormFromStored(selectedRule))} />
+                  <SubmitButton pendingLabel="Speichert...">Änderungen speichern</SubmitButton>
+                </form>
+                <details className="mt-4 rounded-md border border-redbrand/30 bg-redbrand/5 p-3">
+                  <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">Regel löschen</summary>
+                  <form action={deleteRule} className="mt-3">
+                    <input type="hidden" name="ruleId" value={selectedRule.id} />
+                    <input type="hidden" name="templateId" value={selectedTemplate?.id || ""} />
+                    <SubmitButton pendingLabel="Löscht...">Regel löschen</SubmitButton>
+                  </form>
+                </details>
+              </Panel>
+            ) : null}
           </div>
         </details>
 
-        <details className={`${devicesView ? "hidden" : ""} rounded-lg border border-line bg-surface p-4`}>
-          <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><FlaskConical className="h-4 w-4" /> Simulation und Protokoll</summary>
+        <details className={`${rulesView ? "" : "hidden"} rounded-lg border border-line bg-surface p-4`}>
+          <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink [&::-webkit-details-marker]:hidden"><FlaskConical className="h-4 w-4" /> Gesamte Session simulieren und Protokoll ansehen</summary>
           <div className="mt-4 space-y-4">
             <AutomationSessionSimulator
               rules={rules.map((rule) => ({ id: rule.id, name: rule.name, active: rule.active, mode: rule.mode, triggerType: rule.triggerType, triggerJson: rule.triggerJson, conditionJson: rule.conditionJson, timingJson: rule.timingJson, actionJson: rule.actionJson }))}
               capabilities={capabilities}
               devices={deviceOptions}
             />
-            <div className="grid gap-4 lg:grid-cols-2">
-            <Panel>
-              <h2 className="text-base font-semibold text-ink">Einzelne Regel prüfen</h2>
-              <p className="mt-2 text-sm text-graphite">Für die Fehlersuche kannst du zusätzlich eine einzelne Regel isoliert untersuchen.</p>
-              <div className="mt-3 space-y-2">
-                {rules.map((rule) => (
-                  <details key={`${rule.id}-simulation`} className="rounded-md border border-line bg-paper p-3 text-sm text-graphite">
-                    <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">{rule.name} simulieren</summary>
-                    <p className="mt-2">{automationRuleSummary(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })}</p>
-                    <div className="mt-3">
-                      <RuleFlowPreview steps={automationRuleFlow(rule, { capabilities, devices: deviceOptions, trackers: trackerOptions })} />
-                    </div>
-                    <div className="mt-3 rounded-md border border-line bg-surface p-3">
-                      <AutomationRuleEditor ruleId={rule.id} ruleName={rule.name} ruleVersion={rule.currentVersion} capabilities={capabilities} devices={deviceOptions} trackers={trackerOptions} initial={JSON.stringify(ruleFormFromStored(rule))} />
-                    </div>
-                    <a className="mt-3 inline-flex text-sm font-semibold text-redbrand hover:underline" href={`#automation-rule-${rule.id}`}>
-                      Regel bearbeiten
-                    </a>
-                  </details>
-                ))}
-                {!rules.length ? <SoftPanel><Activity className="h-5 w-5 text-redbrand" /> Noch keine Regel zum Simulieren angelegt.</SoftPanel> : null}
-              </div>
-            </Panel>
+            <div>
             <Panel>
               <h2 className="text-base font-semibold text-ink">Letzte Automation-Ereignisse</h2>
               <div className="mt-3 max-h-96 space-y-2 overflow-auto">

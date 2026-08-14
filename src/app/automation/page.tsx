@@ -178,7 +178,12 @@ export default async function AutomationPage(props: { searchParams?: Promise<Rec
     <AppShell>
       <PageHeader
         title="Automation"
-        action={<Link href="/settings/automation" className="focus-ring inline-flex min-h-11 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-redbrand/90">Regeln und Geräte</Link>}
+        action={
+          <nav aria-label="Automation verwalten" className="flex flex-wrap gap-2">
+            <Link href="/settings/automation?view=rules" className="focus-ring inline-flex min-h-11 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-redbrand/90">Regeln</Link>
+            <Link href="/settings/automation?view=devices" className="focus-ring inline-flex min-h-11 items-center rounded-md border border-line bg-paper px-4 py-2 text-sm font-semibold text-ink hover:bg-surface">Geräte</Link>
+          </nav>
+        }
       />
       <PageGuide title="Session-Automation">
         Automation verbindet Tracker-Sessions mit Regeln, Zeitfenstern, Geräten, Kamera-Anfragen und der ioBroker-Gerätebrücke. Zeitlogik und Status liegen im Portal, externe Systeme führen nur die geplanten Gerätebefehle aus.
