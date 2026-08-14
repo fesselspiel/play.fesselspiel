@@ -441,6 +441,7 @@ test("Session-Vorlagen kapseln Regeln und frieren deren Version beim Start ein",
   assert.match(service, /templateRuleVersions/);
   assert.match(service, /snapshottedVersions/);
   assert.match(service, /hasTemplateSnapshot/);
+  assert.match(service, /defaultTrackerTypeId: input\.trackerTypeId/);
   assert.match(startForm, /Der Tracker ist von der Vorlage voreingestellt/);
 });
 

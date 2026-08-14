@@ -396,8 +396,10 @@ export async function startAutomationSession(input: {
   metadata?: unknown;
 }) {
   if (!input.user.tenantId) throw new Error("tenant_required");
-  const template = input.templateId ? await prisma.automationSessionTemplate.findFirst({
-    where: { id: input.templateId, tenantId: input.user.tenantId, active: true },
+  const template = input.templateId || input.trackerTypeId ? await prisma.automationSessionTemplate.findFirst({
+    where: input.templateId
+      ? { id: input.templateId, tenantId: input.user.tenantId, active: true }
+      : { tenantId: input.user.tenantId, active: true, defaultTrackerTypeId: input.trackerTypeId! },
     include: { rules: { where: { active: true }, select: { id: true, currentVersion: true } } }
   }) : null;
   if (input.templateId && !template) throw new Error("template_not_found");

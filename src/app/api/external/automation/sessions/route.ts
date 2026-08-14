@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
   try {
     const result = await startAutomationSession({
       user: auth.user,
+      templateId: typeof body.templateId === "string" ? body.templateId : null,
       trackerTypeId: typeof body.trackerTypeId === "string" ? body.trackerTypeId : null,
       trackerKeyOrTitle: typeof body.tracker === "string" ? body.tracker : typeof body.trackerKeyOrTitle === "string" ? body.trackerKeyOrTitle : null,
       title: typeof body.title === "string" ? body.title : null,
