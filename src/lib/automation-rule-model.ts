@@ -666,18 +666,19 @@ export function automationRuleSummary(input: {
   const conditions = Array.isArray(input.conditionJson) ? input.conditionJson.map((item) => asObject(item)).filter((condition) => condition.type && condition.type !== "none") : [];
   const timing = asObject(input.timingJson);
   const actions = Array.isArray(input.actionJson) ? input.actionJson.map((item) => asObject(item)) : [];
-  const conditionText = conditions.map((condition) => describeCondition(condition, context).toLowerCase()).join(" und ");
+  const conditionText = conditions.map((condition) => describeCondition(condition, context)).join(" und ");
   const timingText = timing.type === "random_delay"
-    ? `warte zufällig weitere ${numberValue(timing.minMinutes, 0)} bis ${numberValue(timing.maxMinutes, 0)} Minuten`
+    ? `Nach zufällig ${numberValue(timing.minMinutes, 0)} bis ${numberValue(timing.maxMinutes, 0)} Minuten`
     : timing.type === "fixed_delay"
-      ? `warte ${numberValue(timing.minutes ?? timing.delayMinutes, 0)} Minuten`
-      : "führe sofort aus";
+      ? `Nach ${numberValue(timing.minutes ?? timing.delayMinutes, 0)} Minuten`
+      : "Sofort danach";
   const actionText = describeActions(actions, context);
+  const readableAction = actionText.charAt(0).toUpperCase() + actionText.slice(1);
   const recoveryText = actions.some((action) => action.type === "camera_request_image" && numberValue(action.maxRetries, 0) > 0)
     ? " Bei Kamera-Fehlern wird die konfigurierte Wiederherstellung ausgeführt."
     : "";
-  if (conditionText) return `Wenn ${trigger.toLowerCase()} und ${conditionText}, ${timingText} und ${actionText}.${recoveryText}`;
-  return `Wenn ${trigger.toLowerCase()}, ${timingText} und ${actionText}.${recoveryText}`;
+  const conditionSentence = conditionText ? ` Voraussetzung: ${conditionText}.` : "";
+  return `${trigger}.${conditionSentence} ${timingText}: ${readableAction}.${recoveryText}`;
 }
 
 export function automationRuleFlow(input: { triggerType: string; triggerJson?: unknown; conditionJson?: unknown; timingJson?: unknown; actionJson?: unknown }, context: AutomationRuleContext = {}) {

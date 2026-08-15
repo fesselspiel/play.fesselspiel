@@ -226,6 +226,9 @@ test("Regelbeschreibung und Timeline benennen Zielgeräte fachlich", () => {
   assert.match(model, /fordere ein Bild von \$\{target\} an/);
   assert.match(model, /actionTitleWithTarget\(action, context\)/);
   assert.match(model, /describeActions\(actions, context\)/);
+  assert.match(model, /Sofort danach/);
+  assert.match(model, /Voraussetzung:/);
+  assert.doesNotMatch(model, /Wenn \$\{trigger\.toLowerCase\(\)\}/);
   assert.doesNotMatch(model, /und danach \$\{labels/);
   assert.match(model, /genericTitles = \["Bild anfordern", "Verbindung prüfen", "Strom schalten", "Ansage sprechen", "Text sprechen"\]/);
   assert.match(settings, /summary: automationRuleSummary\(rule,/);
@@ -443,17 +446,28 @@ test("Session-Start erinnert an unabhängige Sicherheitsfreigabe", () => {
   assert.match(overview, /safety_required/);
 });
 
-test("Session-Vorlagen kapseln Regeln und frieren deren Version beim Start ein", () => {
+test("Session-Abläufe kapseln Regeln und frieren deren Version beim Start ein", () => {
   const schema = readFileSync("prisma/schema.prisma", "utf8");
   const service = readFileSync("src/lib/session-automation.ts", "utf8");
   const startForm = readFileSync("src/components/automation-session-start-form.tsx", "utf8");
+  const overview = readFileSync("src/app/automation/page.tsx", "utf8");
+  const settings = readFileSync("src/app/settings/automation/page.tsx", "utf8");
   assert.match(schema, /model AutomationSessionTemplate/);
   assert.match(schema, /templateId\s+String\?/);
   assert.match(service, /templateRuleVersions/);
   assert.match(service, /snapshottedVersions/);
   assert.match(service, /hasTemplateSnapshot/);
   assert.match(service, /defaultTrackerTypeId: input\.trackerTypeId/);
-  assert.match(startForm, /Der Tracker ist von der Vorlage voreingestellt/);
+  assert.match(startForm, /Welche Session möchtest du starten\?/);
+  assert.match(startForm, /So läuft die Session ab/);
+  assert.match(startForm, /selected\.steps\.map/);
+  assert.match(startForm, /Angaben für diesen Start ändern/);
+  assert.doesNotMatch(startForm, /Session-Vorlage/);
+  assert.match(overview, /automationRuleSummary/);
+  assert.match(overview, /workflow\.preparation/);
+  assert.match(overview, /workflow\.remoteRelease/);
+  assert.match(settings, /href="\/automation"/);
+  assert.match(settings, />Session starten<\/Link>/);
 });
 
 test("Automation-Session-Aktionen nutzen zentrale Rollen-Policy statt Besitzer-Sonderlogik", () => {

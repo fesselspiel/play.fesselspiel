@@ -576,7 +576,7 @@ async function saveRule(formData: FormData) {
   };
   if (!user.tenantId) redirect("/settings/automation?error=tenant");
   const template = await prisma.automationSessionTemplate.findFirst({ where: { id: templateId, tenantId: user.tenantId } });
-  if (!template) redirect("/settings/automation?error=Vorlage nicht gefunden");
+  if (!template) redirect("/settings/automation?error=Ablauf nicht gefunden");
   const [capabilities, devices, trackerTypes] = await Promise.all([
     prisma.automationCapability.findMany({
       where: { tenantId: user.tenantId },
@@ -663,14 +663,14 @@ async function saveTemplate(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const description = String(formData.get("description") || "").trim() || null;
   const defaultTrackerTypeId = String(formData.get("defaultTrackerTypeId") || "") || null;
-  if (!name) redirect("/settings/automation?error=Die Vorlage braucht einen Namen");
+  if (!name) redirect("/settings/automation?error=Der Ablauf braucht einen Namen");
   if (defaultTrackerTypeId) {
     const tracker = await prisma.trackerType.findFirst({ where: { id: defaultTrackerTypeId, enabled: true, OR: [{ tenantId: user.tenantId }, { tenantId: null }] } });
     if (!tracker) redirect("/settings/automation?error=Tracker nicht gefunden");
   }
   if (templateId) {
     const current = await prisma.automationSessionTemplate.findFirst({ where: { id: templateId, tenantId: user.tenantId } });
-    if (!current) redirect("/settings/automation?error=Vorlage nicht gefunden");
+    if (!current) redirect("/settings/automation?error=Ablauf nicht gefunden");
     await prisma.automationSessionTemplate.update({ where: { id: templateId }, data: { name, description, defaultTrackerTypeId, workflowJson: templateWorkflowFromForm(formData, current.workflowJson), active: formData.get("active") === "on" } });
     redirect(`/settings/automation?view=templates&templateId=${templateId}&saved=template`);
   }
@@ -791,24 +791,25 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
 
   return (
     <AppShell>
-      <PageHeader title={devicesView ? "Geräte" : templatesView ? "Session-Vorlagen" : "Regeln"} action={
+      <PageHeader title={devicesView ? "Geräte" : templatesView ? "Session-Abläufe" : "Regeln"} action={
         <nav aria-label="Automation verwalten" className="flex flex-wrap gap-2">
-          <Link href={`/settings/automation?view=templates${selectedTemplateQuery}`} className={`focus-ring inline-flex min-h-11 items-center rounded-md border px-4 py-2 text-sm font-semibold ${templatesView ? "border-redbrand bg-redbrand text-white" : "border-line bg-paper text-ink hover:bg-surface"}`}>Vorlagen</Link>
+          <Link href="/automation" className="focus-ring inline-flex min-h-11 items-center rounded-md border border-line bg-paper px-4 py-2 text-sm font-semibold text-ink hover:bg-surface">Session starten</Link>
+          <Link href={`/settings/automation?view=templates${selectedTemplateQuery}`} className={`focus-ring inline-flex min-h-11 items-center rounded-md border px-4 py-2 text-sm font-semibold ${templatesView ? "border-redbrand bg-redbrand text-white" : "border-line bg-paper text-ink hover:bg-surface"}`}>Abläufe</Link>
           <Link href={`/settings/automation?view=rules${selectedTemplateQuery}`} className={`focus-ring inline-flex min-h-11 items-center rounded-md border px-4 py-2 text-sm font-semibold ${rulesView ? "border-redbrand bg-redbrand text-white" : "border-line bg-paper text-ink hover:bg-surface"}`}>Regeln</Link>
           <Link href="/settings/automation?view=devices" className={`focus-ring inline-flex min-h-11 items-center rounded-md border px-4 py-2 text-sm font-semibold ${devicesView ? "border-redbrand bg-redbrand text-white" : "border-line bg-paper text-ink hover:bg-surface"}`}>Geräte</Link>
         </nav>
       } />
-      <PageGuide title={devicesView ? "Gemeinsame Geräte" : templatesView ? "Was ist eine Session-Vorlage?" : "Regeln einer Session-Vorlage"}>
+      <PageGuide title={devicesView ? "Gemeinsame Geräte" : templatesView ? "Was ist ein Session-Ablauf?" : "Regeln eines Session-Ablaufs"}>
         {devicesView
-          ? "Diese Geräte kommen aus der ioBroker-Brücke und können in allen Session-Vorlagen verwendet werden. Technische Shelly-Zuordnungen bleiben in ioBroker."
+          ? "Diese Geräte kommen aus der ioBroker-Brücke und können in allen Session-Abläufen verwendet werden. Technische Shelly-Zuordnungen bleiben in ioBroker."
           : templatesView
-            ? "Eine Vorlage ist ein wiederverwendbarer Session-Typ: Sie hat einen Namen, einen voreingestellten Tracker und ihre eigenen Regeln. Der optionale Titel beim Start benennt nur diese eine konkrete Session und verändert die Vorlage nicht."
-            : "Wähle zuerst die Session-Vorlage. Danach siehst und bearbeitest du ausschließlich deren Regeln; Geräte werden unabhängig davon im Reiter Geräte verwaltet."}
+            ? "Ein Ablauf beschreibt eine startbare Session: Er hat einen Namen, einen voreingestellten Tracker und seine eigenen Regeln. Änderungen hier gelten für zukünftige Starts."
+            : "Wähle zuerst den Session-Ablauf. Danach siehst und bearbeitest du ausschließlich dessen Regeln; Geräte werden unabhängig davon im Reiter Geräte verwaltet."}
       </PageGuide>
       {error ? <div className="mb-4 rounded-lg border border-redbrand/30 bg-redbrand/10 p-3 text-sm font-semibold text-ink">{error}</div> : null}
       <div className="space-y-4">
         <Panel className={templatesView ? "" : "hidden"}>
-          <div className="flex items-center gap-2"><FolderKanban className="h-5 w-5 text-redbrand" /><h2 className="text-lg font-semibold text-ink">Session-Vorlagen</h2></div>
+          <div className="flex items-center gap-2"><FolderKanban className="h-5 w-5 text-redbrand" /><h2 className="text-lg font-semibold text-ink">Session-Abläufe</h2></div>
           <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
             <div className="space-y-2">
               {templates.map((template) => (
@@ -818,7 +819,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                 </Link>
               ))}
               <details className="rounded-md border border-dashed border-line bg-paper p-3">
-                <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">+ Neue Vorlage</summary>
+                <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">+ Neuen Ablauf anlegen</summary>
                 <form action={saveTemplate} className="mt-3 space-y-3">
                   <Field label="Name"><input name="name" className={inputClass} required placeholder="z. B. Segufix" /></Field>
                   <Field label="Voreingestellter Tracker"><select name="defaultTrackerTypeId" className={inputClass} required><option value="">Bitte wählen</option>{trackerTypes.map((tracker) => <option key={tracker.id} value={tracker.id}>{tracker.title}</option>)}</select></Field>
@@ -827,7 +828,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                   <Field label="Session starten"><input name="startTrigger" className={inputClass} placeholder="z. B. Alexa: Segufix Session" /></Field>
                   <Field label="Vorzeitiges Öffnen"><input name="remoteRelease" className={inputClass} placeholder="z. B. Telegram: Öffnen" /></Field>
                   <Field label="Unabhängige Notöffnung"><input name="emergencyRelease" className={inputClass} placeholder="z. B. physische Notfreigabe" /></Field>
-                  <SubmitButton pendingLabel="Legt an...">Vorlage anlegen</SubmitButton>
+                  <SubmitButton pendingLabel="Legt an...">Ablauf anlegen</SubmitButton>
                 </form>
               </details>
             </div>
@@ -851,10 +852,10 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                       <Field label="Unabhängige Notöffnung"><input name="emergencyRelease" className={inputClass} defaultValue={String(selectedWorkflow.emergencyRelease || "")} /></Field>
                     </div>
                   </div>
-                  <div className="sm:col-span-2"><SubmitButton pendingLabel="Speichert...">Vorlage speichern</SubmitButton></div>
+                  <div className="sm:col-span-2"><SubmitButton pendingLabel="Speichert...">Ablauf speichern</SubmitButton></div>
                 </form>
               </div>
-            ) : <SoftPanel>Lege zuerst eine Session-Vorlage an. Danach kannst du ihr Regeln zuordnen.</SoftPanel>}
+            ) : <SoftPanel>Lege zuerst einen Session-Ablauf an. Danach kannst du ihm Regeln zuordnen.</SoftPanel>}
           </div>
         </Panel>
 
@@ -1121,10 +1122,10 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
         <Panel className={rulesView ? "" : "hidden"}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-ink">Session-Vorlage auswählen</h2>
-              <p className="mt-1 text-sm text-graphite">Regeln gehören immer genau zu einer Vorlage.</p>
+              <h2 className="text-base font-semibold text-ink">Session-Ablauf auswählen</h2>
+              <p className="mt-1 text-sm text-graphite">Regeln gehören immer genau zu einem Ablauf.</p>
             </div>
-            <Link href={`/settings/automation?view=templates${selectedTemplateQuery}`} className="text-sm font-semibold text-redbrand hover:underline">Vorlage bearbeiten</Link>
+            <Link href={`/settings/automation?view=templates${selectedTemplateQuery}`} className="text-sm font-semibold text-redbrand hover:underline">Ablauf bearbeiten</Link>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {templates.map((template) => (
@@ -1136,8 +1137,8 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
         </Panel>
 
         <Panel className={rulesView ? "" : "hidden"}>
-          <h2 className="text-base font-semibold text-ink">Sichtbarer Ablauf: {selectedTemplate?.name || "Keine Vorlage"}</h2>
-          <p className="mt-1 text-sm text-graphite">Diese Schritte gehören zur Bedienung der Vorlage. Die Regeln darunter übernehmen anschließend den eigentlichen Sessionablauf.</p>
+          <h2 className="text-base font-semibold text-ink">Sichtbarer Ablauf: {selectedTemplate?.name || "Kein Ablauf"}</h2>
+          <p className="mt-1 text-sm text-graphite">Diese Schritte gehören zur Bedienung der Session. Die Regeln darunter übernehmen anschließend den eigentlichen Ablauf.</p>
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {[
               ["1. Vorbereiten", selectedWorkflow.preparation, "Noch kein Vorbereitungsbefehl eingetragen."],
@@ -1158,7 +1159,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
           <div className="mt-4 space-y-4">
             <details className="rounded-lg border border-line bg-paper p-4">
               <summary className="cursor-pointer list-none text-base font-semibold text-ink [&::-webkit-details-marker]:hidden">+ Neue Regel anlegen</summary>
-              <p className="mt-2 text-sm text-graphite">Erstellt eine weitere Regel ausschließlich für die gewählte Vorlage.</p>
+              <p className="mt-2 text-sm text-graphite">Erstellt eine weitere Regel ausschließlich für den gewählten Ablauf.</p>
               <form action={saveRule} className="mt-4 space-y-3">
                 <input type="hidden" name="templateId" value={selectedTemplate?.id || ""} />
                 <Field label="Name"><input name="name" className={inputClass} required /></Field>
@@ -1172,7 +1173,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
             </details>
             <details open className="rounded-lg border border-line bg-paper p-4">
               <summary className="cursor-pointer list-none text-base font-semibold text-ink [&::-webkit-details-marker]:hidden">Bestehende Regeln ({rules.length})</summary>
-              <p className="mt-2 text-sm text-graphite">Hier stehen alle Regeln dieser Vorlage genau einmal. Ziehen ändert nur die übersichtliche Reihenfolge; Auslöser und Zeitlogik bestimmen weiterhin die tatsächliche Ausführung.</p>
+              <p className="mt-2 text-sm text-graphite">Hier stehen alle Regeln dieses Ablaufs genau einmal. Ziehen ändert nur die übersichtliche Reihenfolge; Auslöser und Zeitlogik bestimmen weiterhin die tatsächliche Ausführung.</p>
               <div className="mt-3">
                 <AutomationRuleOrder
                   rules={rules.map((rule) => ({
@@ -1185,7 +1186,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
                   templateId={selectedTemplate?.id}
                 />
               </div>
-              {!rules.length ? <SoftPanel className="mt-3">Für diese Vorlage gibt es noch keine Regel.</SoftPanel> : null}
+              {!rules.length ? <SoftPanel className="mt-3">Für diesen Ablauf gibt es noch keine Regel.</SoftPanel> : null}
             </details>
             {selectedRule ? (
               <Panel id="rule-editor" className="scroll-mt-24">

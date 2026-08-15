@@ -5,7 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { AutomationSessionStartForm } from "@/components/automation-session-start-form";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, inputClass, PageGuide, PageHeader, Panel, SoftPanel } from "@/components/ui";
-import { actionLabels, knownAutomationLabel, labelAutomationValue } from "@/lib/automation-rule-model";
+import { actionLabels, automationRuleSummary, knownAutomationLabel, labelAutomationValue } from "@/lib/automation-rule-model";
 import { currentUser } from "@/lib/auth";
 import { formatDateTime, minutesBetween } from "@/lib/dates";
 import { requireFeature } from "@/lib/features";
@@ -128,7 +128,18 @@ export default async function AutomationPage(props: { searchParams?: Promise<Rec
     }),
     prisma.automationSessionTemplate.findMany({
       where: { tenantId, active: true },
-      select: { id: true, name: true, description: true, defaultTrackerTypeId: true },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        defaultTrackerTypeId: true,
+        workflowJson: true,
+        rules: {
+          where: { active: true },
+          select: { name: true, triggerType: true, triggerJson: true, conditionJson: true, timingJson: true, actionJson: true },
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+        }
+      },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
     }),
     prisma.automationSession.findMany({
@@ -173,6 +184,30 @@ export default async function AutomationPage(props: { searchParams?: Promise<Rec
   const running = sessions.filter((session) => session.state === "RUNNING" || session.state === "PENDING_END");
   const history = sessions.filter((session) => session.state !== "RUNNING" && session.state !== "PENDING_END");
   const cameraCapabilities = devices.flatMap((device) => device.capabilities.filter((capability) => capability.kind.toLowerCase() === "camera").map((capability) => ({ device, capability })));
+  const startCapabilities = devices.flatMap((device) => device.capabilities.map((capability) => ({
+    id: capability.id,
+    kind: capability.kind as "Camera" | "Switch" | "Voice",
+    title: capability.title,
+    deviceId: device.id,
+    deviceName: device.name,
+    state: capability.state,
+    semantic: String(detailsObject(capability.parametersJson).semantic || "") || undefined
+  })));
+  const startDevices = devices.map((device) => ({ id: device.id, name: device.name, health: device.health }));
+  const startTrackers = trackers.map((tracker) => ({ id: tracker.id, title: tracker.title, color: tracker.color }));
+  const startTemplates = templates.map((template) => {
+    const workflow = detailsObject(template.workflowJson);
+    const steps = [
+      workflow.preparation ? `Vorbereiten: ${String(workflow.preparation)}` : "Session vorbereiten",
+      workflow.start ? `Starten: ${String(workflow.start)}` : "Session in Playplaner starten",
+      ...template.rules.map((rule) => automationRuleSummary(rule, { capabilities: startCapabilities, devices: startDevices, trackers: startTrackers }))
+    ];
+    const availableActions = [
+      workflow.remoteRelease ? `Vorzeitig öffnen: ${String(workflow.remoteRelease)}` : null,
+      workflow.emergencyRelease ? `Unabhängige Notöffnung: ${String(workflow.emergencyRelease)}` : null
+    ].filter((item): item is string => Boolean(item));
+    return { id: template.id, name: template.name, description: template.description, defaultTrackerTypeId: template.defaultTrackerTypeId, steps, availableActions };
+  });
 
   return (
     <AppShell>
@@ -180,7 +215,9 @@ export default async function AutomationPage(props: { searchParams?: Promise<Rec
         title="Automation"
         action={
           <nav aria-label="Automation verwalten" className="flex flex-wrap gap-2">
-            <Link href="/settings/automation?view=rules" className="focus-ring inline-flex min-h-11 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-redbrand/90">Regeln</Link>
+            <Link href="/automation" aria-current="page" className="focus-ring inline-flex min-h-11 items-center rounded-md bg-redbrand px-4 py-2 text-sm font-semibold text-white shadow-soft">Session starten</Link>
+            <Link href="/settings/automation?view=templates" className="focus-ring inline-flex min-h-11 items-center rounded-md border border-line bg-paper px-4 py-2 text-sm font-semibold text-ink hover:bg-surface">Abläufe</Link>
+            <Link href="/settings/automation?view=rules" className="focus-ring inline-flex min-h-11 items-center rounded-md border border-line bg-paper px-4 py-2 text-sm font-semibold text-ink hover:bg-surface">Regeln</Link>
             <Link href="/settings/automation?view=devices" className="focus-ring inline-flex min-h-11 items-center rounded-md border border-line bg-paper px-4 py-2 text-sm font-semibold text-ink hover:bg-surface">Geräte</Link>
           </nav>
         }
@@ -192,10 +229,10 @@ export default async function AutomationPage(props: { searchParams?: Promise<Rec
         <div className="space-y-4">
           <Panel>
             <h2 className="text-lg font-semibold text-ink">Session starten</h2>
-            {templates.length ? (
-              <AutomationSessionStartForm action={startAutomation} templates={templates} trackers={trackers} safetyError={error === "safety_required"} />
+            {startTemplates.length ? (
+              <AutomationSessionStartForm action={startAutomation} templates={startTemplates} trackers={trackers} safetyError={error === "safety_required"} />
             ) : (
-              <SoftPanel className="mt-4">Noch keine Session-Vorlage eingerichtet. Ein Administrator kann unter „Session-Vorlagen“ den ersten Ablauf anlegen.</SoftPanel>
+              <SoftPanel className="mt-4">Noch kein Session-Ablauf eingerichtet. Ein Administrator kann unter „Abläufe“ den ersten Ablauf anlegen.</SoftPanel>
             )}
           </Panel>
 
