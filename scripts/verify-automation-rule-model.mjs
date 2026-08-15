@@ -97,6 +97,17 @@ test("Doppelstart bleibt idempotent", () => {
   assert.equal(active.ownerId === "u1" && active.trackerTypeId === "t1" && ["RUNNING", "PENDING_END"].includes(active.state), true);
 });
 
+test("Technische Gerätesynchronisierung flutet nicht den sichtbaren Verlauf", () => {
+  const deviceRoute = readFileSync("src/app/api/external/automation/devices/route.ts", "utf8");
+  const overview = readFileSync("src/app/automation/page.tsx", "utf8");
+  const settings = readFileSync("src/app/settings/automation/page.tsx", "utf8");
+  assert.match(deviceRoute, /const definitionChanged = !existing/);
+  assert.match(deviceRoute, /if \(definitionChanged\)/);
+  assert.match(deviceRoute, /existing \? `Gerät aktualisiert:/);
+  assert.match(overview, /notIn: \["bridge_heartbeat", "device_synced"\]/);
+  assert.match(settings, /notIn: \["bridge_heartbeat", "device_synced"\]/);
+});
+
 test("Automation-Session-Start serialisiert Doppelstarts pro Benutzer und Tracker", () => {
   const service = readFileSync("src/lib/session-automation.ts", "utf8");
   assert.match(service, /pg_advisory_xact_lock/);

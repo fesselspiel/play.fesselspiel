@@ -741,7 +741,7 @@ export default async function AutomationSettingsPage(props: { searchParams?: Pro
     prisma.automationSessionTemplate.findMany({ where: { tenantId: user.tenantId }, include: { defaultTrackerType: true, _count: { select: { rules: true, sessions: true } } }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
     prisma.automationRule.findMany({ where: { tenantId: user.tenantId }, include: { versions: { orderBy: { version: "desc" }, take: 3 } }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
     prisma.automationEvent.findMany({
-      where: { tenantId: user.tenantId, type: { not: "bridge_heartbeat" } },
+      where: { tenantId: user.tenantId, type: { notIn: ["bridge_heartbeat", "device_synced"] } },
       include: {
         actor: { include: { profile: true } },
         session: { select: { id: true, slug: true, title: true, state: true } },
