@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { actionLabel } from "@/lib/notification-actions";
 import { quotaSummaryText, trackerQuotaStatusForUser } from "@/lib/tracker-quotas";
 import { effectivePlayReadyState, nextPlayReadyState, normalizePlayReadyState, playReadyColorLabel, playReadyLabel, playReadyStateToBoolean } from "@/lib/play-ready";
+import { dispatchTrackerQuotaTextRule } from "@/lib/tracker-quota-deliveries";
 
 const defaultTimezone = "Europe/Berlin";
 
@@ -140,6 +141,19 @@ async function executeAction(rule: ScheduledRule, owner: RuleOwner, condition: A
     tenantId: rule.tenantId,
     userId: owner.id
   };
+  if (rule.actionType === "TRACKER_QUOTA_TEXT") {
+    const result = await dispatchTrackerQuotaTextRule(rule, owner);
+    await logAction({
+      actorId: owner.id,
+      action: result.status === "SENT" ? "tracker_quota_delivery_sent" : "tracker_quota_delivery_failed",
+      entityType: "scheduledRule",
+      entityId: rule.id,
+      title: result.status === "SENT" ? `Kontingenttext gesendet: ${rule.name}` : `Kontingenttext fehlgeschlagen: ${rule.name}`,
+      href: "/settings/scheduled",
+      details: result.details
+    });
+    return result;
+  }
   if (rule.actionType === "SET_PLAY_READY") {
     const state = stringValue(action.state, "green");
     const current = effectivePlayReadyState(owner.settings);

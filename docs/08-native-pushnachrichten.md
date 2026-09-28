@@ -57,6 +57,10 @@ Externe Automationen können dieselbe neutrale Erinnerung über `GET` oder `POST
 
 Rückbau nach einem Release-Commit: Commit mit `git revert <commit>` ohne Force-Push zurücknehmen und regulär neu deployen. Die beiden additiven Datenbankspalten können für einen reinen Code-Rückbau bestehen bleiben; ein physischer Schema-Rückbau darf erst erfolgen, wenn keine neu registrierten App-Topics beziehungsweise Intervallwerte mehr benötigt werden.
 
+## Abgrenzung zum API-Versand von Kontingenttexten
+
+Der unter `quota-delivery` konfigurierte zeitgesteuerte API-Versand ist kein APNs-/FCM-Push. Er sendet den vom Benutzer selbst gebauten Kontingenttext an ein von ihm konfiguriertes HTTPS-Ziel. Push-Erinnerungen und externer Textversand besitzen getrennte Schalter, Zeitplaene und Zielsysteme. Das Deaktivieren eines API-Versands veraendert daher keine Tracker-Erinnerungen; umgekehrt loest ein API-Versand keine iPhone-Benachrichtigung aus.
+
 ## Android-Verhalten
 
 - Nach erfolgreichem Login erzeugt Firebase Messaging einen FCM Registration Token.

@@ -1241,3 +1241,16 @@ Details:
 - Die öffentliche Benutzeranleitung verwendet keine fest verdrahteten Tracker-Beispielnamen mehr. Tracker werden dort generisch als pro Seite konfigurierte Tracker beschrieben, damit alte Legacy-Namen nicht wieder in Oberfläche oder Doku auftauchen.
 - Die externe Automation-API besitzt nun einen eigenen Historien-Endpunkt `GET /api/external/automation/sessions/history`. Er liefert beendete Automation-Sessions tenant- und zugriffssicher mit derselben fachlichen Serialisierung wie aktuelle Sessions; Apps und Adapter können optional nach Tracker, Status oder aktiven Sessions filtern.
 - Die externe Automation-API bietet nun zusätzlich `GET /api/external/automation/actions`. Der Endpunkt listet persistierte Actions mit deutschen Action-/Status-/Quellen-/Rollenlabels und technischen Details separat, damit App, Agent, Worker und ioBroker Debugging nicht über rohe Datenbankobjekte machen müssen.
+
+## 2026-09-28: Zeitgesteuerter Kontingenttext fuer PlayTracker
+
+- Pro Benutzer, Seite und Tracker kann PlayTracker genau einen API-Versand fuer den frei konfigurierten Kontingenttext speichern.
+- Die neuen Routen `GET/PUT/PATCH/DELETE /api/external/trackers/{trackerKey}/quota-delivery` und `POST /api/external/trackers/{trackerKey}/quota-delivery/test` verwenden die bestehende Bearer-Authentifizierung, den effektiven Benutzerkontext, Feature-Gates und die mandantengebundene Tracker-Sichtbarkeit.
+- Die serverseitige Vorlagenauflösung entspricht der App. Statusvariablen liefern kurze Aussagen; Dauerwerte liefern ausgeschriebene Zeit; neue `*_minuten`-Variablen liefern reine Ganzzahlen in Minuten. Werte fuer aktive Tage sind reine Anzahlen von Kalendertagen des aktuellen Monats.
+- Zeitplaene verwenden die vorhandene `ScheduledRule`-Tabelle und den vorhandenen Cron. Es gibt deshalb keine Schemaaenderung oder Datenbankmigration.
+- Erlaubt sind taegliche, woechentliche, monatliche und Intervall-Zeitplaene sowie die Bedingungen immer, Kontingent offen oder Kontingent erreicht.
+- Ausgehende Requests erlauben `GET`, `POST`, `PUT` und `PATCH` als Rohtext, benanntes JSON-Feld oder Query-Parameter. Optionale Bearer- und eigene Header-Geheimnisse werden mit der vorhandenen Secret-Verschluesselung gespeichert und nicht zurueckgegeben.
+- Ziele muessen HTTPS verwenden. Lokale/private/reservierte Adressen, Zugangsdaten in der URL und Weiterleitungen sind gesperrt; DNS-Ziele werden vor dem Versand auf private Adressen geprueft. Der Request besitzt ein Timeout von zehn Sekunden.
+- Auditdetails enthalten nur Tracker-Key, Zielhost, Methode, HTTP-Status und Zeichenanzahl, niemals Nachrichtentext oder Zielgeheimnis. Die speziellen App-Regeln sind aus dem allgemeinen Zeitregel-Editor ausgeblendet, damit ihr Sicherheitsformat nicht versehentlich veraendert wird.
+- Verifikation: Prisma-Generierung, TypeScript-Typecheck, Produktionsbuild, alle 53 vorhandenen Automationstests sowie 6 neue Vertrags-/Sicherheitstests fuer den Kontingentversand sind erfolgreich.
+- Rueckbau nach Release: `git revert <Release-Commit>` ohne Force-Push, danach regulaer neu deployen. Es ist weder eine Rueckmigration noch ein Loeschen vorhandener Datenbankspalten erforderlich; mit dem Revert werden die neuen Routen und die Ausfuehrung entfernt.

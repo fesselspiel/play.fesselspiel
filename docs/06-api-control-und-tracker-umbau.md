@@ -161,6 +161,23 @@ Der Cron erzeugt nur bei einem tatsächlich offenen Kontingent und einer fällig
 
 Der externe Tracker-Webhook kann mit `delayMinutes` eine persistente, zeitversetzte Erinnerung anlegen. Vor dem Versand wird das offene Kontingent erneut geprüft. Der Zielzeitpunkt ist minutengenau; die tatsächliche Zustellung erfolgt beim nächsten Tracker-Cron und damit regulär innerhalb von 15 Minuten nach dem Zielzeitpunkt.
 
+## Zeitgesteuerter Kontingenttext an externe APIs
+
+PlayTracker kann den vom Benutzer konfigurierten Kontingenttext serverseitig und zeitgesteuert an ein externes HTTPS-Ziel senden. Die Konfiguration ist immer an authentifizierten Benutzer, aktuelle Seite und sichtbaren Tracker gebunden:
+
+- `GET /api/external/trackers/{trackerKey}/quota-delivery` liest Konfiguration und aktuelle Vorschau.
+- `PUT` oder `PATCH /api/external/trackers/{trackerKey}/quota-delivery` speichert Aktivierung, Zeitplan, Bedingung, Vorlage und API-Ziel.
+- `DELETE /api/external/trackers/{trackerKey}/quota-delivery` entfernt die Konfiguration.
+- `POST /api/external/trackers/{trackerKey}/quota-delivery/test` fuehrt die gespeicherte Konfiguration einmal sofort aus.
+
+Zeitplaene verwenden `DAILY`, `WEEKLY`, `MONTHLY` oder `INTERVAL`. `timeOfDayMinutes`, `daysOfWeek`, `dayOfMonth`, `intervalMinutes` und `timezone` besitzen dieselbe Semantik wie die vorhandenen serverseitigen Zeitregeln. `sendCondition` ist `ALWAYS`, `OPEN` oder `DONE`. Der Cron verarbeitet faellige Regeln im vorhandenen 15-Minuten-Raster und setzt die Kontingentwerte erst beim Versand in die Vorlage ein.
+
+Die Zeitvariablen `{{heute_erfasst_minuten}}`, `{{heute_ziel_minuten}}`, `{{heute_offen_minuten}}` sowie ihre Wochen- und Monatsvarianten enthalten reine Zahlen mit der Einheit Minuten. Die Variablen `{{aktive_tage_erreicht}}`, `{{aktive_tage_ziel}}` und `{{aktive_tage_offen}}` enthalten reine Anzahlen von Kalendertagen des aktuellen Monats. Ein aktiver Kalendertag ist ein Tag mit mindestens einem Tracker-Eintrag. Daneben bleiben die lesbaren Dauer- und Statusvariablen kompatibel.
+
+Der Request unterstuetzt `GET`, `POST`, `PUT` und `PATCH`. `TEXT` sendet `text/plain`, `JSON` sendet den Text in `fieldName`, und `QUERY` sendet ihn URL-kodiert als Parameter. `GET` verwendet immer `QUERY`. Als Zielauthentifizierung sind `NONE`, `BEARER` und `HEADER` moeglich. Das Geheimnis wird verschluesselt gespeichert, beim Lesen nur als `secretConfigured` dargestellt und nie in Auditlogs aufgenommen.
+
+SSRF-Schutz: nur HTTPS, keine URL-Zugangsdaten, keine lokalen oder privaten/reservierten IP-Bereiche, DNS-Aufloesung vor dem Versand, keine Weiterleitungen und zehn Sekunden Timeout. Antworttexte fremder Ziele werden weder gespeichert noch an die App durchgereicht. Die Logs enthalten nur sichere Metadaten.
+
 ## Nachgezogen nach Review
 
 - Die API-Control-Server-Actions pruefen jetzt selbst auf Admin/Super-Admin, nicht nur die Seite.

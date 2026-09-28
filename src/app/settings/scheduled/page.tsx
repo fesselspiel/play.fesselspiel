@@ -10,6 +10,7 @@ import { notificationActionOptions } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
 import { initialNextRun, scheduleSummary } from "@/lib/scheduled-rules";
 import { currentTenant } from "@/lib/tenancy";
+import { TRACKER_QUOTA_TEXT_ACTION } from "@/lib/tracker-quota-deliveries";
 
 const minuteOptions = ["00", "15", "30", "45"];
 const weekdays = [
@@ -249,7 +250,7 @@ export default async function ScheduledRulesPage(props: { searchParams?: Promise
   const tenant = await currentTenant();
   if (!tenant) redirect("/");
   const [rules, trackers, auditActions] = await Promise.all([
-    prisma.scheduledRule.findMany({ where: { tenantId: tenant.id, ownerId: user.id }, include: { runs: { orderBy: { createdAt: "desc" }, take: 3 } }, orderBy: { createdAt: "desc" } }),
+    prisma.scheduledRule.findMany({ where: { tenantId: tenant.id, ownerId: user.id, actionType: { not: TRACKER_QUOTA_TEXT_ACTION } }, include: { runs: { orderBy: { createdAt: "desc" }, take: 3 } }, orderBy: { createdAt: "desc" } }),
     prisma.trackerType.findMany({ where: { enabled: true, OR: [{ tenantId: tenant.id }, { tenantId: null }] }, orderBy: { title: "asc" } }),
     prisma.auditLog.findMany({ distinct: ["action"], select: { action: true }, orderBy: { action: "asc" } })
   ]);

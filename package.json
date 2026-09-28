@@ -25,7 +25,8 @@
     "test:media-access:live": "node scripts/verify-media-access-live.js",
     "test:view-context:live": "node scripts/verify-view-context-isolation-live.js",
     "test:clamav": "node scripts/verify-clamav-instream.js",
-    "test:automation": "node --test scripts/verify-automation-rule-model.mjs"
+    "test:automation": "node --test scripts/verify-automation-rule-model.mjs",
+    "test:tracker-quota-delivery": "node --test scripts/verify-tracker-quota-delivery.mjs"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",
