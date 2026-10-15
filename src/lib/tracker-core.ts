@@ -22,6 +22,52 @@ export async function uniqueTrackerSlug(trackerTypeId: string, key: string, star
   }
 }
 
+export class TrackerEntryMoveError extends Error {
+  constructor(public readonly code: "entry_running" | "destination_conflict") {
+    super(code);
+    this.name = "TrackerEntryMoveError";
+  }
+}
+
+export async function moveTrackerEntryToType(input: {
+  entry: {
+    id: string;
+    trackerTypeId: string;
+    startTime: Date;
+    endTime: Date | null;
+    allDay: boolean;
+    legacyType: string | null;
+    legacyId: string | null;
+  };
+  target: { id: string; key: string };
+}) {
+  if (input.entry.trackerTypeId === input.target.id) {
+    return prisma.trackerEntry.findUnique({ where: { id: input.entry.id }, include: { trackerType: true } });
+  }
+  if (!input.entry.allDay && !input.entry.endTime) throw new TrackerEntryMoveError("entry_running");
+  if (input.entry.legacyType && input.entry.legacyId) {
+    const conflict = await prisma.trackerEntry.findFirst({
+      where: {
+        trackerTypeId: input.target.id,
+        legacyType: input.entry.legacyType,
+        legacyId: input.entry.legacyId,
+        id: { not: input.entry.id }
+      },
+      select: { id: true }
+    });
+    if (conflict) throw new TrackerEntryMoveError("destination_conflict");
+  }
+  const slug = await uniqueTrackerSlug(input.target.id, input.target.key, input.entry.startTime, input.entry.id);
+  return prisma.trackerEntry.update({
+    where: { id: input.entry.id },
+    data: {
+      trackerTypeId: input.target.id,
+      slug
+    },
+    include: { trackerType: true }
+  });
+}
+
 export async function findTrackerTypeForUser(key: string, user: { id: string; tenantId?: string | null }) {
   if (user.tenantId) {
     const tenantTracker = await prisma.trackerType.findFirst({

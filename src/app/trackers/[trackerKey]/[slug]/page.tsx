@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
-import { ArrowLeft, Play, Save, Square, Trash2 } from "lucide-react";
+import { ArrowLeft, MoveRight, Play, Save, Square, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { SubmitButton } from "@/components/submit-button";
 import { TrackerLinkedCards, TrackerLinkPicker } from "@/components/tracker-link-picker";
@@ -10,11 +10,12 @@ import { ownerScope } from "@/lib/access";
 import { logAction, userDisplayName } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
 import { formatDate, formatDateInput, formatDateTime, formatDateTimeLocal, formatMinutes, minutesBetween, parseDateInput, parseDateTimeLocal } from "@/lib/dates";
-import { hasFeature, requireFeature } from "@/lib/features";
+import { featureEnabled, hasFeature, requireFeature } from "@/lib/features";
 import { deleteOwnedFile, fileAssetUrl, saveUploadedFile } from "@/lib/files";
 import { prisma } from "@/lib/prisma";
+import { currentTenant } from "@/lib/tenancy";
 import { fieldOptions, fieldValuesFromForm, trackerFields } from "@/lib/tracker-fields";
-import { startTrackerEntry, stopTrackerEntry } from "@/lib/tracker-core";
+import { findTrackerTypeForUser, moveTrackerEntryToType, startTrackerEntry, stopTrackerEntry, TrackerEntryMoveError, trackerTypesForUser } from "@/lib/tracker-core";
 import { trackerLinkConnectData, trackerLinkOptionData, trackerLinkOptions } from "@/lib/tracker-links";
 
 function readableFieldLabel(key: string, fields: unknown) {
@@ -110,6 +111,42 @@ async function updateEntry(formData: FormData) {
     href: `/trackers/${entry.trackerType.key}/${updated.slug || updated.id}`
   });
   redirect(`/trackers/${entry.trackerType.key}/${updated.slug || updated.id}`);
+}
+
+async function moveEntry(formData: FormData) {
+  "use server";
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const id = String(formData.get("id") || "");
+  const trackerKey = String(formData.get("trackerKey") || "").trim().toLowerCase();
+  const entry = await prisma.trackerEntry.findFirst({ where: { id, ...(await ownerScope(user)) }, include: { trackerType: true } });
+  if (!entry || entry.ownerId !== user.id) notFound();
+  if (!trackerKey) redirect(`/trackers/${entry.trackerType.key}/${entry.slug || entry.id}`);
+  await requireFeature(`tracker.${entry.trackerType.key}`);
+  await requireFeature(`tracker.${trackerKey}`);
+  const target = await findTrackerTypeForUser(trackerKey, user);
+  if (!target) notFound();
+  try {
+    const moved = await moveTrackerEntryToType({ entry, target });
+    if (!moved) notFound();
+    if (entry.trackerTypeId !== target.id) {
+      await logAction({
+        actorId: user.id,
+        action: "tracker_entry_moved",
+        entityType: "trackerEntry",
+        entityId: moved.id,
+        title: `Tracker-Eintrag verschoben: ${entry.trackerType.title} → ${target.title}`,
+        href: `/trackers/${target.key}/${moved.slug || moved.id}`,
+        details: { fromTrackerKey: entry.trackerType.key, toTrackerKey: target.key }
+      });
+    }
+    redirect(`/trackers/${target.key}/${moved.slug || moved.id}`);
+  } catch (error) {
+    if (error instanceof TrackerEntryMoveError) {
+      redirect(`/trackers/${entry.trackerType.key}/${entry.slug || entry.id}?moveError=${error.code}`);
+    }
+    throw error;
+  }
 }
 
 async function addTrackerImage(formData: FormData) {
@@ -229,8 +266,9 @@ async function deleteEntry(formData: FormData) {
   redirect(`/sessions?tracker=${entry.trackerType.key}&year=${entry.startTime.getFullYear()}`);
 }
 
-export default async function TrackerEntryPage(props: { params: Promise<{ trackerKey: string; slug: string }> }) {
+export default async function TrackerEntryPage(props: { params: Promise<{ trackerKey: string; slug: string }>; searchParams: Promise<{ moveError?: string }> }) {
   const params = await props.params;
+  const searchParams = await props.searchParams;
   const user = await currentUser();
   if (!user) redirect("/login");
   await requireFeature(`tracker.${params.trackerKey}`);
@@ -251,6 +289,15 @@ export default async function TrackerEntryPage(props: { params: Promise<{ tracke
     }
   });
   if (!entry) notFound();
+  const tenant = await currentTenant();
+  const availableTrackerRows = await trackerTypesForUser(user);
+  const moveTargets = Array.from(
+    availableTrackerRows
+      .filter((tracker) => featureEnabled(tenant?.features, `tracker.${tracker.key}`))
+      .sort((a, b) => Number(Boolean(b.tenantId)) - Number(Boolean(a.tenantId)))
+      .reduce((map, tracker) => map.has(tracker.key) ? map : map.set(tracker.key, tracker), new Map<string, typeof availableTrackerRows[number]>())
+      .values()
+  ).sort((a, b) => a.title.localeCompare(b.title, "de"));
   const fieldValues = entry.fieldValues && typeof entry.fieldValues === "object" ? entry.fieldValues as Record<string, unknown> : {};
   const editableFields = trackerFields(entry.trackerType.fields);
   const linkFeatures = {
@@ -442,6 +489,23 @@ export default async function TrackerEntryPage(props: { params: Promise<{ tracke
                 />
                 <SubmitButton pendingLabel="Eintrag wird gespeichert..."><Save className="h-4 w-4" /> Eintrag speichern</SubmitButton>
               </form>
+              {moveTargets.length > 1 ? (
+                <div className="mt-5 border-t border-line pt-5">
+                  <h3 className="mb-2 font-semibold">Eintrag verschieben</h3>
+                  <p className="mb-3 text-sm leading-6 text-graphite">Zeit, Dauer, Notiz, Bilder und Verknüpfungen bleiben unverändert. Nur die Zuordnung zum Tracker wird gewechselt.</p>
+                  {searchParams.moveError === "entry_running" ? <p className="mb-3 text-sm font-medium text-redbrand">Beende den laufenden Eintrag zuerst, bevor du ihn verschiebst.</p> : null}
+                  {searchParams.moveError === "destination_conflict" ? <p className="mb-3 text-sm font-medium text-redbrand">Im Zieltracker existiert bereits der zugehörige importierte Eintrag. Es wurde nichts verändert.</p> : null}
+                  <form action={moveEntry} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                    <input type="hidden" name="id" value={entry.id} />
+                    <Field label="Zieltracker">
+                      <select className={inputClass} name="trackerKey" defaultValue={entry.trackerType.key}>
+                        {moveTargets.map((tracker) => <option key={tracker.id} value={tracker.key}>{tracker.title}</option>)}
+                      </select>
+                    </Field>
+                    <SubmitButton pendingLabel="Eintrag wird verschoben..."><MoveRight className="h-4 w-4" /> Verschieben</SubmitButton>
+                  </form>
+                </div>
+              ) : null}
               <form action={deleteEntry} className="mt-3">
                 <input type="hidden" name="id" value={entry.id} />
                 <SubmitButton pendingLabel="Eintrag wird gelöscht..." className="border border-redbrand !bg-surface !text-redbrand hover:!bg-redbrand hover:!text-white">

@@ -150,6 +150,7 @@ Listen aus Slash-Commands und Agent-Suchen werden im Webhook beziehungsweise in 
 - `src/app/api/external/trackers/[trackerKey]/start/route.ts`
 - `src/app/api/external/trackers/[trackerKey]/stop/route.ts`
 - `src/app/api/external/trackers/history/route.ts`
+- `src/app/api/external/trackers/history/[id]/move/route.ts`: verschiebt einen bestehenden, beendeten Tracker-Eintrag ohne Kopieren oder Loeschen in einen anderen aktivierten Tracker.
 - `src/app/api/external/trackers/quotas/route.ts`
 - `src/app/api/external/automation/sessions/route.ts`
 - `src/app/api/external/automation/sessions/history/route.ts`

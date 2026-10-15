@@ -119,6 +119,13 @@ Tracker-Historie fuer native Kalender:
 - `GET /api/external/trackers/history?from=YYYY-MM-DD&to=YYYY-MM-DD`
 - optional `trackerKey={key}`
 
+Verschieben eines bestehenden Eintrags:
+
+- `POST /api/external/trackers/history/{id}/move`
+- JSON-Body: `{ "trackerKey": "ziel-key" }`
+- Die Route aendert ausschliesslich `trackerTypeId` und den eindeutigen Ziel-Slug. Inhalt, Zeitdaten, Dauer, Medien und Relationen bleiben an derselben Eintrags-ID erhalten.
+- Laufende Eintraege liefern `409 entry_running`; ein kollidierender importierter Legacy-Eintrag liefert `409 destination_conflict`. In beiden Faellen wird nichts geaendert.
+
 Der Endpunkt liefert echte `TrackerEntry`-Datensaetze im Zeitraum, keine Protokoll- oder Reminder-Ereignisse. Das Shape enthaelt bewusst Alias-Felder fuer native Apps: `trackerKey`/`key`, `trackerTitle`/`trackerName`, `startedAt`/`startTime`, `date`/`calendarDate`, `endedAt`/`endTime`, `durationMinutes`/`minutes` und `allDay`.
 
 ## Build-Fixes waehrend Docker-Verifikation

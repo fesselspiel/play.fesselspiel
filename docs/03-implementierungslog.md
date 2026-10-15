@@ -70,6 +70,7 @@ Dieses Log fasst zusammen, was bisher im Projekt gebaut wurde. Neue Änderungen 
 - Neue native Routen: `GET|POST /api/external/trackers/history/{id}/images` und `GET|PATCH|DELETE /api/external/trackers/history/{id}/images/{imageId}`.
 - Export/Import nimmt Tracker-Typen, Tracker-Eintraege und Tracker-Fotos inklusive geschuetzter Dateien mit.
 - Externe Apps koennen Tracker-Eintraege ueber `POST /api/external/trackers/history` anlegen. Der Contract akzeptiert `trackerKey`, `notes`, `allDay`, `date`, `startTime`, `durationMinutes`, `endTime`, `fieldValues` und Verknuepfungs-IDs.
+- Tracker-Eintraege lassen sich im Web auf der Detailseite und per `POST /api/external/trackers/history/{id}/move` einem anderen aktivierten Tracker zuordnen. Die Operation behaelt ID, Zeiten, Dauer, Notiz, Bilder, Zusatzfelder und Verknuepfungen; geaendert werden nur Tracker-Zuordnung und der fuer die Zielroute erforderliche eindeutige Slug. Laufende Eintraege und Legacy-Konflikte werden vor dem Update abgewiesen.
 - Fuer native Echtzeit-Ansichten gibt es `GET /api/external/trackers/stream` als Bearer-authentifizierten SSE-Stream mit initialem `snapshot`, `tracker_updated`-Events und Keepalives.
 - Tracker-History `POST` und `PATCH` behandeln ISO-Zeitstempel mit `Z` oder Offset als absolute Instants; lokale Zeitstempel ohne Offset bleiben Berlin-Wandzeit.
 - Tracker-Kontingente liefern in `GET /api/external/trackers/quotas`, `GET /api/external/status` und im Tracker-SSE-Stream jetzt stabile `eventId`-Anker, `canComment`, `commentCount`, Likes und `engagement.comments`.
